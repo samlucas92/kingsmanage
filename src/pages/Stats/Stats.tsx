@@ -1,8 +1,8 @@
 import { useState } from "react";
-import Table from "../../components/table/table";
-import TableHeader from "../../components/table/tableHeader";
 import TableRow from "../../components/table/TableRow";
-import type { PlayerStats, Column } from "../../components/table/tableHeader";
+import type { Column, PlayerStats } from "../../components/table/TableHeader";
+import Table from "../../components/table/Table";
+import TableHeader from "../../components/table/TableHeader";
 
 const dummyStats: PlayerStats[] = [
   {

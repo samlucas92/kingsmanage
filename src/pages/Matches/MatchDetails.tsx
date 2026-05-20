@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useMatchStore } from "../../stores/match";
 import Modal from "../../components/compositions/Modal";
 import LinkButton from "../../components/compositions/LinkButton";
+import TeamPicker from "./components/TeamPicker";
 
 export default function MatchDetail() {
   const { id } = useParams();
@@ -62,7 +63,7 @@ export default function MatchDetail() {
         </div>
 
         <div className="mt-6 rounded-xl border border-dashed border-gray-300 bg-green-50 min-h-[420px] flex items-center justify-center text-gray-500">
-          Drag and drop pitch/team picker goes here
+			<TeamPicker matchId={match.id} />
         </div>
       </section>
 
