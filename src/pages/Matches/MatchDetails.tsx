@@ -18,6 +18,9 @@ export default function MatchDetail() {
 
   const [showPostponeModal, setShowPostponeModal] = useState(false);
   const [newDate, setNewDate] = useState("");
+	const toggleLineupLocked = useMatchStore(
+	(state) => state.toggleLineupLocked
+	);
 
   if (!match) return <p>Match not found.</p>;
 
@@ -57,9 +60,18 @@ export default function MatchDetail() {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-blue-900">Team Selection</h2>
 
-          <button className="rounded-lg bg-blue-900 px-4 py-2 text-sm text-white">
-            Save Team
-          </button>
+			<button
+				type="button"
+				onClick={() => toggleLineupLocked(match.id)}
+				disabled={match.selectedPlayers.length === 0}
+				className={`rounded-xl px-5 py-3 text-sm font-semibold shadow-sm disabled:cursor-not-allowed disabled:opacity-50 ${
+					match.isLineupLocked
+					? "bg-slate-900 text-white hover:bg-slate-800"
+					: "bg-blue-700 text-white hover:bg-blue-800"
+				}`}
+				>
+				{match.isLineupLocked ? "Edit Team" : "Save Team"}
+			</button>
         </div>
 
         <div className="mt-6 rounded-xl border border-dashed border-gray-300 bg-green-50 min-h-[420px] flex items-center justify-center text-gray-500">

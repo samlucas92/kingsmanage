@@ -2,6 +2,8 @@ import { create } from "zustand";
 
 export type MatchState = "upcoming" | "won" | "lost" | "draw" | "postponed";
 
+export type LineupFormation = "4-4-2" | "4-3-3" | "3-5-2" | "4-2-3-1";
+
 export type PostponementAudit = {
   id: string;
   oldDate: string;
@@ -20,6 +22,7 @@ export type SelectedPlayer = {
   x: number;
   y: number;
   area: "pitch" | "bench";
+  positionIndex?: number;
 };
 
 export type Match = {
@@ -30,6 +33,8 @@ export type Match = {
   state: MatchState;
   result?: MatchResult;
   isCompleted: boolean;
+  isLineupLocked: boolean;
+  selectedFormation: LineupFormation;
   postponements: PostponementAudit[];
   selectedPlayers: SelectedPlayer[];
 };
@@ -46,9 +51,9 @@ type MatchStore = {
     selectedPlayers: SelectedPlayer[]
   ) => void;
 
-  upsertSelectedPlayer: (
+  setLineupFormation: (
     matchId: string,
-    selectedPlayer: SelectedPlayer
+    formation: LineupFormation
   ) => void;
 
   updateSelectedPlayerPosition: (
@@ -56,10 +61,13 @@ type MatchStore = {
     playerId: string,
     x: number,
     y: number,
-    area?: "pitch" | "bench"
+    area?: "pitch" | "bench",
+    positionIndex?: number
   ) => void;
 
   removeSelectedPlayer: (matchId: string, playerId: string) => void;
+
+  toggleLineupLocked: (matchId: string) => void;
 };
 
 export const useMatchStore = create<MatchStore>((set) => ({
@@ -71,6 +79,8 @@ export const useMatchStore = create<MatchStore>((set) => ({
       venue: "home",
       state: "upcoming",
       isCompleted: false,
+      isLineupLocked: false,
+      selectedFormation: "4-4-2",
       postponements: [],
       selectedPlayers: [],
     },
@@ -82,6 +92,8 @@ export const useMatchStore = create<MatchStore>((set) => ({
       state: "won",
       result: { homeGoals: 3, awayGoals: 1 },
       isCompleted: true,
+      isLineupLocked: false,
+      selectedFormation: "4-4-2",
       postponements: [],
       selectedPlayers: [],
     },
@@ -135,44 +147,43 @@ export const useMatchStore = create<MatchStore>((set) => ({
 
   setSelectedPlayers: (matchId, selectedPlayers) =>
     set((state) => ({
-      matches: state.matches.map((match) =>
-        match.id === matchId
-          ? {
-              ...match,
-              selectedPlayers,
-            }
-          : match
-      ),
-    })),
-
-  upsertSelectedPlayer: (matchId, selectedPlayer) =>
-    set((state) => ({
       matches: state.matches.map((match) => {
-        if (match.id !== matchId) {
+        if (match.id !== matchId || match.isLineupLocked) {
           return match;
         }
 
-        const alreadySelected = match.selectedPlayers.some(
-          (player) => player.playerId === selectedPlayer.playerId
-        );
-
         return {
           ...match,
-          selectedPlayers: alreadySelected
-            ? match.selectedPlayers.map((player) =>
-                player.playerId === selectedPlayer.playerId
-                  ? selectedPlayer
-                  : player
-              )
-            : [...match.selectedPlayers, selectedPlayer],
+          selectedPlayers,
         };
       }),
     })),
 
-  updateSelectedPlayerPosition: (matchId, playerId, x, y, area) =>
+  setLineupFormation: (matchId, formation) =>
     set((state) => ({
       matches: state.matches.map((match) => {
-        if (match.id !== matchId) {
+        if (match.id !== matchId || match.isLineupLocked) {
+          return match;
+        }
+
+        return {
+          ...match,
+          selectedFormation: formation,
+        };
+      }),
+    })),
+
+  updateSelectedPlayerPosition: (
+    matchId,
+    playerId,
+    x,
+    y,
+    area,
+    positionIndex
+  ) =>
+    set((state) => ({
+      matches: state.matches.map((match) => {
+        if (match.id !== matchId || match.isLineupLocked) {
           return match;
         }
 
@@ -188,6 +199,7 @@ export const useMatchStore = create<MatchStore>((set) => ({
               x,
               y,
               area: area ?? selectedPlayer.area,
+              positionIndex,
             };
           }),
         };
@@ -196,13 +208,27 @@ export const useMatchStore = create<MatchStore>((set) => ({
 
   removeSelectedPlayer: (matchId, playerId) =>
     set((state) => ({
+      matches: state.matches.map((match) => {
+        if (match.id !== matchId || match.isLineupLocked) {
+          return match;
+        }
+
+        return {
+          ...match,
+          selectedPlayers: match.selectedPlayers.filter(
+            (player) => player.playerId !== playerId
+          ),
+        };
+      }),
+    })),
+
+  toggleLineupLocked: (matchId) =>
+    set((state) => ({
       matches: state.matches.map((match) =>
         match.id === matchId
           ? {
               ...match,
-              selectedPlayers: match.selectedPlayers.filter(
-                (player) => player.playerId !== playerId
-              ),
+              isLineupLocked: !match.isLineupLocked,
             }
           : match
       ),
