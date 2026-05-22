@@ -5,18 +5,16 @@ import {
   type DragMoveEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { Fragment, useRef, useState, type MouseEvent } from "react";
+import { useRef, useState, type MouseEvent } from "react";
 import { usePlayerStore } from "../../../stores/players";
 import { useMatchStore } from "../../../stores/match";
 import type { LineupFormation, SelectedPlayer } from "../../../stores/match";
 import { formations } from "./team-picker/formations";
-import {
-  AvailablePlayer,
-  BenchPlayer,
-  DragOverlayPlayer,
-  SelectedPitchPlayer,
-} from "./team-picker/PlayerCards";
+import { DragOverlayPlayer } from "./team-picker/PlayerCards";
 import { FloatingPlayerAssignMenu } from "./team-picker/FloatingPlayerAssignMenu";
+import { TeamPitch } from "./team-picker/TeamPitch";
+import { TeamBench } from "./team-picker/TeamBench";
+import { AvailablePlayersPanel } from "./team-picker/AvailablePlayersPanel";
 import type { DragData, OpenPlayerMenu } from "./team-picker/Types";
 
 interface TeamPickerProps {
@@ -521,42 +519,12 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
       onDragCancel={handleDragCancel}
     >
       <div className="grid items-start gap-4 lg:grid-cols-[260px_1fr]">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold text-slate-900">
-              Available players
-            </h3>
-
-            <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
-              {availablePlayers.length}
-            </span>
-          </div>
-
-          {isLineupLocked && (
-            <p className="mb-3 rounded-lg bg-blue-50 px-3 py-2 text-xs font-medium text-blue-800">
-              Team saved. Click Edit Team to make changes.
-            </p>
-          )}
-
-          <div className="relative space-y-2 overflow-visible pr-1">
-            {availablePlayers.map((player) => (
-              <AvailablePlayer
-                key={player.id}
-                id={player.id}
-                name={player.name}
-                disabled={isLineupLocked}
-                isMenuOpen={openMenu?.playerId === player.id}
-                onOpenMenu={(event) => openPlayerMenu(player.id, event)}
-              />
-            ))}
-
-            {availablePlayers.length === 0 && (
-              <p className="text-sm text-slate-500">
-                All active players are already selected.
-              </p>
-            )}
-          </div>
-        </div>
+        <AvailablePlayersPanel
+          availablePlayers={availablePlayers}
+          isLineupLocked={isLineupLocked}
+          openMenuPlayerId={openMenu?.playerId}
+          onOpenPlayerMenu={openPlayerMenu}
+        />
 
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -596,110 +564,29 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
             </div>
           </div>
 
-          <div
-            ref={pitchRef}
-            className={`relative h-[360px] w-full overflow-hidden rounded-xl border-4 bg-green-700 shadow-sm ${
-              isOverPitch ? "border-yellow-300" : "border-white"
-            }`}
-          >
-            <div className="absolute inset-4 rounded-lg border-2 border-white/80" />
-            <div className="absolute left-4 top-4 h-0.5 w-[calc(100%-2rem)] bg-white/80" />
-            <div className="absolute left-1/2 top-4 h-28 w-28 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/80" />
-            <div className="absolute bottom-4 left-1/2 h-28 w-56 -translate-x-1/2 border-2 border-b-0 border-white/80" />
-            <div className="absolute bottom-4 left-1/2 h-12 w-28 -translate-x-1/2 border-2 border-b-0 border-white/80" />
-            <div className="absolute bottom-1 left-1/2 h-3 w-24 -translate-x-1/2 rounded-t border-2 border-b-0 border-white/80" />
-            <div className="absolute bottom-[100px] left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-white/80" />
+          <TeamPitch
+            pitchRef={pitchRef}
+            isOverPitch={isOverPitch}
+            formation={formations[selectedFormation]}
+            hoveredFormationIndex={hoveredFormationIndex}
+            pitchPlayers={pitchPlayers}
+            isLineupLocked={isLineupLocked}
+            openMenuPlayerId={openMenu?.playerId}
+            getPositionOccupant={getPositionOccupant}
+            getPlayerName={getPlayerName}
+            getPlayerInitials={getPlayerInitials}
+            onOpenPlayerMenu={openPlayerMenu}
+          />
 
-            {formations[selectedFormation].map((position, index) => {
-              const isHovered = hoveredFormationIndex === index;
-              const occupant = getPositionOccupant(index);
-
-              return (
-                <div
-                  key={`${position.label}-${position.x}-${position.y}-${index}`}
-                  className={`pointer-events-none absolute z-10 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border text-[10px] font-bold transition ${
-                    isHovered
-                      ? "scale-110 border-yellow-300 bg-yellow-300 text-slate-900"
-                      : occupant
-                      ? "border-white/60 bg-white/20 text-white/80"
-                      : "border-white/40 bg-white/10 text-white/70"
-                  }`}
-                  style={{
-                    left: `${position.x}%`,
-                    top: `${position.y}%`,
-                  }}
-                >
-                  {position.label}
-                </div>
-              );
-            })}
-
-            {pitchPlayers.map((selectedPlayer) => {
-              const playerName = getPlayerName(selectedPlayer.playerId);
-
-              return (
-                <Fragment key={selectedPlayer.playerId}>
-                  <SelectedPitchPlayer
-                    playerId={selectedPlayer.playerId}
-                    name={playerName}
-                    initials={getPlayerInitials(playerName)}
-                    x={selectedPlayer.x}
-                    y={selectedPlayer.y}
-                    disabled={isLineupLocked}
-                    isMenuOpen={openMenu?.playerId === selectedPlayer.playerId}
-                    onOpenMenu={(event) =>
-                      openPlayerMenu(selectedPlayer.playerId, event)
-                    }
-                  />
-                </Fragment>
-              );
-            })}
-          </div>
-
-          <div
-            ref={benchRef}
-            className={`rounded-xl border-2 bg-white p-3 shadow-sm ${
-              isOverBench ? "border-yellow-400" : "border-slate-200"
-            }`}
-          >
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Bench
-                </h3>
-                <p className="text-xs text-slate-500">
-                  {isLineupLocked ? "Bench is locked." : "Drop subs here."}
-                </p>
-              </div>
-
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                {benchPlayers.length}
-              </span>
-            </div>
-
-            <div className="grid min-h-16 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-              {benchPlayers.map((selectedPlayer) => (
-                <BenchPlayer
-                  key={selectedPlayer.playerId}
-                  playerId={selectedPlayer.playerId}
-                  name={getPlayerName(selectedPlayer.playerId)}
-                  disabled={isLineupLocked}
-                  isMenuOpen={openMenu?.playerId === selectedPlayer.playerId}
-                  onOpenMenu={(event) =>
-                    openPlayerMenu(selectedPlayer.playerId, event)
-                  }
-                />
-              ))}
-
-              {benchPlayers.length === 0 && (
-                <p className="text-sm text-slate-500 sm:col-span-2 xl:col-span-3">
-                  {isLineupLocked
-                    ? "No substitutes selected."
-                    : "Drag players here to put them on the bench."}
-                </p>
-              )}
-            </div>
-          </div>
+          <TeamBench
+            benchRef={benchRef}
+            isOverBench={isOverBench}
+            benchPlayers={benchPlayers}
+            isLineupLocked={isLineupLocked}
+            openMenuPlayerId={openMenu?.playerId}
+            getPlayerName={getPlayerName}
+            onOpenPlayerMenu={openPlayerMenu}
+          />
         </div>
       </div>
 
