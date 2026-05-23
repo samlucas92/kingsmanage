@@ -23,6 +23,32 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 		);
 	}
 
+	const activePlayerName = teamPicker.activeDragData
+		? teamPicker.getPlayerName(teamPicker.activeDragData.playerId)
+		: "";
+
+	const activePlayerInitials = activePlayerName
+		? teamPicker.getPlayerInitials(activePlayerName)
+		: "";
+
+	const activePitchPlayer = teamPicker.activeDragData
+		? teamPicker.pitchPlayers.find(
+				(player) => player.playerId === teamPicker.activeDragData?.playerId
+			)
+		: undefined;
+
+	const activeBenchPlayer = teamPicker.activeDragData
+		? teamPicker.benchPlayers.find(
+				(player) => player.playerId === teamPicker.activeDragData?.playerId
+			)
+		: undefined;
+
+	const activeOverlayVariant = activePitchPlayer
+		? "pitch"
+		: activeBenchPlayer
+			? "bench"
+			: "available";
+
 	return (
 		<DndContext
 			onDragStart={teamPicker.handleDragStart}
@@ -35,6 +61,7 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 					availablePlayers={teamPicker.availablePlayers}
 					isLineupLocked={teamPicker.isLineupLocked}
 					openMenuPlayerId={teamPicker.openMenu?.playerId}
+					hoveredSwapTargetPlayerId={teamPicker.hoveredSwapTargetPlayerId}
 					onOpenPlayerMenu={teamPicker.openPlayerMenu}
 				/>
 
@@ -82,6 +109,7 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 						isOverPitch={teamPicker.isOverPitch}
 						formation={formations[teamPicker.selectedFormation]}
 						hoveredFormationIndex={teamPicker.hoveredFormationIndex}
+						hoveredSwapTargetPlayerId={teamPicker.hoveredSwapTargetPlayerId}
 						pitchPlayers={teamPicker.pitchPlayers}
 						isLineupLocked={teamPicker.isLineupLocked}
 						openMenuPlayerId={teamPicker.openMenu?.playerId}
@@ -95,6 +123,7 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 					<TeamBench
 						benchRef={teamPicker.benchRef}
 						isOverBench={teamPicker.isOverBench}
+						hoveredSwapTargetPlayerId={teamPicker.hoveredSwapTargetPlayerId}
 						benchPlayers={teamPicker.benchPlayers}
 						isLineupLocked={teamPicker.isLineupLocked}
 						openMenuPlayerId={teamPicker.openMenu?.playerId}
@@ -132,12 +161,12 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 				</>
 			)}
 
-			<DragOverlay>
+			<DragOverlay dropAnimation={null}>
 				{teamPicker.activeDragData ? (
 					<DragOverlayPlayer
-						name={teamPicker.getPlayerName(
-							teamPicker.activeDragData.playerId
-						)}
+						name={activePlayerName}
+						initials={activePlayerInitials}
+						variant={activeOverlayVariant}
 					/>
 				) : null}
 			</DragOverlay>

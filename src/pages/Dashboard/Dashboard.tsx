@@ -1,12 +1,20 @@
 import { Link } from "react-router-dom";
 import { usePlayerStore } from "../../stores/players";
 import { useMatchStore } from "../../stores/match";
+import { useFinanceStore } from "../../stores/finance";
+import {
+	getPlayerBalance,
+	getPlayerTotalPaid,
+} from "../../services/financeService";
 import DevToolsCard from "../../components/compositions/DevToolsCard";
 import { formatDisplayDateTime } from "../../utils/date";
 
 export default function Dashboard() {
 	const players = usePlayerStore((state) => state.players);
 	const matches = useMatchStore((state) => state.matches);
+	const playerFinanceRecords = useFinanceStore(
+		(state) => state.playerFinanceRecords
+	);
 
 	const activePlayers = players.filter((player) => player.isActive);
 	const inactivePlayers = players.filter((player) => !player.isActive);
@@ -22,6 +30,29 @@ export default function Dashboard() {
 	);
 
 	const lockedLineups = matches.filter((match) => match.isLineupLocked);
+
+	const activePlayerFinanceRecords = activePlayers.map((player) =>
+		playerFinanceRecords.find((record) => record.playerId === player.id)
+	);
+
+	const totalExpected = activePlayerFinanceRecords.reduce(
+		(total, record) => total + (record?.amountOwed ?? 0),
+		0
+	);
+
+	const totalPaid = activePlayerFinanceRecords.reduce(
+		(total, record) => total + getPlayerTotalPaid(record),
+		0
+	);
+
+	const totalOutstanding = activePlayerFinanceRecords.reduce(
+		(total, record) => total + getPlayerBalance(record),
+		0
+	);
+
+	const playersOwingMoney = activePlayerFinanceRecords.filter(
+		(record) => getPlayerBalance(record) > 0
+	).length;
 
 	const nextMatches = [...upcomingMatches]
 		.sort(
@@ -45,7 +76,7 @@ export default function Dashboard() {
 				<h1 className="text-2xl font-bold text-blue-900">Dashboard</h1>
 
 				<p className="text-gray-600">
-					Overview of squad, fixtures and matchday preparation.
+					Overview of squad, fixtures, finance and matchday preparation.
 				</p>
 			</div>
 
@@ -78,6 +109,49 @@ export default function Dashboard() {
 					to="/matches"
 				/>
 			</div>
+
+			<section className="rounded-xl bg-white p-6 shadow">
+				<div className="flex flex-wrap items-start justify-between gap-4">
+					<div>
+						<h2 className="text-lg font-bold text-blue-900">Finance</h2>
+
+						<p className="mt-1 text-sm text-gray-500">
+							Active player payment overview.
+						</p>
+					</div>
+
+					<Link
+						to="/finance"
+						className="text-sm font-semibold text-blue-700 hover:text-blue-900"
+					>
+						View finance
+					</Link>
+				</div>
+
+				<div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+					<FinanceStatCard
+						label="Expected"
+						value={formatMoney(totalExpected)}
+					/>
+
+					<FinanceStatCard
+						label="Paid"
+						value={formatMoney(totalPaid)}
+					/>
+
+					<FinanceStatCard
+						label="Outstanding"
+						value={formatMoney(totalOutstanding)}
+						highlight={totalOutstanding > 0 ? "danger" : "success"}
+					/>
+
+					<FinanceStatCard
+						label="Players Owing"
+						value={playersOwingMoney}
+						highlight={playersOwingMoney > 0 ? "warning" : "success"}
+					/>
+				</div>
+			</section>
 
 			<div className="grid gap-6 xl:grid-cols-2">
 				<section className="rounded-xl bg-white p-6 shadow">
@@ -276,6 +350,35 @@ function DashboardStatCard({
 	);
 }
 
+function FinanceStatCard({
+	label,
+	value,
+	highlight,
+}: {
+	label: string;
+	value: string | number;
+	highlight?: "success" | "warning" | "danger";
+}) {
+	const highlightClass =
+		highlight === "success"
+			? "text-green-900"
+			: highlight === "warning"
+				? "text-amber-900"
+				: highlight === "danger"
+					? "text-red-900"
+					: "text-blue-900";
+
+	return (
+		<div className="rounded-xl bg-slate-50 p-5">
+			<p className="text-sm font-medium text-gray-500">{label}</p>
+
+			<p className={`mt-2 text-3xl font-bold ${highlightClass}`}>
+				{value}
+			</p>
+		</div>
+	);
+}
+
 function getAverageAppearances(players: { appearances: number }[]) {
 	if (players.length === 0) {
 		return 0;
@@ -287,4 +390,11 @@ function getAverageAppearances(players: { appearances: number }[]) {
 	);
 
 	return Math.round(totalAppearances / players.length);
+}
+
+function formatMoney(value: number) {
+	return new Intl.NumberFormat("en-GB", {
+		style: "currency",
+		currency: "GBP",
+	}).format(value);
 }

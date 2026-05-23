@@ -4,7 +4,7 @@ import type { Match } from "../../stores/match";
 import { MatchFormModal } from "./components/MatchFormModal";
 import { MatchesTable } from "./components/MatchesTable";
 import { MatchFilters } from "./components/MatchFilters";
-import type { MatchFilter } from "./components/MatchFilters";
+import type { MatchFilter, MatchTeamFilter } from "./components/MatchFilters";
 import { getMatchFilterFromState } from "./components/MatchFilters";
 import { PostponeMatchModal } from "./components/match-detail/PostponeMatchModal";
 import { useMatchForm } from "./hooks/useMatchForm";
@@ -20,6 +20,7 @@ export default function Matches() {
 	const restoreMatch = useMatchStore((state) => state.restoreMatch);
 
 	const [matchFilter, setMatchFilter] = useState<MatchFilter>("all");
+	const [teamFilter, setTeamFilter] = useState<MatchTeamFilter>("all");
 	const [matchToPostpone, setMatchToPostpone] = useState<Match | null>(null);
 	const [postponedDate, setPostponedDate] = useState("");
 
@@ -29,39 +30,62 @@ export default function Matches() {
 	});
 
 	const matchCounts = useMemo(() => {
-		const upcoming = matches.filter(
+		const visibleTeamMatches = matches.filter(
+			(match) => teamFilter === "all" || match.team === teamFilter
+		);
+
+		const upcoming = visibleTeamMatches.filter(
 			(match) =>
 				getMatchFilterFromState(match.state, match.isCompleted) === "upcoming"
 		).length;
 
-		const completed = matches.filter(
+		const completed = visibleTeamMatches.filter(
 			(match) =>
 				getMatchFilterFromState(match.state, match.isCompleted) === "completed"
 		).length;
 
-		const postponed = matches.filter(
+		const postponed = visibleTeamMatches.filter(
 			(match) =>
 				getMatchFilterFromState(match.state, match.isCompleted) === "postponed"
 		).length;
 
 		return {
-			all: matches.length,
+			all: visibleTeamMatches.length,
 			upcoming,
 			completed,
 			postponed,
 		};
-	}, [matches]);
+	}, [matches, teamFilter]);
+
+	const teamCounts = useMemo(() => {
+		const visibleStatusMatches = matches.filter((match) => {
+			if (matchFilter === "all") {
+				return true;
+			}
+
+			return (
+				getMatchFilterFromState(match.state, match.isCompleted) === matchFilter
+			);
+		});
+
+		return {
+			all: visibleStatusMatches.length,
+			first: visibleStatusMatches.filter((match) => match.team === "first").length,
+			second: visibleStatusMatches.filter((match) => match.team === "second").length,
+		};
+	}, [matches, matchFilter]);
 
 	const filteredMatches = useMemo(() => {
-		if (matchFilter === "all") {
-			return matches;
-		}
+		return matches.filter((match) => {
+			const statusMatches =
+				matchFilter === "all" ||
+				getMatchFilterFromState(match.state, match.isCompleted) === matchFilter;
 
-		return matches.filter(
-			(match) =>
-				getMatchFilterFromState(match.state, match.isCompleted) === matchFilter
-		);
-	}, [matches, matchFilter]);
+			const teamMatches = teamFilter === "all" || match.team === teamFilter;
+
+			return statusMatches && teamMatches;
+		});
+	}, [matches, matchFilter, teamFilter]);
 
 	const sortedMatches = useMemo(() => {
 		return [...filteredMatches].sort(
@@ -116,8 +140,11 @@ export default function Matches() {
 
 			<MatchFilters
 				activeFilter={matchFilter}
+				activeTeamFilter={teamFilter}
 				counts={matchCounts}
+				teamCounts={teamCounts}
 				onFilterChange={setMatchFilter}
+				onTeamFilterChange={setTeamFilter}
 			/>
 
 			<MatchesTable
@@ -130,12 +157,14 @@ export default function Matches() {
 			<MatchFormModal
 				isOpen={matchForm.isMatchModalOpen}
 				isEditing={matchForm.isEditing}
+				team={matchForm.team}
 				opponent={matchForm.opponent}
 				date={matchForm.date}
 				venue={matchForm.venue}
 				error={matchForm.formError}
 				onClose={matchForm.closeMatchModal}
 				onConfirm={matchForm.handleConfirmMatch}
+				onTeamChange={matchForm.updateTeam}
 				onOpponentChange={matchForm.updateOpponent}
 				onDateChange={matchForm.updateDate}
 				onVenueChange={matchForm.updateVenue}

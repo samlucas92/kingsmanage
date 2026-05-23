@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Match, MatchFixtureInput } from "../../../stores/match";
+import type { ClubTeam, Match, MatchFixtureInput } from "../../../stores/match";
 import { formatDateForInput } from "../../../utils/date";
 
 type UseMatchFormParams = {
@@ -13,6 +13,7 @@ export function useMatchForm({
 }: UseMatchFormParams) {
 	const [isMatchModalOpen, setIsMatchModalOpen] = useState(false);
 	const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
+	const [team, setTeam] = useState<ClubTeam>("first");
 	const [opponent, setOpponent] = useState("");
 	const [date, setDate] = useState("");
 	const [venue, setVenue] = useState<"home" | "away">("home");
@@ -20,12 +21,17 @@ export function useMatchForm({
 
 	const isEditing = editingMatchId !== null;
 
-	function openAddMatchModal() {
+	function resetForm() {
 		setEditingMatchId(null);
+		setTeam("first");
 		setOpponent("");
 		setDate("");
 		setVenue("home");
 		setFormError("");
+	}
+
+	function openAddMatchModal() {
+		resetForm();
 		setIsMatchModalOpen(true);
 	}
 
@@ -35,6 +41,7 @@ export function useMatchForm({
 		}
 
 		setEditingMatchId(match.id);
+		setTeam(match.team);
 		setOpponent(match.opponent);
 		setDate(formatDateForInput(match.date));
 		setVenue(match.venue);
@@ -44,10 +51,11 @@ export function useMatchForm({
 
 	function closeMatchModal() {
 		setIsMatchModalOpen(false);
-		setEditingMatchId(null);
-		setOpponent("");
-		setDate("");
-		setVenue("home");
+		resetForm();
+	}
+
+	function updateTeam(value: ClubTeam) {
+		setTeam(value);
 		setFormError("");
 	}
 
@@ -86,7 +94,8 @@ export function useMatchForm({
 			return;
 		}
 
-		const savedMatch = {
+		const savedMatch: MatchFixtureInput = {
+			team,
 			opponent: opponent.trim(),
 			date,
 			venue,
@@ -104,6 +113,7 @@ export function useMatchForm({
 	return {
 		isMatchModalOpen,
 		isEditing,
+		team,
 		opponent,
 		date,
 		venue,
@@ -111,6 +121,7 @@ export function useMatchForm({
 		openAddMatchModal,
 		openEditMatchModal,
 		closeMatchModal,
+		updateTeam,
 		updateOpponent,
 		updateDate,
 		updateVenue,

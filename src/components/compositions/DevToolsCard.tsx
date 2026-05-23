@@ -16,6 +16,7 @@ export default function DevToolsCard() {
 
 		localStorage.removeItem("kingsbridge-colts-player-store");
 		localStorage.removeItem("kingsbridge-colts-match-store");
+		localStorage.removeItem("kingsbridge-colts-finance-store");
 
 		window.location.reload();
 	}

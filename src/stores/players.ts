@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { seedPlayers } from "../data/seedPlayers";
+import {
+	addPlayerRecord,
+	removePlayerRecord,
+	togglePlayerActiveRecord,
+	updatePlayerRecord,
+} from "../services/playerService";
 
 export type Player = {
 	id: string;
@@ -26,36 +32,22 @@ export const usePlayerStore = create<PlayerState>()(
 
 			addPlayer: (player) =>
 				set((state) => ({
-					players: [...state.players, player],
+					players: addPlayerRecord(state.players, player),
 				})),
 
 			updatePlayer: (id, updatedPlayer) =>
 				set((state) => ({
-					players: state.players.map((player) =>
-						player.id === id
-							? {
-									...player,
-									...updatedPlayer,
-								}
-							: player
-					),
+					players: updatePlayerRecord(state.players, id, updatedPlayer),
 				})),
 
 			removePlayer: (id) =>
 				set((state) => ({
-					players: state.players.filter((player) => player.id !== id),
+					players: removePlayerRecord(state.players, id),
 				})),
 
 			togglePlayerActive: (id) =>
 				set((state) => ({
-					players: state.players.map((player) =>
-						player.id === id
-							? {
-									...player,
-									isActive: !player.isActive,
-								}
-							: player
-					),
+					players: togglePlayerActiveRecord(state.players, id),
 				})),
 		}),
 		{

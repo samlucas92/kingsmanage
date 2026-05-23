@@ -1,76 +1,75 @@
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
+import {
+	addPlayerPaymentRecord,
+	removePlayerPaymentRecord,
+	setPlayerAmountOwedRecord,
+} from "../services/financeService";
 
-type Charge = {
-  playerId: string;
-  amount: number;
-  reason: string; // e.g. "Match Fee vs Swansea FC"
+export type FinancePayment = {
+	id: string;
+	amount: number;
+	note?: string;
+	paidAt: string;
 };
 
-type Payment = {
-  playerId: string;
-  amount: number;
+export type PlayerFinanceRecord = {
+	playerId: string;
+	amountOwed: number;
+	payments: FinancePayment[];
 };
 
-type FinanceState = {
-  charges: Charge[];
-  payments: Payment[];
+type FinanceStore = {
+	playerFinanceRecords: PlayerFinanceRecord[];
 
-  addCharge: (charge: Charge) => void;
-  addPayment: (payment: Payment) => void;
+	setPlayerAmountOwed: (playerId: string, amountOwed: number) => void;
 
-  getPlayerBalance: (playerId: string) => number;
+	addPlayerPayment: (
+		playerId: string,
+		payment: {
+			amount: number;
+			note?: string;
+		}
+	) => void;
+
+	removePlayerPayment: (playerId: string, paymentId: string) => void;
 };
 
-export const useFinanceStore = create<FinanceState>((set, get) => ({
-  charges: [
-    {
-        playerId: "1",
-        amount: 5,
-        reason: ""
-    },
-    {
-        playerId: "1",
-        amount: 5,
-        reason: ""
-    },
-    {
-        playerId: "1",
-        amount: 5,
-        reason: ""
-    },
-    {
-        playerId: "2",
-        amount: 5,
-        reason: ""
-    }
-  ],
-  payments: [
-    {
-        playerId: "1",
-        amount:5
-    }
-  ],
+export const useFinanceStore = create<FinanceStore>()(
+	persist(
+		(set) => ({
+			playerFinanceRecords: [],
 
-  addCharge: (charge) =>
-    set((state) => ({
-      charges: [...state.charges, charge],
-    })),
+			setPlayerAmountOwed: (playerId, amountOwed) =>
+				set((state) => ({
+					playerFinanceRecords: setPlayerAmountOwedRecord(
+						state.playerFinanceRecords,
+						playerId,
+						amountOwed
+					),
+				})),
 
-  addPayment: (payment) =>
-    set((state) => ({
-      payments: [...state.payments, payment],
-    })),
+			addPlayerPayment: (playerId, payment) =>
+				set((state) => ({
+					playerFinanceRecords: addPlayerPaymentRecord(
+						state.playerFinanceRecords,
+						playerId,
+						payment
+					),
+				})),
 
-  getPlayerBalance: (playerId) => {
-    const { charges, payments } = get();
-
-    const totalCharges = charges
-      .filter((c) => c.playerId === playerId)
-      .reduce((sum, c) => sum + c.amount, 0);
-
-    const totalPayments = payments
-      .filter((p) => p.playerId === playerId)
-      .reduce((sum, p) => sum + p.amount, 0);
-    return totalCharges - totalPayments;
-  },
-}));
+			removePlayerPayment: (playerId, paymentId) =>
+				set((state) => ({
+					playerFinanceRecords: removePlayerPaymentRecord(
+						state.playerFinanceRecords,
+						playerId,
+						paymentId
+					),
+				})),
+		}),
+		{
+			name: "kingsbridge-colts-finance-store",
+			storage: createJSONStorage(() => localStorage),
+		}
+	)
+);

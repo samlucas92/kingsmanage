@@ -9,6 +9,7 @@ interface TeamPitchProps {
 	isOverPitch: boolean;
 	formation: FormationPosition[];
 	hoveredFormationIndex: number | null;
+	hoveredSwapTargetPlayerId: string | null;
 	pitchPlayers: SelectedPlayer[];
 	isLineupLocked: boolean;
 	openMenuPlayerId?: string;
@@ -27,6 +28,7 @@ export function TeamPitch({
 	isOverPitch,
 	formation,
 	hoveredFormationIndex,
+	hoveredSwapTargetPlayerId,
 	pitchPlayers,
 	isLineupLocked,
 	openMenuPlayerId,
@@ -36,11 +38,19 @@ export function TeamPitch({
 	getPlayerInitials,
 	onOpenPlayerMenu,
 }: TeamPitchProps) {
+	const hasAvailablePosition = formation.some(
+		(_position, index) => !getPositionOccupant(index)
+	);
+
 	return (
 		<div
 			ref={pitchRef}
-			className={`relative h-[360px] w-full overflow-hidden rounded-xl border-4 bg-green-700 shadow-sm ${
-				isOverPitch ? "border-yellow-300" : "border-white"
+			className={`relative h-[360px] w-full overflow-hidden rounded-xl border-4 bg-green-700 shadow-sm transition ${
+				isOverPitch
+					? hasAvailablePosition || hoveredSwapTargetPlayerId
+						? "border-yellow-300"
+						: "border-red-300"
+					: "border-white"
 			}`}
 		>
 			<div className="absolute inset-4 rounded-lg border-2 border-white/80" />
@@ -56,6 +66,12 @@ export function TeamPitch({
 			<div className="absolute bottom-1 left-1/2 h-3 w-24 -translate-x-1/2 rounded-t border-2 border-b-0 border-white/80" />
 
 			<div className="absolute bottom-[100px] left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-white/80" />
+
+			{isOverPitch && !hasAvailablePosition && !hoveredSwapTargetPlayerId && (
+				<div className="pointer-events-none absolute left-1/2 top-4 z-30 -translate-x-1/2 rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-800 shadow">
+					No empty positions — drop on a player to swap
+				</div>
+			)}
 
 			{formation.map((position, index) => {
 				const isHovered = hoveredFormationIndex === index;
@@ -105,6 +121,9 @@ export function TeamPitch({
 						y={selectedPlayer.y}
 						disabled={isLineupLocked}
 						isMenuOpen={openMenuPlayerId === selectedPlayer.playerId}
+						isSwapTarget={
+							hoveredSwapTargetPlayerId === selectedPlayer.playerId
+						}
 						isOutOfPosition={isOutOfPosition}
 						preferredPositions={preferredPositions}
 						onOpenMenu={(event) =>

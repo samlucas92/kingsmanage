@@ -1,6 +1,20 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { seedMatches } from "../data/seedMatches";
+import {
+	createMatchRecord,
+	postponeMatchRecord,
+	removeSelectedPlayerRecord,
+	restoreMatchRecord,
+	setLineupFormationRecord,
+	setMatchResultRecord,
+	setSelectedPlayersRecord,
+	toggleLineupLockedRecord,
+	updateMatchFixtureRecord,
+	updateMatchNotesRecord,
+	updateMatchPlayerStatRecord,
+	updateSelectedPlayerPositionRecord,
+} from "../services/matchService";
 
 export type MatchState = "upcoming" | "won" | "lost" | "draw" | "postponed";
 
@@ -40,16 +54,27 @@ export type MatchPlayerStat = {
 	assists: number;
 	yellowCards: number;
 	redCards: number;
+	minutes: number;
+	isMOTM: boolean;
+	note: string;
 };
 
 export type MatchPlayerStatField =
 	| "goals"
 	| "assists"
 	| "yellowCards"
-	| "redCards";
+	| "redCards"
+	| "minutes"
+	| "isMOTM"
+	| "note";
+
+export type MatchPlayerStatValue = number | boolean | string;
+
+export type ClubTeam = "first" | "second";
 
 export type Match = {
 	id: string;
+	team: ClubTeam;
 	opponent: string;
 	date: string;
 	venue: "home" | "away";
@@ -65,6 +90,7 @@ export type Match = {
 };
 
 export type MatchFixtureInput = {
+	team: ClubTeam;
 	opponent: string;
 	date: string;
 	venue: "home" | "away";
@@ -115,26 +141,9 @@ type MatchStore = {
 		matchId: string,
 		playerId: string,
 		field: MatchPlayerStatField,
-		value: number
+		value: MatchPlayerStatValue
 	) => void;
 };
-
-const emptyMatchNotes: MatchNotes = {
-	availability: "",
-	tactical: "",
-	injuries: "",
-	general: "",
-};
-
-function createEmptyPlayerStat(playerId: string): MatchPlayerStat {
-	return {
-		playerId,
-		goals: 0,
-		assists: 0,
-		yellowCards: 0,
-		redCards: 0,
-	};
-}
 
 export const useMatchStore = create<MatchStore>()(
 	persist(
@@ -143,133 +152,57 @@ export const useMatchStore = create<MatchStore>()(
 
 			addMatch: (match) =>
 				set((state) => ({
-					matches: [
-						...state.matches,
-						{
-							id: crypto.randomUUID(),
-							opponent: match.opponent,
-							date: match.date,
-							venue: match.venue,
-							state: "upcoming",
-							isCompleted: false,
-							isLineupLocked: false,
-							selectedFormation: "4-4-2",
-							notes: emptyMatchNotes,
-							postponements: [],
-							selectedPlayers: [],
-							playerStats: [],
-						},
-					],
+					matches: [...state.matches, createMatchRecord(match)],
 				})),
 
 			updateMatchFixture: (matchId, updatedFixture) =>
 				set((state) => ({
-					matches: state.matches.map((match) => {
-						if (match.id !== matchId || match.isCompleted) {
-							return match;
-						}
-
-						return {
-							...match,
-							opponent: updatedFixture.opponent,
-							date: updatedFixture.date,
-							venue: updatedFixture.venue,
-						};
-					}),
+					matches: state.matches.map((match) =>
+						match.id === matchId
+							? updateMatchFixtureRecord(match, updatedFixture)
+							: match
+					),
 				})),
 
 			postponeMatch: (matchId, newDate, reason) =>
 				set((state) => ({
-					matches: state.matches.map((match) => {
-						if (match.id !== matchId || match.isCompleted) {
-							return match;
-						}
-
-						return {
-							...match,
-							postponements: [
-								...match.postponements,
-								{
-									id: crypto.randomUUID(),
-									oldDate: match.date,
-									newDate,
-									reason,
-									changedAt: new Date().toISOString(),
-								},
-							],
-							date: newDate,
-							state: "postponed",
-						};
-					}),
+					matches: state.matches.map((match) =>
+						match.id === matchId
+							? postponeMatchRecord(match, newDate, reason)
+							: match
+					),
 				})),
 
 			restoreMatch: (matchId) =>
 				set((state) => ({
-					matches: state.matches.map((match) => {
-						if (
-							match.id !== matchId ||
-							match.isCompleted ||
-							match.state !== "postponed"
-						) {
-							return match;
-						}
-
-						return {
-							...match,
-							state: "upcoming",
-						};
-					}),
+					matches: state.matches.map((match) =>
+						match.id === matchId ? restoreMatchRecord(match) : match
+					),
 				})),
 
 			setResult: (matchId, result) =>
 				set((state) => ({
-					matches: state.matches.map((match) => {
-						if (match.id !== matchId || match.isCompleted) {
-							return match;
-						}
-
-						const nextState: MatchState =
-							result.homeGoals > result.awayGoals
-								? "won"
-								: result.homeGoals < result.awayGoals
-									? "lost"
-									: "draw";
-
-						return {
-							...match,
-							result,
-							state: nextState,
-							isCompleted: true,
-						};
-					}),
+					matches: state.matches.map((match) =>
+						match.id === matchId ? setMatchResultRecord(match, result) : match
+					),
 				})),
 
 			setSelectedPlayers: (matchId, selectedPlayers) =>
 				set((state) => ({
-					matches: state.matches.map((match) => {
-						if (match.id !== matchId || match.isLineupLocked) {
-							return match;
-						}
-
-						return {
-							...match,
-							selectedPlayers,
-						};
-					}),
+					matches: state.matches.map((match) =>
+						match.id === matchId
+							? setSelectedPlayersRecord(match, selectedPlayers)
+							: match
+					),
 				})),
 
 			setLineupFormation: (matchId, formation) =>
 				set((state) => ({
-					matches: state.matches.map((match) => {
-						if (match.id !== matchId || match.isLineupLocked) {
-							return match;
-						}
-
-						return {
-							...match,
-							selectedFormation: formation,
-						};
-					}),
+					matches: state.matches.map((match) =>
+						match.id === matchId
+							? setLineupFormationRecord(match, formation)
+							: match
+					),
 				})),
 
 			updateSelectedPlayerPosition: (
@@ -281,109 +214,50 @@ export const useMatchStore = create<MatchStore>()(
 				positionIndex
 			) =>
 				set((state) => ({
-					matches: state.matches.map((match) => {
-						if (match.id !== matchId || match.isLineupLocked) {
-							return match;
-						}
-
-						return {
-							...match,
-							selectedPlayers: match.selectedPlayers.map(
-								(selectedPlayer) => {
-									if (selectedPlayer.playerId !== playerId) {
-										return selectedPlayer;
-									}
-
-									return {
-										...selectedPlayer,
-										x,
-										y,
-										area: area ?? selectedPlayer.area,
-										positionIndex,
-									};
-								}
-							),
-						};
-					}),
+					matches: state.matches.map((match) =>
+						match.id === matchId
+							? updateSelectedPlayerPositionRecord(
+									match,
+									playerId,
+									x,
+									y,
+									area,
+									positionIndex
+								)
+							: match
+					),
 				})),
 
 			removeSelectedPlayer: (matchId, playerId) =>
 				set((state) => ({
-					matches: state.matches.map((match) => {
-						if (match.id !== matchId || match.isLineupLocked) {
-							return match;
-						}
-
-						return {
-							...match,
-							selectedPlayers: match.selectedPlayers.filter(
-								(player) => player.playerId !== playerId
-							),
-						};
-					}),
+					matches: state.matches.map((match) =>
+						match.id === matchId
+							? removeSelectedPlayerRecord(match, playerId)
+							: match
+					),
 				})),
 
 			toggleLineupLocked: (matchId) =>
 				set((state) => ({
 					matches: state.matches.map((match) =>
-						match.id === matchId
-							? {
-									...match,
-									isLineupLocked: !match.isLineupLocked,
-								}
-							: match
+						match.id === matchId ? toggleLineupLockedRecord(match) : match
 					),
 				})),
 
 			updateMatchNotes: (matchId, notes) =>
 				set((state) => ({
 					matches: state.matches.map((match) =>
-						match.id === matchId
-							? {
-									...match,
-									notes,
-								}
-							: match
+						match.id === matchId ? updateMatchNotesRecord(match, notes) : match
 					),
 				})),
 
 			updateMatchPlayerStat: (matchId, playerId, field, value) =>
 				set((state) => ({
-					matches: state.matches.map((match) => {
-						if (match.id !== matchId) {
-							return match;
-						}
-
-						const currentStats = match.playerStats ?? [];
-						const existingStat = currentStats.find(
-							(stat) => stat.playerId === playerId
-						);
-
-						if (!existingStat) {
-							return {
-								...match,
-								playerStats: [
-									...currentStats,
-									{
-										...createEmptyPlayerStat(playerId),
-										[field]: value,
-									},
-								],
-							};
-						}
-
-						return {
-							...match,
-							playerStats: currentStats.map((stat) =>
-								stat.playerId === playerId
-									? {
-											...stat,
-											[field]: value,
-										}
-									: stat
-							),
-						};
-					}),
+					matches: state.matches.map((match) =>
+						match.id === matchId
+							? updateMatchPlayerStatRecord(match, playerId, field, value)
+							: match
+					),
 				})),
 		}),
 		{

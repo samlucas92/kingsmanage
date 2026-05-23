@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { useMatchStore } from "../../../stores/match";
-import type { MatchNotes, MatchPlayerStatField } from "../../../stores/match";
+import type {
+	MatchNotes,
+	MatchPlayerStatField,
+	MatchPlayerStatValue,
+} from "../../../stores/match";
 import { usePlayerStore } from "../../../stores/players";
 
 type ResultPreview = "Won" | "Lost" | "Draw";
@@ -215,15 +219,16 @@ export function useMatchDetail(matchId?: string) {
 	function handleUpdateMatchPlayerStat(
 		playerId: string,
 		field: MatchPlayerStatField,
-		value: string
+		value: MatchPlayerStatValue
 	) {
 		if (!currentMatch) {
 			return;
 		}
 
-		const numberValue = Math.max(0, Number(value));
+		const nextValue =
+			typeof value === "number" ? Math.max(0, value) : value;
 
-		updateMatchPlayerStat(currentMatch.id, playerId, field, numberValue);
+		updateMatchPlayerStat(currentMatch.id, playerId, field, nextValue);
 	}
 
 	return {

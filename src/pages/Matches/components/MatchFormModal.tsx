@@ -1,14 +1,17 @@
 import Modal from "../../../components/compositions/Modal";
+import type { ClubTeam } from "../../../stores/match";
 
 interface MatchFormModalProps {
 	isOpen: boolean;
 	isEditing: boolean;
+	team: ClubTeam;
 	opponent: string;
 	date: string;
 	venue: "home" | "away";
 	error: string;
 	onClose: () => void;
 	onConfirm: () => void;
+	onTeamChange: (value: ClubTeam) => void;
 	onOpponentChange: (value: string) => void;
 	onDateChange: (value: string) => void;
 	onVenueChange: (value: "home" | "away") => void;
@@ -17,12 +20,14 @@ interface MatchFormModalProps {
 export function MatchFormModal({
 	isOpen,
 	isEditing,
+	team,
 	opponent,
 	date,
 	venue,
 	error,
 	onClose,
 	onConfirm,
+	onTeamChange,
 	onOpponentChange,
 	onDateChange,
 	onVenueChange,
@@ -41,6 +46,21 @@ export function MatchFormModal({
 						{error}
 					</div>
 				)}
+
+				<label className="block space-y-1">
+					<span className="text-sm font-semibold text-slate-700">
+						Team
+					</span>
+
+					<select
+						value={team}
+						onChange={(event) => onTeamChange(event.target.value as ClubTeam)}
+						className="w-full rounded-lg border px-3 py-2"
+					>
+						<option value="first">First Team</option>
+						<option value="second">Second Team</option>
+					</select>
+				</label>
 
 				<label className="block space-y-1">
 					<span className="text-sm font-semibold text-slate-700">

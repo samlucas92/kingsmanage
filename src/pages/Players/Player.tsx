@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
 import LinkButton from "../../components/compositions/LinkButton";
 import NotFoundCard from "../../components/compositions/NotFoundCard";
+import EmptyState from "../../components/compositions/EmptyState";
 import { usePlayerStore } from "../../stores/players";
 import { useMatchStore } from "../../stores/match";
 import { PlayerFormModal } from "./components/PlayerFormModal";
@@ -55,13 +56,13 @@ export default function PlayerProfile() {
 			}))
 	);
 
-	const squadAppearances = matches.filter((match) =>
+	const calculatedSquadAppearances = matches.filter((match) =>
 		match.selectedPlayers.some(
 			(selectedPlayer) => selectedPlayer.playerId === currentPlayer.id
 		)
 	);
 
-	const startedMatches = matches.filter((match) =>
+	const calculatedStarts = matches.filter((match) =>
 		match.selectedPlayers.some(
 			(selectedPlayer) =>
 				selectedPlayer.playerId === currentPlayer.id &&
@@ -69,13 +70,17 @@ export default function PlayerProfile() {
 		)
 	);
 
-	const benchedMatches = matches.filter((match) =>
+	const calculatedBenchAppearances = matches.filter((match) =>
 		match.selectedPlayers.some(
 			(selectedPlayer) =>
 				selectedPlayer.playerId === currentPlayer.id &&
 				selectedPlayer.area === "bench"
 		)
 	);
+
+	const manualAppearances = currentPlayer.appearances;
+	const calculatedAppearances = calculatedSquadAppearances.length;
+	const combinedAppearances = manualAppearances + calculatedAppearances;
 
 	const totalGoals = playerMatchStats.reduce(
 		(total, stat) => total + stat.goals,
@@ -97,13 +102,23 @@ export default function PlayerProfile() {
 		0
 	);
 
+	const totalMinutes = playerMatchStats.reduce(
+		(total, stat) => total + stat.minutes,
+		0
+	);
+
+	const motmAwards = playerMatchStats.filter((stat) => stat.isMOTM).length;
+
 	const recentMatchStats = playerMatchStats
 		.filter(
 			(stat) =>
 				stat.goals > 0 ||
 				stat.assists > 0 ||
 				stat.yellowCards > 0 ||
-				stat.redCards > 0
+				stat.redCards > 0 ||
+				stat.minutes > 0 ||
+				stat.isMOTM ||
+				stat.note.trim().length > 0
 		)
 		.sort(
 			(firstStat, secondStat) =>
@@ -174,70 +189,98 @@ export default function PlayerProfile() {
 			<div className="grid grid-cols-2 gap-4 md:grid-cols-4">
 				<Stat label="Goals" value={totalGoals} />
 				<Stat label="Assists" value={totalAssists} />
-				<Stat label="Yellow Cards" value={totalYellowCards} />
-				<Stat label="Red Cards" value={totalRedCards} />
+				<Stat label="MOTM" value={motmAwards} />
+				<Stat label="Minutes" value={totalMinutes} />
 			</div>
 
 			<div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-				<Stat label="Squad Apps" value={squadAppearances.length} />
-				<Stat label="Starts" value={startedMatches.length} />
-				<Stat label="Bench" value={benchedMatches.length} />
-				<Stat label="Stored Apps" value={currentPlayer.appearances} />
+				<Stat label="Yellow Cards" value={totalYellowCards} />
+				<Stat label="Red Cards" value={totalRedCards} />
+				<Stat label="Starts" value={calculatedStarts.length} />
+				<Stat label="Bench" value={calculatedBenchAppearances.length} />
+			</div>
+
+			<div className="rounded-xl bg-white p-6 shadow">
+				<div>
+					<h2 className="text-lg font-bold text-blue-900">
+						Appearances
+					</h2>
+
+					<p className="mt-1 text-sm text-gray-500">
+						Manual appearances are the stored historic total. Calculated
+						appearances come from matchday squads selected in this app.
+					</p>
+				</div>
+
+				<div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-5">
+					<Stat label="Combined Apps" value={combinedAppearances} />
+					<Stat label="Manual Apps" value={manualAppearances} />
+					<Stat label="Calculated Apps" value={calculatedAppearances} />
+					<Stat label="Starts" value={calculatedStarts.length} />
+					<Stat label="Bench" value={calculatedBenchAppearances.length} />
+				</div>
 			</div>
 
 			<div className="rounded-xl bg-white p-6 shadow">
 				<div className="flex flex-wrap items-start justify-between gap-4">
 					<div>
 						<h2 className="text-lg font-bold text-blue-900">
-							Recent Match Contributions
+							Recent Match Reports
 						</h2>
 
 						<p className="mt-1 text-sm text-gray-500">
-							Goals, assists and cards recorded from match reports.
+							Goals, assists, cards, minutes, MOTM and player notes.
 						</p>
 					</div>
 				</div>
 
 				{recentMatchStats.length === 0 ? (
 					<div className="mt-4">
-						<EmptyContributions />
+						<EmptyState
+							title="No match reports recorded yet"
+							message="Once match reports are completed, this player’s contributions will show here."
+						/>
 					</div>
 				) : (
-					<div className="mt-4 overflow-x-auto">
-						<table className="w-full text-sm">
-							<thead className="border-b bg-slate-50">
-								<tr className="text-left">
-									<th className="p-3">Match</th>
-									<th className="p-3">Date</th>
-									<th className="p-3 text-center">G</th>
-									<th className="p-3 text-center">A</th>
-									<th className="p-3 text-center">YC</th>
-									<th className="p-3 text-center">RC</th>
-								</tr>
-							</thead>
-
-							<tbody>
-								{recentMatchStats.map((stat) => (
-									<tr
-										key={`${stat.match.id}-${stat.playerId}`}
-										className="border-b last:border-b-0"
-									>
-										<td className="p-3 font-medium text-slate-900">
+					<div className="mt-4 space-y-3">
+						{recentMatchStats.map((stat) => (
+							<div
+								key={`${stat.match.id}-${stat.playerId}`}
+								className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+							>
+								<div className="flex flex-wrap items-start justify-between gap-3">
+									<div>
+										<p className="font-semibold text-slate-900">
 											vs {stat.match.opponent}
-										</td>
+										</p>
 
-										<td className="p-3 text-slate-500">
+										<p className="text-sm text-slate-500">
 											{formatDisplayDate(stat.match.date)}
-										</td>
+										</p>
+									</div>
 
-										<td className="p-3 text-center">{stat.goals}</td>
-										<td className="p-3 text-center">{stat.assists}</td>
-										<td className="p-3 text-center">{stat.yellowCards}</td>
-										<td className="p-3 text-center">{stat.redCards}</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
+									{stat.isMOTM && (
+										<span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-800">
+											MOTM
+										</span>
+									)}
+								</div>
+
+								<div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+									<MiniStat label="G" value={stat.goals} />
+									<MiniStat label="A" value={stat.assists} />
+									<MiniStat label="YC" value={stat.yellowCards} />
+									<MiniStat label="RC" value={stat.redCards} />
+									<MiniStat label="Min" value={stat.minutes} />
+								</div>
+
+								{stat.note && (
+									<p className="mt-3 rounded-lg bg-white p-3 text-sm text-slate-600">
+										{stat.note}
+									</p>
+								)}
+							</div>
+						))}
 					</div>
 				)}
 			</div>
@@ -256,26 +299,20 @@ export default function PlayerProfile() {
 	);
 }
 
-function EmptyContributions() {
-	return (
-		<div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-			<h3 className="text-sm font-bold text-slate-900">
-				No match stats recorded yet
-			</h3>
-
-			<p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
-				Once goals, assists or cards are added from a match report, they’ll
-				show here.
-			</p>
-		</div>
-	);
-}
-
-function Stat({ label, value }: { label: string | number; value: string | number }) {
+function Stat({ label, value }: { label: string; value: string | number }) {
 	return (
 		<div className="rounded-xl bg-white p-4 shadow">
 			<p className="text-sm text-gray-500">{label}</p>
 			<p className="text-2xl font-bold text-blue-900">{value}</p>
+		</div>
+	);
+}
+
+function MiniStat({ label, value }: { label: string; value: string | number }) {
+	return (
+		<div className="rounded-lg bg-white p-2 text-center">
+			<p className="text-xs font-semibold text-slate-500">{label}</p>
+			<p className="text-sm font-bold text-blue-900">{value}</p>
 		</div>
 	);
 }

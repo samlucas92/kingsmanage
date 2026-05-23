@@ -3,26 +3,54 @@ import {
 	type DragMoveEvent,
 	type DragStartEvent,
 } from "@dnd-kit/core";
-import { useRef, useState, type MouseEvent } from "react";
+import { useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { usePlayerStore } from "../../../../stores/players";
 import { useMatchStore } from "../../../../stores/match";
 import type { LineupFormation, SelectedPlayer } from "../../../../stores/match";
 import { formations } from "./Formations";
 import { isPositionCompatible } from "./PositionCompatibility";
-import type { DragData, OpenPlayerMenu } from "./Types";
+import type { DragData, DropData, OpenPlayerMenu } from "./Types";
 
 const MENU_WIDTH = 240;
 const MENU_MAX_HEIGHT = 300;
+const PITCH_PLAYER_TARGET_RADIUS = 5.5;
+const PITCH_PLAYER_TARGET_RADIUS_WHEN_FULL = 8;
+
+type ScreenPoint = {
+	x: number;
+	y: number;
+};
+
+type PitchPosition = {
+	x: number;
+	y: number;
+};
+
+type FormationCandidate = {
+	x: number;
+	y: number;
+	positionIndex: number;
+	distance: number;
+};
+
+type PitchPlayerCandidate = {
+	playerId: string;
+	distance: number;
+};
 
 export function useTeamPicker(matchId: string) {
 	const pitchRef = useRef<HTMLDivElement | null>(null);
 	const benchRef = useRef<HTMLDivElement | null>(null);
+	const dragStartPointerRef = useRef<ScreenPoint | null>(null);
 
 	const [activeDragData, setActiveDragData] = useState<DragData | null>(null);
 	const [isOverPitch, setIsOverPitch] = useState(false);
 	const [isOverBench, setIsOverBench] = useState(false);
 	const [hoveredFormationIndex, setHoveredFormationIndex] = useState<
 		number | null
+	>(null);
+	const [hoveredSwapTargetPlayerId, setHoveredSwapTargetPlayerId] = useState<
+		string | null
 	>(null);
 	const [openMenu, setOpenMenu] = useState<OpenPlayerMenu | null>(null);
 
@@ -86,6 +114,7 @@ export function useTeamPicker(matchId: string) {
 			isOverPitch,
 			isOverBench,
 			hoveredFormationIndex,
+			hoveredSwapTargetPlayerId,
 			openMenu,
 			selectedFormation: "4-4-2" as LineupFormation,
 			isLineupLocked: false,
@@ -143,7 +172,47 @@ export function useTeamPicker(matchId: string) {
 		);
 	}
 
-	function isPointInsideRect(point: { x: number; y: number }, rect: DOMRect) {
+	function getSelectedPlayer(playerId: string) {
+		return currentMatch.selectedPlayers.find(
+			(selectedPlayer) => selectedPlayer.playerId === playerId
+		);
+	}
+
+	function getPitchPlayer(playerId: string) {
+		const selectedPlayer = getSelectedPlayer(playerId);
+
+		if (!selectedPlayer || selectedPlayer.area !== "pitch") {
+			return null;
+		}
+
+		return selectedPlayer;
+	}
+
+	function getPointerFromEvent(event: Event): ScreenPoint | null {
+		if (event instanceof MouseEvent || event instanceof PointerEvent) {
+			return {
+				x: event.clientX,
+				y: event.clientY,
+			};
+		}
+
+		if (event instanceof TouchEvent) {
+			const touch = event.touches[0] ?? event.changedTouches[0];
+
+			if (!touch) {
+				return null;
+			}
+
+			return {
+				x: touch.clientX,
+				y: touch.clientY,
+			};
+		}
+
+		return null;
+	}
+
+	function isPointInsideRect(point: ScreenPoint, rect: DOMRect) {
 		return (
 			point.x >= rect.left &&
 			point.x <= rect.right &&
@@ -152,7 +221,14 @@ export function useTeamPicker(matchId: string) {
 		);
 	}
 
-	function getDraggedCentre(event: DragEndEvent | DragMoveEvent) {
+	function getDragPoint(event: DragEndEvent | DragMoveEvent): ScreenPoint | null {
+		if (dragStartPointerRef.current) {
+			return {
+				x: dragStartPointerRef.current.x + event.delta.x,
+				y: dragStartPointerRef.current.y + event.delta.y,
+			};
+		}
+
 		const activeRect = event.active.rect.current.initial;
 
 		if (!activeRect) {
@@ -165,7 +241,7 @@ export function useTeamPicker(matchId: string) {
 		};
 	}
 
-	function getPitchPosition(point: { x: number; y: number }) {
+	function getPitchPosition(point: ScreenPoint) {
 		const pitchElement = pitchRef.current;
 
 		if (!pitchElement) {
@@ -183,30 +259,45 @@ export function useTeamPicker(matchId: string) {
 		};
 	}
 
-	function getClosestFormationIndex(
-		pitchPosition: { x: number; y: number },
-		playerId: string
-	) {
-		const formation = formations[selectedFormation];
+	function getDropTarget(event: DragEndEvent | DragMoveEvent) {
+		const dropData = event.over?.data.current as DropData | undefined;
 
+		if (!dropData || dropData.type !== "player") {
+			return null;
+		}
+
+		return dropData;
+	}
+
+	function getDistance(
+		firstPoint: PitchPosition,
+		secondPoint: PitchPosition
+	) {
+		const distanceX = firstPoint.x - secondPoint.x;
+		const distanceY = firstPoint.y - secondPoint.y;
+
+		return Math.sqrt(distanceX * distanceX + distanceY * distanceY);
+	}
+
+	function getClosestAvailableFormationCandidate(
+		pitchPosition: PitchPosition,
+		playerId: string
+	): FormationCandidate | null {
+		const formation = formations[selectedFormation];
 		const occupiedIndexes = new Set<number>();
 
-		pitchPlayers.forEach((pitchPlayer) => {
+		for (const pitchPlayer of pitchPlayers) {
 			if (pitchPlayer.playerId === playerId) {
-				return;
+				continue;
 			}
 
 			if (pitchPlayer.positionIndex !== undefined) {
 				occupiedIndexes.add(pitchPlayer.positionIndex);
-				return;
+				continue;
 			}
 
 			const occupiedIndex = formation.findIndex((position) => {
-				const distanceX = position.x - pitchPlayer.x;
-				const distanceY = position.y - pitchPlayer.y;
-				const distance = Math.sqrt(
-					distanceX * distanceX + distanceY * distanceY
-				);
+				const distance = getDistance(position, pitchPlayer);
 
 				return distance <= 4;
 			});
@@ -214,53 +305,127 @@ export function useTeamPicker(matchId: string) {
 			if (occupiedIndex >= 0) {
 				occupiedIndexes.add(occupiedIndex);
 			}
-		});
+		}
 
-		let closestIndex: number | null = null;
-		let closestDistance = Number.POSITIVE_INFINITY;
+		let closestCandidate: FormationCandidate | null = null;
 
-		formation.forEach((position, index) => {
-			if (occupiedIndexes.has(index)) {
+		formation.forEach((position, positionIndex) => {
+			if (occupiedIndexes.has(positionIndex)) {
 				return;
 			}
 
-			const distanceX = position.x - pitchPosition.x;
-			const distanceY = position.y - pitchPosition.y;
-			const distance = distanceX * distanceX + distanceY * distanceY;
+			const distance = getDistance(position, pitchPosition);
 
-			if (distance < closestDistance) {
-				closestDistance = distance;
-				closestIndex = index;
+			if (!closestCandidate || distance < closestCandidate.distance) {
+				closestCandidate = {
+					x: position.x,
+					y: position.y,
+					positionIndex,
+					distance,
+				};
 			}
 		});
 
-		return closestIndex;
+		return closestCandidate;
 	}
 
-	function getSnappedPitchPosition(
-		pitchPosition: { x: number; y: number },
+	function getPitchPlayerCandidateFromDropTarget(
+		pitchPosition: PitchPosition,
+		dropTarget: DropData | null,
+		playerId: string
+	): PitchPlayerCandidate | null {
+		if (
+			!dropTarget ||
+			dropTarget.area !== "pitch" ||
+			dropTarget.playerId === playerId
+		) {
+			return null;
+		}
+
+		const targetPlayer = getPitchPlayer(dropTarget.playerId);
+
+		if (!targetPlayer) {
+			return null;
+		}
+
+		return {
+			playerId: targetPlayer.playerId,
+			distance: getDistance(pitchPosition, targetPlayer),
+		};
+	}
+
+	function getPitchPlayerCandidateFromPosition(
+		pitchPosition: PitchPosition,
+		playerId: string
+	): PitchPlayerCandidate | null {
+		let closestCandidate: PitchPlayerCandidate | null = null;
+
+		for (const pitchPlayer of pitchPlayers) {
+			if (pitchPlayer.playerId === playerId) {
+				continue;
+			}
+
+			const distance = getDistance(pitchPosition, pitchPlayer);
+
+			if (
+				distance <= PITCH_PLAYER_TARGET_RADIUS &&
+				(!closestCandidate || distance < closestCandidate.distance)
+			) {
+				closestCandidate = {
+					playerId: pitchPlayer.playerId,
+					distance,
+				};
+			}
+		}
+
+		return closestCandidate;
+	}
+
+	function getPitchPlayerCandidate(
+		pitchPosition: PitchPosition,
+		dropTarget: DropData | null,
 		playerId: string
 	) {
-		const closestFormationIndex = getClosestFormationIndex(
+		const targetFromDropTarget = getPitchPlayerCandidateFromDropTarget(
+			pitchPosition,
+			dropTarget,
+			playerId
+		);
+
+		const targetFromPosition = getPitchPlayerCandidateFromPosition(
 			pitchPosition,
 			playerId
 		);
 
-		if (closestFormationIndex === null) {
-			return {
-				...pitchPosition,
-				positionIndex: undefined,
-			};
+		if (!targetFromDropTarget) {
+			return targetFromPosition;
 		}
 
-		const formationPosition =
-			formations[selectedFormation][closestFormationIndex];
+		if (!targetFromPosition) {
+			return targetFromDropTarget;
+		}
 
-		return {
-			x: formationPosition.x,
-			y: formationPosition.y,
-			positionIndex: closestFormationIndex,
-		};
+		return targetFromDropTarget.distance <= targetFromPosition.distance
+			? targetFromDropTarget
+			: targetFromPosition;
+	}
+
+	function shouldUsePitchPlayerCandidate(
+		pitchPlayerCandidate: PitchPlayerCandidate | null,
+		formationCandidate: FormationCandidate | null
+	) {
+		if (!pitchPlayerCandidate) {
+			return false;
+		}
+
+		if (!formationCandidate) {
+			return pitchPlayerCandidate.distance <= PITCH_PLAYER_TARGET_RADIUS_WHEN_FULL;
+		}
+
+		return (
+			pitchPlayerCandidate.distance <= PITCH_PLAYER_TARGET_RADIUS &&
+			pitchPlayerCandidate.distance <= formationCandidate.distance
+		);
 	}
 
 	function replaceOrAddSelectedPlayer(nextSelectedPlayer: SelectedPlayer) {
@@ -290,6 +455,259 @@ export function useTeamPicker(matchId: string) {
 			...currentMatch.selectedPlayers,
 			nextSelectedPlayer,
 		]);
+	}
+
+	function movePlayerToBenchInList(
+		selectedPlayers: SelectedPlayer[],
+		playerId: string
+	) {
+		const alreadySelected = selectedPlayers.some(
+			(selectedPlayer) => selectedPlayer.playerId === playerId
+		);
+
+		if (alreadySelected) {
+			return selectedPlayers.map((selectedPlayer) =>
+				selectedPlayer.playerId === playerId
+					? {
+							...selectedPlayer,
+							x: 0,
+							y: 0,
+							area: "bench" as const,
+							positionIndex: undefined,
+						}
+					: selectedPlayer
+			);
+		}
+
+		return [
+			...selectedPlayers,
+			{
+				playerId,
+				x: 0,
+				y: 0,
+				area: "bench" as const,
+				positionIndex: undefined,
+			},
+		];
+	}
+
+	function removeSelectedPlayerFromList(
+		selectedPlayers: SelectedPlayer[],
+		playerId: string
+	) {
+		return selectedPlayers.filter(
+			(selectedPlayer) => selectedPlayer.playerId !== playerId
+		);
+	}
+
+	function movePlayerToPitchInList(
+		selectedPlayers: SelectedPlayer[],
+		playerId: string,
+		position: Pick<SelectedPlayer, "x" | "y" | "positionIndex">
+	) {
+		const alreadySelected = selectedPlayers.some(
+			(selectedPlayer) => selectedPlayer.playerId === playerId
+		);
+
+		if (alreadySelected) {
+			return selectedPlayers.map((selectedPlayer) =>
+				selectedPlayer.playerId === playerId
+					? {
+							...selectedPlayer,
+							x: position.x,
+							y: position.y,
+							area: "pitch" as const,
+							positionIndex: position.positionIndex,
+						}
+					: selectedPlayer
+			);
+		}
+
+		return [
+			...selectedPlayers,
+			{
+				playerId,
+				x: position.x,
+				y: position.y,
+				area: "pitch" as const,
+				positionIndex: position.positionIndex,
+			},
+		];
+	}
+
+	function dropPlayerOnPitchPlayer(playerId: string, targetPlayerId: string) {
+		if (isLineupLocked || playerId === targetPlayerId) {
+			return;
+		}
+
+		const draggedPlayer = getSelectedPlayer(playerId);
+		const targetPlayer = getSelectedPlayer(targetPlayerId);
+
+		if (!targetPlayer || targetPlayer.area !== "pitch") {
+			return;
+		}
+
+		const targetPitchPosition = {
+			x: targetPlayer.x,
+			y: targetPlayer.y,
+			positionIndex: targetPlayer.positionIndex,
+		};
+
+		if (draggedPlayer?.area === "pitch") {
+			const draggedPitchPosition = {
+				x: draggedPlayer.x,
+				y: draggedPlayer.y,
+				positionIndex: draggedPlayer.positionIndex,
+			};
+
+			const updatedSelectedPlayers = currentMatch.selectedPlayers.map(
+				(selectedPlayer) => {
+					if (selectedPlayer.playerId === playerId) {
+						return {
+							...selectedPlayer,
+							...targetPitchPosition,
+						};
+					}
+
+					if (selectedPlayer.playerId === targetPlayerId) {
+						return {
+							...selectedPlayer,
+							...draggedPitchPosition,
+						};
+					}
+
+					return selectedPlayer;
+				}
+			);
+
+			setSelectedPlayers(matchId, updatedSelectedPlayers);
+			return;
+		}
+
+		if (draggedPlayer?.area === "bench") {
+			let updatedSelectedPlayers = movePlayerToPitchInList(
+				currentMatch.selectedPlayers,
+				playerId,
+				targetPitchPosition
+			);
+
+			updatedSelectedPlayers = movePlayerToBenchInList(
+				updatedSelectedPlayers,
+				targetPlayerId
+			);
+
+			setSelectedPlayers(matchId, updatedSelectedPlayers);
+			return;
+		}
+
+		let updatedSelectedPlayers = movePlayerToPitchInList(
+			currentMatch.selectedPlayers,
+			playerId,
+			targetPitchPosition
+		);
+
+		updatedSelectedPlayers = removeSelectedPlayerFromList(
+			updatedSelectedPlayers,
+			targetPlayerId
+		);
+
+		setSelectedPlayers(matchId, updatedSelectedPlayers);
+	}
+
+	function dropPlayerOnBenchPlayer(playerId: string, targetPlayerId: string) {
+		if (isLineupLocked || playerId === targetPlayerId) {
+			return;
+		}
+
+		const draggedPlayer = getSelectedPlayer(playerId);
+		const targetPlayer = getSelectedPlayer(targetPlayerId);
+
+		if (!targetPlayer || targetPlayer.area !== "bench") {
+			return;
+		}
+
+		if (draggedPlayer?.area === "pitch") {
+			const draggedPitchPosition = {
+				x: draggedPlayer.x,
+				y: draggedPlayer.y,
+				positionIndex: draggedPlayer.positionIndex,
+			};
+
+			let updatedSelectedPlayers = movePlayerToPitchInList(
+				currentMatch.selectedPlayers,
+				targetPlayerId,
+				draggedPitchPosition
+			);
+
+			updatedSelectedPlayers = movePlayerToBenchInList(
+				updatedSelectedPlayers,
+				playerId
+			);
+
+			setSelectedPlayers(matchId, updatedSelectedPlayers);
+			return;
+		}
+
+		if (!draggedPlayer) {
+			let updatedSelectedPlayers = movePlayerToBenchInList(
+				currentMatch.selectedPlayers,
+				playerId
+			);
+
+			updatedSelectedPlayers = removeSelectedPlayerFromList(
+				updatedSelectedPlayers,
+				targetPlayerId
+			);
+
+			setSelectedPlayers(matchId, updatedSelectedPlayers);
+			return;
+		}
+
+		assignPlayerToBench(playerId);
+	}
+
+	function dropPlayerOnAvailablePlayer(playerId: string, targetPlayerId: string) {
+		if (isLineupLocked || playerId === targetPlayerId) {
+			return;
+		}
+
+		const draggedPlayer = getSelectedPlayer(playerId);
+
+		if (draggedPlayer?.area === "pitch") {
+			const draggedPitchPosition = {
+				x: draggedPlayer.x,
+				y: draggedPlayer.y,
+				positionIndex: draggedPlayer.positionIndex,
+			};
+
+			let updatedSelectedPlayers = removeSelectedPlayerFromList(
+				currentMatch.selectedPlayers,
+				playerId
+			);
+
+			updatedSelectedPlayers = movePlayerToPitchInList(
+				updatedSelectedPlayers,
+				targetPlayerId,
+				draggedPitchPosition
+			);
+
+			setSelectedPlayers(matchId, updatedSelectedPlayers);
+			return;
+		}
+
+		if (draggedPlayer?.area === "bench") {
+			let updatedSelectedPlayers = removeSelectedPlayerFromList(
+				currentMatch.selectedPlayers,
+				playerId
+			);
+
+			updatedSelectedPlayers = movePlayerToBenchInList(
+				updatedSelectedPlayers,
+				targetPlayerId
+			);
+
+			setSelectedPlayers(matchId, updatedSelectedPlayers);
+		}
 	}
 
 	function assignPlayerToPosition(playerId: string, positionIndex: number) {
@@ -376,6 +794,9 @@ export function useTeamPicker(matchId: string) {
 				if (!formationPosition) {
 					return {
 						...selectedPlayer,
+						area: "bench" as const,
+						x: 0,
+						y: 0,
 						positionIndex: undefined,
 					};
 				}
@@ -395,7 +816,7 @@ export function useTeamPicker(matchId: string) {
 
 	function openPlayerMenu(
 		playerId: string,
-		event: MouseEvent<HTMLButtonElement>
+		event: ReactMouseEvent<HTMLButtonElement>
 	) {
 		if (isLineupLocked) {
 			return;
@@ -433,6 +854,8 @@ export function useTeamPicker(matchId: string) {
 			return;
 		}
 
+		dragStartPointerRef.current = getPointerFromEvent(event.activatorEvent);
+
 		setOpenMenu(null);
 		setActiveDragData(dragData);
 	}
@@ -443,7 +866,7 @@ export function useTeamPicker(matchId: string) {
 		}
 
 		const dragData = event.active.data.current as DragData | undefined;
-		const point = getDraggedCentre(event);
+		const point = getDragPoint(event);
 
 		if (!point || !dragData) {
 			return;
@@ -451,6 +874,7 @@ export function useTeamPicker(matchId: string) {
 
 		const pitchRect = pitchRef.current?.getBoundingClientRect();
 		const benchRect = benchRef.current?.getBoundingClientRect();
+		const dropTarget = getDropTarget(event);
 
 		const overPitch = pitchRect ? isPointInsideRect(point, pitchRect) : false;
 		const overBench = benchRect ? isPointInsideRect(point, benchRect) : false;
@@ -458,31 +882,58 @@ export function useTeamPicker(matchId: string) {
 		setIsOverPitch(overPitch);
 		setIsOverBench(overBench);
 
-		if (!overPitch) {
-			setHoveredFormationIndex(null);
+		if (overPitch) {
+			const pitchPosition = getPitchPosition(point);
+
+			if (!pitchPosition) {
+				setHoveredFormationIndex(null);
+				setHoveredSwapTargetPlayerId(null);
+				return;
+			}
+
+			const formationCandidate = getClosestAvailableFormationCandidate(
+				pitchPosition,
+				dragData.playerId
+			);
+
+			const pitchPlayerCandidate = getPitchPlayerCandidate(
+				pitchPosition,
+				dropTarget,
+				dragData.playerId
+			);
+
+			if (
+				shouldUsePitchPlayerCandidate(
+					pitchPlayerCandidate,
+					formationCandidate
+				)
+			) {
+				setHoveredSwapTargetPlayerId(pitchPlayerCandidate?.playerId ?? null);
+				setHoveredFormationIndex(null);
+				return;
+			}
+
+			setHoveredSwapTargetPlayerId(null);
+			setHoveredFormationIndex(formationCandidate?.positionIndex ?? null);
 			return;
 		}
 
-		const pitchPosition = getPitchPosition(point);
+		const validDropTarget =
+			dropTarget && dropTarget.playerId !== dragData.playerId
+				? dropTarget
+				: null;
 
-		if (!pitchPosition) {
-			setHoveredFormationIndex(null);
-			return;
-		}
-
-		const closestIndex = getClosestFormationIndex(
-			pitchPosition,
-			dragData.playerId
-		);
-
-		setHoveredFormationIndex(closestIndex);
+		setHoveredSwapTargetPlayerId(validDropTarget?.playerId ?? null);
+		setHoveredFormationIndex(null);
 	}
 
 	function resetDragState() {
+		dragStartPointerRef.current = null;
 		setActiveDragData(null);
 		setIsOverPitch(false);
 		setIsOverBench(false);
 		setHoveredFormationIndex(null);
+		setHoveredSwapTargetPlayerId(null);
 	}
 
 	function handleDragCancel() {
@@ -496,7 +947,8 @@ export function useTeamPicker(matchId: string) {
 		}
 
 		const dragData = event.active.data.current as DragData | undefined;
-		const point = getDraggedCentre(event);
+		const point = getDragPoint(event);
+		const dropTarget = getDropTarget(event);
 
 		resetDragState();
 
@@ -509,18 +961,13 @@ export function useTeamPicker(matchId: string) {
 		const pitchRect = pitchRef.current?.getBoundingClientRect();
 		const benchRect = benchRef.current?.getBoundingClientRect();
 
-		const droppedOnBench = benchRect
-			? isPointInsideRect(point, benchRect)
-			: false;
-
 		const droppedOnPitch = pitchRect
 			? isPointInsideRect(point, pitchRect)
 			: false;
 
-		if (droppedOnBench) {
-			assignPlayerToBench(playerId);
-			return;
-		}
+		const droppedOnBench = benchRect
+			? isPointInsideRect(point, benchRect)
+			: false;
 
 		if (droppedOnPitch) {
 			const pitchPosition = getPitchPosition(point);
@@ -529,15 +976,57 @@ export function useTeamPicker(matchId: string) {
 				return;
 			}
 
-			const snappedPosition = getSnappedPitchPosition(pitchPosition, playerId);
+			const formationCandidate = getClosestAvailableFormationCandidate(
+				pitchPosition,
+				playerId
+			);
 
-			replaceOrAddSelectedPlayer({
-				playerId,
-				x: snappedPosition.x,
-				y: snappedPosition.y,
-				area: "pitch",
-				positionIndex: snappedPosition.positionIndex,
-			});
+			const pitchPlayerCandidate = getPitchPlayerCandidate(
+				pitchPosition,
+				dropTarget,
+				playerId
+			);
+
+			if (
+				shouldUsePitchPlayerCandidate(
+					pitchPlayerCandidate,
+					formationCandidate
+				)
+			) {
+				if (pitchPlayerCandidate) {
+					dropPlayerOnPitchPlayer(playerId, pitchPlayerCandidate.playerId);
+				}
+
+				return;
+			}
+
+			if (!formationCandidate) {
+				return;
+			}
+
+			assignPlayerToPosition(playerId, formationCandidate.positionIndex);
+			return;
+		}
+
+		if (dropTarget && dropTarget.playerId !== playerId) {
+			if (dropTarget.area === "bench") {
+				dropPlayerOnBenchPlayer(playerId, dropTarget.playerId);
+				return;
+			}
+
+			if (dropTarget.area === "available") {
+				dropPlayerOnAvailablePlayer(playerId, dropTarget.playerId);
+				return;
+			}
+
+			if (dropTarget.area === "pitch") {
+				dropPlayerOnPitchPlayer(playerId, dropTarget.playerId);
+				return;
+			}
+		}
+
+		if (droppedOnBench) {
+			assignPlayerToBench(playerId);
 		}
 	}
 
@@ -549,6 +1038,7 @@ export function useTeamPicker(matchId: string) {
 		isOverPitch,
 		isOverBench,
 		hoveredFormationIndex,
+		hoveredSwapTargetPlayerId,
 		openMenu,
 		selectedFormation,
 		isLineupLocked,
