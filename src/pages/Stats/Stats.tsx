@@ -1,15 +1,18 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { usePlayerStore } from "../../stores/players";
 import { useMatchStore } from "../../stores/match";
 import { useSeasonStore } from "../../stores/seasons";
-import { DEFAULT_SEASON_ID } from "../../data/seedSeasons";
-import { getPreSeasonPlayerStats } from "../../data/preSeasonPlayerStats";
+import { useHistoricalStatsStore } from "../../stores/historicalStats";
+import SeasonSelector from "../../components/compositions/SeasonSelector";
+import {
+	getCompletedMatchesForSeason,
+	getPlayerStatsSummary,
+} from "../../services/statsService";
 
 type StatsRow = {
 	id: string;
 	name: string;
-	number: number;
-	positions: string;
 	firstTeamApps: number;
 	firstTeamGoals: number;
 	secondTeamApps: number;
@@ -18,6 +21,8 @@ type StatsRow = {
 	seasonGoals: number;
 	preSeasonApps: number;
 	preSeasonGoals: number;
+	trackedCareerApps: number;
+	trackedCareerGoals: number;
 	careerApps: number;
 	careerGoals: number;
 	assists: number;
@@ -37,8 +42,6 @@ const columns: {
 	align?: "left" | "right" | "center";
 }[] = [
 	{ label: "Player", key: "name", align: "left" },
-	{ label: "No.", key: "number", align: "center" },
-	{ label: "Positions", key: "positions", align: "left" },
 
 	{ label: "App", key: "firstTeamApps", align: "center" },
 	{ label: "Goals", key: "firstTeamGoals", align: "center" },
@@ -70,7 +73,13 @@ export default function Stats() {
 
 	const seasons = useSeasonStore((state) => state.seasons);
 	const activeSeasonId = useSeasonStore((state) => state.activeSeasonId);
-	const setActiveSeason = useSeasonStore((state) => state.setActiveSeason);
+
+	const historicalPlayerStats = useHistoricalStatsStore(
+		(state) => state.historicalPlayerStats
+	);
+	const initialiseHistoricalStats = useHistoricalStatsStore(
+		(state) => state.initialiseHistoricalStats
+	);
 
 	const [sortKey, setSortKey] = useState<SortKey>("careerApps");
 	const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
@@ -78,125 +87,48 @@ export default function Stats() {
 	const [searchTerm, setSearchTerm] = useState("");
 
 	const activeSeason = seasons.find((season) => season.id === activeSeasonId);
+	const selectedSeasonName = activeSeason?.name ?? "Selected season";
+
+	useEffect(() => {
+		initialiseHistoricalStats(players);
+	}, [players, initialiseHistoricalStats]);
 
 	const completedSeasonMatches = useMemo(() => {
-		return matches.filter(
-			(match) =>
-				(match.seasonId ?? DEFAULT_SEASON_ID) === activeSeasonId &&
-				match.isCompleted
-		);
+		return getCompletedMatchesForSeason(matches, activeSeasonId);
 	}, [matches, activeSeasonId]);
-
-	const firstTeamMatches = useMemo(() => {
-		return completedSeasonMatches.filter((match) => match.team === "first");
-	}, [completedSeasonMatches]);
-
-	const secondTeamMatches = useMemo(() => {
-		return completedSeasonMatches.filter((match) => match.team === "second");
-	}, [completedSeasonMatches]);
 
 	const statsRows = useMemo(() => {
 		return players
 			.filter((player) => includeInactive || player.isActive)
 			.map((player) => {
-				const preSeasonStats = getPreSeasonPlayerStats(player.name);
-
-				const firstTeamApps = getPlayerAppearancesInMatches(
-					firstTeamMatches,
-					player.id
+				const historicalRecord = historicalPlayerStats.find(
+					(record) => record.playerId === player.id
 				);
 
-				const secondTeamApps = getPlayerAppearancesInMatches(
-					secondTeamMatches,
-					player.id
-				);
-
-				const firstTeamGoals = getPlayerGoalsInMatches(
-					firstTeamMatches,
-					player.id
-				);
-
-				const secondTeamGoals = getPlayerGoalsInMatches(
-					secondTeamMatches,
-					player.id
-				);
-
-				const seasonApps = firstTeamApps + secondTeamApps;
-				const seasonGoals = firstTeamGoals + secondTeamGoals;
-
-				const playerMatchStats = completedSeasonMatches.flatMap((match) =>
-					(match.playerStats ?? []).filter(
-						(stat) => stat.playerId === player.id
-					)
-				);
-
-				const starts = completedSeasonMatches.filter((match) =>
-					match.selectedPlayers.some(
-						(selectedPlayer) =>
-							selectedPlayer.playerId === player.id &&
-							selectedPlayer.area === "pitch"
-					)
-				).length;
-
-				const bench = completedSeasonMatches.filter((match) =>
-					match.selectedPlayers.some(
-						(selectedPlayer) =>
-							selectedPlayer.playerId === player.id &&
-							selectedPlayer.area === "bench"
-					)
-				).length;
-
-				const assists = playerMatchStats.reduce(
-					(total, stat) => total + stat.assists,
-					0
-				);
-
-				const yellowCards = playerMatchStats.reduce(
-					(total, stat) => total + stat.yellowCards,
-					0
-				);
-
-				const redCards = playerMatchStats.reduce(
-					(total, stat) => total + stat.redCards,
-					0
-				);
-
-				const minutes = playerMatchStats.reduce(
-					(total, stat) => total + stat.minutes,
-					0
-				);
-
-				const motm = playerMatchStats.filter((stat) => stat.isMOTM).length;
+				const summary = getPlayerStatsSummary({
+					playerId: player.id,
+					playerName: player.name,
+					selectedSeasonId: activeSeasonId,
+					matches,
+					preSeasonStats: historicalRecord
+						? {
+								appearances: historicalRecord.appearances,
+								goals: historicalRecord.goals,
+							}
+						: undefined,
+				});
 
 				return {
 					id: player.id,
 					name: player.name,
-					number: player.number,
-					positions: player.positions.join(", "),
-					firstTeamApps,
-					firstTeamGoals,
-					secondTeamApps,
-					secondTeamGoals,
-					seasonApps,
-					seasonGoals,
-					preSeasonApps: preSeasonStats.appearances,
-					preSeasonGoals: preSeasonStats.goals,
-					careerApps: preSeasonStats.appearances + seasonApps,
-					careerGoals: preSeasonStats.goals + seasonGoals,
-					assists,
-					starts,
-					bench,
-					minutes,
-					motm,
-					yellowCards,
-					redCards,
+					...summary,
 				};
 			});
 	}, [
 		players,
-		firstTeamMatches,
-		secondTeamMatches,
-		completedSeasonMatches,
+		matches,
+		activeSeasonId,
+		historicalPlayerStats,
 		includeInactive,
 	]);
 
@@ -243,6 +175,11 @@ export default function Stats() {
 		0
 	);
 
+	const totalTrackedCareerApps = statsRows.reduce(
+		(total, row) => total + row.trackedCareerApps,
+		0
+	);
+
 	const totalCareerApps = statsRows.reduce(
 		(total, row) => total + row.careerApps,
 		0
@@ -255,6 +192,11 @@ export default function Stats() {
 
 	const totalPreSeasonGoals = statsRows.reduce(
 		(total, row) => total + row.preSeasonGoals,
+		0
+	);
+
+	const totalTrackedCareerGoals = statsRows.reduce(
+		(total, row) => total + row.trackedCareerGoals,
 		0
 	);
 
@@ -282,28 +224,12 @@ export default function Stats() {
 					<h1 className="text-2xl font-bold text-blue-900">Stats</h1>
 
 					<p className="text-gray-600">
-						Player stats split by first team, second team, pre-season history
-						and career totals.
+						Player stats split by selected season, pre-25/26 history and career
+						totals across every tracked season.
 					</p>
 				</div>
 
-				<label className="block shrink-0">
-					<span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-						Active season
-					</span>
-
-					<select
-						value={activeSeasonId}
-						onChange={(event) => setActiveSeason(event.target.value)}
-						className="min-w-40 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm"
-					>
-						{seasons.map((season) => (
-							<option key={season.id} value={season.id}>
-								{season.name}
-							</option>
-						))}
-					</select>
-				</label>
+				<SeasonSelector label="Selected season" />
 			</div>
 
 			<section className="min-w-0 rounded-xl bg-white p-4 shadow">
@@ -314,18 +240,18 @@ export default function Stats() {
 						</p>
 
 						<h2 className="mt-1 text-lg font-bold text-slate-900">
-							{activeSeason?.name ?? "No active season"}
+							{selectedSeasonName}
 						</h2>
 
 						<p className="mt-1 max-w-5xl text-sm text-slate-500">
-							Pre 25/26 apps and goals are historical values from your previous
-							stats sheet. 25/26 apps and goals are calculated from completed
-							match reports in the active season. Career totals combine both.
+							{selectedSeasonName} apps and goals are calculated from completed
+							matches in this season. Career totals are Pre 25/26 plus all
+							completed tracked matches across every season.
 						</p>
 					</div>
 
 					<span className="shrink-0 rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">
-						{completedSeasonMatches.length} completed matches
+						{completedSeasonMatches.length} completed selected-season matches
 					</span>
 				</div>
 			</section>
@@ -333,15 +259,23 @@ export default function Stats() {
 			<div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
 				<StatsCard label="First Team Apps" value={totalFirstTeamApps} />
 				<StatsCard label="Second Team Apps" value={totalSecondTeamApps} />
-				<StatsCard label="Total 25/26 Apps" value={totalSeasonApps} />
+				<StatsCard label={`${selectedSeasonName} Apps`} value={totalSeasonApps} />
 				<StatsCard label="Pre 25/26 Apps" value={totalPreSeasonApps} />
 			</div>
 
 			<div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+				<StatsCard label="Tracked Apps" value={totalTrackedCareerApps} />
 				<StatsCard label="Career Apps" value={totalCareerApps} />
-				<StatsCard label="25/26 Goals" value={totalSeasonGoals} />
-				<StatsCard label="Pre 25/26 Goals" value={totalPreSeasonGoals} />
+				<StatsCard
+					label={`${selectedSeasonName} Goals`}
+					value={totalSeasonGoals}
+				/>
 				<StatsCard label="Career Goals" value={totalCareerGoals} />
+			</div>
+
+			<div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+				<StatsCard label="Pre 25/26 Goals" value={totalPreSeasonGoals} />
+				<StatsCard label="Tracked Goals" value={totalTrackedCareerGoals} />
 			</div>
 
 			<div className="flex min-w-0 flex-wrap items-center gap-4 rounded-xl bg-white p-4 shadow">
@@ -369,14 +303,14 @@ export default function Stats() {
 					</div>
 				) : (
 					<div className="max-w-full overflow-x-auto">
-						<table className="min-w-[1500px] text-sm">
+						<table className="min-w-[1300px] text-sm">
 							<thead className="border-b bg-gray-50">
 								<tr className="border-b border-slate-200">
-									<th colSpan={3} className="bg-slate-50 p-2" />
+									<th colSpan={1} className="bg-slate-50 p-2" />
 
 									<GroupHeader label="First team" />
 									<GroupHeader label="Second team" />
-									<GroupHeader label="Total 25/26" />
+									<GroupHeader label={selectedSeasonName} />
 									<GroupHeader label="Pre 25/26" />
 									<GroupHeader label="Career" />
 
@@ -412,14 +346,13 @@ export default function Stats() {
 							<tbody>
 								{sortedRows.map((row) => (
 									<tr key={row.id} className="border-b hover:bg-gray-50">
-										<td className="whitespace-nowrap p-3 font-medium text-blue-900">
-											{row.name}
-										</td>
-
-										<td className="p-3 text-center">{row.number}</td>
-
-										<td className="whitespace-nowrap p-3 text-slate-600">
-											{row.positions}
+										<td className="whitespace-nowrap p-3 font-medium">
+											<Link
+												to={`/players/${row.id}`}
+												className="text-blue-900 hover:text-blue-700 hover:underline"
+											>
+												{row.name}
+											</Link>
 										</td>
 
 										<td className="p-3 text-center">{row.firstTeamApps}</td>
@@ -461,39 +394,6 @@ export default function Stats() {
 			</div>
 		</div>
 	);
-}
-
-function getPlayerAppearancesInMatches(
-	matches: {
-		selectedPlayers: {
-			playerId: string;
-		}[];
-	}[],
-	playerId: string
-) {
-	return matches.filter((match) =>
-		match.selectedPlayers.some(
-			(selectedPlayer) => selectedPlayer.playerId === playerId
-		)
-	).length;
-}
-
-function getPlayerGoalsInMatches(
-	matches: {
-		playerStats?: {
-			playerId: string;
-			goals: number;
-		}[];
-	}[],
-	playerId: string
-) {
-	return matches.reduce((total, match) => {
-		const playerStat = match.playerStats?.find(
-			(stat) => stat.playerId === playerId
-		);
-
-		return total + (playerStat?.goals ?? 0);
-	}, 0);
 }
 
 function StatsCard({

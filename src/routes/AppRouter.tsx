@@ -9,6 +9,7 @@ import Header from "../components/layout/Header";
 import Stats from "../pages/Stats/Stats";
 import MatchDetail from "../pages/Matches/MatchDetails";
 import Seasons from "../pages/Seasons/Seasons";
+import HistoricalStats from "../pages/HistoricalStats/HistoricalStats";
 
 export default function AppRouter() {
 	return (
@@ -31,6 +32,7 @@ export default function AppRouter() {
 
 						<Route path="/finance" element={<Finance />} />
 						<Route path="/stats" element={<Stats />} />
+						<Route path="/historical-stats" element={<HistoricalStats />} />
 						<Route path="/seasons" element={<Seasons />} />
 					</Routes>
 				</main>

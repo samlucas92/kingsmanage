@@ -13,6 +13,7 @@ export default function Sidebar() {
 				<SidebarItem label="Players" to="/players" />
 				<SidebarItem label="Finances" to="/finance" />
 				<SidebarItem label="Stats" to="/stats" />
+				<SidebarItem label="Historical Stats" to="/historical-stats" />
 				<SidebarItem label="Seasons" to="/seasons" />
 			</nav>
 		</aside>

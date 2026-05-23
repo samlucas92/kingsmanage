@@ -3,6 +3,7 @@ import { usePlayerStore } from "../../stores/players";
 import { useMatchStore } from "../../stores/match";
 import { useFinanceStore } from "../../stores/finance";
 import { useSeasonStore } from "../../stores/seasons";
+import SeasonSelector from "../../components/compositions/SeasonSelector";
 import { DEFAULT_SEASON_ID } from "../../data/seedSeasons";
 import {
 	getPlayerBalance,
@@ -20,7 +21,6 @@ export default function Dashboard() {
 
 	const seasons = useSeasonStore((state) => state.seasons);
 	const activeSeasonId = useSeasonStore((state) => state.activeSeasonId);
-	const setActiveSeason = useSeasonStore((state) => state.setActiveSeason);
 
 	const activeSeason = seasons.find((season) => season.id === activeSeasonId);
 
@@ -116,23 +116,7 @@ export default function Dashboard() {
 					</p>
 				</div>
 
-				<label className="block shrink-0">
-					<span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-						Active season
-					</span>
-
-					<select
-						value={activeSeasonId}
-						onChange={(event) => setActiveSeason(event.target.value)}
-						className="min-w-40 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm"
-					>
-						{seasons.map((season) => (
-							<option key={season.id} value={season.id}>
-								{season.name}
-							</option>
-						))}
-					</select>
-				</label>
+				<SeasonSelector label="Active season" />
 			</div>
 
 			<section className="rounded-xl bg-white p-5 shadow">
@@ -226,7 +210,11 @@ export default function Dashboard() {
 
 				<PriorityCard
 					title="Latest Result"
-					to={latestCompletedMatch ? `/matches/${latestCompletedMatch.id}` : "/matches"}
+					to={
+						latestCompletedMatch
+							? `/matches/${latestCompletedMatch.id}`
+							: "/matches"
+					}
 					tone="neutral"
 				>
 					{latestCompletedMatch ? (
@@ -396,7 +384,9 @@ export default function Dashboard() {
 								key={match.id}
 								to={`/matches/${match.id}`}
 								title={`vs ${match.opponent}`}
-								meta={`${formatDisplayDateTime(match.date)} · ${match.venue} · ${getTeamLabel(match.team)}`}
+								meta={`${formatDisplayDateTime(match.date)} · ${
+									match.venue
+								} · ${getTeamLabel(match.team)}`}
 								badge={match.isLineupLocked ? "Lineup saved" : "Needs team"}
 								badgeTone={match.isLineupLocked ? "good" : "warning"}
 							/>
@@ -491,7 +481,9 @@ function PriorityCard({
 	return (
 		<Link
 			to={to}
-			className={`block rounded-xl border bg-white p-5 shadow transition hover:-translate-y-0.5 hover:shadow-md ${getPriorityCardClass(tone)}`}
+			className={`block rounded-xl border bg-white p-5 shadow transition hover:-translate-y-0.5 hover:shadow-md ${getPriorityCardClass(
+				tone
+			)}`}
 		>
 			<p className="text-xs font-bold uppercase tracking-wide text-slate-500">
 				{title}

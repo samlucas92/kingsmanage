@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useMatchStore } from "../../stores/match";
 import { useSeasonStore } from "../../stores/seasons";
 import type { Match, MatchFixtureInput } from "../../stores/match";
+import SeasonSelector from "../../components/compositions/SeasonSelector";
 import { MatchFormModal } from "./components/MatchFormModal";
 import { MatchesTable } from "./components/MatchesTable";
 import { MatchFilters } from "./components/MatchFilters";
@@ -10,6 +11,7 @@ import { getMatchFilterFromState } from "./components/MatchFilters";
 import { PostponeMatchModal } from "./components/match-detail/PostponeMatchModal";
 import { useMatchForm } from "./hooks/useMatchForm";
 import { formatDateForInput } from "../../utils/date";
+import { DEFAULT_SEASON_ID } from "../../data/seedSeasons";
 
 export default function Matches() {
 	const matches = useMatchStore((state) => state.matches);
@@ -22,7 +24,6 @@ export default function Matches() {
 
 	const seasons = useSeasonStore((state) => state.seasons);
 	const activeSeasonId = useSeasonStore((state) => state.activeSeasonId);
-	const setActiveSeason = useSeasonStore((state) => state.setActiveSeason);
 
 	const [matchFilter, setMatchFilter] = useState<MatchFilter>("all");
 	const [teamFilter, setTeamFilter] = useState<MatchTeamFilter>("all");
@@ -48,7 +49,9 @@ export default function Matches() {
 	});
 
 	const activeSeasonMatches = useMemo(() => {
-		return matches.filter((match) => match.seasonId === activeSeasonId);
+		return matches.filter(
+			(match) => (match.seasonId ?? DEFAULT_SEASON_ID) === activeSeasonId
+		);
 	}, [matches, activeSeasonId]);
 
 	const matchCounts = useMemo(() => {
@@ -128,11 +131,7 @@ export default function Matches() {
 	}
 
 	function handleConfirmPostpone() {
-		if (!matchToPostpone) {
-			return;
-		}
-
-		if (!postponedDate) {
+		if (!matchToPostpone || !postponedDate) {
 			return;
 		}
 
@@ -176,23 +175,7 @@ export default function Matches() {
 						</p>
 					</div>
 
-					<label className="block">
-						<span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-							Season
-						</span>
-
-						<select
-							value={activeSeasonId}
-							onChange={(event) => setActiveSeason(event.target.value)}
-							className="min-w-44 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm"
-						>
-							{seasons.map((season) => (
-								<option key={season.id} value={season.id}>
-									{season.name}
-								</option>
-							))}
-						</select>
-					</label>
+					<SeasonSelector label="Season" />
 				</div>
 			</section>
 

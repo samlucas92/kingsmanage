@@ -1,145 +1,326 @@
-import { Link } from "react-router-dom";
+import { useMemo, useState } from "react";
 import { usePlayerStore } from "../../stores/players";
-import { useMatchStore } from "../../stores/match";
 import { useFinanceStore } from "../../stores/finance";
 import { useSeasonStore } from "../../stores/seasons";
-import { DEFAULT_SEASON_ID } from "../../data/seedSeasons";
+import type { Player } from "../../stores/players";
+import type { PlayerFinanceRecord } from "../../stores/finance";
 import {
 	getPlayerBalance,
+	getPlayerPaymentStatus,
 	getPlayerTotalPaid,
 } from "../../services/financeService";
-import DevToolsCard from "../../components/compositions/DevToolsCard";
-import { formatDisplayDateTime } from "../../utils/date";
+import EmptyState from "../../components/compositions/EmptyState";
+import Modal from "../../components/compositions/Modal";
+import SeasonSelector from "../../components/compositions/SeasonSelector";
+import { DEFAULT_SEASON_ID } from "../../data/seedSeasons";
 
-export default function Dashboard() {
+type FinanceFilter =
+	| "owed"
+	| "all"
+	| "paid"
+	| "part-paid"
+	| "unpaid"
+	| "nothing-owed";
+
+type AmountModalMode = "owed" | "payment";
+
+type BulkTarget = "active" | "visible" | "filtered";
+
+type AmountModalState = {
+	mode: AmountModalMode;
+	player: Player;
+};
+
+type FinanceRowData = {
+	player: Player;
+	record?: PlayerFinanceRecord;
+	amountOwed: number;
+	totalPaid: number;
+	balance: number;
+	status: string;
+};
+
+export default function Finance() {
 	const players = usePlayerStore((state) => state.players);
-	const matches = useMatchStore((state) => state.matches);
+
 	const playerFinanceRecords = useFinanceStore(
 		(state) => state.playerFinanceRecords
+	);
+	const setPlayerAmountOwed = useFinanceStore(
+		(state) => state.setPlayerAmountOwed
+	);
+	const addPlayerPayment = useFinanceStore((state) => state.addPlayerPayment);
+	const removePlayerPayment = useFinanceStore(
+		(state) => state.removePlayerPayment
 	);
 
 	const seasons = useSeasonStore((state) => state.seasons);
 	const activeSeasonId = useSeasonStore((state) => state.activeSeasonId);
-	const setActiveSeason = useSeasonStore((state) => state.setActiveSeason);
+
+	const [financeFilter, setFinanceFilter] = useState<FinanceFilter>("owed");
+	const [includeInactive, setIncludeInactive] = useState(false);
+	const [amountModal, setAmountModal] = useState<AmountModalState | null>(null);
+	const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+	const [bulkAmountValue, setBulkAmountValue] = useState("");
+	const [bulkTarget, setBulkTarget] = useState<BulkTarget>("active");
+	const [amountValue, setAmountValue] = useState("");
+	const [paymentNote, setPaymentNote] = useState("");
+	const [formError, setFormError] = useState("");
+	const [bulkFormError, setBulkFormError] = useState("");
 
 	const activeSeason = seasons.find((season) => season.id === activeSeasonId);
 
-	const activePlayers = players.filter((player) => player.isActive);
-	const inactivePlayers = players.filter((player) => !player.isActive);
+	const visiblePlayers = useMemo(() => {
+		return players.filter((player) => includeInactive || player.isActive);
+	}, [players, includeInactive]);
 
-	const activeSeasonMatches = matches.filter(
-		(match) => (match.seasonId ?? DEFAULT_SEASON_ID) === activeSeasonId
-	);
+	const allFinanceRows = useMemo<FinanceRowData[]>(() => {
+		return visiblePlayers
+			.map((player) => {
+				const record = getFinanceRecord(
+					playerFinanceRecords,
+					player.id,
+					activeSeasonId
+				);
 
-	const upcomingMatches = activeSeasonMatches.filter(
-		(match) => !match.isCompleted && match.state !== "postponed"
-	);
+				const amountOwed = record?.amountOwed ?? 0;
+				const totalPaid = getPlayerTotalPaid(record);
+				const balance = getPlayerBalance(record);
+				const status = getPlayerPaymentStatus(record);
 
-	const completedMatches = activeSeasonMatches.filter(
-		(match) => match.isCompleted
-	);
+				return {
+					player,
+					record,
+					amountOwed,
+					totalPaid,
+					balance,
+					status,
+				};
+			})
+			.sort((firstRow, secondRow) => {
+				if (secondRow.balance !== firstRow.balance) {
+					return secondRow.balance - firstRow.balance;
+				}
 
-	const postponedMatches = activeSeasonMatches.filter(
-		(match) => match.state === "postponed"
-	);
+				if (secondRow.amountOwed !== firstRow.amountOwed) {
+					return secondRow.amountOwed - firstRow.amountOwed;
+				}
 
-	const unlockedUpcomingMatches = upcomingMatches.filter(
-		(match) => !match.isLineupLocked
-	);
+				return firstRow.player.name.localeCompare(secondRow.player.name);
+			});
+	}, [visiblePlayers, playerFinanceRecords, activeSeasonId]);
 
-	const activePlayerFinanceRecords = activePlayers.map((player) =>
-		playerFinanceRecords.find(
-			(record) =>
-				record.playerId === player.id &&
-				(record.seasonId ?? DEFAULT_SEASON_ID) === activeSeasonId
-		)
-	);
+	const financeRows = useMemo(() => {
+		return allFinanceRows.filter((row) => {
+			if (financeFilter === "all") {
+				return true;
+			}
 
-	const totalExpected = activePlayerFinanceRecords.reduce(
-		(total, record) => total + (record?.amountOwed ?? 0),
+			if (financeFilter === "owed") {
+				return row.balance > 0;
+			}
+
+			return row.status === financeFilter;
+		});
+	}, [allFinanceRows, financeFilter]);
+
+	const totalExpected = allFinanceRows.reduce(
+		(total, row) => total + row.amountOwed,
 		0
 	);
 
-	const totalPaid = activePlayerFinanceRecords.reduce(
-		(total, record) => total + getPlayerTotalPaid(record),
+	const totalPaid = allFinanceRows.reduce(
+		(total, row) => total + row.totalPaid,
 		0
 	);
 
-	const totalOutstanding = activePlayerFinanceRecords.reduce(
-		(total, record) => total + getPlayerBalance(record),
+	const totalOutstanding = allFinanceRows.reduce(
+		(total, row) => total + row.balance,
 		0
 	);
 
-	const playersOwingMoney = activePlayerFinanceRecords.filter(
-		(record) => getPlayerBalance(record) > 0
-	).length;
+	const playersOwingMoney = allFinanceRows.filter((row) => row.balance > 0);
+	const paidPlayers = allFinanceRows.filter((row) => row.status === "paid");
+	const partPaidPlayers = allFinanceRows.filter(
+		(row) => row.status === "part-paid"
+	);
+	const unpaidPlayers = allFinanceRows.filter((row) => row.status === "unpaid");
+	const nothingOwedPlayers = allFinanceRows.filter(
+		(row) => row.status === "nothing-owed"
+	);
 
 	const paidPercentage =
 		totalExpected > 0 ? Math.round((totalPaid / totalExpected) * 100) : 0;
 
-	const nextMatch = [...upcomingMatches].sort(
-		(firstMatch, secondMatch) =>
-			new Date(firstMatch.date).getTime() -
-			new Date(secondMatch.date).getTime()
-	)[0];
+	const outstandingPercentage =
+		totalExpected > 0
+			? Math.round((totalOutstanding / totalExpected) * 100)
+			: 0;
 
-	const latestCompletedMatch = [...completedMatches].sort(
-		(firstMatch, secondMatch) =>
-			new Date(secondMatch.date).getTime() -
-			new Date(firstMatch.date).getTime()
-	)[0];
+	const averageOwed =
+		allFinanceRows.length > 0 ? totalExpected / allFinanceRows.length : 0;
 
-	const nextThreeMatches = [...upcomingMatches]
-		.sort(
-			(firstMatch, secondMatch) =>
-				new Date(firstMatch.date).getTime() -
-				new Date(secondMatch.date).getTime()
-		)
-		.slice(0, 3);
+	const averagePaid =
+		allFinanceRows.length > 0 ? totalPaid / allFinanceRows.length : 0;
 
-	const latestThreeResults = [...completedMatches]
-		.sort(
-			(firstMatch, secondMatch) =>
-				new Date(secondMatch.date).getTime() -
-				new Date(firstMatch.date).getTime()
-		)
-		.slice(0, 3);
+	const topOutstandingRows = allFinanceRows
+		.filter((row) => row.balance > 0)
+		.slice(0, 8);
+
+	const highestOutstanding = topOutstandingRows.reduce(
+		(highest, row) => Math.max(highest, row.balance),
+		0
+	);
+
+	const bulkTargetRows = useMemo(() => {
+		if (bulkTarget === "filtered") {
+			return financeRows;
+		}
+
+		if (bulkTarget === "visible") {
+			return allFinanceRows;
+		}
+
+		return allFinanceRows.filter((row) => row.player.isActive);
+	}, [bulkTarget, financeRows, allFinanceRows]);
+
+	function openAmountModal(mode: AmountModalMode, player: Player) {
+		const record = getFinanceRecord(
+			playerFinanceRecords,
+			player.id,
+			activeSeasonId
+		);
+
+		setAmountModal({
+			mode,
+			player,
+		});
+
+		setAmountValue(mode === "owed" ? String(record?.amountOwed ?? "") : "");
+		setPaymentNote("");
+		setFormError("");
+	}
+
+	function closeAmountModal() {
+		setAmountModal(null);
+		setAmountValue("");
+		setPaymentNote("");
+		setFormError("");
+	}
+
+	function openBulkModal() {
+		setBulkAmountValue("");
+		setBulkTarget("active");
+		setBulkFormError("");
+		setIsBulkModalOpen(true);
+	}
+
+	function closeBulkModal() {
+		setBulkAmountValue("");
+		setBulkTarget("active");
+		setBulkFormError("");
+		setIsBulkModalOpen(false);
+	}
+
+	function handleConfirmAmountModal() {
+		if (!amountModal) {
+			return;
+		}
+
+		const amount = Number(amountValue);
+
+		if (!Number.isFinite(amount) || amount < 0) {
+			setFormError("Amount must be 0 or above.");
+			return;
+		}
+
+		if (amountModal.mode === "payment" && amount <= 0) {
+			setFormError("Payment amount must be more than 0.");
+			return;
+		}
+
+		if (amountModal.mode === "owed") {
+			setPlayerAmountOwed(amountModal.player.id, amount, activeSeasonId);
+		} else {
+			addPlayerPayment(
+				amountModal.player.id,
+				{
+					amount,
+					note: paymentNote.trim() || undefined,
+				},
+				activeSeasonId
+			);
+		}
+
+		closeAmountModal();
+	}
+
+	function handleConfirmBulkAmount() {
+		const amount = Number(bulkAmountValue);
+
+		if (!Number.isFinite(amount) || amount < 0) {
+			setBulkFormError("Amount must be 0 or above.");
+			return;
+		}
+
+		if (bulkTargetRows.length === 0) {
+			setBulkFormError("There are no players in this target group.");
+			return;
+		}
+
+		const confirmed = window.confirm(
+			`Set amount owed to ${formatMoney(amount)} for ${bulkTargetRows.length} ${
+				bulkTargetRows.length === 1 ? "player" : "players"
+			} in ${activeSeason?.name ?? "the active season"}?`
+		);
+
+		if (!confirmed) {
+			return;
+		}
+
+		bulkTargetRows.forEach((row) => {
+			setPlayerAmountOwed(row.player.id, amount, activeSeasonId);
+		});
+
+		closeBulkModal();
+	}
+
+	const modalTitle =
+		amountModal?.mode === "owed" ? "Set amount owed" : "Add payment";
+
+	const modalConfirmText =
+		amountModal?.mode === "owed" ? "Save Amount" : "Add Payment";
 
 	return (
 		<div className="w-full min-w-0 space-y-6 overflow-hidden">
 			<div className="flex min-w-0 flex-wrap items-start justify-between gap-4">
 				<div className="min-w-0">
-					<h1 className="text-2xl font-bold text-blue-900">Dashboard</h1>
+					<h1 className="text-2xl font-bold text-blue-900">Finance</h1>
 
 					<p className="text-gray-600">
-						Quick overview of what needs attention for the active season.
+						Track who has paid, who owes money, and total outstanding club
+						payments for the active season.
 					</p>
 				</div>
 
-				<label className="block shrink-0">
-					<span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-						Active season
-					</span>
-
-					<select
-						value={activeSeasonId}
-						onChange={(event) => setActiveSeason(event.target.value)}
-						className="min-w-40 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm"
+				<div className="flex flex-wrap items-end gap-3">
+					<button
+						type="button"
+						onClick={openBulkModal}
+						className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
 					>
-						{seasons.map((season) => (
-							<option key={season.id} value={season.id}>
-								{season.name}
-							</option>
-						))}
-					</select>
-				</label>
+						Bulk Set Owed
+					</button>
+
+					<SeasonSelector label="Active season" />
+				</div>
 			</div>
 
 			<section className="rounded-xl bg-white p-5 shadow">
 				<div className="flex flex-wrap items-center justify-between gap-4">
 					<div className="min-w-0">
 						<p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-							Current season
+							Finance view
 						</p>
 
 						<h2 className="mt-1 text-lg font-bold text-slate-900">
@@ -147,534 +328,713 @@ export default function Dashboard() {
 						</h2>
 
 						<p className="mt-1 text-sm text-slate-500">
-							Dashboard figures are filtered to this season.
+							Amounts owed and payments are stored against this season. The
+							default list only shows players with money outstanding.
 						</p>
 					</div>
 
-					<div className="flex flex-wrap gap-2">
-						<SmallBadge label={`${activeSeasonMatches.length} matches`} />
-						<SmallBadge label={`${activePlayers.length} active players`} />
-						<SmallBadge label={`${paidPercentage}% finance collected`} />
+					<div className="text-right">
+						<p className="text-2xl font-bold text-blue-900">
+							{paidPercentage}%
+						</p>
+						<p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+							collected
+						</p>
+					</div>
+				</div>
+
+				<div className="mt-5">
+					<div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-500">
+						<span>Paid {formatMoney(totalPaid)}</span>
+						<span>Outstanding {formatMoney(totalOutstanding)}</span>
+					</div>
+
+					<div className="h-4 overflow-hidden rounded-full bg-red-100">
+						<div
+							className="h-full rounded-full bg-blue-700 transition-all"
+							style={{ width: `${Math.min(100, paidPercentage)}%` }}
+						/>
 					</div>
 				</div>
 			</section>
 
-			<div className="grid min-w-0 gap-4 lg:grid-cols-3">
-				<PriorityCard
-					title="Next Fixture"
-					to={nextMatch ? `/matches/${nextMatch.id}` : "/matches"}
-					tone={nextMatch?.isLineupLocked ? "good" : "warning"}
-				>
-					{nextMatch ? (
-						<div>
-							<p className="text-xl font-bold text-slate-900">
-								vs {nextMatch.opponent}
-							</p>
-
-							<p className="mt-1 text-sm text-slate-500">
-								{formatDisplayDateTime(nextMatch.date)} ·{" "}
-								<span className="capitalize">{nextMatch.venue}</span> ·{" "}
-								{getTeamLabel(nextMatch.team)}
-							</p>
-
-							<div className="mt-4">
-								<span
-									className={`rounded-full px-3 py-1 text-xs font-bold ${
-										nextMatch.isLineupLocked
-											? "bg-green-100 text-green-800"
-											: "bg-amber-100 text-amber-800"
-									}`}
-								>
-									{nextMatch.isLineupLocked
-										? "Lineup saved"
-										: "Lineup needs attention"}
-								</span>
-							</div>
-						</div>
-					) : (
-						<p className="text-sm text-slate-500">
-							No upcoming fixtures in this season.
-						</p>
-					)}
-				</PriorityCard>
-
-				<PriorityCard
-					title="Finance Attention"
-					to="/finance"
-					tone={playersOwingMoney > 0 ? "danger" : "good"}
-				>
-					<p
-						className={`text-3xl font-bold ${
-							totalOutstanding > 0 ? "text-red-700" : "text-green-700"
-						}`}
-					>
-						{formatMoney(totalOutstanding)}
-					</p>
-
-					<p className="mt-1 text-sm text-slate-500">
-						Outstanding from {playersOwingMoney}{" "}
-						{playersOwingMoney === 1 ? "player" : "players"}.
-					</p>
-
-					<div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
-						<div
-							className="h-full rounded-full bg-blue-700"
-							style={{ width: `${Math.min(100, paidPercentage)}%` }}
-						/>
-					</div>
-				</PriorityCard>
-
-				<PriorityCard
-					title="Latest Result"
-					to={latestCompletedMatch ? `/matches/${latestCompletedMatch.id}` : "/matches"}
-					tone="neutral"
-				>
-					{latestCompletedMatch ? (
-						<div>
-							<p className="text-xl font-bold text-slate-900">
-								vs {latestCompletedMatch.opponent}
-							</p>
-
-							<p className="mt-1 text-sm text-slate-500">
-								{formatDisplayDateTime(latestCompletedMatch.date)} ·{" "}
-								{getTeamLabel(latestCompletedMatch.team)}
-							</p>
-
-							<div className="mt-3 flex items-center gap-3">
-								{latestCompletedMatch.result && (
-									<p className="text-2xl font-bold text-slate-900">
-										{latestCompletedMatch.result.homeGoals} -{" "}
-										{latestCompletedMatch.result.awayGoals}
-									</p>
-								)}
-
-								<ResultBadge state={latestCompletedMatch.state} />
-							</div>
-						</div>
-					) : (
-						<p className="text-sm text-slate-500">
-							No completed results in this season.
-						</p>
-					)}
-				</PriorityCard>
-			</div>
-
-			<div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-				<DashboardStatCard
-					label="Upcoming"
-					value={upcomingMatches.length}
-					helper={`${unlockedUpcomingMatches.length} need team`}
-					to="/matches"
-					warning={unlockedUpcomingMatches.length > 0}
+			<div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+				<FinanceStatCard
+					label="Expected"
+					value={formatMoney(totalExpected)}
+					helper={`${allFinanceRows.length} visible players`}
 				/>
-
-				<DashboardStatCard
-					label="Completed"
-					value={completedMatches.length}
-					helper="Results entered"
-					to="/matches"
+				<FinanceStatCard
+					label="Paid"
+					value={formatMoney(totalPaid)}
+					helper={`${paidPercentage}% collected`}
 				/>
-
-				<DashboardStatCard
-					label="Postponed"
-					value={postponedMatches.length}
-					helper="Awaiting restoration"
-					to="/matches"
-					warning={postponedMatches.length > 0}
+				<FinanceStatCard
+					label="Outstanding"
+					value={formatMoney(totalOutstanding)}
+					helper={`${outstandingPercentage}% still owed`}
+					warning={totalOutstanding > 0}
 				/>
-
-				<DashboardStatCard
-					label="Active Players"
-					value={activePlayers.length}
-					helper={`${inactivePlayers.length} inactive`}
-					to="/players"
+				<FinanceStatCard
+					label="Players Owing"
+					value={playersOwingMoney.length}
+					helper={`${paidPlayers.length} fully paid`}
+					warning={playersOwingMoney.length > 0}
 				/>
 			</div>
 
-			<div className="grid min-w-0 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-				<section className="rounded-xl bg-white p-6 shadow">
-					<div className="flex flex-wrap items-start justify-between gap-4">
-						<div>
-							<h2 className="text-lg font-bold text-blue-900">
-								Quick Actions
-							</h2>
-
-							<p className="mt-1 text-sm text-slate-500">
-								Common things you are likely to do next.
-							</p>
-						</div>
-					</div>
-
-					<div className="mt-5 grid gap-3 sm:grid-cols-2">
-						<QuickAction
-							to="/matches"
-							title="Manage matches"
-							description="Add fixtures, enter results, select teams and review match reports."
-						/>
-
-						<QuickAction
-							to="/players"
-							title="Manage players"
-							description="Add players, update positions, shirt numbers and active status."
-						/>
-
-						<QuickAction
-							to="/finance"
-							title="Record payments"
-							description="Set owed amounts, add payments and check outstanding balances."
-						/>
-
-						<QuickAction
-							to="/stats"
-							title="Review stats"
-							description="View active-season stats and historical appearance totals."
-						/>
-					</div>
-				</section>
-
-				<section className="rounded-xl bg-white p-6 shadow">
-					<div className="flex flex-wrap items-start justify-between gap-4">
-						<div>
-							<h2 className="text-lg font-bold text-blue-900">
-								Season Finance
-							</h2>
-
-							<p className="mt-1 text-sm text-slate-500">
-								Active player payment summary.
-							</p>
-						</div>
-
-						<Link
-							to="/finance"
-							className="text-sm font-semibold text-blue-700 hover:text-blue-900"
-						>
-							View finance
-						</Link>
-					</div>
-
-					<div className="mt-5 space-y-4">
-						<FinanceLine label="Expected" value={formatMoney(totalExpected)} />
-						<FinanceLine label="Paid" value={formatMoney(totalPaid)} />
-						<FinanceLine
-							label="Outstanding"
-							value={formatMoney(totalOutstanding)}
-							danger={totalOutstanding > 0}
-						/>
-						<FinanceLine
-							label="Players owing"
-							value={playersOwingMoney}
-							danger={playersOwingMoney > 0}
-						/>
-					</div>
-				</section>
+			<div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+				<FinanceStatCard
+					label="Average Owed"
+					value={formatMoney(averageOwed)}
+					helper="Per visible player"
+				/>
+				<FinanceStatCard
+					label="Average Paid"
+					value={formatMoney(averagePaid)}
+					helper="Per visible player"
+				/>
+				<FinanceStatCard label="Part Paid" value={partPaidPlayers.length} />
+				<FinanceStatCard label="Unpaid" value={unpaidPlayers.length} />
 			</div>
 
 			<div className="grid min-w-0 gap-6 xl:grid-cols-2">
-				<section className="rounded-xl bg-white p-6 shadow">
-					<div className="flex items-start justify-between gap-4">
-						<div>
-							<h2 className="text-lg font-bold text-blue-900">
-								Next Fixtures
-							</h2>
+				<section className="min-w-0 rounded-xl bg-white p-5 shadow">
+					<div>
+						<h2 className="text-lg font-bold text-blue-900">
+							Payment Status
+						</h2>
 
-							<p className="text-sm text-gray-500">
-								The next few matches in this season.
-							</p>
-						</div>
-
-						<Link
-							to="/matches"
-							className="text-sm font-semibold text-blue-700 hover:text-blue-900"
-						>
-							View all
-						</Link>
+						<p className="mt-1 text-sm text-slate-500">
+							Breakdown of players by payment state.
+						</p>
 					</div>
 
-					<div className="mt-4 space-y-3">
-						{nextThreeMatches.map((match) => (
-							<MatchListItem
-								key={match.id}
-								to={`/matches/${match.id}`}
-								title={`vs ${match.opponent}`}
-								meta={`${formatDisplayDateTime(match.date)} · ${match.venue} · ${getTeamLabel(match.team)}`}
-								badge={match.isLineupLocked ? "Lineup saved" : "Needs team"}
-								badgeTone={match.isLineupLocked ? "good" : "warning"}
-							/>
-						))}
-
-						{nextThreeMatches.length === 0 && (
-							<p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-500">
-								No upcoming fixtures.
-							</p>
-						)}
+					<div className="mt-5 space-y-4">
+						<StatusBar
+							label="Paid"
+							value={paidPlayers.length}
+							total={allFinanceRows.length}
+							tone="good"
+						/>
+						<StatusBar
+							label="Part paid"
+							value={partPaidPlayers.length}
+							total={allFinanceRows.length}
+							tone="warning"
+						/>
+						<StatusBar
+							label="Unpaid"
+							value={unpaidPlayers.length}
+							total={allFinanceRows.length}
+							tone="bad"
+						/>
+						<StatusBar
+							label="Nothing owed"
+							value={nothingOwedPlayers.length}
+							total={allFinanceRows.length}
+							tone="neutral"
+						/>
 					</div>
 				</section>
 
-				<section className="rounded-xl bg-white p-6 shadow">
-					<div className="flex items-start justify-between gap-4">
-						<div>
-							<h2 className="text-lg font-bold text-blue-900">
-								Recent Results
-							</h2>
+				<section className="min-w-0 rounded-xl bg-white p-5 shadow">
+					<div>
+						<h2 className="text-lg font-bold text-blue-900">
+							Top Outstanding
+						</h2>
 
-							<p className="text-sm text-gray-500">
-								Latest completed matches in this season.
-							</p>
+						<p className="mt-1 text-sm text-slate-500">
+							Players with the highest active-season balance.
+						</p>
+					</div>
+
+					{topOutstandingRows.length === 0 ? (
+						<div className="mt-5 rounded-xl bg-green-50 p-4 text-sm font-medium text-green-800">
+							No outstanding balances for the current filter.
 						</div>
-
-						<Link
-							to="/matches"
-							className="text-sm font-semibold text-blue-700 hover:text-blue-900"
-						>
-							View all
-						</Link>
-					</div>
-
-					<div className="mt-4 space-y-3">
-						{latestThreeResults.map((match) => (
-							<Link
-								key={match.id}
-								to={`/matches/${match.id}`}
-								className="block rounded-lg border border-slate-200 p-4 hover:bg-slate-50"
-							>
-								<div className="flex items-start justify-between gap-3">
-									<div className="min-w-0">
-										<p className="truncate font-semibold text-slate-900">
-											vs {match.opponent}
-										</p>
-
-										<p className="text-sm text-slate-500">
-											{formatDisplayDateTime(match.date)} ·{" "}
-											{getTeamLabel(match.team)}
-										</p>
-									</div>
-
-									<div className="shrink-0 text-right">
-										{match.result && (
-											<p className="text-lg font-bold text-slate-900">
-												{match.result.homeGoals} -{" "}
-												{match.result.awayGoals}
-											</p>
-										)}
-
-										<ResultBadge state={match.state} />
-									</div>
-								</div>
-							</Link>
-						))}
-
-						{latestThreeResults.length === 0 && (
-							<p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-500">
-								No completed matches yet.
-							</p>
-						)}
-					</div>
+					) : (
+						<div className="mt-5 space-y-4">
+							{topOutstandingRows.map((row) => (
+								<OutstandingBar
+									key={row.player.id}
+									name={row.player.name}
+									value={row.balance}
+									maxValue={highestOutstanding}
+								/>
+							))}
+						</div>
+					)}
 				</section>
 			</div>
 
-			<DevToolsCard />
+			<div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+				<div className="flex flex-wrap items-center justify-between gap-3">
+					<div>
+						<h2 className="text-sm font-bold text-blue-900">
+							Bulk finance tools
+						</h2>
+
+						<p className="mt-1 text-sm text-blue-800">
+							Set the same amount owed for a group of players in the active
+							season.
+						</p>
+					</div>
+
+					<button
+						type="button"
+						onClick={openBulkModal}
+						className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
+					>
+						Bulk Set Owed
+					</button>
+				</div>
+			</div>
+
+			<div className="flex min-w-0 flex-wrap items-center gap-3 rounded-xl bg-white p-4 shadow">
+				<FinanceFilterButton
+					label="Owes Money"
+					value="owed"
+					count={playersOwingMoney.length}
+					activeFilter={financeFilter}
+					onChange={setFinanceFilter}
+				/>
+
+				<FinanceFilterButton
+					label="Unpaid"
+					value="unpaid"
+					count={unpaidPlayers.length}
+					activeFilter={financeFilter}
+					onChange={setFinanceFilter}
+				/>
+
+				<FinanceFilterButton
+					label="Part Paid"
+					value="part-paid"
+					count={partPaidPlayers.length}
+					activeFilter={financeFilter}
+					onChange={setFinanceFilter}
+				/>
+
+				<FinanceFilterButton
+					label="Paid"
+					value="paid"
+					count={paidPlayers.length}
+					activeFilter={financeFilter}
+					onChange={setFinanceFilter}
+				/>
+
+				<FinanceFilterButton
+					label="Nothing Owed"
+					value="nothing-owed"
+					count={nothingOwedPlayers.length}
+					activeFilter={financeFilter}
+					onChange={setFinanceFilter}
+				/>
+
+				<FinanceFilterButton
+					label="All"
+					value="all"
+					count={allFinanceRows.length}
+					activeFilter={financeFilter}
+					onChange={setFinanceFilter}
+				/>
+
+				<label className="ml-auto flex items-center gap-2 text-sm font-medium text-slate-700">
+					<input
+						type="checkbox"
+						checked={includeInactive}
+						onChange={(event) => setIncludeInactive(event.target.checked)}
+					/>
+					Include inactive players
+				</label>
+			</div>
+
+			<div className="min-w-0 overflow-hidden rounded-xl bg-white shadow">
+				{financeRows.length === 0 ? (
+					<div className="p-6">
+						<EmptyState
+							title="No finance records found"
+							message="No players match this finance filter for the active season."
+						/>
+					</div>
+				) : (
+					<div className="max-w-full overflow-x-auto">
+						<table className="min-w-[900px] text-sm">
+							<thead className="border-b bg-gray-50">
+								<tr className="text-left">
+									<th className="p-3">Player</th>
+									<th className="p-3">Owed</th>
+									<th className="p-3">Paid</th>
+									<th className="p-3">Outstanding</th>
+									<th className="p-3">Status</th>
+									<th className="p-3 text-right">Actions</th>
+								</tr>
+							</thead>
+
+							<tbody>
+								{financeRows.map((row) => (
+									<FinanceRow
+										key={row.player.id}
+										player={row.player}
+										record={row.record}
+										amountOwed={row.amountOwed}
+										totalPaid={row.totalPaid}
+										balance={row.balance}
+										status={row.status}
+										onSetOwed={() => openAmountModal("owed", row.player)}
+										onAddPayment={() =>
+											openAmountModal("payment", row.player)
+										}
+										onRemovePayment={(paymentId) =>
+											removePlayerPayment(
+												row.player.id,
+												paymentId,
+												activeSeasonId
+											)
+										}
+									/>
+								))}
+							</tbody>
+						</table>
+					</div>
+				)}
+			</div>
+
+			<Modal
+				isOpen={amountModal !== null}
+				title={
+					amountModal
+						? `${modalTitle}: ${amountModal.player.name}`
+						: modalTitle
+				}
+				confirmText={modalConfirmText}
+				onClose={closeAmountModal}
+				onConfirm={handleConfirmAmountModal}
+			>
+				<div className="space-y-4">
+					{formError && (
+						<div className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+							{formError}
+						</div>
+					)}
+
+					<label className="block space-y-1">
+						<span className="text-sm font-semibold text-slate-700">
+							Amount
+						</span>
+
+						<input
+							type="number"
+							min={0}
+							step="0.01"
+							value={amountValue}
+							onChange={(event) => {
+								setAmountValue(event.target.value);
+								setFormError("");
+							}}
+							className="w-full rounded-lg border px-3 py-2"
+							placeholder="0.00"
+						/>
+					</label>
+
+					{amountModal?.mode === "payment" && (
+						<label className="block space-y-1">
+							<span className="text-sm font-semibold text-slate-700">
+								Note
+							</span>
+
+							<input
+								value={paymentNote}
+								onChange={(event) => setPaymentNote(event.target.value)}
+								className="w-full rounded-lg border px-3 py-2"
+								placeholder="e.g. subs, fines, kit money"
+							/>
+						</label>
+					)}
+				</div>
+			</Modal>
+
+			<Modal
+				isOpen={isBulkModalOpen}
+				title="Bulk set amount owed"
+				confirmText="Apply Amount"
+				onClose={closeBulkModal}
+				onConfirm={handleConfirmBulkAmount}
+			>
+				<div className="space-y-4">
+					{bulkFormError && (
+						<div className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+							{bulkFormError}
+						</div>
+					)}
+
+					<div className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800">
+						This updates the amount owed for the selected group in{" "}
+						<strong>{activeSeason?.name ?? "the active season"}</strong>. It
+						does not remove existing payments.
+					</div>
+
+					<label className="block space-y-1">
+						<span className="text-sm font-semibold text-slate-700">
+							Amount owed
+						</span>
+
+						<input
+							type="number"
+							min={0}
+							step="0.01"
+							value={bulkAmountValue}
+							onChange={(event) => {
+								setBulkAmountValue(event.target.value);
+								setBulkFormError("");
+							}}
+							className="w-full rounded-lg border px-3 py-2"
+							placeholder="0.00"
+						/>
+					</label>
+
+					<label className="block space-y-1">
+						<span className="text-sm font-semibold text-slate-700">
+							Apply to
+						</span>
+
+						<select
+							value={bulkTarget}
+							onChange={(event) =>
+								setBulkTarget(event.target.value as BulkTarget)
+							}
+							className="w-full rounded-lg border px-3 py-2"
+						>
+							<option value="active">
+								Active players only (
+								{allFinanceRows.filter((row) => row.player.isActive).length})
+							</option>
+							<option value="visible">
+								Visible players ({allFinanceRows.length})
+							</option>
+							<option value="filtered">
+								Current filtered list ({financeRows.length})
+							</option>
+						</select>
+					</label>
+
+					<div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
+						This will update{" "}
+						<strong>
+							{bulkTargetRows.length}{" "}
+							{bulkTargetRows.length === 1 ? "player" : "players"}
+						</strong>
+						.
+					</div>
+				</div>
+			</Modal>
 		</div>
 	);
 }
 
-function PriorityCard({
-	title,
-	to,
-	tone,
-	children,
+function FinanceRow({
+	player,
+	record,
+	amountOwed,
+	totalPaid,
+	balance,
+	status,
+	onSetOwed,
+	onAddPayment,
+	onRemovePayment,
 }: {
-	title: string;
-	to: string;
-	tone: "good" | "warning" | "danger" | "neutral";
-	children: React.ReactNode;
+	player: Player;
+	record?: PlayerFinanceRecord;
+	amountOwed: number;
+	totalPaid: number;
+	balance: number;
+	status: string;
+	onSetOwed: () => void;
+	onAddPayment: () => void;
+	onRemovePayment: (paymentId: string) => void;
 }) {
-	return (
-		<Link
-			to={to}
-			className={`block rounded-xl border bg-white p-5 shadow transition hover:-translate-y-0.5 hover:shadow-md ${getPriorityCardClass(tone)}`}
-		>
-			<p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-				{title}
-			</p>
+	const [showPayments, setShowPayments] = useState(false);
 
-			<div className="mt-3">{children}</div>
-		</Link>
+	return (
+		<>
+			<tr className="border-b hover:bg-gray-50">
+				<td className="p-3">
+					<div>
+						<p className="font-semibold text-blue-900">{player.name}</p>
+
+						<p className="text-xs text-slate-500">
+							#{player.number} · {player.isActive ? "Active" : "Inactive"}
+						</p>
+					</div>
+				</td>
+
+				<td className="p-3">{formatMoney(amountOwed)}</td>
+				<td className="p-3">{formatMoney(totalPaid)}</td>
+
+				<td className="p-3 font-semibold">
+					<span className={balance > 0 ? "text-red-700" : "text-green-700"}>
+						{formatMoney(balance)}
+					</span>
+				</td>
+
+				<td className="p-3">
+					<FinanceStatusBadge status={status} />
+				</td>
+
+				<td className="p-3">
+					<div className="flex flex-wrap justify-end gap-2">
+						<button
+							type="button"
+							onClick={onSetOwed}
+							className="rounded-lg border px-3 py-1 text-sm hover:bg-gray-100"
+						>
+							Set Owed
+						</button>
+
+						<button
+							type="button"
+							onClick={onAddPayment}
+							className="rounded-lg border border-green-200 px-3 py-1 text-sm text-green-700 hover:bg-green-50"
+						>
+							Add Payment
+						</button>
+
+						<button
+							type="button"
+							onClick={() => setShowPayments((current) => !current)}
+							className="rounded-lg border px-3 py-1 text-sm hover:bg-gray-100"
+						>
+							{showPayments ? "Hide" : "Payments"}
+						</button>
+					</div>
+				</td>
+			</tr>
+
+			{showPayments && (
+				<tr className="border-b bg-slate-50">
+					<td colSpan={6} className="p-4">
+						{!record || record.payments.length === 0 ? (
+							<p className="text-sm text-slate-500">
+								No payments recorded for this player yet.
+							</p>
+						) : (
+							<div className="space-y-2">
+								{record.payments.map((payment) => (
+									<div
+										key={payment.id}
+										className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-white p-3 shadow-sm"
+									>
+										<div>
+											<p className="text-sm font-semibold text-slate-900">
+												{formatMoney(payment.amount)}
+											</p>
+
+											<p className="text-xs text-slate-500">
+												{new Date(payment.paidAt).toLocaleString()}
+												{payment.note ? ` · ${payment.note}` : ""}
+											</p>
+										</div>
+
+										<button
+											type="button"
+											onClick={() => onRemovePayment(payment.id)}
+											className="rounded-lg border border-red-200 px-3 py-1 text-sm text-red-700 hover:bg-red-50"
+										>
+											Remove
+										</button>
+									</div>
+								))}
+							</div>
+						)}
+					</td>
+				</tr>
+			)}
+		</>
 	);
 }
 
-function DashboardStatCard({
+function FinanceStatCard({
 	label,
 	value,
 	helper,
-	to,
 	warning = false,
 }: {
 	label: string;
-	value: number;
-	helper: string;
-	to: string;
+	value: string | number;
+	helper?: string;
 	warning?: boolean;
 }) {
 	return (
-		<Link
-			to={to}
-			className="min-w-0 rounded-xl bg-white p-5 shadow transition hover:-translate-y-0.5 hover:shadow-md"
-		>
+		<div className="min-w-0 rounded-xl bg-white p-5 shadow">
 			<p className="truncate text-sm font-medium text-gray-500">{label}</p>
-
 			<p
 				className={`mt-2 text-3xl font-bold ${
-					warning ? "text-amber-700" : "text-blue-900"
+					warning ? "text-red-700" : "text-blue-900"
 				}`}
 			>
 				{value}
 			</p>
-
-			<p className="mt-1 text-sm text-gray-500">{helper}</p>
-		</Link>
-	);
-}
-
-function QuickAction({
-	to,
-	title,
-	description,
-}: {
-	to: string;
-	title: string;
-	description: string;
-}) {
-	return (
-		<Link
-			to={to}
-			className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition hover:border-blue-200 hover:bg-blue-50"
-		>
-			<p className="font-bold text-blue-900">{title}</p>
-			<p className="mt-1 text-sm text-slate-500">{description}</p>
-		</Link>
-	);
-}
-
-function MatchListItem({
-	to,
-	title,
-	meta,
-	badge,
-	badgeTone,
-}: {
-	to: string;
-	title: string;
-	meta: string;
-	badge: string;
-	badgeTone: "good" | "warning";
-}) {
-	return (
-		<Link
-			to={to}
-			className="block rounded-lg border border-slate-200 p-4 hover:bg-slate-50"
-		>
-			<div className="flex items-start justify-between gap-3">
-				<div className="min-w-0">
-					<p className="truncate font-semibold text-slate-900">{title}</p>
-					<p className="text-sm text-slate-500">{meta}</p>
-				</div>
-
-				<span
-					className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
-						badgeTone === "good"
-							? "bg-green-100 text-green-800"
-							: "bg-amber-100 text-amber-800"
-					}`}
-				>
-					{badge}
-				</span>
-			</div>
-		</Link>
-	);
-}
-
-function FinanceLine({
-	label,
-	value,
-	danger = false,
-}: {
-	label: string;
-	value: string | number;
-	danger?: boolean;
-}) {
-	return (
-		<div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-3 last:border-b-0 last:pb-0">
-			<p className="text-sm font-medium text-slate-500">{label}</p>
-
-			<p
-				className={`text-lg font-bold ${
-					danger ? "text-red-700" : "text-blue-900"
-				}`}
-			>
-				{value}
-			</p>
+			{helper && <p className="mt-1 text-xs text-slate-500">{helper}</p>}
 		</div>
 	);
 }
 
-function SmallBadge({ label }: { label: string }) {
+function FinanceFilterButton({
+	label,
+	value,
+	count,
+	activeFilter,
+	onChange,
+}: {
+	label: string;
+	value: FinanceFilter;
+	count: number;
+	activeFilter: FinanceFilter;
+	onChange: (value: FinanceFilter) => void;
+}) {
 	return (
-		<span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
-			{label}
-		</span>
+		<button
+			type="button"
+			onClick={() => onChange(value)}
+			className={`rounded-full border px-4 py-2 text-sm font-semibold ${
+				activeFilter === value
+					? "border-blue-700 bg-blue-700 text-white"
+					: "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+			}`}
+		>
+			{label}{" "}
+			<span
+				className={
+					activeFilter === value ? "text-blue-100" : "text-slate-400"
+				}
+			>
+				{count}
+			</span>
+		</button>
 	);
 }
 
-function ResultBadge({ state }: { state: string }) {
-	if (state === "won") {
-		return (
-			<span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold uppercase text-green-800">
-				Won
-			</span>
-		);
-	}
-
-	if (state === "lost") {
-		return (
-			<span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold uppercase text-red-800">
-				Lost
-			</span>
-		);
-	}
-
-	if (state === "draw") {
-		return (
-			<span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase text-slate-700">
-				Draw
-			</span>
-		);
-	}
+function StatusBar({
+	label,
+	value,
+	total,
+	tone,
+}: {
+	label: string;
+	value: number;
+	total: number;
+	tone: "good" | "warning" | "bad" | "neutral";
+}) {
+	const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
 
 	return (
-		<span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold uppercase text-blue-800">
-			{state}
-		</span>
+		<div>
+			<div className="mb-1 flex items-center justify-between gap-3 text-sm">
+				<span className="font-semibold text-slate-700">{label}</span>
+				<span className="text-slate-500">
+					{value} · {percentage}%
+				</span>
+			</div>
+
+			<div className="h-3 overflow-hidden rounded-full bg-slate-100">
+				<div
+					className={`h-full rounded-full ${getStatusBarClass(tone)}`}
+					style={{ width: `${percentage}%` }}
+				/>
+			</div>
+		</div>
 	);
 }
 
-function getPriorityCardClass(tone: "good" | "warning" | "danger" | "neutral") {
+function OutstandingBar({
+	name,
+	value,
+	maxValue,
+}: {
+	name: string;
+	value: number;
+	maxValue: number;
+}) {
+	const percentage = maxValue > 0 ? Math.round((value / maxValue) * 100) : 0;
+
+	return (
+		<div>
+			<div className="mb-1 flex items-center justify-between gap-3 text-sm">
+				<span className="min-w-0 truncate font-semibold text-slate-700">
+					{name}
+				</span>
+				<span className="shrink-0 text-slate-500">{formatMoney(value)}</span>
+			</div>
+
+			<div className="h-3 overflow-hidden rounded-full bg-slate-100">
+				<div
+					className="h-full rounded-full bg-red-500"
+					style={{ width: `${percentage}%` }}
+				/>
+			</div>
+		</div>
+	);
+}
+
+function getStatusBarClass(tone: "good" | "warning" | "bad" | "neutral") {
 	if (tone === "good") {
-		return "border-green-200";
+		return "bg-green-500";
 	}
 
 	if (tone === "warning") {
-		return "border-amber-200";
+		return "bg-amber-500";
 	}
 
-	if (tone === "danger") {
-		return "border-red-200";
+	if (tone === "bad") {
+		return "bg-red-500";
 	}
 
-	return "border-slate-200";
+	return "bg-slate-400";
 }
 
-function getTeamLabel(team: "first" | "second") {
-	return team === "first" ? "First Team" : "Second Team";
+function FinanceStatusBadge({ status }: { status: string }) {
+	if (status === "paid") {
+		return (
+			<span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">
+				Paid
+			</span>
+		);
+	}
+
+	if (status === "part-paid") {
+		return (
+			<span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">
+				Part paid
+			</span>
+		);
+	}
+
+	if (status === "unpaid") {
+		return (
+			<span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-800">
+				Unpaid
+			</span>
+		);
+	}
+
+	return (
+		<span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+			Nothing owed
+		</span>
+	);
+}
+
+function getFinanceRecord(
+	records: PlayerFinanceRecord[],
+	playerId: string,
+	seasonId: string
+) {
+	return records.find(
+		(record) =>
+			record.playerId === playerId &&
+			(record.seasonId ?? DEFAULT_SEASON_ID) === seasonId
+	);
 }
 
 function formatMoney(value: number) {
