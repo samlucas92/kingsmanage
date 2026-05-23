@@ -7,7 +7,7 @@ export default function DevToolsCard() {
 
 	function handleResetLocalData() {
 		const confirmed = window.confirm(
-			"Reset all local Kingsbridge Colts app data? This will clear persisted players, matches, lineups, notes and results."
+			"Reset all local Kingsbridge Colts app data? This will clear persisted players, matches, lineups, notes, results, finance and seasons."
 		);
 
 		if (!confirmed) {
@@ -17,6 +17,7 @@ export default function DevToolsCard() {
 		localStorage.removeItem("kingsbridge-colts-player-store");
 		localStorage.removeItem("kingsbridge-colts-match-store");
 		localStorage.removeItem("kingsbridge-colts-finance-store");
+		localStorage.removeItem("kingsbridge-colts-season-store");
 
 		window.location.reload();
 	}

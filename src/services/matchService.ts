@@ -1,3 +1,4 @@
+import { DEFAULT_SEASON_ID } from "../data/seedSeasons";
 import type {
 	LineupFormation,
 	Match,
@@ -31,9 +32,21 @@ function createEmptyPlayerStat(playerId: string): MatchPlayerStat {
 	};
 }
 
+export function getMatchSeasonId(match: Pick<Match, "seasonId">) {
+	return match.seasonId ?? DEFAULT_SEASON_ID;
+}
+
+export function normaliseMatchSeason(match: Match): Match {
+	return {
+		...match,
+		seasonId: getMatchSeasonId(match),
+	};
+}
+
 export function createMatchRecord(match: MatchFixtureInput): Match {
 	return {
 		id: crypto.randomUUID(),
+		seasonId: match.seasonId ?? DEFAULT_SEASON_ID,
 		team: match.team,
 		opponent: match.opponent,
 		date: match.date,
@@ -59,6 +72,7 @@ export function updateMatchFixtureRecord(
 
 	return {
 		...match,
+		seasonId: updatedFixture.seasonId ?? match.seasonId ?? DEFAULT_SEASON_ID,
 		team: updatedFixture.team,
 		opponent: updatedFixture.opponent,
 		date: updatedFixture.date,

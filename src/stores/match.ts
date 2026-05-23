@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { seedMatches } from "../data/seedMatches";
 import {
 	createMatchRecord,
+	normaliseMatchSeason,
 	postponeMatchRecord,
 	removeSelectedPlayerRecord,
 	restoreMatchRecord,
@@ -74,6 +75,7 @@ export type ClubTeam = "first" | "second";
 
 export type Match = {
 	id: string;
+	seasonId?: string;
 	team: ClubTeam;
 	opponent: string;
 	date: string;
@@ -90,6 +92,7 @@ export type Match = {
 };
 
 export type MatchFixtureInput = {
+	seasonId?: string;
 	team: ClubTeam;
 	opponent: string;
 	date: string;
@@ -145,10 +148,14 @@ type MatchStore = {
 	) => void;
 };
 
+function normaliseMatchStore(matches: Match[]) {
+	return matches.map(normaliseMatchSeason);
+}
+
 export const useMatchStore = create<MatchStore>()(
 	persist(
 		(set) => ({
-			matches: seedMatches,
+			matches: normaliseMatchStore(seedMatches),
 
 			addMatch: (match) =>
 				set((state) => ({
@@ -263,6 +270,15 @@ export const useMatchStore = create<MatchStore>()(
 		{
 			name: "kingsbridge-colts-match-store",
 			storage: createJSONStorage(() => localStorage),
+			version: 2,
+			migrate: (persistedState) => {
+				const state = persistedState as Partial<MatchStore>;
+
+				return {
+					...state,
+					matches: normaliseMatchStore(state.matches ?? seedMatches),
+				};
+			},
 		}
 	)
 );

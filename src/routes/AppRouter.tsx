@@ -1,39 +1,40 @@
 import { Routes, Route } from "react-router-dom";
 import Dashboard from "../pages/Dashboard/Dashboard";
 import Players from "../pages/Players/Players";
-import Player from "../pages/Players/Player"
+import Player from "../pages/Players/Player";
 import Finance from "../pages/Finance/Finance";
 import Matches from "../pages/Matches/Matches";
 import Sidebar from "../components/layout/Sidebar";
 import Header from "../components/layout/Header";
 import Stats from "../pages/Stats/Stats";
 import MatchDetail from "../pages/Matches/MatchDetails";
+import Seasons from "../pages/Seasons/Seasons";
 
 export default function AppRouter() {
-  return (
-    <div className="flex h-screen bg-gray-100">
-      <Sidebar />
+	return (
+		<div className="flex h-screen w-screen overflow-hidden bg-gray-100">
+			<Sidebar />
 
-        <div className="flex flex-col flex-1">
-          {/* Header */}
-          <Header />
+			<div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+				<Header />
 
-          {/* Page content */}
-          <main className="flex-1 p-6 overflow-y-auto">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+				<main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-6">
+					<Routes>
+						<Route path="/" element={<Dashboard />} />
+						<Route path="/dashboard" element={<Dashboard />} />
 
-            <Route path="/players/:id" element={<Player />} />
-            <Route path="/players" element={<Players />} />
-            <Route path="/finance" element={<Finance />} />
-            <Route path="/matches" element={<Matches />} />
-            <Route path="/matches/:id" element={<MatchDetail />} />
-            <Route path="/stats" element={<Stats/>}/>
-          </Routes>
-        </main>
-      </div>
-    </div>
+						<Route path="/players/:id" element={<Player />} />
+						<Route path="/players" element={<Players />} />
 
-  );
+						<Route path="/matches" element={<Matches />} />
+						<Route path="/matches/:id" element={<MatchDetail />} />
+
+						<Route path="/finance" element={<Finance />} />
+						<Route path="/stats" element={<Stats />} />
+						<Route path="/seasons" element={<Seasons />} />
+					</Routes>
+				</main>
+			</div>
+		</div>
+	);
 }

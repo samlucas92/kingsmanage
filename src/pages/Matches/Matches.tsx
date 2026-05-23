@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMatchStore } from "../../stores/match";
-import type { Match } from "../../stores/match";
+import { useSeasonStore } from "../../stores/seasons";
+import type { Match, MatchFixtureInput } from "../../stores/match";
 import { MatchFormModal } from "./components/MatchFormModal";
 import { MatchesTable } from "./components/MatchesTable";
 import { MatchFilters } from "./components/MatchFilters";
@@ -19,18 +20,39 @@ export default function Matches() {
 	const postponeMatch = useMatchStore((state) => state.postponeMatch);
 	const restoreMatch = useMatchStore((state) => state.restoreMatch);
 
+	const seasons = useSeasonStore((state) => state.seasons);
+	const activeSeasonId = useSeasonStore((state) => state.activeSeasonId);
+	const setActiveSeason = useSeasonStore((state) => state.setActiveSeason);
+
 	const [matchFilter, setMatchFilter] = useState<MatchFilter>("all");
 	const [teamFilter, setTeamFilter] = useState<MatchTeamFilter>("all");
 	const [matchToPostpone, setMatchToPostpone] = useState<Match | null>(null);
 	const [postponedDate, setPostponedDate] = useState("");
 
+	const activeSeason = seasons.find((season) => season.id === activeSeasonId);
+
+	function handleCreateMatch(match: MatchFixtureInput) {
+		addMatch({
+			...match,
+			seasonId: activeSeasonId,
+		});
+	}
+
+	function handleUpdateMatch(matchId: string, match: MatchFixtureInput) {
+		updateMatchFixture(matchId, match);
+	}
+
 	const matchForm = useMatchForm({
-		onCreateMatch: addMatch,
-		onUpdateMatch: updateMatchFixture,
+		onCreateMatch: handleCreateMatch,
+		onUpdateMatch: handleUpdateMatch,
 	});
 
+	const activeSeasonMatches = useMemo(() => {
+		return matches.filter((match) => match.seasonId === activeSeasonId);
+	}, [matches, activeSeasonId]);
+
 	const matchCounts = useMemo(() => {
-		const visibleTeamMatches = matches.filter(
+		const visibleTeamMatches = activeSeasonMatches.filter(
 			(match) => teamFilter === "all" || match.team === teamFilter
 		);
 
@@ -55,10 +77,10 @@ export default function Matches() {
 			completed,
 			postponed,
 		};
-	}, [matches, teamFilter]);
+	}, [activeSeasonMatches, teamFilter]);
 
 	const teamCounts = useMemo(() => {
-		const visibleStatusMatches = matches.filter((match) => {
+		const visibleStatusMatches = activeSeasonMatches.filter((match) => {
 			if (matchFilter === "all") {
 				return true;
 			}
@@ -73,10 +95,10 @@ export default function Matches() {
 			first: visibleStatusMatches.filter((match) => match.team === "first").length,
 			second: visibleStatusMatches.filter((match) => match.team === "second").length,
 		};
-	}, [matches, matchFilter]);
+	}, [activeSeasonMatches, matchFilter]);
 
 	const filteredMatches = useMemo(() => {
-		return matches.filter((match) => {
+		return activeSeasonMatches.filter((match) => {
 			const statusMatches =
 				matchFilter === "all" ||
 				getMatchFilterFromState(match.state, match.isCompleted) === matchFilter;
@@ -85,7 +107,7 @@ export default function Matches() {
 
 			return statusMatches && teamMatches;
 		});
-	}, [matches, matchFilter, teamFilter]);
+	}, [activeSeasonMatches, matchFilter, teamFilter]);
 
 	const sortedMatches = useMemo(() => {
 		return [...filteredMatches].sort(
@@ -137,6 +159,42 @@ export default function Matches() {
 					Add Match
 				</button>
 			</div>
+
+			<section className="rounded-xl bg-white p-4 shadow">
+				<div className="flex flex-wrap items-center justify-between gap-4">
+					<div>
+						<p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+							Active season
+						</p>
+
+						<h2 className="mt-1 text-lg font-bold text-slate-900">
+							{activeSeason?.name ?? "No season selected"}
+						</h2>
+
+						<p className="mt-1 text-sm text-slate-500">
+							Matches shown here are filtered to the selected season.
+						</p>
+					</div>
+
+					<label className="block">
+						<span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+							Season
+						</span>
+
+						<select
+							value={activeSeasonId}
+							onChange={(event) => setActiveSeason(event.target.value)}
+							className="min-w-44 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm"
+						>
+							{seasons.map((season) => (
+								<option key={season.id} value={season.id}>
+									{season.name}
+								</option>
+							))}
+						</select>
+					</label>
+				</div>
+			</section>
 
 			<MatchFilters
 				activeFilter={matchFilter}

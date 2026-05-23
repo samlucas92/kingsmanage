@@ -5,7 +5,8 @@ export const seedPlayers: Player[] = [
 		id: "adam-tucker",
 		name: "Adam Tucker",
 		positions: [
-			"CM"
+			"CM",
+			"DM"
 		],
 		appearances: 205,
 		number: 8,
@@ -15,7 +16,7 @@ export const seedPlayers: Player[] = [
 		id: "alberto-garcia",
 		name: "Alberto Garcia",
 		positions: [
-			"CM"
+			"RB"
 		],
 		appearances: 27,
 		number: 34,
@@ -36,7 +37,10 @@ export const seedPlayers: Player[] = [
 		id: "alhadi-yagob",
 		name: "Alhadi Yagob",
 		positions: [
-			"CM"
+			"LW",
+			"RW",
+			"CAM",
+			"ST"
 		],
 		appearances: 14,
 		number: 23,
@@ -46,7 +50,8 @@ export const seedPlayers: Player[] = [
 		id: "arwel-davies",
 		name: "Arwel Davies",
 		positions: [
-			"CM"
+			"RW",
+			"LW"
 		],
 		appearances: 159,
 		number: 43,
@@ -56,7 +61,9 @@ export const seedPlayers: Player[] = [
 		id: "bamidele-abraham",
 		name: "Bamidele Abraham",
 		positions: [
-			"CM"
+			"LB",
+			"RB",
+			"LW"
 		],
 		appearances: 12,
 		number: 41,
@@ -76,7 +83,7 @@ export const seedPlayers: Player[] = [
 		id: "chris-evans",
 		name: "Chris Evans",
 		positions: [
-			"CM"
+			"ST"
 		],
 		appearances: 1,
 		number: 56,
@@ -96,7 +103,7 @@ export const seedPlayers: Player[] = [
 		id: "chris-ramsell",
 		name: "Chris Ramsell",
 		positions: [
-			"CB"
+			"RB"
 		],
 		appearances: 305,
 		number: 3,
@@ -127,7 +134,7 @@ export const seedPlayers: Player[] = [
 		id: "daniel-carney",
 		name: "Daniel Carney",
 		positions: [
-			"CM"
+			"CB"
 		],
 		appearances: 8,
 		number: 39,
@@ -137,7 +144,7 @@ export const seedPlayers: Player[] = [
 		id: "daniel-martlew",
 		name: "Daniel Martlew",
 		positions: [
-			"CB"
+			"LB"
 		],
 		appearances: 35,
 		number: 18,
@@ -157,7 +164,7 @@ export const seedPlayers: Player[] = [
 		id: "devon-hough",
 		name: "Devon Hough",
 		positions: [
-			"CM"
+			"LB"
 		],
 		appearances: 7,
 		number: 59,
@@ -167,7 +174,7 @@ export const seedPlayers: Player[] = [
 		id: "franck-wenko",
 		name: "Franck Wenko",
 		positions: [
-			"ST"
+			"CB"
 		],
 		appearances: 20,
 		number: 60,
@@ -186,9 +193,10 @@ export const seedPlayers: Player[] = [
 	},
 	{
 		id: "jean-paul-haba",
-		name: "Jean Paul Haba",
+		name: "Jean-Paul Haba",
 		positions: [
-			"CM"
+			"RW",
+			"LW"
 		],
 		appearances: 10,
 		number: 62,
@@ -198,7 +206,8 @@ export const seedPlayers: Player[] = [
 		id: "john-hough",
 		name: "John Hough",
 		positions: [
-			"CB"
+			"RB",
+			"LB"
 		],
 		appearances: 34,
 		number: 19,
@@ -208,7 +217,8 @@ export const seedPlayers: Player[] = [
 		id: "jordan-stephen",
 		name: "Jordan Stephen",
 		positions: [
-			"CM"
+			"RB",
+			"CB"
 		],
 		appearances: 48,
 		number: 42,
@@ -218,7 +228,7 @@ export const seedPlayers: Player[] = [
 		id: "josh-perkins",
 		name: "Josh Perkins",
 		positions: [
-			"CM"
+			"LW"
 		],
 		appearances: 4,
 		number: 63,
@@ -228,7 +238,7 @@ export const seedPlayers: Player[] = [
 		id: "lee-hartnoll",
 		name: "Lee Hartnoll",
 		positions: [
-			"CB"
+			"GK"
 		],
 		appearances: 103,
 		number: 46,
@@ -248,7 +258,7 @@ export const seedPlayers: Player[] = [
 		id: "leighton-donnelly",
 		name: "Leighton Donnelly",
 		positions: [
-			"CM"
+			"GK"
 		],
 		appearances: 3,
 		number: 64,
@@ -268,7 +278,10 @@ export const seedPlayers: Player[] = [
 		id: "luke-barroccu",
 		name: "Luke Barroccu",
 		positions: [
-			"CM"
+			"RB",
+			"LB",
+			"RW",
+			"LW"
 		],
 		appearances: 19,
 		number: 17,
@@ -278,6 +291,8 @@ export const seedPlayers: Player[] = [
 		id: "mark-corcoran",
 		name: "Mark Corcoran",
 		positions: [
+			"ST",
+			"CM",
 			"CB"
 		],
 		appearances: 242,
@@ -288,7 +303,7 @@ export const seedPlayers: Player[] = [
 		id: "mark-newey",
 		name: "Mark Newey",
 		positions: [
-			"CM"
+			"LB"
 		],
 		appearances: 33,
 		number: 45,
@@ -298,7 +313,7 @@ export const seedPlayers: Player[] = [
 		id: "martin-gregory",
 		name: "Martin Gregory",
 		positions: [
-			"CB"
+			"GK"
 		],
 		appearances: 230,
 		number: 1,
@@ -318,7 +333,10 @@ export const seedPlayers: Player[] = [
 		id: "mohammed-ali",
 		name: "Mohammed Ali",
 		positions: [
-			"ST"
+			"ST",
+			"RW",
+			"LW",
+			"CM"
 		],
 		appearances: 87,
 		number: 26,
@@ -348,7 +366,8 @@ export const seedPlayers: Player[] = [
 		id: "muhammed-saleh",
 		name: "Muhammed Saleh",
 		positions: [
-			"CM"
+			"RW",
+			"LW"
 		],
 		appearances: 28,
 		number: 44,
@@ -358,7 +377,8 @@ export const seedPlayers: Player[] = [
 		id: "muhitur-rahman",
 		name: "Muhitur Rahman",
 		positions: [
-			"CM"
+			"CM",
+			"CB"
 		],
 		appearances: 77,
 		number: 47,
@@ -368,7 +388,9 @@ export const seedPlayers: Player[] = [
 		id: "nadir-taha",
 		name: "Nadir Taha",
 		positions: [
-			"CM"
+			"CM",
+			"CB",
+			"LB"
 		],
 		appearances: 54,
 		number: 32,
@@ -378,7 +400,7 @@ export const seedPlayers: Player[] = [
 		id: "nathan-applin",
 		name: "Nathan Applin",
 		positions: [
-			"CB"
+			"CM"
 		],
 		appearances: 44,
 		number: 10,
@@ -388,7 +410,8 @@ export const seedPlayers: Player[] = [
 		id: "nick-hopkins",
 		name: "Nick Hopkins",
 		positions: [
-			"ST"
+			"ST",
+			"CM"
 		],
 		appearances: 291,
 		number: 6,
@@ -398,7 +421,8 @@ export const seedPlayers: Player[] = [
 		id: "oliver-malecki",
 		name: "Oliver Malecki",
 		positions: [
-			"CM"
+			"LW",
+			"RW"
 		],
 		appearances: 4,
 		number: 68,
@@ -408,7 +432,9 @@ export const seedPlayers: Player[] = [
 		id: "omer-talal-mubarak",
 		name: "Omer Talal Mubarak",
 		positions: [
-			"ST"
+			"ST",
+			"RW",
+			"LW"
 		],
 		appearances: 52,
 		number: 20,
@@ -428,7 +454,7 @@ export const seedPlayers: Player[] = [
 		id: "rhys-andrew",
 		name: "Rhys Andrew",
 		positions: [
-			"CM"
+			"GK"
 		],
 		appearances: 4,
 		number: 69,
@@ -438,7 +464,8 @@ export const seedPlayers: Player[] = [
 		id: "rhys-richardson",
 		name: "Rhys Richardson",
 		positions: [
-			"ST"
+			"ST",
+			"LW"
 		],
 		appearances: 117,
 		number: 37,
@@ -448,7 +475,8 @@ export const seedPlayers: Player[] = [
 		id: "richard-moore",
 		name: "Richard Moore",
 		positions: [
-			"CB"
+			"CB",
+			"CM"
 		],
 		appearances: 182,
 		number: 16,
@@ -458,7 +486,8 @@ export const seedPlayers: Player[] = [
 		id: "riyadh-zaman",
 		name: "Riyadh Zaman",
 		positions: [
-			"CM"
+			"LB",
+			"RB"
 		],
 		appearances: 6,
 		number: 70,
@@ -468,7 +497,8 @@ export const seedPlayers: Player[] = [
 		id: "ryan-thomas",
 		name: "Ryan Thomas",
 		positions: [
-			"CM"
+			"CM",
+			"CB"
 		],
 		appearances: 37,
 		number: 30,
@@ -478,7 +508,8 @@ export const seedPlayers: Player[] = [
 		id: "sam-lucas",
 		name: "Sam Lucas",
 		positions: [
-			"CM"
+			"RW",
+			"RB"
 		],
 		appearances: 276,
 		number: 11,
@@ -488,7 +519,7 @@ export const seedPlayers: Player[] = [
 		id: "thom-norton",
 		name: "Thom Norton",
 		positions: [
-			"ST"
+			"CM"
 		],
 		appearances: 190,
 		number: 14,
@@ -498,7 +529,7 @@ export const seedPlayers: Player[] = [
 		id: "tom-haynes",
 		name: "Tom Haynes",
 		positions: [
-			"CM"
+			"LW"
 		],
 		appearances: 75,
 		number: 31,
@@ -508,7 +539,7 @@ export const seedPlayers: Player[] = [
 		id: "tom-sinnott",
 		name: "Tom Sinnott",
 		positions: [
-			"CM"
+			"CB"
 		],
 		appearances: 20,
 		number: 71,
@@ -518,7 +549,8 @@ export const seedPlayers: Player[] = [
 		id: "yousif-adulazeez",
 		name: "Yousif Adulazeez",
 		positions: [
-			"CM"
+			"LW",
+			"RW"
 		],
 		appearances: 15,
 		number: 25,
@@ -528,7 +560,7 @@ export const seedPlayers: Player[] = [
 		id: "zak-bird",
 		name: "Zak Bird",
 		positions: [
-			"CM"
+			"CB"
 		],
 		appearances: 1,
 		number: 72,

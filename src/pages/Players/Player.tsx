@@ -1,12 +1,34 @@
+import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 import LinkButton from "../../components/compositions/LinkButton";
 import NotFoundCard from "../../components/compositions/NotFoundCard";
 import EmptyState from "../../components/compositions/EmptyState";
 import { usePlayerStore } from "../../stores/players";
 import { useMatchStore } from "../../stores/match";
+import { useSeasonStore } from "../../stores/seasons";
+import { useFinanceStore } from "../../stores/finance";
+import type { Match, MatchPlayerStat } from "../../stores/match";
+import { DEFAULT_SEASON_ID } from "../../data/seedSeasons";
+import { getPreSeasonPlayerStats } from "../../data/preSeasonPlayerStats";
 import { PlayerFormModal } from "./components/PlayerFormModal";
 import { usePlayerForm } from "./hooks/usePlayerForm";
 import { formatDisplayDate } from "../../utils/date";
+import {
+	getPlayerBalance,
+	getPlayerPaymentStatus,
+	getPlayerTotalPaid,
+} from "../../services/financeService";
+
+const emptyPlayerStat: MatchPlayerStat = {
+	playerId: "",
+	goals: 0,
+	assists: 0,
+	yellowCards: 0,
+	redCards: 0,
+	minutes: 0,
+	isMOTM: false,
+	note: "",
+};
 
 export default function PlayerProfile() {
 	const { id } = useParams();
@@ -18,12 +40,29 @@ export default function PlayerProfile() {
 		(state) => state.togglePlayerActive
 	);
 
+	const playerFinanceRecords = useFinanceStore(
+		(state) => state.playerFinanceRecords
+	);
+
+	const seasons = useSeasonStore((state) => state.seasons);
+	const activeSeasonId = useSeasonStore((state) => state.activeSeasonId);
+	const setActiveSeason = useSeasonStore((state) => state.setActiveSeason);
+
 	const player = players.find((player) => player.id === id);
+	const activeSeason = seasons.find((season) => season.id === activeSeasonId);
 
 	const playerForm = usePlayerForm({
 		players,
 		onUpdatePlayer: updatePlayer,
 	});
+
+	const completedSeasonMatches = useMemo(() => {
+		return matches.filter(
+			(match) =>
+				(match.seasonId ?? DEFAULT_SEASON_ID) === activeSeasonId &&
+				match.isCompleted
+		);
+	}, [matches, activeSeasonId]);
 
 	if (!player) {
 		return (
@@ -46,8 +85,62 @@ export default function PlayerProfile() {
 	}
 
 	const currentPlayer = player;
+	const preSeasonStats = getPreSeasonPlayerStats(currentPlayer.name);
 
-	const playerMatchStats = matches.flatMap((match) =>
+	const firstTeamMatches = completedSeasonMatches.filter(
+		(match) => match.team === "first"
+	);
+
+	const secondTeamMatches = completedSeasonMatches.filter(
+		(match) => match.team === "second"
+	);
+
+	const firstTeamApps = getPlayerAppearancesInMatches(
+		firstTeamMatches,
+		currentPlayer.id
+	);
+
+	const secondTeamApps = getPlayerAppearancesInMatches(
+		secondTeamMatches,
+		currentPlayer.id
+	);
+
+	const firstTeamGoals = getPlayerGoalsInMatches(
+		firstTeamMatches,
+		currentPlayer.id
+	);
+
+	const secondTeamGoals = getPlayerGoalsInMatches(
+		secondTeamMatches,
+		currentPlayer.id
+	);
+
+	const seasonApps = firstTeamApps + secondTeamApps;
+	const seasonGoals = firstTeamGoals + secondTeamGoals;
+
+	const careerApps = preSeasonStats.appearances + seasonApps;
+	const careerGoals = preSeasonStats.goals + seasonGoals;
+
+	const playerFinanceRecord = playerFinanceRecords.find(
+		(record) =>
+			record.playerId === currentPlayer.id &&
+			(record.seasonId ?? DEFAULT_SEASON_ID) === activeSeasonId
+	);
+
+	const financeAmountOwed = playerFinanceRecord?.amountOwed ?? 0;
+	const financeTotalPaid = getPlayerTotalPaid(playerFinanceRecord);
+	const financeOutstanding = getPlayerBalance(playerFinanceRecord);
+	const financeStatus = getPlayerPaymentStatus(playerFinanceRecord);
+
+	const recentPayments = [...(playerFinanceRecord?.payments ?? [])]
+		.sort(
+			(firstPayment, secondPayment) =>
+				new Date(secondPayment.paidAt).getTime() -
+				new Date(firstPayment.paidAt).getTime()
+		)
+		.slice(0, 5);
+
+	const playerMatchStats = completedSeasonMatches.flatMap((match) =>
 		(match.playerStats ?? [])
 			.filter((stat) => stat.playerId === currentPlayer.id)
 			.map((stat) => ({
@@ -56,13 +149,13 @@ export default function PlayerProfile() {
 			}))
 	);
 
-	const calculatedSquadAppearances = matches.filter((match) =>
+	const calculatedSquadAppearances = completedSeasonMatches.filter((match) =>
 		match.selectedPlayers.some(
 			(selectedPlayer) => selectedPlayer.playerId === currentPlayer.id
 		)
 	);
 
-	const calculatedStarts = matches.filter((match) =>
+	const calculatedStarts = completedSeasonMatches.filter((match) =>
 		match.selectedPlayers.some(
 			(selectedPlayer) =>
 				selectedPlayer.playerId === currentPlayer.id &&
@@ -70,21 +163,12 @@ export default function PlayerProfile() {
 		)
 	);
 
-	const calculatedBenchAppearances = matches.filter((match) =>
+	const calculatedBenchAppearances = completedSeasonMatches.filter((match) =>
 		match.selectedPlayers.some(
 			(selectedPlayer) =>
 				selectedPlayer.playerId === currentPlayer.id &&
 				selectedPlayer.area === "bench"
 		)
-	);
-
-	const manualAppearances = currentPlayer.appearances;
-	const calculatedAppearances = calculatedSquadAppearances.length;
-	const combinedAppearances = manualAppearances + calculatedAppearances;
-
-	const totalGoals = playerMatchStats.reduce(
-		(total, stat) => total + stat.goals,
-		0
 	);
 
 	const totalAssists = playerMatchStats.reduce(
@@ -109,33 +193,51 @@ export default function PlayerProfile() {
 
 	const motmAwards = playerMatchStats.filter((stat) => stat.isMOTM).length;
 
-	const recentMatchStats = playerMatchStats
-		.filter(
-			(stat) =>
-				stat.goals > 0 ||
-				stat.assists > 0 ||
-				stat.yellowCards > 0 ||
-				stat.redCards > 0 ||
-				stat.minutes > 0 ||
-				stat.isMOTM ||
-				stat.note.trim().length > 0
-		)
+	const recentSeasonAppearances = calculatedSquadAppearances
+		.map((match) => {
+			const selectedPlayer = match.selectedPlayers.find(
+				(selectedPlayer) => selectedPlayer.playerId === currentPlayer.id
+			);
+
+			const stat = (match.playerStats ?? []).find(
+				(playerStat) => playerStat.playerId === currentPlayer.id
+			);
+
+			const currentStat: MatchPlayerStat = stat ?? {
+				...emptyPlayerStat,
+				playerId: currentPlayer.id,
+			};
+
+			return {
+				match,
+				area: selectedPlayer?.area ?? "bench",
+				stat: currentStat,
+				hasReportDetail:
+					currentStat.goals > 0 ||
+					currentStat.assists > 0 ||
+					currentStat.yellowCards > 0 ||
+					currentStat.redCards > 0 ||
+					currentStat.minutes > 0 ||
+					currentStat.isMOTM ||
+					currentStat.note.trim().length > 0,
+			};
+		})
 		.sort(
-			(firstStat, secondStat) =>
-				new Date(secondStat.match.date).getTime() -
-				new Date(firstStat.match.date).getTime()
+			(firstAppearance, secondAppearance) =>
+				new Date(secondAppearance.match.date).getTime() -
+				new Date(firstAppearance.match.date).getTime()
 		)
-		.slice(0, 5);
+		.slice(0, 10);
 
 	return (
-		<div className="space-y-6">
+		<div className="w-full min-w-0 space-y-6 overflow-hidden">
 			<LinkButton to="/players" variant="back" className="mb-4 inline-flex">
 				← Back to players
 			</LinkButton>
 
 			<div className="rounded-xl bg-white p-6 shadow">
 				<div className="flex flex-wrap items-start justify-between gap-4">
-					<div>
+					<div className="min-w-0">
 						<p className="text-sm text-gray-500">Player Profile</p>
 
 						<h1 className="text-3xl font-bold text-blue-900">
@@ -186,38 +288,153 @@ export default function PlayerProfile() {
 				</div>
 			</div>
 
-			<div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-				<Stat label="Goals" value={totalGoals} />
-				<Stat label="Assists" value={totalAssists} />
-				<Stat label="MOTM" value={motmAwards} />
-				<Stat label="Minutes" value={totalMinutes} />
-			</div>
+			<section className="rounded-xl bg-white p-4 shadow">
+				<div className="flex flex-wrap items-center justify-between gap-4">
+					<div className="min-w-0">
+						<p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+							Season view
+						</p>
 
-			<div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-				<Stat label="Yellow Cards" value={totalYellowCards} />
-				<Stat label="Red Cards" value={totalRedCards} />
-				<Stat label="Starts" value={calculatedStarts.length} />
-				<Stat label="Bench" value={calculatedBenchAppearances.length} />
+						<h2 className="mt-1 text-lg font-bold text-slate-900">
+							{activeSeason?.name ?? "No active season"}
+						</h2>
+
+						<p className="mt-1 text-sm text-slate-500">
+							25/26 stats are calculated from completed matches in this season.
+							Pre 25/26 stats come from the historical stats sheet.
+						</p>
+					</div>
+
+					<label className="block shrink-0">
+						<span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+							Active season
+						</span>
+
+						<select
+							value={activeSeasonId}
+							onChange={(event) => setActiveSeason(event.target.value)}
+							className="min-w-40 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm"
+						>
+							{seasons.map((season) => (
+								<option key={season.id} value={season.id}>
+									{season.name}
+								</option>
+							))}
+						</select>
+					</label>
+				</div>
+			</section>
+
+			<div className="rounded-xl bg-white p-6 shadow">
+				<div>
+					<h2 className="text-lg font-bold text-blue-900">Career Summary</h2>
+
+					<p className="mt-1 text-sm text-gray-500">
+						Career totals combine Pre 25/26 historical records with the active
+						season match reports.
+					</p>
+				</div>
+
+				<div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+					<Stat label="Career Apps" value={careerApps} />
+					<Stat label="Career Goals" value={careerGoals} />
+					<Stat label="Pre 25/26 Apps" value={preSeasonStats.appearances} />
+					<Stat label="Pre 25/26 Goals" value={preSeasonStats.goals} />
+				</div>
 			</div>
 
 			<div className="rounded-xl bg-white p-6 shadow">
 				<div>
 					<h2 className="text-lg font-bold text-blue-900">
-						Appearances
+						{activeSeason?.name ?? "Season"} Stats
 					</h2>
 
 					<p className="mt-1 text-sm text-gray-500">
-						Manual appearances are the stored historic total. Calculated
-						appearances come from matchday squads selected in this app.
+						Apps and goals split by first team and second team for this season.
 					</p>
 				</div>
 
-				<div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-5">
-					<Stat label="Combined Apps" value={combinedAppearances} />
-					<Stat label="Manual Apps" value={manualAppearances} />
-					<Stat label="Calculated Apps" value={calculatedAppearances} />
-					<Stat label="Starts" value={calculatedStarts.length} />
-					<Stat label="Bench" value={calculatedBenchAppearances.length} />
+				<div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+					<Stat label="First Team Apps" value={firstTeamApps} />
+					<Stat label="First Team Goals" value={firstTeamGoals} />
+					<Stat label="Second Team Apps" value={secondTeamApps} />
+					<Stat label="Second Team Goals" value={secondTeamGoals} />
+				</div>
+
+				<div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+					<Stat label="Total 25/26 Apps" value={seasonApps} />
+					<Stat label="Total 25/26 Goals" value={seasonGoals} />
+					<Stat label="Season Starts" value={calculatedStarts.length} />
+					<Stat label="Season Bench" value={calculatedBenchAppearances.length} />
+				</div>
+
+				<div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+					<Stat label="Assists" value={totalAssists} />
+					<Stat label="MOTM" value={motmAwards} />
+					<Stat label="Minutes" value={totalMinutes} />
+					<Stat label="Yellow Cards" value={totalYellowCards} />
+				</div>
+
+				<div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+					<Stat label="Red Cards" value={totalRedCards} />
+				</div>
+			</div>
+
+			<div className="rounded-xl bg-white p-6 shadow">
+				<div className="flex flex-wrap items-start justify-between gap-4">
+					<div>
+						<h2 className="text-lg font-bold text-blue-900">Finance</h2>
+
+						<p className="mt-1 text-sm text-gray-500">
+							Active-season finance position for this player.
+						</p>
+					</div>
+
+					<LinkButton to="/finance" variant="plain">
+						View Finance
+					</LinkButton>
+				</div>
+
+				<div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+					<Stat label="Owed" value={formatMoney(financeAmountOwed)} />
+					<Stat label="Paid" value={formatMoney(financeTotalPaid)} />
+					<Stat label="Outstanding" value={formatMoney(financeOutstanding)} />
+					<div className="min-w-0 rounded-xl bg-white p-4 shadow">
+						<p className="truncate text-sm text-gray-500">Status</p>
+						<div className="mt-2">
+							<FinanceStatusBadge status={financeStatus} />
+						</div>
+					</div>
+				</div>
+
+				<div className="mt-5">
+					<h3 className="text-sm font-bold text-slate-700">Recent payments</h3>
+
+					{recentPayments.length === 0 ? (
+						<p className="mt-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-500">
+							No payments recorded for this player in the active season.
+						</p>
+					) : (
+						<div className="mt-2 space-y-2">
+							{recentPayments.map((payment) => (
+								<div
+									key={payment.id}
+									className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3"
+								>
+									<div>
+										<p className="text-sm font-semibold text-slate-900">
+											{formatMoney(payment.amount)}
+										</p>
+
+										<p className="text-xs text-slate-500">
+											{new Date(payment.paidAt).toLocaleString()}
+											{payment.note ? ` · ${payment.note}` : ""}
+										</p>
+									</div>
+								</div>
+							))}
+						</div>
+					)}
 				</div>
 			</div>
 
@@ -225,60 +442,75 @@ export default function PlayerProfile() {
 				<div className="flex flex-wrap items-start justify-between gap-4">
 					<div>
 						<h2 className="text-lg font-bold text-blue-900">
-							Recent Match Reports
+							Recent Season Appearances
 						</h2>
 
 						<p className="mt-1 text-sm text-gray-500">
-							Goals, assists, cards, minutes, MOTM and player notes.
+							Shows the latest completed active-season matches where this player
+							was selected, even if no individual report detail was recorded.
 						</p>
 					</div>
+
+					<span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">
+						{seasonApps} season {seasonApps === 1 ? "appearance" : "appearances"}
+					</span>
 				</div>
 
-				{recentMatchStats.length === 0 ? (
+				{recentSeasonAppearances.length === 0 ? (
 					<div className="mt-4">
 						<EmptyState
-							title="No match reports recorded yet"
-							message="Once match reports are completed, this player’s contributions will show here."
+							title="No completed appearances this season"
+							message="Once this player appears in a completed match, their appearance history will show here."
 						/>
 					</div>
 				) : (
 					<div className="mt-4 space-y-3">
-						{recentMatchStats.map((stat) => (
+						{recentSeasonAppearances.map((appearance) => (
 							<div
-								key={`${stat.match.id}-${stat.playerId}`}
+								key={`${appearance.match.id}-${currentPlayer.id}`}
 								className="rounded-xl border border-slate-200 bg-slate-50 p-4"
 							>
 								<div className="flex flex-wrap items-start justify-between gap-3">
 									<div>
 										<p className="font-semibold text-slate-900">
-											vs {stat.match.opponent}
+											vs {appearance.match.opponent}
 										</p>
 
 										<p className="text-sm text-slate-500">
-											{formatDisplayDate(stat.match.date)}
+											{formatDisplayDate(appearance.match.date)}
 										</p>
 									</div>
 
-									{stat.isMOTM && (
-										<span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-800">
-											MOTM
+									<div className="flex flex-wrap items-center gap-2">
+										<span className="rounded-full bg-white px-3 py-1 text-xs font-semibold capitalize text-slate-700">
+											{appearance.area}
 										</span>
-									)}
+
+										{appearance.stat.isMOTM && (
+											<span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-800">
+												MOTM
+											</span>
+										)}
+									</div>
 								</div>
 
-								<div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
-									<MiniStat label="G" value={stat.goals} />
-									<MiniStat label="A" value={stat.assists} />
-									<MiniStat label="YC" value={stat.yellowCards} />
-									<MiniStat label="RC" value={stat.redCards} />
-									<MiniStat label="Min" value={stat.minutes} />
+								<div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+									<MiniStat label="G" value={appearance.stat.goals} />
+									<MiniStat label="A" value={appearance.stat.assists} />
+									<MiniStat label="YC" value={appearance.stat.yellowCards} />
+									<MiniStat label="RC" value={appearance.stat.redCards} />
+									<MiniStat label="Min" value={appearance.stat.minutes} />
 								</div>
 
-								{stat.note && (
+								{appearance.stat.note ? (
 									<p className="mt-3 rounded-lg bg-white p-3 text-sm text-slate-600">
-										{stat.note}
+										{appearance.stat.note}
 									</p>
-								)}
+								) : !appearance.hasReportDetail ? (
+									<p className="mt-3 rounded-lg bg-white p-3 text-sm text-slate-500">
+										No individual report detail recorded.
+									</p>
+								) : null}
 							</div>
 						))}
 					</div>
@@ -299,10 +531,34 @@ export default function PlayerProfile() {
 	);
 }
 
-function Stat({ label, value }: { label: string; value: string | number }) {
+function getPlayerAppearancesInMatches(matches: Match[], playerId: string) {
+	return matches.filter((match) =>
+		match.selectedPlayers.some(
+			(selectedPlayer) => selectedPlayer.playerId === playerId
+		)
+	).length;
+}
+
+function getPlayerGoalsInMatches(matches: Match[], playerId: string) {
+	return matches.reduce((total, match) => {
+		const playerStat = match.playerStats?.find(
+			(stat) => stat.playerId === playerId
+		);
+
+		return total + (playerStat?.goals ?? 0);
+	}, 0);
+}
+
+function Stat({
+	label,
+	value,
+}: {
+	label: string | number;
+	value: string | number;
+}) {
 	return (
-		<div className="rounded-xl bg-white p-4 shadow">
-			<p className="text-sm text-gray-500">{label}</p>
+		<div className="min-w-0 rounded-xl bg-white p-4 shadow">
+			<p className="truncate text-sm text-gray-500">{label}</p>
 			<p className="text-2xl font-bold text-blue-900">{value}</p>
 		</div>
 	);
@@ -315,4 +571,43 @@ function MiniStat({ label, value }: { label: string; value: string | number }) {
 			<p className="text-sm font-bold text-blue-900">{value}</p>
 		</div>
 	);
+}
+
+function FinanceStatusBadge({ status }: { status: string }) {
+	if (status === "paid") {
+		return (
+			<span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">
+				Paid
+			</span>
+		);
+	}
+
+	if (status === "part-paid") {
+		return (
+			<span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">
+				Part paid
+			</span>
+		);
+	}
+
+	if (status === "unpaid") {
+		return (
+			<span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-800">
+				Unpaid
+			</span>
+		);
+	}
+
+	return (
+		<span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+			Nothing owed
+		</span>
+	);
+}
+
+function formatMoney(value: number) {
+	return new Intl.NumberFormat("en-GB", {
+		style: "currency",
+		currency: "GBP",
+	}).format(value);
 }
