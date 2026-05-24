@@ -1,26 +1,21 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { DEFAULT_SEASON_ID } from "../data/seedSeasons";
 import {
 	addPlayerPaymentRecord,
-	getFinanceRecordSeasonId,
+	normaliseFinanceRecords,
 	removePlayerPaymentRecord,
 	setPlayerAmountOwedRecord,
 } from "../services/financeService";
+import type {
+	NewFinancePaymentInput,
+	PlayerFinanceRecord,
+} from "../types/finance";
 
-export type FinancePayment = {
-	id: string;
-	amount: number;
-	note?: string;
-	paidAt: string;
-};
-
-export type PlayerFinanceRecord = {
-	playerId: string;
-	seasonId?: string;
-	amountOwed: number;
-	payments: FinancePayment[];
-};
+export type {
+	FinancePayment,
+	NewFinancePaymentInput,
+	PlayerFinanceRecord,
+} from "../types/finance";
 
 type FinanceStore = {
 	playerFinanceRecords: PlayerFinanceRecord[];
@@ -33,10 +28,7 @@ type FinanceStore = {
 
 	addPlayerPayment: (
 		playerId: string,
-		payment: {
-			amount: number;
-			note?: string;
-		},
+		payment: NewFinancePaymentInput,
 		seasonId?: string
 	) => void;
 
@@ -47,58 +39,39 @@ type FinanceStore = {
 	) => void;
 };
 
-function normaliseFinanceRecords(records: PlayerFinanceRecord[]) {
-	return records.map((record) => ({
-		...record,
-		seasonId: getFinanceRecordSeasonId(record),
-	}));
-}
-
 export const useFinanceStore = create<FinanceStore>()(
 	persist(
 		(set) => ({
 			playerFinanceRecords: [],
 
-			setPlayerAmountOwed: (
-				playerId,
-				amountOwed,
-				seasonId = DEFAULT_SEASON_ID
-			) =>
+			setPlayerAmountOwed: (playerId, amountOwed, seasonId) =>
 				set((state) => ({
-					playerFinanceRecords: setPlayerAmountOwedRecord(
-						state.playerFinanceRecords,
+					playerFinanceRecords: setPlayerAmountOwedRecord({
+						records: state.playerFinanceRecords,
 						playerId,
 						amountOwed,
-						seasonId
-					),
+						seasonId,
+					}),
 				})),
 
-			addPlayerPayment: (
-				playerId,
-				payment,
-				seasonId = DEFAULT_SEASON_ID
-			) =>
+			addPlayerPayment: (playerId, payment, seasonId) =>
 				set((state) => ({
-					playerFinanceRecords: addPlayerPaymentRecord(
-						state.playerFinanceRecords,
+					playerFinanceRecords: addPlayerPaymentRecord({
+						records: state.playerFinanceRecords,
 						playerId,
 						payment,
-						seasonId
-					),
+						seasonId,
+					}),
 				})),
 
-			removePlayerPayment: (
-				playerId,
-				paymentId,
-				seasonId = DEFAULT_SEASON_ID
-			) =>
+			removePlayerPayment: (playerId, paymentId, seasonId) =>
 				set((state) => ({
-					playerFinanceRecords: removePlayerPaymentRecord(
-						state.playerFinanceRecords,
+					playerFinanceRecords: removePlayerPaymentRecord({
+						records: state.playerFinanceRecords,
 						playerId,
 						paymentId,
-						seasonId
-					),
+						seasonId,
+					}),
 				})),
 		}),
 		{

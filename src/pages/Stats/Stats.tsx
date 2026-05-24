@@ -9,6 +9,13 @@ import {
 	getCompletedMatchesForSeason,
 	getPlayerStatsSummary,
 } from "../../services/statsService";
+import {
+	buildCsvText,
+	buildSeparatedTableText,
+	downloadTextFile,
+	slugify,
+	type ExportColumn,
+} from "../../services/exportService";
 
 type StatsRow = {
 	id: string;
@@ -67,6 +74,83 @@ const columns: {
 	{ label: "RC", key: "redCards", align: "center" },
 ];
 
+function getExportColumns(selectedSeasonName: string): ExportColumn<StatsRow>[] {
+	return [
+		{
+			label: "Player",
+			getValue: (row) => row.name,
+		},
+		{
+			label: "First Team Apps",
+			getValue: (row) => row.firstTeamApps,
+		},
+		{
+			label: "First Team Goals",
+			getValue: (row) => row.firstTeamGoals,
+		},
+		{
+			label: "Second Team Apps",
+			getValue: (row) => row.secondTeamApps,
+		},
+		{
+			label: "Second Team Goals",
+			getValue: (row) => row.secondTeamGoals,
+		},
+		{
+			label: `${selectedSeasonName} Apps`,
+			getValue: (row) => row.seasonApps,
+		},
+		{
+			label: `${selectedSeasonName} Goals`,
+			getValue: (row) => row.seasonGoals,
+		},
+		{
+			label: "Pre 25/26 Apps",
+			getValue: (row) => row.preSeasonApps,
+		},
+		{
+			label: "Pre 25/26 Goals",
+			getValue: (row) => row.preSeasonGoals,
+		},
+		{
+			label: "Career Apps",
+			getValue: (row) => row.careerApps,
+		},
+		{
+			label: "Career Goals",
+			getValue: (row) => row.careerGoals,
+		},
+		{
+			label: "Assists",
+			getValue: (row) => row.assists,
+		},
+		{
+			label: "Starts",
+			getValue: (row) => row.starts,
+		},
+		{
+			label: "Bench",
+			getValue: (row) => row.bench,
+		},
+		{
+			label: "MOTM",
+			getValue: (row) => row.motm,
+		},
+		{
+			label: "Minutes",
+			getValue: (row) => row.minutes,
+		},
+		{
+			label: "Yellow Cards",
+			getValue: (row) => row.yellowCards,
+		},
+		{
+			label: "Red Cards",
+			getValue: (row) => row.redCards,
+		},
+	];
+}
+
 export default function Stats() {
 	const players = usePlayerStore((state) => state.players);
 	const matches = useMatchStore((state) => state.matches);
@@ -85,6 +169,7 @@ export default function Stats() {
 	const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 	const [includeInactive, setIncludeInactive] = useState(false);
 	const [searchTerm, setSearchTerm] = useState("");
+	const [copyStatus, setCopyStatus] = useState("");
 
 	const activeSeason = seasons.find((season) => season.id === activeSeasonId);
 	const selectedSeasonName = activeSeason?.name ?? "Selected season";
@@ -217,6 +302,46 @@ export default function Stats() {
 		setSortDirection("desc");
 	}
 
+	function handleCopyTable() {
+		const exportColumns = getExportColumns(selectedSeasonName);
+
+		const tableText = buildSeparatedTableText({
+			rows: sortedRows,
+			columns: exportColumns,
+			separator: "\t",
+		});
+
+		navigator.clipboard
+			.writeText(tableText)
+			.then(() => {
+				setCopyStatus("Copied");
+				window.setTimeout(() => setCopyStatus(""), 2000);
+			})
+			.catch(() => {
+				setCopyStatus("Copy failed");
+				window.setTimeout(() => setCopyStatus(""), 2000);
+			});
+	}
+
+	function handleExportCsv() {
+		const exportColumns = getExportColumns(selectedSeasonName);
+
+		const csvText = buildCsvText({
+			rows: sortedRows,
+			columns: exportColumns,
+		});
+
+		const filename = `kingsbridge-colts-stats-${slugify(
+			selectedSeasonName
+		)}.csv`;
+
+		downloadTextFile({
+			filename,
+			content: csvText,
+			mimeType: "text/csv;charset=utf-8;",
+		});
+	}
+
 	return (
 		<div className="w-full min-w-0 space-y-6 overflow-hidden">
 			<div className="flex min-w-0 flex-wrap items-start justify-between gap-4">
@@ -294,6 +419,32 @@ export default function Stats() {
 					/>
 					Include inactive players
 				</label>
+
+				<div className="ml-auto flex flex-wrap items-center gap-2">
+					{copyStatus && (
+						<span className="text-xs font-semibold text-slate-500">
+							{copyStatus}
+						</span>
+					)}
+
+					<button
+						type="button"
+						onClick={handleCopyTable}
+						disabled={sortedRows.length === 0}
+						className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+					>
+						Copy table
+					</button>
+
+					<button
+						type="button"
+						onClick={handleExportCsv}
+						disabled={sortedRows.length === 0}
+						className="rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+					>
+						Export CSV
+					</button>
+				</div>
 			</div>
 
 			<div className="min-w-0 overflow-hidden rounded-xl bg-white shadow">

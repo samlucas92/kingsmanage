@@ -3,41 +3,34 @@ import { usePlayerStore } from "../../stores/players";
 import { useFinanceStore } from "../../stores/finance";
 import { useSeasonStore } from "../../stores/seasons";
 import type { Player } from "../../stores/players";
-import type { PlayerFinanceRecord } from "../../stores/finance";
+import type { PlayerFinanceRecord } from "../../types/finance";
 import {
-	getPlayerBalance,
-	getPlayerPaymentStatus,
-	getPlayerTotalPaid,
+	buildFinanceRows,
+	filterFinanceRows,
+	getBulkTargetRows,
+	getFinanceExportColumns,
+	getFinanceRecord,
+	getFinanceSummary,
+	getHighestOutstandingBalance,
+	getTopOutstandingRows,
+	type BulkTarget,
+	type FinanceFilter,
 } from "../../services/financeService";
+import {
+	buildCsvText,
+	buildSeparatedTableText,
+	downloadTextFile,
+	slugify,
+} from "../../services/exportService";
 import EmptyState from "../../components/compositions/EmptyState";
 import Modal from "../../components/compositions/Modal";
 import SeasonSelector from "../../components/compositions/SeasonSelector";
-import { DEFAULT_SEASON_ID } from "../../data/seedSeasons";
-
-type FinanceFilter =
-	| "owed"
-	| "all"
-	| "paid"
-	| "part-paid"
-	| "unpaid"
-	| "nothing-owed";
 
 type AmountModalMode = "owed" | "payment";
-
-type BulkTarget = "active" | "visible" | "filtered";
 
 type AmountModalState = {
 	mode: AmountModalMode;
 	player: Player;
-};
-
-type FinanceRowData = {
-	player: Player;
-	record?: PlayerFinanceRecord;
-	amountOwed: number;
-	totalPaid: number;
-	balance: number;
-	status: string;
 };
 
 export default function Finance() {
@@ -67,129 +60,53 @@ export default function Finance() {
 	const [paymentNote, setPaymentNote] = useState("");
 	const [formError, setFormError] = useState("");
 	const [bulkFormError, setBulkFormError] = useState("");
+	const [copyStatus, setCopyStatus] = useState("");
 
 	const activeSeason = seasons.find((season) => season.id === activeSeasonId);
+	const activeSeasonName = activeSeason?.name ?? "active-season";
 
-	const visiblePlayers = useMemo(() => {
-		return players.filter((player) => includeInactive || player.isActive);
-	}, [players, includeInactive]);
-
-	const allFinanceRows = useMemo<FinanceRowData[]>(() => {
-		return visiblePlayers
-			.map((player) => {
-				const record = getFinanceRecord(
-					playerFinanceRecords,
-					player.id,
-					activeSeasonId
-				);
-
-				const amountOwed = record?.amountOwed ?? 0;
-				const totalPaid = getPlayerTotalPaid(record);
-				const balance = getPlayerBalance(record);
-				const status = getPlayerPaymentStatus(record);
-
-				return {
-					player,
-					record,
-					amountOwed,
-					totalPaid,
-					balance,
-					status,
-				};
-			})
-			.sort((firstRow, secondRow) => {
-				if (secondRow.balance !== firstRow.balance) {
-					return secondRow.balance - firstRow.balance;
-				}
-
-				if (secondRow.amountOwed !== firstRow.amountOwed) {
-					return secondRow.amountOwed - firstRow.amountOwed;
-				}
-
-				return firstRow.player.name.localeCompare(secondRow.player.name);
-			});
-	}, [visiblePlayers, playerFinanceRecords, activeSeasonId]);
+	const allFinanceRows = useMemo(() => {
+		return buildFinanceRows({
+			players,
+			playerFinanceRecords,
+			seasonId: activeSeasonId,
+			includeInactive,
+		});
+	}, [players, playerFinanceRecords, activeSeasonId, includeInactive]);
 
 	const financeRows = useMemo(() => {
-		return allFinanceRows.filter((row) => {
-			if (financeFilter === "all") {
-				return true;
-			}
-
-			if (financeFilter === "owed") {
-				return row.balance > 0;
-			}
-
-			return row.status === financeFilter;
+		return filterFinanceRows({
+			rows: allFinanceRows,
+			filter: financeFilter,
 		});
 	}, [allFinanceRows, financeFilter]);
 
-	const totalExpected = allFinanceRows.reduce(
-		(total, row) => total + row.amountOwed,
-		0
-	);
+	const financeSummary = useMemo(() => {
+		return getFinanceSummary(allFinanceRows);
+	}, [allFinanceRows]);
 
-	const totalPaid = allFinanceRows.reduce(
-		(total, row) => total + row.totalPaid,
-		0
-	);
+	const topOutstandingRows = useMemo(() => {
+		return getTopOutstandingRows(allFinanceRows);
+	}, [allFinanceRows]);
 
-	const totalOutstanding = allFinanceRows.reduce(
-		(total, row) => total + row.balance,
-		0
-	);
-
-	const playersOwingMoney = allFinanceRows.filter((row) => row.balance > 0);
-	const paidPlayers = allFinanceRows.filter((row) => row.status === "paid");
-	const partPaidPlayers = allFinanceRows.filter(
-		(row) => row.status === "part-paid"
-	);
-	const unpaidPlayers = allFinanceRows.filter((row) => row.status === "unpaid");
-	const nothingOwedPlayers = allFinanceRows.filter(
-		(row) => row.status === "nothing-owed"
-	);
-
-	const paidPercentage =
-		totalExpected > 0 ? Math.round((totalPaid / totalExpected) * 100) : 0;
-
-	const outstandingPercentage =
-		totalExpected > 0
-			? Math.round((totalOutstanding / totalExpected) * 100)
-			: 0;
-
-	const averageOwed =
-		allFinanceRows.length > 0 ? totalExpected / allFinanceRows.length : 0;
-
-	const averagePaid =
-		allFinanceRows.length > 0 ? totalPaid / allFinanceRows.length : 0;
-
-	const topOutstandingRows = allFinanceRows
-		.filter((row) => row.balance > 0)
-		.slice(0, 8);
-
-	const highestOutstanding = topOutstandingRows.reduce(
-		(highest, row) => Math.max(highest, row.balance),
-		0
-	);
+	const highestOutstanding = useMemo(() => {
+		return getHighestOutstandingBalance(topOutstandingRows);
+	}, [topOutstandingRows]);
 
 	const bulkTargetRows = useMemo(() => {
-		if (bulkTarget === "filtered") {
-			return financeRows;
-		}
-
-		if (bulkTarget === "visible") {
-			return allFinanceRows;
-		}
-
-		return allFinanceRows.filter((row) => row.player.isActive);
-	}, [bulkTarget, financeRows, allFinanceRows]);
+		return getBulkTargetRows({
+			bulkTarget,
+			allRows: allFinanceRows,
+			filteredRows: financeRows,
+		});
+	}, [bulkTarget, allFinanceRows, financeRows]);
 
 	function openAmountModal(mode: AmountModalMode, player: Player) {
-		const record = getFinanceRecord(
-			playerFinanceRecords,
-			player.id,
-			activeSeasonId
-		);
+		const record = getFinanceRecord({
+			records: playerFinanceRecords,
+			playerId: player.id,
+			seasonId: activeSeasonId,
+		});
 
 		setAmountModal({
 			mode,
@@ -285,6 +202,44 @@ export default function Finance() {
 		closeBulkModal();
 	}
 
+	function handleCopyTable() {
+		const exportColumns = getFinanceExportColumns();
+
+		const tableText = buildSeparatedTableText({
+			rows: financeRows,
+			columns: exportColumns,
+			separator: "\t",
+		});
+
+		navigator.clipboard
+			.writeText(tableText)
+			.then(() => {
+				setCopyStatus("Copied");
+				window.setTimeout(() => setCopyStatus(""), 2000);
+			})
+			.catch(() => {
+				setCopyStatus("Copy failed");
+				window.setTimeout(() => setCopyStatus(""), 2000);
+			});
+	}
+
+	function handleExportCsv() {
+		const exportColumns = getFinanceExportColumns();
+
+		const csvText = buildCsvText({
+			rows: financeRows,
+			columns: exportColumns,
+		});
+
+		downloadTextFile({
+			filename: `kingsbridge-colts-finance-${slugify(
+				activeSeasonName
+			)}-${financeFilter}.csv`,
+			content: csvText,
+			mimeType: "text/csv;charset=utf-8;",
+		});
+	}
+
 	const modalTitle =
 		amountModal?.mode === "owed" ? "Set amount owed" : "Add payment";
 
@@ -335,7 +290,7 @@ export default function Finance() {
 
 					<div className="text-right">
 						<p className="text-2xl font-bold text-blue-900">
-							{paidPercentage}%
+							{financeSummary.paidPercentage}%
 						</p>
 						<p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
 							collected
@@ -345,14 +300,18 @@ export default function Finance() {
 
 				<div className="mt-5">
 					<div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-500">
-						<span>Paid {formatMoney(totalPaid)}</span>
-						<span>Outstanding {formatMoney(totalOutstanding)}</span>
+						<span>Paid {formatMoney(financeSummary.totalPaid)}</span>
+						<span>
+							Outstanding {formatMoney(financeSummary.totalOutstanding)}
+						</span>
 					</div>
 
 					<div className="h-4 overflow-hidden rounded-full bg-red-100">
 						<div
 							className="h-full rounded-full bg-blue-700 transition-all"
-							style={{ width: `${Math.min(100, paidPercentage)}%` }}
+							style={{
+								width: `${Math.min(100, financeSummary.paidPercentage)}%`,
+							}}
 						/>
 					</div>
 				</div>
@@ -361,41 +320,53 @@ export default function Finance() {
 			<div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
 				<FinanceStatCard
 					label="Expected"
-					value={formatMoney(totalExpected)}
+					value={formatMoney(financeSummary.totalExpected)}
 					helper={`${allFinanceRows.length} visible players`}
 				/>
+
 				<FinanceStatCard
 					label="Paid"
-					value={formatMoney(totalPaid)}
-					helper={`${paidPercentage}% collected`}
+					value={formatMoney(financeSummary.totalPaid)}
+					helper={`${financeSummary.paidPercentage}% collected`}
 				/>
+
 				<FinanceStatCard
 					label="Outstanding"
-					value={formatMoney(totalOutstanding)}
-					helper={`${outstandingPercentage}% still owed`}
-					warning={totalOutstanding > 0}
+					value={formatMoney(financeSummary.totalOutstanding)}
+					helper={`${financeSummary.outstandingPercentage}% still owed`}
+					warning={financeSummary.totalOutstanding > 0}
 				/>
+
 				<FinanceStatCard
 					label="Players Owing"
-					value={playersOwingMoney.length}
-					helper={`${paidPlayers.length} fully paid`}
-					warning={playersOwingMoney.length > 0}
+					value={financeSummary.playersOwingMoney.length}
+					helper={`${financeSummary.paidPlayers.length} fully paid`}
+					warning={financeSummary.playersOwingMoney.length > 0}
 				/>
 			</div>
 
 			<div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
 				<FinanceStatCard
 					label="Average Owed"
-					value={formatMoney(averageOwed)}
+					value={formatMoney(financeSummary.averageOwed)}
 					helper="Per visible player"
 				/>
+
 				<FinanceStatCard
 					label="Average Paid"
-					value={formatMoney(averagePaid)}
+					value={formatMoney(financeSummary.averagePaid)}
 					helper="Per visible player"
 				/>
-				<FinanceStatCard label="Part Paid" value={partPaidPlayers.length} />
-				<FinanceStatCard label="Unpaid" value={unpaidPlayers.length} />
+
+				<FinanceStatCard
+					label="Part Paid"
+					value={financeSummary.partPaidPlayers.length}
+				/>
+
+				<FinanceStatCard
+					label="Unpaid"
+					value={financeSummary.unpaidPlayers.length}
+				/>
 			</div>
 
 			<div className="grid min-w-0 gap-6 xl:grid-cols-2">
@@ -413,25 +384,28 @@ export default function Finance() {
 					<div className="mt-5 space-y-4">
 						<StatusBar
 							label="Paid"
-							value={paidPlayers.length}
+							value={financeSummary.paidPlayers.length}
 							total={allFinanceRows.length}
 							tone="good"
 						/>
+
 						<StatusBar
 							label="Part paid"
-							value={partPaidPlayers.length}
+							value={financeSummary.partPaidPlayers.length}
 							total={allFinanceRows.length}
 							tone="warning"
 						/>
+
 						<StatusBar
 							label="Unpaid"
-							value={unpaidPlayers.length}
+							value={financeSummary.unpaidPlayers.length}
 							total={allFinanceRows.length}
 							tone="bad"
 						/>
+
 						<StatusBar
 							label="Nothing owed"
-							value={nothingOwedPlayers.length}
+							value={financeSummary.nothingOwedPlayers.length}
 							total={allFinanceRows.length}
 							tone="neutral"
 						/>
@@ -495,7 +469,7 @@ export default function Finance() {
 				<FinanceFilterButton
 					label="Owes Money"
 					value="owed"
-					count={playersOwingMoney.length}
+					count={financeSummary.playersOwingMoney.length}
 					activeFilter={financeFilter}
 					onChange={setFinanceFilter}
 				/>
@@ -503,7 +477,7 @@ export default function Finance() {
 				<FinanceFilterButton
 					label="Unpaid"
 					value="unpaid"
-					count={unpaidPlayers.length}
+					count={financeSummary.unpaidPlayers.length}
 					activeFilter={financeFilter}
 					onChange={setFinanceFilter}
 				/>
@@ -511,7 +485,7 @@ export default function Finance() {
 				<FinanceFilterButton
 					label="Part Paid"
 					value="part-paid"
-					count={partPaidPlayers.length}
+					count={financeSummary.partPaidPlayers.length}
 					activeFilter={financeFilter}
 					onChange={setFinanceFilter}
 				/>
@@ -519,7 +493,7 @@ export default function Finance() {
 				<FinanceFilterButton
 					label="Paid"
 					value="paid"
-					count={paidPlayers.length}
+					count={financeSummary.paidPlayers.length}
 					activeFilter={financeFilter}
 					onChange={setFinanceFilter}
 				/>
@@ -527,7 +501,7 @@ export default function Finance() {
 				<FinanceFilterButton
 					label="Nothing Owed"
 					value="nothing-owed"
-					count={nothingOwedPlayers.length}
+					count={financeSummary.nothingOwedPlayers.length}
 					activeFilter={financeFilter}
 					onChange={setFinanceFilter}
 				/>
@@ -548,6 +522,32 @@ export default function Finance() {
 					/>
 					Include inactive players
 				</label>
+
+				<div className="flex flex-wrap items-center gap-2">
+					{copyStatus && (
+						<span className="text-xs font-semibold text-slate-500">
+							{copyStatus}
+						</span>
+					)}
+
+					<button
+						type="button"
+						onClick={handleCopyTable}
+						disabled={financeRows.length === 0}
+						className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+					>
+						Copy table
+					</button>
+
+					<button
+						type="button"
+						onClick={handleExportCsv}
+						disabled={financeRows.length === 0}
+						className="rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+					>
+						Export CSV
+					</button>
+				</div>
 			</div>
 
 			<div className="min-w-0 overflow-hidden rounded-xl bg-white shadow">
@@ -868,6 +868,7 @@ function FinanceStatCard({
 	return (
 		<div className="min-w-0 rounded-xl bg-white p-5 shadow">
 			<p className="truncate text-sm font-medium text-gray-500">{label}</p>
+
 			<p
 				className={`mt-2 text-3xl font-bold ${
 					warning ? "text-red-700" : "text-blue-900"
@@ -875,6 +876,7 @@ function FinanceStatCard({
 			>
 				{value}
 			</p>
+
 			{helper && <p className="mt-1 text-xs text-slate-500">{helper}</p>}
 		</div>
 	);
@@ -1022,18 +1024,6 @@ function FinanceStatusBadge({ status }: { status: string }) {
 		<span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
 			Nothing owed
 		</span>
-	);
-}
-
-function getFinanceRecord(
-	records: PlayerFinanceRecord[],
-	playerId: string,
-	seasonId: string
-) {
-	return records.find(
-		(record) =>
-			record.playerId === playerId &&
-			(record.seasonId ?? DEFAULT_SEASON_ID) === seasonId
 	);
 }
 
