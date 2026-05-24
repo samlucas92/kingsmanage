@@ -4,6 +4,10 @@ import { useMatchStore } from "../../stores/match";
 import { useFinanceStore } from "../../stores/finance";
 import { useSeasonStore } from "../../stores/seasons";
 import SeasonSelector from "../../components/compositions/SeasonSelector";
+import MetricCard from "../../components/compositions/MetricCard";
+import PanelCard from "../../components/compositions/PanelCard";
+import ProgressBar from "../../components/compositions/ProgressBar";
+import StatusBadge from "../../components/compositions/StatusBadge";
 import { DEFAULT_SEASON_ID } from "../../data/seedSeasons";
 import {
 	getPlayerBalance,
@@ -11,6 +15,7 @@ import {
 } from "../../services/financeService";
 import DevToolsCard from "../../components/compositions/DevToolsCard";
 import { formatDisplayDateTime } from "../../utils/date";
+import { formatCurrency } from "../../utils/format";
 
 export default function Dashboard() {
 	const players = usePlayerStore((state) => state.players);
@@ -119,7 +124,7 @@ export default function Dashboard() {
 				<SeasonSelector label="Active season" />
 			</div>
 
-			<section className="rounded-xl bg-white p-5 shadow">
+			<PanelCard>
 				<div className="flex flex-wrap items-center justify-between gap-4">
 					<div className="min-w-0">
 						<p className="text-xs font-bold uppercase tracking-wide text-slate-500">
@@ -136,12 +141,21 @@ export default function Dashboard() {
 					</div>
 
 					<div className="flex flex-wrap gap-2">
-						<SmallBadge label={`${activeSeasonMatches.length} matches`} />
-						<SmallBadge label={`${activePlayers.length} active players`} />
-						<SmallBadge label={`${paidPercentage}% finance collected`} />
+						<StatusBadge
+							label={`${activeSeasonMatches.length} matches`}
+							tone="neutral"
+						/>
+						<StatusBadge
+							label={`${activePlayers.length} active players`}
+							tone="info"
+						/>
+						<StatusBadge
+							label={`${paidPercentage}% finance collected`}
+							tone={paidPercentage >= 100 ? "success" : "warning"}
+						/>
 					</div>
 				</div>
-			</section>
+			</PanelCard>
 
 			<div className="grid min-w-0 gap-4 lg:grid-cols-3">
 				<PriorityCard
@@ -162,17 +176,14 @@ export default function Dashboard() {
 							</p>
 
 							<div className="mt-4">
-								<span
-									className={`rounded-full px-3 py-1 text-xs font-bold ${
+								<StatusBadge
+									label={
 										nextMatch.isLineupLocked
-											? "bg-green-100 text-green-800"
-											: "bg-amber-100 text-amber-800"
-									}`}
-								>
-									{nextMatch.isLineupLocked
-										? "Lineup saved"
-										: "Lineup needs attention"}
-								</span>
+											? "Lineup saved"
+											: "Lineup needs attention"
+									}
+									tone={nextMatch.isLineupLocked ? "success" : "warning"}
+								/>
 							</div>
 						</div>
 					) : (
@@ -192,7 +203,7 @@ export default function Dashboard() {
 							totalOutstanding > 0 ? "text-red-700" : "text-green-700"
 						}`}
 					>
-						{formatMoney(totalOutstanding)}
+						{formatCurrency(totalOutstanding)}
 					</p>
 
 					<p className="mt-1 text-sm text-slate-500">
@@ -200,11 +211,8 @@ export default function Dashboard() {
 						{playersOwingMoney === 1 ? "player" : "players"}.
 					</p>
 
-					<div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
-						<div
-							className="h-full rounded-full bg-blue-700"
-							style={{ width: `${Math.min(100, paidPercentage)}%` }}
-						/>
+					<div className="mt-4">
+						<ProgressBar value={paidPercentage} />
 					</div>
 				</PriorityCard>
 
@@ -248,30 +256,30 @@ export default function Dashboard() {
 			</div>
 
 			<div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-				<DashboardStatCard
+				<MetricCard
 					label="Upcoming"
 					value={upcomingMatches.length}
 					helper={`${unlockedUpcomingMatches.length} need team`}
 					to="/matches"
-					warning={unlockedUpcomingMatches.length > 0}
+					tone={unlockedUpcomingMatches.length > 0 ? "warning" : "default"}
 				/>
 
-				<DashboardStatCard
+				<MetricCard
 					label="Completed"
 					value={completedMatches.length}
 					helper="Results entered"
 					to="/matches"
 				/>
 
-				<DashboardStatCard
+				<MetricCard
 					label="Postponed"
 					value={postponedMatches.length}
 					helper="Awaiting restoration"
 					to="/matches"
-					warning={postponedMatches.length > 0}
+					tone={postponedMatches.length > 0 ? "warning" : "default"}
 				/>
 
-				<DashboardStatCard
+				<MetricCard
 					label="Active Players"
 					value={activePlayers.length}
 					helper={`${inactivePlayers.length} inactive`}
@@ -280,20 +288,11 @@ export default function Dashboard() {
 			</div>
 
 			<div className="grid min-w-0 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-				<section className="rounded-xl bg-white p-6 shadow">
-					<div className="flex flex-wrap items-start justify-between gap-4">
-						<div>
-							<h2 className="text-lg font-bold text-blue-900">
-								Quick Actions
-							</h2>
-
-							<p className="mt-1 text-sm text-slate-500">
-								Common things you are likely to do next.
-							</p>
-						</div>
-					</div>
-
-					<div className="mt-5 grid gap-3 sm:grid-cols-2">
+				<PanelCard
+					title="Quick Actions"
+					description="Common things you are likely to do next."
+				>
+					<div className="grid gap-3 sm:grid-cols-2">
 						<QuickAction
 							to="/matches"
 							title="Manage matches"
@@ -318,34 +317,29 @@ export default function Dashboard() {
 							description="View active-season stats and historical appearance totals."
 						/>
 					</div>
-				</section>
+				</PanelCard>
 
-				<section className="rounded-xl bg-white p-6 shadow">
-					<div className="flex flex-wrap items-start justify-between gap-4">
-						<div>
-							<h2 className="text-lg font-bold text-blue-900">
-								Season Finance
-							</h2>
-
-							<p className="mt-1 text-sm text-slate-500">
-								Active player payment summary.
-							</p>
-						</div>
-
+				<PanelCard
+					title="Season Finance"
+					description="Active player payment summary."
+					action={
 						<Link
 							to="/finance"
 							className="text-sm font-semibold text-blue-700 hover:text-blue-900"
 						>
 							View finance
 						</Link>
-					</div>
-
-					<div className="mt-5 space-y-4">
-						<FinanceLine label="Expected" value={formatMoney(totalExpected)} />
-						<FinanceLine label="Paid" value={formatMoney(totalPaid)} />
+					}
+				>
+					<div className="space-y-4">
+						<FinanceLine
+							label="Expected"
+							value={formatCurrency(totalExpected)}
+						/>
+						<FinanceLine label="Paid" value={formatCurrency(totalPaid)} />
 						<FinanceLine
 							label="Outstanding"
-							value={formatMoney(totalOutstanding)}
+							value={formatCurrency(totalOutstanding)}
 							danger={totalOutstanding > 0}
 						/>
 						<FinanceLine
@@ -354,31 +348,23 @@ export default function Dashboard() {
 							danger={playersOwingMoney > 0}
 						/>
 					</div>
-				</section>
+				</PanelCard>
 			</div>
 
 			<div className="grid min-w-0 gap-6 xl:grid-cols-2">
-				<section className="rounded-xl bg-white p-6 shadow">
-					<div className="flex items-start justify-between gap-4">
-						<div>
-							<h2 className="text-lg font-bold text-blue-900">
-								Next Fixtures
-							</h2>
-
-							<p className="text-sm text-gray-500">
-								The next few matches in this season.
-							</p>
-						</div>
-
+				<PanelCard
+					title="Next Fixtures"
+					description="The next few matches in this season."
+					action={
 						<Link
 							to="/matches"
 							className="text-sm font-semibold text-blue-700 hover:text-blue-900"
 						>
 							View all
 						</Link>
-					</div>
-
-					<div className="mt-4 space-y-3">
+					}
+				>
+					<div className="space-y-3">
 						{nextThreeMatches.map((match) => (
 							<MatchListItem
 								key={match.id}
@@ -398,29 +384,21 @@ export default function Dashboard() {
 							</p>
 						)}
 					</div>
-				</section>
+				</PanelCard>
 
-				<section className="rounded-xl bg-white p-6 shadow">
-					<div className="flex items-start justify-between gap-4">
-						<div>
-							<h2 className="text-lg font-bold text-blue-900">
-								Recent Results
-							</h2>
-
-							<p className="text-sm text-gray-500">
-								Latest completed matches in this season.
-							</p>
-						</div>
-
+				<PanelCard
+					title="Recent Results"
+					description="Latest completed matches in this season."
+					action={
 						<Link
 							to="/matches"
 							className="text-sm font-semibold text-blue-700 hover:text-blue-900"
 						>
 							View all
 						</Link>
-					</div>
-
-					<div className="mt-4 space-y-3">
+					}
+				>
+					<div className="space-y-3">
 						{latestThreeResults.map((match) => (
 							<Link
 								key={match.id}
@@ -459,7 +437,7 @@ export default function Dashboard() {
 							</p>
 						)}
 					</div>
-				</section>
+				</PanelCard>
 			</div>
 
 			<DevToolsCard />
@@ -490,39 +468,6 @@ function PriorityCard({
 			</p>
 
 			<div className="mt-3">{children}</div>
-		</Link>
-	);
-}
-
-function DashboardStatCard({
-	label,
-	value,
-	helper,
-	to,
-	warning = false,
-}: {
-	label: string;
-	value: number;
-	helper: string;
-	to: string;
-	warning?: boolean;
-}) {
-	return (
-		<Link
-			to={to}
-			className="min-w-0 rounded-xl bg-white p-5 shadow transition hover:-translate-y-0.5 hover:shadow-md"
-		>
-			<p className="truncate text-sm font-medium text-gray-500">{label}</p>
-
-			<p
-				className={`mt-2 text-3xl font-bold ${
-					warning ? "text-amber-700" : "text-blue-900"
-				}`}
-			>
-				{value}
-			</p>
-
-			<p className="mt-1 text-sm text-gray-500">{helper}</p>
 		</Link>
 	);
 }
@@ -571,15 +516,11 @@ function MatchListItem({
 					<p className="text-sm text-slate-500">{meta}</p>
 				</div>
 
-				<span
-					className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
-						badgeTone === "good"
-							? "bg-green-100 text-green-800"
-							: "bg-amber-100 text-amber-800"
-					}`}
-				>
-					{badge}
-				</span>
+				<StatusBadge
+					label={badge}
+					tone={badgeTone === "good" ? "success" : "warning"}
+					className="shrink-0"
+				/>
 			</div>
 		</Link>
 	);
@@ -609,44 +550,20 @@ function FinanceLine({
 	);
 }
 
-function SmallBadge({ label }: { label: string }) {
-	return (
-		<span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
-			{label}
-		</span>
-	);
-}
-
 function ResultBadge({ state }: { state: string }) {
 	if (state === "won") {
-		return (
-			<span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold uppercase text-green-800">
-				Won
-			</span>
-		);
+		return <StatusBadge label="Won" tone="success" />;
 	}
 
 	if (state === "lost") {
-		return (
-			<span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold uppercase text-red-800">
-				Lost
-			</span>
-		);
+		return <StatusBadge label="Lost" tone="danger" />;
 	}
 
 	if (state === "draw") {
-		return (
-			<span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase text-slate-700">
-				Draw
-			</span>
-		);
+		return <StatusBadge label="Draw" tone="neutral" />;
 	}
 
-	return (
-		<span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold uppercase text-blue-800">
-			{state}
-		</span>
-	);
+	return <StatusBadge label={state} tone="info" />;
 }
 
 function getPriorityCardClass(tone: "good" | "warning" | "danger" | "neutral") {
@@ -667,11 +584,4 @@ function getPriorityCardClass(tone: "good" | "warning" | "danger" | "neutral") {
 
 function getTeamLabel(team: "first" | "second") {
 	return team === "first" ? "First Team" : "Second Team";
-}
-
-function formatMoney(value: number) {
-	return new Intl.NumberFormat("en-GB", {
-		style: "currency",
-		currency: "GBP",
-	}).format(value);
 }

@@ -6,6 +6,7 @@ import type {
 	NewFinancePaymentInput,
 	PlayerFinanceRecord,
 } from "../types/finance";
+import { formatDate } from "../utils/format";
 
 export type FinanceFilter =
 	| "owed"
@@ -428,9 +429,7 @@ export function getFinanceExportColumns(): ExportColumn<FinanceRowData>[] {
 						new Date(firstPayment.paidAt).getTime()
 				)[0];
 
-				return latestPayment
-					? new Date(latestPayment.paidAt).toLocaleDateString("en-GB")
-					: "";
+				return latestPayment ? formatDate(latestPayment.paidAt) : "";
 			},
 		},
 	];

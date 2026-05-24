@@ -5,6 +5,9 @@ import { useMatchStore } from "../../stores/match";
 import { useSeasonStore } from "../../stores/seasons";
 import { useHistoricalStatsStore } from "../../stores/historicalStats";
 import SeasonSelector from "../../components/compositions/SeasonSelector";
+import MetricCard from "../../components/compositions/MetricCard";
+import DataTable from "../../components/compositions/DataTable";
+import PanelCard from "../../components/compositions/PanelCard";
 import {
 	getCompletedMatchesForSeason,
 	getPlayerStatsSummary,
@@ -357,7 +360,7 @@ export default function Stats() {
 				<SeasonSelector label="Selected season" />
 			</div>
 
-			<section className="min-w-0 rounded-xl bg-white p-4 shadow">
+			<PanelCard>
 				<div className="flex min-w-0 flex-wrap items-center justify-between gap-4">
 					<div className="min-w-0">
 						<p className="text-xs font-bold uppercase tracking-wide text-slate-500">
@@ -379,31 +382,34 @@ export default function Stats() {
 						{completedSeasonMatches.length} completed selected-season matches
 					</span>
 				</div>
-			</section>
+			</PanelCard>
 
 			<div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
-				<StatsCard label="First Team Apps" value={totalFirstTeamApps} />
-				<StatsCard label="Second Team Apps" value={totalSecondTeamApps} />
-				<StatsCard label={`${selectedSeasonName} Apps`} value={totalSeasonApps} />
-				<StatsCard label="Pre 25/26 Apps" value={totalPreSeasonApps} />
+				<MetricCard label="First Team Apps" value={totalFirstTeamApps} />
+				<MetricCard label="Second Team Apps" value={totalSecondTeamApps} />
+				<MetricCard
+					label={`${selectedSeasonName} Apps`}
+					value={totalSeasonApps}
+				/>
+				<MetricCard label="Pre 25/26 Apps" value={totalPreSeasonApps} />
 			</div>
 
 			<div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
-				<StatsCard label="Tracked Apps" value={totalTrackedCareerApps} />
-				<StatsCard label="Career Apps" value={totalCareerApps} />
-				<StatsCard
+				<MetricCard label="Tracked Apps" value={totalTrackedCareerApps} />
+				<MetricCard label="Career Apps" value={totalCareerApps} />
+				<MetricCard
 					label={`${selectedSeasonName} Goals`}
 					value={totalSeasonGoals}
 				/>
-				<StatsCard label="Career Goals" value={totalCareerGoals} />
+				<MetricCard label="Career Goals" value={totalCareerGoals} />
 			</div>
 
 			<div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
-				<StatsCard label="Pre 25/26 Goals" value={totalPreSeasonGoals} />
-				<StatsCard label="Tracked Goals" value={totalTrackedCareerGoals} />
+				<MetricCard label="Pre 25/26 Goals" value={totalPreSeasonGoals} />
+				<MetricCard label="Tracked Goals" value={totalTrackedCareerGoals} />
 			</div>
 
-			<div className="flex min-w-0 flex-wrap items-center gap-4 rounded-xl bg-white p-4 shadow">
+			<PanelCard contentClassName="flex min-w-0 flex-wrap items-center gap-4">
 				<input
 					value={searchTerm}
 					onChange={(event) => setSearchTerm(event.target.value)}
@@ -445,119 +451,101 @@ export default function Stats() {
 						Export CSV
 					</button>
 				</div>
-			</div>
+			</PanelCard>
 
 			<div className="min-w-0 overflow-hidden rounded-xl bg-white shadow">
-				{sortedRows.length === 0 ? (
-					<div className="p-6 text-center text-sm text-slate-500">
-						No player stats found for this season.
-					</div>
-				) : (
-					<div className="max-w-full overflow-x-auto">
-						<table className="min-w-[1300px] text-sm">
-							<thead className="border-b bg-gray-50">
-								<tr className="border-b border-slate-200">
-									<th colSpan={1} className="bg-slate-50 p-2" />
+				<DataTable
+					empty={sortedRows.length === 0}
+					emptyTitle="No player stats found"
+					emptyMessage="No player stats found for this season."
+					minWidthClassName="min-w-[1300px]"
+				>
+					<thead className="border-b bg-gray-50">
+						<tr className="border-b border-slate-200">
+							<th colSpan={1} className="bg-slate-50 p-2" />
 
-									<GroupHeader label="First team" />
-									<GroupHeader label="Second team" />
-									<GroupHeader label={selectedSeasonName} />
-									<GroupHeader label="Pre 25/26" />
-									<GroupHeader label="Career" />
+							<GroupHeader label="First team" />
+							<GroupHeader label="Second team" />
+							<GroupHeader label={selectedSeasonName} />
+							<GroupHeader label="Pre 25/26" />
+							<GroupHeader label="Career" />
 
-									<th colSpan={7} className="bg-slate-50 p-2" />
-								</tr>
+							<th colSpan={7} className="bg-slate-50 p-2" />
+						</tr>
 
-								<tr>
-									{columns.map((column) => (
-										<th
-											key={column.key}
-											className={`whitespace-nowrap p-3 ${
-												getAlignClass(column.align)
-											}`}
-										>
-											<button
-												type="button"
-												onClick={() => handleSort(column.key)}
-												className="inline-flex items-center gap-1 font-semibold text-slate-700 hover:text-blue-900"
-											>
-												{column.label}
+						<tr>
+							{columns.map((column) => (
+								<th
+									key={column.key}
+									className={`whitespace-nowrap p-3 ${
+										getAlignClass(column.align)
+									}`}
+								>
+									<button
+										type="button"
+										onClick={() => handleSort(column.key)}
+										className="inline-flex items-center gap-1 font-semibold text-slate-700 hover:text-blue-900"
+									>
+										{column.label}
 
-												{sortKey === column.key && (
-													<span className="text-xs">
-														{sortDirection === "asc" ? "↑" : "↓"}
-													</span>
-												)}
-											</button>
-										</th>
-									))}
-								</tr>
-							</thead>
+										{sortKey === column.key && (
+											<span className="text-xs">
+												{sortDirection === "asc" ? "↑" : "↓"}
+											</span>
+										)}
+									</button>
+								</th>
+							))}
+						</tr>
+					</thead>
 
-							<tbody>
-								{sortedRows.map((row) => (
-									<tr key={row.id} className="border-b hover:bg-gray-50">
-										<td className="whitespace-nowrap p-3 font-medium">
-											<Link
-												to={`/players/${row.id}`}
-												className="text-blue-900 hover:text-blue-700 hover:underline"
-											>
-												{row.name}
-											</Link>
-										</td>
+					<tbody>
+						{sortedRows.map((row) => (
+							<tr key={row.id} className="border-b hover:bg-gray-50">
+								<td className="whitespace-nowrap p-3 font-medium">
+									<Link
+										to={`/players/${row.id}`}
+										className="text-blue-900 hover:text-blue-700 hover:underline"
+									>
+										{row.name}
+									</Link>
+								</td>
 
-										<td className="p-3 text-center">{row.firstTeamApps}</td>
-										<td className="p-3 text-center">{row.firstTeamGoals}</td>
+								<td className="p-3 text-center">{row.firstTeamApps}</td>
+								<td className="p-3 text-center">{row.firstTeamGoals}</td>
 
-										<td className="p-3 text-center">{row.secondTeamApps}</td>
-										<td className="p-3 text-center">{row.secondTeamGoals}</td>
+								<td className="p-3 text-center">{row.secondTeamApps}</td>
+								<td className="p-3 text-center">{row.secondTeamGoals}</td>
 
-										<td className="p-3 text-center font-semibold">
-											{row.seasonApps}
-										</td>
-										<td className="p-3 text-center font-semibold">
-											{row.seasonGoals}
-										</td>
+								<td className="p-3 text-center font-semibold">
+									{row.seasonApps}
+								</td>
+								<td className="p-3 text-center font-semibold">
+									{row.seasonGoals}
+								</td>
 
-										<td className="p-3 text-center">{row.preSeasonApps}</td>
-										<td className="p-3 text-center">{row.preSeasonGoals}</td>
+								<td className="p-3 text-center">{row.preSeasonApps}</td>
+								<td className="p-3 text-center">{row.preSeasonGoals}</td>
 
-										<td className="p-3 text-center font-semibold text-slate-900">
-											{row.careerApps}
-										</td>
-										<td className="p-3 text-center font-semibold text-slate-900">
-											{row.careerGoals}
-										</td>
+								<td className="p-3 text-center font-semibold text-slate-900">
+									{row.careerApps}
+								</td>
+								<td className="p-3 text-center font-semibold text-slate-900">
+									{row.careerGoals}
+								</td>
 
-										<td className="p-3 text-center">{row.assists}</td>
-										<td className="p-3 text-center">{row.starts}</td>
-										<td className="p-3 text-center">{row.bench}</td>
-										<td className="p-3 text-center">{row.motm}</td>
-										<td className="p-3 text-center">{row.minutes}</td>
-										<td className="p-3 text-center">{row.yellowCards}</td>
-										<td className="p-3 text-center">{row.redCards}</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
-					</div>
-				)}
+								<td className="p-3 text-center">{row.assists}</td>
+								<td className="p-3 text-center">{row.starts}</td>
+								<td className="p-3 text-center">{row.bench}</td>
+								<td className="p-3 text-center">{row.motm}</td>
+								<td className="p-3 text-center">{row.minutes}</td>
+								<td className="p-3 text-center">{row.yellowCards}</td>
+								<td className="p-3 text-center">{row.redCards}</td>
+							</tr>
+						))}
+					</tbody>
+				</DataTable>
 			</div>
-		</div>
-	);
-}
-
-function StatsCard({
-	label,
-	value,
-}: {
-	label: string;
-	value: string | number;
-}) {
-	return (
-		<div className="min-w-0 rounded-xl bg-white p-5 shadow">
-			<p className="truncate text-sm font-medium text-gray-500">{label}</p>
-			<p className="mt-2 text-3xl font-bold text-blue-900">{value}</p>
 		</div>
 	);
 }

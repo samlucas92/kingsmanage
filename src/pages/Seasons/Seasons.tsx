@@ -2,7 +2,10 @@ import { useMemo, useState, type SyntheticEvent } from "react";
 import { useSeasonStore } from "../../stores/seasons";
 import { usePlayerStore } from "../../stores/players";
 import { useFinanceStore } from "../../stores/finance";
+import DataTable from "../../components/compositions/DataTable";
+import StatusBadge from "../../components/compositions/StatusBadge";
 import { formatDisplayDate } from "../../utils/date";
+import { formatCurrency } from "../../utils/format";
 
 export default function Seasons() {
 	const players = usePlayerStore((state) => state.players);
@@ -200,9 +203,7 @@ export default function Seasons() {
 						)}
 					</div>
 
-					<span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold text-yellow-900">
-						Used by Matches, Stats and Finance
-					</span>
+					<StatusBadge label="Used by Matches, Stats and Finance" tone="warning" />
 				</div>
 			</section>
 
@@ -291,9 +292,7 @@ export default function Seasons() {
 						<input
 							type="checkbox"
 							checked={setupMakeActive}
-							onChange={(event) =>
-								setSetupMakeActive(event.target.checked)
-							}
+							onChange={(event) => setSetupMakeActive(event.target.checked)}
 						/>
 						Make this the active season
 					</label>
@@ -302,9 +301,7 @@ export default function Seasons() {
 						<input
 							type="checkbox"
 							checked={setupSetFinance}
-							onChange={(event) =>
-								setSetupSetFinance(event.target.checked)
-							}
+							onChange={(event) => setSetupSetFinance(event.target.checked)}
 						/>
 						Set starting finance amount
 					</label>
@@ -359,8 +356,8 @@ export default function Seasons() {
 				</form>
 			</section>
 
-			<div className="grid gap-6 xl:grid-cols-[380px_1fr]">
-				<section className="rounded-xl bg-white p-6 shadow">
+			<div className="grid min-w-0 gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
+				<section className="min-w-0 rounded-xl bg-white p-6 shadow">
 					<h2 className="text-lg font-bold text-blue-900">Add season</h2>
 
 					<p className="mt-1 text-sm text-slate-500">
@@ -442,7 +439,7 @@ export default function Seasons() {
 					</form>
 				</section>
 
-				<section className="rounded-xl bg-white p-6 shadow">
+				<section className="min-w-0 rounded-xl bg-white p-6 shadow">
 					<div className="flex flex-wrap items-center justify-between gap-3">
 						<div>
 							<h2 className="text-lg font-bold text-blue-900">
@@ -454,88 +451,76 @@ export default function Seasons() {
 							</p>
 						</div>
 
-						<span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-							{seasons.length} {seasons.length === 1 ? "season" : "seasons"}
-						</span>
+						<StatusBadge
+							label={`${seasons.length} ${
+								seasons.length === 1 ? "season" : "seasons"
+							}`}
+							tone="neutral"
+						/>
 					</div>
 
-					<div className="mt-5 overflow-hidden rounded-xl border border-slate-200">
-						<div className="max-w-full overflow-x-auto">
-							<table className="w-full min-w-[720px] text-sm">
-								<thead className="bg-slate-50 text-left">
-									<tr>
-										<th className="p-3 font-semibold text-slate-600">
-											Season
-										</th>
-										<th className="p-3 font-semibold text-slate-600">
-											Dates
-										</th>
-										<th className="p-3 font-semibold text-slate-600">
-											Status
-										</th>
-										<th className="p-3 text-right font-semibold text-slate-600">
-											Action
-										</th>
-									</tr>
-								</thead>
+					<div className="mt-5 min-w-0 overflow-hidden rounded-xl border border-slate-200">
+						<DataTable
+							empty={sortedSeasons.length === 0}
+							emptyTitle="No seasons found"
+							emptyMessage="Create your first season to start tracking matches, stats and finance by season."
+							minWidthClassName="min-w-0"
+							tableClassName="table-fixed"
+						>
+							<thead className="bg-slate-50 text-left">
+								<tr>
+									<th className="w-[22%] p-3 font-semibold text-slate-600">
+										Season
+									</th>
+									<th className="w-[34%] p-3 font-semibold text-slate-600">
+										Dates
+									</th>
+									<th className="w-[20%] p-3 font-semibold text-slate-600">
+										Status
+									</th>
+									<th className="w-[24%] p-3 text-right font-semibold text-slate-600">
+										Action
+									</th>
+								</tr>
+							</thead>
 
-								<tbody>
-									{sortedSeasons.map((season) => {
-										const isActive = season.id === activeSeasonId;
+							<tbody>
+								{sortedSeasons.map((season) => {
+									const isActive = season.id === activeSeasonId;
 
-										return (
-											<tr
-												key={season.id}
-												className="border-t border-slate-100"
-											>
-												<td className="p-3 font-semibold text-slate-900">
-													{season.name}
-												</td>
+									return (
+										<tr key={season.id} className="border-t border-slate-100">
+											<td className="truncate p-3 font-semibold text-slate-900">
+												{season.name}
+											</td>
 
-												<td className="p-3 text-slate-600">
-													{formatDisplayDate(season.startDate)} -{" "}
-													{formatDisplayDate(season.endDate)}
-												</td>
+											<td className="truncate p-3 text-slate-600">
+												{formatDisplayDate(season.startDate)} -{" "}
+												{formatDisplayDate(season.endDate)}
+											</td>
 
-												<td className="p-3">
-													{isActive ? (
-														<span className="rounded-full bg-green-100 px-2 py-1 text-xs font-bold text-green-800">
-															Active
-														</span>
-													) : (
-														<span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
-															Historical
-														</span>
-													)}
-												</td>
+											<td className="p-3">
+												<StatusBadge
+													label={isActive ? "Active" : "Historical"}
+													tone={isActive ? "success" : "neutral"}
+												/>
+											</td>
 
-												<td className="p-3 text-right">
-													<button
-														type="button"
-														disabled={isActive}
-														onClick={() => setActiveSeason(season.id)}
-														className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-													>
-														{isActive ? "Selected" : "Set active"}
-													</button>
-												</td>
-											</tr>
-										);
-									})}
-
-									{sortedSeasons.length === 0 && (
-										<tr>
-											<td
-												colSpan={4}
-												className="p-6 text-center text-sm text-slate-500"
-											>
-												No seasons found.
+											<td className="p-3 text-right">
+												<button
+													type="button"
+													disabled={isActive}
+													onClick={() => setActiveSeason(season.id)}
+													className="inline-flex rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+												>
+													{isActive ? "Selected" : "Set active"}
+												</button>
 											</td>
 										</tr>
-									)}
-								</tbody>
-							</table>
-						</div>
+									);
+								})}
+							</tbody>
+						</DataTable>
 					</div>
 				</section>
 			</div>
@@ -570,18 +555,11 @@ function buildSetupConfirmationMessage({
 			? "Make it the active season."
 			: "Leave the current active season unchanged.",
 		setFinance
-			? `Set amount owed to ${formatMoney(
+			? `Set amount owed to ${formatCurrency(
 					financeAmount
 				)} for ${activePlayerCount} active players.`
 			: "Do not change finance records.",
 	];
 
 	return `Run season setup?\n\n${actions.join("\n")}`;
-}
-
-function formatMoney(value: number) {
-	return new Intl.NumberFormat("en-GB", {
-		style: "currency",
-		currency: "GBP",
-	}).format(value);
 }

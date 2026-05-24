@@ -3,7 +3,6 @@ import { usePlayerStore } from "../../stores/players";
 import { useFinanceStore } from "../../stores/finance";
 import { useSeasonStore } from "../../stores/seasons";
 import type { Player } from "../../stores/players";
-import type { PlayerFinanceRecord } from "../../types/finance";
 import {
 	buildFinanceRows,
 	filterFinanceRows,
@@ -22,9 +21,14 @@ import {
 	downloadTextFile,
 	slugify,
 } from "../../services/exportService";
-import EmptyState from "../../components/compositions/EmptyState";
 import Modal from "../../components/compositions/Modal";
 import SeasonSelector from "../../components/compositions/SeasonSelector";
+import MetricCard from "../../components/compositions/MetricCard";
+import ProgressBar from "../../components/compositions/ProgressBar";
+import FilterButton from "../../components/compositions/FilterButton";
+import PanelCard from "../../components/compositions/PanelCard";
+import FinanceTable from "./components/FinanceTable";
+import { formatCurrency } from "../../utils/format";
 
 type AmountModalMode = "owed" | "payment";
 
@@ -186,9 +190,11 @@ export default function Finance() {
 		}
 
 		const confirmed = window.confirm(
-			`Set amount owed to ${formatMoney(amount)} for ${bulkTargetRows.length} ${
-				bulkTargetRows.length === 1 ? "player" : "players"
-			} in ${activeSeason?.name ?? "the active season"}?`
+			`Set amount owed to ${formatCurrency(amount)} for ${
+				bulkTargetRows.length
+			} ${bulkTargetRows.length === 1 ? "player" : "players"} in ${
+				activeSeason?.name ?? "the active season"
+			}?`
 		);
 
 		if (!confirmed) {
@@ -271,7 +277,7 @@ export default function Finance() {
 				</div>
 			</div>
 
-			<section className="rounded-xl bg-white p-5 shadow">
+			<PanelCard>
 				<div className="flex flex-wrap items-center justify-between gap-4">
 					<div className="min-w-0">
 						<p className="text-xs font-bold uppercase tracking-wide text-slate-500">
@@ -300,93 +306,87 @@ export default function Finance() {
 
 				<div className="mt-5">
 					<div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-500">
-						<span>Paid {formatMoney(financeSummary.totalPaid)}</span>
+						<span>Paid {formatCurrency(financeSummary.totalPaid)}</span>
 						<span>
-							Outstanding {formatMoney(financeSummary.totalOutstanding)}
+							Outstanding {formatCurrency(financeSummary.totalOutstanding)}
 						</span>
 					</div>
 
-					<div className="h-4 overflow-hidden rounded-full bg-red-100">
-						<div
-							className="h-full rounded-full bg-blue-700 transition-all"
-							style={{
-								width: `${Math.min(100, financeSummary.paidPercentage)}%`,
-							}}
-						/>
-					</div>
+					<ProgressBar
+						value={financeSummary.paidPercentage}
+						heightClassName="h-4"
+					/>
 				</div>
-			</section>
+			</PanelCard>
 
 			<div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
-				<FinanceStatCard
+				<MetricCard
 					label="Expected"
-					value={formatMoney(financeSummary.totalExpected)}
+					value={formatCurrency(financeSummary.totalExpected)}
 					helper={`${allFinanceRows.length} visible players`}
 				/>
 
-				<FinanceStatCard
+				<MetricCard
 					label="Paid"
-					value={formatMoney(financeSummary.totalPaid)}
+					value={formatCurrency(financeSummary.totalPaid)}
 					helper={`${financeSummary.paidPercentage}% collected`}
+					tone="success"
 				/>
 
-				<FinanceStatCard
+				<MetricCard
 					label="Outstanding"
-					value={formatMoney(financeSummary.totalOutstanding)}
+					value={formatCurrency(financeSummary.totalOutstanding)}
 					helper={`${financeSummary.outstandingPercentage}% still owed`}
-					warning={financeSummary.totalOutstanding > 0}
+					tone={financeSummary.totalOutstanding > 0 ? "danger" : "success"}
 				/>
 
-				<FinanceStatCard
+				<MetricCard
 					label="Players Owing"
 					value={financeSummary.playersOwingMoney.length}
 					helper={`${financeSummary.paidPlayers.length} fully paid`}
-					warning={financeSummary.playersOwingMoney.length > 0}
+					tone={
+						financeSummary.playersOwingMoney.length > 0 ? "danger" : "success"
+					}
 				/>
 			</div>
 
 			<div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
-				<FinanceStatCard
+				<MetricCard
 					label="Average Owed"
-					value={formatMoney(financeSummary.averageOwed)}
+					value={formatCurrency(financeSummary.averageOwed)}
 					helper="Per visible player"
 				/>
 
-				<FinanceStatCard
+				<MetricCard
 					label="Average Paid"
-					value={formatMoney(financeSummary.averagePaid)}
+					value={formatCurrency(financeSummary.averagePaid)}
 					helper="Per visible player"
 				/>
 
-				<FinanceStatCard
+				<MetricCard
 					label="Part Paid"
 					value={financeSummary.partPaidPlayers.length}
+					tone={financeSummary.partPaidPlayers.length > 0 ? "warning" : "default"}
 				/>
 
-				<FinanceStatCard
+				<MetricCard
 					label="Unpaid"
 					value={financeSummary.unpaidPlayers.length}
+					tone={financeSummary.unpaidPlayers.length > 0 ? "danger" : "default"}
 				/>
 			</div>
 
 			<div className="grid min-w-0 gap-6 xl:grid-cols-2">
-				<section className="min-w-0 rounded-xl bg-white p-5 shadow">
-					<div>
-						<h2 className="text-lg font-bold text-blue-900">
-							Payment Status
-						</h2>
-
-						<p className="mt-1 text-sm text-slate-500">
-							Breakdown of players by payment state.
-						</p>
-					</div>
-
-					<div className="mt-5 space-y-4">
+				<PanelCard
+					title="Payment Status"
+					description="Breakdown of players by payment state."
+				>
+					<div className="space-y-4">
 						<StatusBar
 							label="Paid"
 							value={financeSummary.paidPlayers.length}
 							total={allFinanceRows.length}
-							tone="good"
+							tone="success"
 						/>
 
 						<StatusBar
@@ -400,7 +400,7 @@ export default function Finance() {
 							label="Unpaid"
 							value={financeSummary.unpaidPlayers.length}
 							total={allFinanceRows.length}
-							tone="bad"
+							tone="danger"
 						/>
 
 						<StatusBar
@@ -410,25 +410,18 @@ export default function Finance() {
 							tone="neutral"
 						/>
 					</div>
-				</section>
+				</PanelCard>
 
-				<section className="min-w-0 rounded-xl bg-white p-5 shadow">
-					<div>
-						<h2 className="text-lg font-bold text-blue-900">
-							Top Outstanding
-						</h2>
-
-						<p className="mt-1 text-sm text-slate-500">
-							Players with the highest active-season balance.
-						</p>
-					</div>
-
+				<PanelCard
+					title="Top Outstanding"
+					description="Players with the highest active-season balance."
+				>
 					{topOutstandingRows.length === 0 ? (
-						<div className="mt-5 rounded-xl bg-green-50 p-4 text-sm font-medium text-green-800">
+						<div className="rounded-xl bg-green-50 p-4 text-sm font-medium text-green-800">
 							No outstanding balances for the current filter.
 						</div>
 					) : (
-						<div className="mt-5 space-y-4">
+						<div className="space-y-4">
 							{topOutstandingRows.map((row) => (
 								<OutstandingBar
 									key={row.player.id}
@@ -439,22 +432,14 @@ export default function Finance() {
 							))}
 						</div>
 					)}
-				</section>
+				</PanelCard>
 			</div>
 
-			<div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-				<div className="flex flex-wrap items-center justify-between gap-3">
-					<div>
-						<h2 className="text-sm font-bold text-blue-900">
-							Bulk finance tools
-						</h2>
-
-						<p className="mt-1 text-sm text-blue-800">
-							Set the same amount owed for a group of players in the active
-							season.
-						</p>
-					</div>
-
+			<PanelCard
+				title="Bulk finance tools"
+				description="Set the same amount owed for a group of players in the active season."
+				tone="info"
+				action={
 					<button
 						type="button"
 						onClick={openBulkModal}
@@ -462,55 +447,60 @@ export default function Finance() {
 					>
 						Bulk Set Owed
 					</button>
-				</div>
-			</div>
+				}
+			>
+				<p className="text-sm text-blue-800">
+					Use this when subs, fines or starting balances need applying to
+					multiple players at once.
+				</p>
+			</PanelCard>
 
-			<div className="flex min-w-0 flex-wrap items-center gap-3 rounded-xl bg-white p-4 shadow">
-				<FinanceFilterButton
+			<PanelCard contentClassName="flex min-w-0 flex-wrap items-center gap-3">
+				<FilterButton
 					label="Owes Money"
 					value="owed"
 					count={financeSummary.playersOwingMoney.length}
-					activeFilter={financeFilter}
+					activeValue={financeFilter}
 					onChange={setFinanceFilter}
 				/>
 
-				<FinanceFilterButton
+				<FilterButton
 					label="Unpaid"
 					value="unpaid"
 					count={financeSummary.unpaidPlayers.length}
-					activeFilter={financeFilter}
+					activeValue={financeFilter}
 					onChange={setFinanceFilter}
 				/>
 
-				<FinanceFilterButton
+				<FilterButton
 					label="Part Paid"
 					value="part-paid"
 					count={financeSummary.partPaidPlayers.length}
-					activeFilter={financeFilter}
+					activeValue={financeFilter}
 					onChange={setFinanceFilter}
 				/>
 
-				<FinanceFilterButton
+				<FilterButton
 					label="Paid"
 					value="paid"
 					count={financeSummary.paidPlayers.length}
-					activeFilter={financeFilter}
+					activeValue={financeFilter}
 					onChange={setFinanceFilter}
 				/>
 
-				<FinanceFilterButton
+				<FilterButton
 					label="Nothing Owed"
 					value="nothing-owed"
 					count={financeSummary.nothingOwedPlayers.length}
-					activeFilter={financeFilter}
+					activeValue={financeFilter}
 					onChange={setFinanceFilter}
 				/>
 
-				<FinanceFilterButton
+				<FilterButton
 					label="All"
 					value="all"
 					count={allFinanceRows.length}
-					activeFilter={financeFilter}
+					activeValue={financeFilter}
 					onChange={setFinanceFilter}
 				/>
 
@@ -548,57 +538,16 @@ export default function Finance() {
 						Export CSV
 					</button>
 				</div>
-			</div>
+			</PanelCard>
 
 			<div className="min-w-0 overflow-hidden rounded-xl bg-white shadow">
-				{financeRows.length === 0 ? (
-					<div className="p-6">
-						<EmptyState
-							title="No finance records found"
-							message="No players match this finance filter for the active season."
-						/>
-					</div>
-				) : (
-					<div className="max-w-full overflow-x-auto">
-						<table className="min-w-[900px] text-sm">
-							<thead className="border-b bg-gray-50">
-								<tr className="text-left">
-									<th className="p-3">Player</th>
-									<th className="p-3">Owed</th>
-									<th className="p-3">Paid</th>
-									<th className="p-3">Outstanding</th>
-									<th className="p-3">Status</th>
-									<th className="p-3 text-right">Actions</th>
-								</tr>
-							</thead>
-
-							<tbody>
-								{financeRows.map((row) => (
-									<FinanceRow
-										key={row.player.id}
-										player={row.player}
-										record={row.record}
-										amountOwed={row.amountOwed}
-										totalPaid={row.totalPaid}
-										balance={row.balance}
-										status={row.status}
-										onSetOwed={() => openAmountModal("owed", row.player)}
-										onAddPayment={() =>
-											openAmountModal("payment", row.player)
-										}
-										onRemovePayment={(paymentId) =>
-											removePlayerPayment(
-												row.player.id,
-												paymentId,
-												activeSeasonId
-											)
-										}
-									/>
-								))}
-							</tbody>
-						</table>
-					</div>
-				)}
+				<FinanceTable
+					rows={financeRows}
+					activeSeasonId={activeSeasonId}
+					onSetOwed={(player) => openAmountModal("owed", player)}
+					onAddPayment={(player) => openAmountModal("payment", player)}
+					onRemovePayment={removePlayerPayment}
+				/>
 			</div>
 
 			<Modal
@@ -733,190 +682,6 @@ export default function Finance() {
 	);
 }
 
-function FinanceRow({
-	player,
-	record,
-	amountOwed,
-	totalPaid,
-	balance,
-	status,
-	onSetOwed,
-	onAddPayment,
-	onRemovePayment,
-}: {
-	player: Player;
-	record?: PlayerFinanceRecord;
-	amountOwed: number;
-	totalPaid: number;
-	balance: number;
-	status: string;
-	onSetOwed: () => void;
-	onAddPayment: () => void;
-	onRemovePayment: (paymentId: string) => void;
-}) {
-	const [showPayments, setShowPayments] = useState(false);
-
-	return (
-		<>
-			<tr className="border-b hover:bg-gray-50">
-				<td className="p-3">
-					<div>
-						<p className="font-semibold text-blue-900">{player.name}</p>
-
-						<p className="text-xs text-slate-500">
-							#{player.number} · {player.isActive ? "Active" : "Inactive"}
-						</p>
-					</div>
-				</td>
-
-				<td className="p-3">{formatMoney(amountOwed)}</td>
-				<td className="p-3">{formatMoney(totalPaid)}</td>
-
-				<td className="p-3 font-semibold">
-					<span className={balance > 0 ? "text-red-700" : "text-green-700"}>
-						{formatMoney(balance)}
-					</span>
-				</td>
-
-				<td className="p-3">
-					<FinanceStatusBadge status={status} />
-				</td>
-
-				<td className="p-3">
-					<div className="flex flex-wrap justify-end gap-2">
-						<button
-							type="button"
-							onClick={onSetOwed}
-							className="rounded-lg border px-3 py-1 text-sm hover:bg-gray-100"
-						>
-							Set Owed
-						</button>
-
-						<button
-							type="button"
-							onClick={onAddPayment}
-							className="rounded-lg border border-green-200 px-3 py-1 text-sm text-green-700 hover:bg-green-50"
-						>
-							Add Payment
-						</button>
-
-						<button
-							type="button"
-							onClick={() => setShowPayments((current) => !current)}
-							className="rounded-lg border px-3 py-1 text-sm hover:bg-gray-100"
-						>
-							{showPayments ? "Hide" : "Payments"}
-						</button>
-					</div>
-				</td>
-			</tr>
-
-			{showPayments && (
-				<tr className="border-b bg-slate-50">
-					<td colSpan={6} className="p-4">
-						{!record || record.payments.length === 0 ? (
-							<p className="text-sm text-slate-500">
-								No payments recorded for this player yet.
-							</p>
-						) : (
-							<div className="space-y-2">
-								{record.payments.map((payment) => (
-									<div
-										key={payment.id}
-										className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-white p-3 shadow-sm"
-									>
-										<div>
-											<p className="text-sm font-semibold text-slate-900">
-												{formatMoney(payment.amount)}
-											</p>
-
-											<p className="text-xs text-slate-500">
-												{new Date(payment.paidAt).toLocaleString()}
-												{payment.note ? ` · ${payment.note}` : ""}
-											</p>
-										</div>
-
-										<button
-											type="button"
-											onClick={() => onRemovePayment(payment.id)}
-											className="rounded-lg border border-red-200 px-3 py-1 text-sm text-red-700 hover:bg-red-50"
-										>
-											Remove
-										</button>
-									</div>
-								))}
-							</div>
-						)}
-					</td>
-				</tr>
-			)}
-		</>
-	);
-}
-
-function FinanceStatCard({
-	label,
-	value,
-	helper,
-	warning = false,
-}: {
-	label: string;
-	value: string | number;
-	helper?: string;
-	warning?: boolean;
-}) {
-	return (
-		<div className="min-w-0 rounded-xl bg-white p-5 shadow">
-			<p className="truncate text-sm font-medium text-gray-500">{label}</p>
-
-			<p
-				className={`mt-2 text-3xl font-bold ${
-					warning ? "text-red-700" : "text-blue-900"
-				}`}
-			>
-				{value}
-			</p>
-
-			{helper && <p className="mt-1 text-xs text-slate-500">{helper}</p>}
-		</div>
-	);
-}
-
-function FinanceFilterButton({
-	label,
-	value,
-	count,
-	activeFilter,
-	onChange,
-}: {
-	label: string;
-	value: FinanceFilter;
-	count: number;
-	activeFilter: FinanceFilter;
-	onChange: (value: FinanceFilter) => void;
-}) {
-	return (
-		<button
-			type="button"
-			onClick={() => onChange(value)}
-			className={`rounded-full border px-4 py-2 text-sm font-semibold ${
-				activeFilter === value
-					? "border-blue-700 bg-blue-700 text-white"
-					: "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-			}`}
-		>
-			{label}{" "}
-			<span
-				className={
-					activeFilter === value ? "text-blue-100" : "text-slate-400"
-				}
-			>
-				{count}
-			</span>
-		</button>
-	);
-}
-
 function StatusBar({
 	label,
 	value,
@@ -926,7 +691,7 @@ function StatusBar({
 	label: string;
 	value: number;
 	total: number;
-	tone: "good" | "warning" | "bad" | "neutral";
+	tone: "success" | "warning" | "danger" | "neutral";
 }) {
 	const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
 
@@ -939,12 +704,7 @@ function StatusBar({
 				</span>
 			</div>
 
-			<div className="h-3 overflow-hidden rounded-full bg-slate-100">
-				<div
-					className={`h-full rounded-full ${getStatusBarClass(tone)}`}
-					style={{ width: `${percentage}%` }}
-				/>
-			</div>
+			<ProgressBar value={value} max={total} tone={tone} />
 		</div>
 	);
 }
@@ -958,78 +718,18 @@ function OutstandingBar({
 	value: number;
 	maxValue: number;
 }) {
-	const percentage = maxValue > 0 ? Math.round((value / maxValue) * 100) : 0;
-
 	return (
 		<div>
 			<div className="mb-1 flex items-center justify-between gap-3 text-sm">
 				<span className="min-w-0 truncate font-semibold text-slate-700">
 					{name}
 				</span>
-				<span className="shrink-0 text-slate-500">{formatMoney(value)}</span>
+				<span className="shrink-0 text-slate-500">
+					{formatCurrency(value)}
+				</span>
 			</div>
 
-			<div className="h-3 overflow-hidden rounded-full bg-slate-100">
-				<div
-					className="h-full rounded-full bg-red-500"
-					style={{ width: `${percentage}%` }}
-				/>
-			</div>
+			<ProgressBar value={value} max={maxValue} tone="danger" />
 		</div>
 	);
-}
-
-function getStatusBarClass(tone: "good" | "warning" | "bad" | "neutral") {
-	if (tone === "good") {
-		return "bg-green-500";
-	}
-
-	if (tone === "warning") {
-		return "bg-amber-500";
-	}
-
-	if (tone === "bad") {
-		return "bg-red-500";
-	}
-
-	return "bg-slate-400";
-}
-
-function FinanceStatusBadge({ status }: { status: string }) {
-	if (status === "paid") {
-		return (
-			<span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">
-				Paid
-			</span>
-		);
-	}
-
-	if (status === "part-paid") {
-		return (
-			<span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">
-				Part paid
-			</span>
-		);
-	}
-
-	if (status === "unpaid") {
-		return (
-			<span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-800">
-				Unpaid
-			</span>
-		);
-	}
-
-	return (
-		<span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
-			Nothing owed
-		</span>
-	);
-}
-
-function formatMoney(value: number) {
-	return new Intl.NumberFormat("en-GB", {
-		style: "currency",
-		currency: "GBP",
-	}).format(value);
 }

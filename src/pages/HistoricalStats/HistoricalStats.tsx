@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePlayerStore } from "../../stores/players";
 import { useHistoricalStatsStore } from "../../stores/historicalStats";
+import PanelCard from "../../components/compositions/PanelCard";
+import MetricCard from "../../components/compositions/MetricCard";
+import DataTable from "../../components/compositions/DataTable";
+import StatusBadge from "../../components/compositions/StatusBadge";
 
 export default function HistoricalStats() {
 	const players = usePlayerStore((state) => state.players);
@@ -58,7 +62,7 @@ export default function HistoricalStats() {
 		);
 
 		setHistoricalPlayerStats(playerId, {
-			appearances: Number(value),
+			appearances: getSafeNumberValue(value),
 			goals: currentRecord?.goals ?? 0,
 		});
 	}
@@ -70,7 +74,7 @@ export default function HistoricalStats() {
 
 		setHistoricalPlayerStats(playerId, {
 			appearances: currentRecord?.appearances ?? 0,
-			goals: Number(value),
+			goals: getSafeNumberValue(value),
 		});
 	}
 
@@ -87,9 +91,9 @@ export default function HistoricalStats() {
 				</p>
 			</div>
 
-			<section className="rounded-xl bg-white p-5 shadow">
+			<PanelCard>
 				<div className="flex flex-wrap items-center justify-between gap-4">
-					<div>
+					<div className="min-w-0">
 						<p className="text-xs font-bold uppercase tracking-wide text-slate-500">
 							Pre 25/26 baseline
 						</p>
@@ -104,15 +108,17 @@ export default function HistoricalStats() {
 						</p>
 					</div>
 
-					<div className="flex flex-wrap gap-2">
-						<SummaryBadge label="Players" value={rows.length} />
-						<SummaryBadge label="Apps" value={totalAppearances} />
-						<SummaryBadge label="Goals" value={totalGoals} />
-					</div>
+					<StatusBadge label="Career baseline" tone="info" />
 				</div>
-			</section>
+			</PanelCard>
 
-			<div className="flex min-w-0 flex-wrap items-center gap-4 rounded-xl bg-white p-4 shadow">
+			<div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-3">
+				<MetricCard label="Players" value={rows.length} />
+				<MetricCard label="Pre 25/26 Apps" value={totalAppearances} />
+				<MetricCard label="Pre 25/26 Goals" value={totalGoals} />
+			</div>
+
+			<PanelCard contentClassName="flex min-w-0 flex-wrap items-center gap-4">
 				<input
 					value={searchTerm}
 					onChange={(event) => setSearchTerm(event.target.value)}
@@ -128,129 +134,109 @@ export default function HistoricalStats() {
 					/>
 					Include inactive players
 				</label>
-			</div>
+			</PanelCard>
 
 			<div className="min-w-0 overflow-hidden rounded-xl bg-white shadow">
-				<div className="max-w-full overflow-x-auto">
-					<table className="min-w-[760px] text-sm">
-						<thead className="border-b bg-gray-50">
-							<tr className="text-left">
-								<th className="p-3 font-semibold text-slate-700">
-									Player
-								</th>
-								<th className="p-3 text-center font-semibold text-slate-700">
-									Pre 25/26 Apps
-								</th>
-								<th className="p-3 text-center font-semibold text-slate-700">
-									Pre 25/26 Goals
-								</th>
-								<th className="p-3 text-center font-semibold text-slate-700">
-									Status
-								</th>
-							</tr>
-						</thead>
+				<DataTable
+					empty={rows.length === 0}
+					emptyTitle="No players found"
+					emptyMessage="No players match your current search or filters."
+					minWidthClassName="min-w-[760px]"
+				>
+					<thead className="border-b bg-gray-50">
+						<tr className="text-left">
+							<th className="p-3 font-semibold text-slate-700">
+								Player
+							</th>
+							<th className="p-3 text-center font-semibold text-slate-700">
+								Pre 25/26 Apps
+							</th>
+							<th className="p-3 text-center font-semibold text-slate-700">
+								Pre 25/26 Goals
+							</th>
+							<th className="p-3 text-center font-semibold text-slate-700">
+								Status
+							</th>
+						</tr>
+					</thead>
 
-						<tbody>
-							{rows.map((row) => (
-								<tr key={row.player.id} className="border-b hover:bg-gray-50">
-									<td className="p-3">
-										<p className="font-semibold text-blue-900">
-											{row.player.name}
-										</p>
+					<tbody>
+						{rows.map((row) => (
+							<tr key={row.player.id} className="border-b hover:bg-gray-50">
+								<td className="p-3">
+									<p className="font-semibold text-blue-900">
+										{row.player.name}
+									</p>
 
-										<p className="text-xs text-slate-500">
-											#{row.player.number} ·{" "}
-											{row.player.isActive ? "Active" : "Inactive"}
-										</p>
-									</td>
-
-									<td className="p-3 text-center">
-										<input
-											type="number"
-											min={0}
-											step={1}
-											value={row.appearances}
-											onChange={(event) =>
-												handleUpdateAppearances(
-													row.player.id,
-													event.target.value
-												)
-											}
-											className="w-24 rounded-lg border border-slate-300 px-3 py-2 text-center text-sm shadow-sm"
-										/>
-									</td>
-
-									<td className="p-3 text-center">
-										<input
-											type="number"
-											min={0}
-											step={1}
-											value={row.goals}
-											onChange={(event) =>
-												handleUpdateGoals(
-													row.player.id,
-													event.target.value
-												)
-											}
-											className="w-24 rounded-lg border border-slate-300 px-3 py-2 text-center text-sm shadow-sm"
-										/>
-									</td>
-
-									<td className="p-3 text-center">
-										<span
-											className={`rounded-full px-2 py-1 text-xs font-semibold ${
-												row.player.isActive
-													? "bg-green-100 text-green-800"
-													: "bg-slate-100 text-slate-600"
-											}`}
-										>
-											{row.player.isActive ? "Active" : "Inactive"}
-										</span>
-									</td>
-								</tr>
-							))}
-
-							{rows.length === 0 && (
-								<tr>
-									<td
-										colSpan={4}
-										className="p-6 text-center text-sm text-slate-500"
-									>
-										No players found.
-									</td>
-								</tr>
-							)}
-						</tbody>
-
-						<tfoot className="bg-slate-50">
-							<tr>
-								<td className="p-3 font-bold text-slate-800">Totals</td>
-								<td className="p-3 text-center font-bold text-slate-800">
-									{totalAppearances}
+									<p className="text-xs text-slate-500">
+										#{row.player.number} ·{" "}
+										{row.player.isActive ? "Active" : "Inactive"}
+									</p>
 								</td>
-								<td className="p-3 text-center font-bold text-slate-800">
-									{totalGoals}
+
+								<td className="p-3 text-center">
+									<input
+										type="number"
+										min={0}
+										step={1}
+										value={row.appearances}
+										onChange={(event) =>
+											handleUpdateAppearances(
+												row.player.id,
+												event.target.value
+											)
+										}
+										className="w-24 rounded-lg border border-slate-300 px-3 py-2 text-center text-sm shadow-sm"
+									/>
 								</td>
-								<td className="p-3" />
+
+								<td className="p-3 text-center">
+									<input
+										type="number"
+										min={0}
+										step={1}
+										value={row.goals}
+										onChange={(event) =>
+											handleUpdateGoals(row.player.id, event.target.value)
+										}
+										className="w-24 rounded-lg border border-slate-300 px-3 py-2 text-center text-sm shadow-sm"
+									/>
+								</td>
+
+								<td className="p-3 text-center">
+									<StatusBadge
+										label={row.player.isActive ? "Active" : "Inactive"}
+										tone={row.player.isActive ? "success" : "neutral"}
+									/>
+								</td>
 							</tr>
-						</tfoot>
-					</table>
-				</div>
+						))}
+					</tbody>
+
+					<tfoot className="bg-slate-50">
+						<tr>
+							<td className="p-3 font-bold text-slate-800">Totals</td>
+							<td className="p-3 text-center font-bold text-slate-800">
+								{totalAppearances}
+							</td>
+							<td className="p-3 text-center font-bold text-slate-800">
+								{totalGoals}
+							</td>
+							<td className="p-3" />
+						</tr>
+					</tfoot>
+				</DataTable>
 			</div>
 		</div>
 	);
 }
 
-function SummaryBadge({
-	label,
-	value,
-}: {
-	label: string;
-	value: string | number;
-}) {
-	return (
-		<span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">
-			{label}: {value}
-		</span>
-	);
+function getSafeNumberValue(value: string) {
+	const numberValue = Number(value);
+
+	if (!Number.isFinite(numberValue) || numberValue < 0) {
+		return 0;
+	}
+
+	return numberValue;
 }

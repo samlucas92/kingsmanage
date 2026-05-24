@@ -4,6 +4,8 @@ import LinkButton from "../../components/compositions/LinkButton";
 import NotFoundCard from "../../components/compositions/NotFoundCard";
 import EmptyState from "../../components/compositions/EmptyState";
 import SeasonSelector from "../../components/compositions/SeasonSelector";
+import MetricCard from "../../components/compositions/MetricCard";
+import StatusBadge from "../../components/compositions/StatusBadge";
 import { usePlayerStore } from "../../stores/players";
 import { useMatchStore } from "../../stores/match";
 import { useSeasonStore } from "../../stores/seasons";
@@ -17,6 +19,7 @@ import {
 import { PlayerFormModal } from "./components/PlayerFormModal";
 import { usePlayerForm } from "./hooks/usePlayerForm";
 import { formatDisplayDate } from "../../utils/date";
+import { formatCurrency, formatDateTime } from "../../utils/format";
 import {
 	getPlayerBalance,
 	getPlayerPaymentStatus,
@@ -128,6 +131,7 @@ export default function PlayerProfile() {
 	const financeTotalPaid = getPlayerTotalPaid(playerFinanceRecord);
 	const financeOutstanding = getPlayerBalance(playerFinanceRecord);
 	const financeStatus = getPlayerPaymentStatus(playerFinanceRecord);
+	const financeStatusBadge = getFinanceStatusBadge(financeStatus);
 
 	const recentPayments = [...(playerFinanceRecord?.payments ?? [])]
 		.sort(
@@ -156,15 +160,10 @@ export default function PlayerProfile() {
 					</div>
 
 					<div className="flex flex-wrap items-center gap-2">
-						<span
-							className={`rounded-full px-3 py-1 text-xs font-semibold ${
-								currentPlayer.isActive
-									? "bg-green-100 text-green-700"
-									: "bg-gray-200 text-gray-600"
-							}`}
-						>
-							{currentPlayer.isActive ? "Active" : "Inactive"}
-						</span>
+						<StatusBadge
+							label={currentPlayer.isActive ? "Active" : "Inactive"}
+							tone={currentPlayer.isActive ? "success" : "neutral"}
+						/>
 
 						<button
 							type="button"
@@ -186,12 +185,7 @@ export default function PlayerProfile() {
 
 				<div className="mt-4 flex flex-wrap gap-2">
 					{currentPlayer.positions.map((position) => (
-						<span
-							key={position}
-							className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800"
-						>
-							{position}
-						</span>
+						<StatusBadge key={position} label={position} tone="info" />
 					))}
 				</div>
 			</div>
@@ -207,18 +201,39 @@ export default function PlayerProfile() {
 				</div>
 
 				<div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-					<Stat label="Career Apps" value={playerSummary.careerApps} />
-					<Stat label="Career Goals" value={playerSummary.careerGoals} />
-					<Stat label="Tracked Apps" value={playerSummary.trackedCareerApps} />
-					<Stat
+					<MetricCard
+						label="Career Apps"
+						value={playerSummary.careerApps}
+						size="compact"
+					/>
+					<MetricCard
+						label="Career Goals"
+						value={playerSummary.careerGoals}
+						size="compact"
+					/>
+					<MetricCard
+						label="Tracked Apps"
+						value={playerSummary.trackedCareerApps}
+						size="compact"
+					/>
+					<MetricCard
 						label="Tracked Goals"
 						value={playerSummary.trackedCareerGoals}
+						size="compact"
 					/>
 				</div>
 
 				<div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-					<Stat label="Pre 25/26 Apps" value={playerSummary.preSeasonApps} />
-					<Stat label="Pre 25/26 Goals" value={playerSummary.preSeasonGoals} />
+					<MetricCard
+						label="Pre 25/26 Apps"
+						value={playerSummary.preSeasonApps}
+						size="compact"
+					/>
+					<MetricCard
+						label="Pre 25/26 Goals"
+						value={playerSummary.preSeasonGoals}
+						size="compact"
+					/>
 				</div>
 			</div>
 
@@ -256,37 +271,80 @@ export default function PlayerProfile() {
 				</div>
 
 				<div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-					<Stat label="First Team Apps" value={playerSummary.firstTeamApps} />
-					<Stat label="First Team Goals" value={playerSummary.firstTeamGoals} />
-					<Stat label="Second Team Apps" value={playerSummary.secondTeamApps} />
-					<Stat
+					<MetricCard
+						label="First Team Apps"
+						value={playerSummary.firstTeamApps}
+						size="compact"
+					/>
+					<MetricCard
+						label="First Team Goals"
+						value={playerSummary.firstTeamGoals}
+						size="compact"
+					/>
+					<MetricCard
+						label="Second Team Apps"
+						value={playerSummary.secondTeamApps}
+						size="compact"
+					/>
+					<MetricCard
 						label="Second Team Goals"
 						value={playerSummary.secondTeamGoals}
+						size="compact"
 					/>
 				</div>
 
 				<div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-					<Stat
+					<MetricCard
 						label={`${selectedSeasonName} Apps`}
 						value={playerSummary.seasonApps}
+						size="compact"
 					/>
-					<Stat
+					<MetricCard
 						label={`${selectedSeasonName} Goals`}
 						value={playerSummary.seasonGoals}
+						size="compact"
 					/>
-					<Stat label="Season Starts" value={playerSummary.starts} />
-					<Stat label="Season Bench" value={playerSummary.bench} />
+					<MetricCard
+						label="Season Starts"
+						value={playerSummary.starts}
+						size="compact"
+					/>
+					<MetricCard
+						label="Season Bench"
+						value={playerSummary.bench}
+						size="compact"
+					/>
 				</div>
 
 				<div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-					<Stat label="Assists" value={playerSummary.assists} />
-					<Stat label="MOTM" value={playerSummary.motm} />
-					<Stat label="Minutes" value={playerSummary.minutes} />
-					<Stat label="Yellow Cards" value={playerSummary.yellowCards} />
+					<MetricCard
+						label="Assists"
+						value={playerSummary.assists}
+						size="compact"
+					/>
+					<MetricCard
+						label="MOTM"
+						value={playerSummary.motm}
+						size="compact"
+					/>
+					<MetricCard
+						label="Minutes"
+						value={playerSummary.minutes}
+						size="compact"
+					/>
+					<MetricCard
+						label="Yellow Cards"
+						value={playerSummary.yellowCards}
+						size="compact"
+					/>
 				</div>
 
 				<div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-					<Stat label="Red Cards" value={playerSummary.redCards} />
+					<MetricCard
+						label="Red Cards"
+						value={playerSummary.redCards}
+						size="compact"
+					/>
 				</div>
 			</div>
 
@@ -306,13 +364,31 @@ export default function PlayerProfile() {
 				</div>
 
 				<div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-					<Stat label="Owed" value={formatMoney(financeAmountOwed)} />
-					<Stat label="Paid" value={formatMoney(financeTotalPaid)} />
-					<Stat label="Outstanding" value={formatMoney(financeOutstanding)} />
+					<MetricCard
+						label="Owed"
+						value={formatCurrency(financeAmountOwed)}
+						size="compact"
+					/>
+					<MetricCard
+						label="Paid"
+						value={formatCurrency(financeTotalPaid)}
+						size="compact"
+						tone="success"
+					/>
+					<MetricCard
+						label="Outstanding"
+						value={formatCurrency(financeOutstanding)}
+						size="compact"
+						tone={financeOutstanding > 0 ? "danger" : "success"}
+					/>
+
 					<div className="min-w-0 rounded-xl bg-white p-4 shadow">
 						<p className="truncate text-sm text-gray-500">Status</p>
 						<div className="mt-2">
-							<FinanceStatusBadge status={financeStatus} />
+							<StatusBadge
+								label={financeStatusBadge.label}
+								tone={financeStatusBadge.tone}
+							/>
 						</div>
 					</div>
 				</div>
@@ -333,11 +409,11 @@ export default function PlayerProfile() {
 								>
 									<div>
 										<p className="text-sm font-semibold text-slate-900">
-											{formatMoney(payment.amount)}
+											{formatCurrency(payment.amount)}
 										</p>
 
 										<p className="text-xs text-slate-500">
-											{new Date(payment.paidAt).toLocaleString()}
+											{formatDateTime(payment.paidAt)}
 											{payment.note ? ` · ${payment.note}` : ""}
 										</p>
 									</div>
@@ -362,10 +438,12 @@ export default function PlayerProfile() {
 						</p>
 					</div>
 
-					<span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">
-						{playerSummary.seasonApps} season{" "}
-						{playerSummary.seasonApps === 1 ? "appearance" : "appearances"}
-					</span>
+					<StatusBadge
+						label={`${playerSummary.seasonApps} season ${
+							playerSummary.seasonApps === 1 ? "appearance" : "appearances"
+						}`}
+						tone="info"
+					/>
 				</div>
 
 				{recentSeasonAppearances.length === 0 ? (
@@ -394,14 +472,10 @@ export default function PlayerProfile() {
 									</div>
 
 									<div className="flex flex-wrap items-center gap-2">
-										<span className="rounded-full bg-white px-3 py-1 text-xs font-semibold capitalize text-slate-700">
-											{appearance.area}
-										</span>
+										<StatusBadge label={appearance.area} tone="neutral" />
 
 										{appearance.stat.isMOTM && (
-											<span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-800">
-												MOTM
-											</span>
+											<StatusBadge label="MOTM" tone="warning" />
 										)}
 									</div>
 								</div>
@@ -443,21 +517,6 @@ export default function PlayerProfile() {
 	);
 }
 
-function Stat({
-	label,
-	value,
-}: {
-	label: string | number;
-	value: string | number;
-}) {
-	return (
-		<div className="min-w-0 rounded-xl bg-white p-4 shadow">
-			<p className="truncate text-sm text-gray-500">{label}</p>
-			<p className="text-2xl font-bold text-blue-900">{value}</p>
-		</div>
-	);
-}
-
 function MiniStat({ label, value }: { label: string; value: string | number }) {
 	return (
 		<div className="rounded-lg bg-white p-2 text-center">
@@ -467,41 +526,33 @@ function MiniStat({ label, value }: { label: string; value: string | number }) {
 	);
 }
 
-function FinanceStatusBadge({ status }: { status: string }) {
+function getFinanceStatusBadge(status: string): {
+	label: string;
+	tone: "success" | "warning" | "danger" | "neutral";
+} {
 	if (status === "paid") {
-		return (
-			<span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">
-				Paid
-			</span>
-		);
+		return {
+			label: "Paid",
+			tone: "success",
+		};
 	}
 
 	if (status === "part-paid") {
-		return (
-			<span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">
-				Part paid
-			</span>
-		);
+		return {
+			label: "Part paid",
+			tone: "warning",
+		};
 	}
 
 	if (status === "unpaid") {
-		return (
-			<span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-800">
-				Unpaid
-			</span>
-		);
+		return {
+			label: "Unpaid",
+			tone: "danger",
+		};
 	}
 
-	return (
-		<span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
-			Nothing owed
-		</span>
-	);
-}
-
-function formatMoney(value: number) {
-	return new Intl.NumberFormat("en-GB", {
-		style: "currency",
-		currency: "GBP",
-	}).format(value);
+	return {
+		label: "Nothing owed",
+		tone: "neutral",
+	};
 }
