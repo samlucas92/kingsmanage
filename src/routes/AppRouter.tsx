@@ -17,9 +17,11 @@ export default function AppRouter() {
 			<Sidebar />
 
 			<div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+				<div className="md:hidden h-16 shrink-0" />
+
 				<Header />
 
-				<main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-6">
+				<main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6">
 					<Routes>
 						<Route path="/" element={<Dashboard />} />
 						<Route path="/dashboard" element={<Dashboard />} />
