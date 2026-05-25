@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Routes, Route } from "react-router-dom";
 import Dashboard from "../pages/Dashboard/Dashboard";
 import Players from "../pages/Players/Players";
@@ -12,14 +13,17 @@ import Seasons from "../pages/Seasons/Seasons";
 import HistoricalStats from "../pages/HistoricalStats/HistoricalStats";
 
 export default function AppRouter() {
+	const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
 	return (
 		<div className="flex h-screen w-screen overflow-hidden bg-gray-100">
-			<Sidebar />
+			<Sidebar
+				isMobileMenuOpen={isMobileMenuOpen}
+				onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
+			/>
 
 			<div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-				<div className="md:hidden h-16 shrink-0" />
-
-				<Header />
+				<Header onOpenMobileMenu={() => setIsMobileMenuOpen(true)} />
 
 				<main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6">
 					<Routes>

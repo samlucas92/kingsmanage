@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { NavLink } from "react-router-dom";
+import ProfileSummary from "./ProfileSummary";
 
 const navigationItems = [
 	{
@@ -33,28 +33,17 @@ const navigationItems = [
 	},
 ];
 
-export default function Sidebar() {
-	const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+type SidebarProps = {
+	isMobileMenuOpen: boolean;
+	onCloseMobileMenu: () => void;
+};
 
-	function closeMobileMenu() {
-		setIsMobileMenuOpen(false);
-	}
-
+export default function Sidebar({
+	isMobileMenuOpen,
+	onCloseMobileMenu,
+}: SidebarProps) {
 	return (
 		<>
-			<button
-				type="button"
-				onClick={() => setIsMobileMenuOpen(true)}
-				className="fixed left-4 top-4 z-40 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-900 text-white shadow md:hidden"
-				aria-label="Open navigation menu"
-			>
-				<span className="space-y-1.5">
-					<span className="block h-0.5 w-5 rounded-full bg-white" />
-					<span className="block h-0.5 w-5 rounded-full bg-white" />
-					<span className="block h-0.5 w-5 rounded-full bg-white" />
-				</span>
-			</button>
-
 			<aside className="hidden h-full w-64 shrink-0 flex-col bg-blue-900 text-white md:flex">
 				<SidebarContent />
 			</aside>
@@ -64,7 +53,7 @@ export default function Sidebar() {
 					<button
 						type="button"
 						className="absolute inset-0 bg-black/50"
-						onClick={closeMobileMenu}
+						onClick={onCloseMobileMenu}
 						aria-label="Close navigation menu"
 					/>
 
@@ -74,12 +63,16 @@ export default function Sidebar() {
 
 							<button
 								type="button"
-								onClick={closeMobileMenu}
+								onClick={onCloseMobileMenu}
 								className="rounded-lg px-3 py-2 text-sm font-semibold text-white hover:bg-blue-800"
 								aria-label="Close navigation menu"
 							>
 								✕
 							</button>
+						</div>
+
+						<div className="border-b border-blue-800 p-4">
+							<ProfileSummary compact />
 						</div>
 
 						<nav className="flex-1 space-y-2 p-4">
@@ -89,7 +82,7 @@ export default function Sidebar() {
 									label={item.label}
 									to={item.to}
 									end={item.end}
-									onClick={closeMobileMenu}
+									onClick={onCloseMobileMenu}
 								/>
 							))}
 						</nav>
