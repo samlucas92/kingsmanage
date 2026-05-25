@@ -52,22 +52,16 @@ const columns: {
 	align?: "left" | "right" | "center";
 }[] = [
 	{ label: "Player", key: "name", align: "left" },
-
 	{ label: "App", key: "firstTeamApps", align: "center" },
 	{ label: "Goals", key: "firstTeamGoals", align: "center" },
-
 	{ label: "App", key: "secondTeamApps", align: "center" },
 	{ label: "Goals", key: "secondTeamGoals", align: "center" },
-
 	{ label: "App", key: "seasonApps", align: "center" },
 	{ label: "Goals", key: "seasonGoals", align: "center" },
-
 	{ label: "App", key: "preSeasonApps", align: "center" },
 	{ label: "Goals", key: "preSeasonGoals", align: "center" },
-
 	{ label: "App", key: "careerApps", align: "center" },
 	{ label: "Goals", key: "careerGoals", align: "center" },
-
 	{ label: "Assists", key: "assists", align: "center" },
 	{ label: "Starts", key: "starts", align: "center" },
 	{ label: "Bench", key: "bench", align: "center" },
@@ -459,10 +453,11 @@ export default function Stats() {
 					emptyTitle="No player stats found"
 					emptyMessage="No player stats found for this season."
 					minWidthClassName="min-w-[1300px]"
+					className="max-h-[72vh] overflow-auto"
 				>
-					<thead className="border-b bg-gray-50">
+					<thead>
 						<tr className="border-b border-slate-200">
-							<th colSpan={1} className="bg-slate-50 p-2" />
+							<th className="sticky left-0 top-0 z-40 w-[180px] min-w-[180px] max-w-[180px] bg-slate-50 p-2 shadow-[1px_0_0_0_rgba(226,232,240,1)]" />
 
 							<GroupHeader label="First team" />
 							<GroupHeader label="Second team" />
@@ -470,16 +465,21 @@ export default function Stats() {
 							<GroupHeader label="Pre 25/26" />
 							<GroupHeader label="Career" />
 
-							<th colSpan={7} className="bg-slate-50 p-2" />
+							<th
+								colSpan={7}
+								className="sticky top-0 z-30 bg-slate-50 p-2"
+							/>
 						</tr>
 
-						<tr>
+						<tr className="border-b bg-gray-50">
 							{columns.map((column) => (
 								<th
 									key={column.key}
-									className={`whitespace-nowrap p-3 ${
-										getAlignClass(column.align)
-									}`}
+									className={`sticky top-[33px] z-30 whitespace-nowrap bg-gray-50 p-3 ${
+										column.key === "name"
+											? "left-0 z-40 w-[180px] min-w-[180px] max-w-[180px] shadow-[1px_0_0_0_rgba(226,232,240,1)]"
+											: ""
+									} ${getAlignClass(column.align)}`}
 								>
 									<button
 										type="button"
@@ -502,10 +502,11 @@ export default function Stats() {
 					<tbody>
 						{sortedRows.map((row) => (
 							<tr key={row.id} className="border-b hover:bg-gray-50">
-								<td className="whitespace-nowrap p-3 font-medium">
+								<td className="sticky left-0 z-20 w-[180px] min-w-[180px] max-w-[180px] whitespace-nowrap bg-white p-3 font-medium shadow-[1px_0_0_0_rgba(226,232,240,1)]">
 									<Link
 										to={`/players/${row.id}`}
-										className="text-blue-900 hover:text-blue-700 hover:underline"
+										className="block truncate text-blue-900 hover:text-blue-700 hover:underline"
+										title={row.name}
 									>
 										{row.name}
 									</Link>
@@ -554,7 +555,7 @@ function GroupHeader({ label }: { label: string }) {
 	return (
 		<th
 			colSpan={2}
-			className="bg-yellow-100 p-2 text-center text-xs font-bold uppercase tracking-wide text-slate-700"
+			className="sticky top-0 z-30 bg-yellow-100 p-2 text-center text-xs font-bold uppercase tracking-wide text-slate-700"
 		>
 			{label}
 		</th>

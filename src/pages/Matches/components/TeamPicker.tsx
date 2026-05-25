@@ -199,7 +199,7 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 			onDragEnd={teamPicker.handleDragEnd}
 			onDragCancel={teamPicker.handleDragCancel}
 		>
-			<div className="grid min-w-0 items-start gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
+			<div className="grid min-w-0 items-start gap-4 xl:grid-cols-[320px_minmax(420px,1fr)]">
 				<div className="hidden min-w-0 xl:block xl:sticky xl:top-0">
 					<AvailablePlayersPanel
 						availablePlayers={teamPicker.availablePlayers}
@@ -220,7 +220,7 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 							<p className="text-xs text-slate-500">
 								{teamPicker.isLineupLocked
 									? "This team is saved and locked."
-									: "On mobile, tap an empty position to choose a player."}
+									: "Drag players on desktop, or tap an empty position on mobile."}
 							</p>
 						</div>
 
@@ -255,7 +255,7 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 					</div>
 
 					<div className="min-w-0 overflow-x-auto pb-1">
-						<div className="min-w-[320px]">
+						<div className="min-w-[320px] xl:min-w-[420px]">
 							<TeamPitch
 								pitchRef={teamPicker.pitchRef}
 								isOverPitch={teamPicker.isOverPitch}

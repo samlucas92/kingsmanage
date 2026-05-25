@@ -54,8 +54,8 @@ export default function MatchDetail() {
 				onPostponeClick={() => matchDetail.setShowPostponeModal(true)}
 			/>
 
-			<div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
-				<div className="min-w-0 space-y-6 xl:order-2">
+			<div className="grid min-w-0 grid-cols-1 gap-6 2xl:grid-cols-[minmax(760px,1fr)_minmax(380px,420px)]">
+				<div className="min-w-0 space-y-6 2xl:order-1">
 					<ResultCard
 						homeTeamName={matchDetail.homeTeamName}
 						awayTeamName={matchDetail.awayTeamName}
@@ -65,27 +65,6 @@ export default function MatchDetail() {
 						onOpenResultModal={matchDetail.handleOpenResultModal}
 					/>
 
-					<div className="hidden space-y-6 xl:block">
-						<MatchStatsCard
-							selectedPlayers={currentMatch.selectedPlayers}
-							playerStats={currentMatch.playerStats ?? []}
-							isCompleted={currentMatch.isCompleted}
-							getPlayerName={matchDetail.getPlayerName}
-							onUpdatePlayerStat={matchDetail.handleUpdateMatchPlayerStat}
-						/>
-
-						<MatchNotesCard
-							noteDraft={matchDetail.noteDraft}
-							notesSaved={matchDetail.notesSaved}
-							onUpdateNoteDraft={matchDetail.updateNoteDraft}
-							onSaveNotes={matchDetail.handleSaveNotes}
-						/>
-
-						<PostponementAuditCard postponements={currentMatch.postponements} />
-					</div>
-				</div>
-
-				<div className="min-w-0 xl:order-1">
 					<TeamSelectionCard
 						matchId={currentMatch.id}
 						starterCount={matchDetail.starterCount}
@@ -96,7 +75,7 @@ export default function MatchDetail() {
 					/>
 				</div>
 
-				<div className="min-w-0 space-y-6 xl:hidden">
+				<div className="min-w-0 space-y-6 2xl:order-2">
 					<MatchStatsCard
 						selectedPlayers={currentMatch.selectedPlayers}
 						playerStats={currentMatch.playerStats ?? []}
