@@ -1,4 +1,5 @@
 import type { MouseEvent } from "react";
+import StatusBadge from "../../../../components/compositions/StatusBadge";
 import { AvailablePlayer } from "./PlayerCards";
 
 type Player = {
@@ -26,21 +27,19 @@ export function AvailablePlayersPanel({
 	onOpenPlayerMenu,
 }: AvailablePlayersPanelProps) {
 	return (
-		<div className="flex h-[520px] min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-			<div className="mb-3 flex shrink-0 items-center justify-between gap-3">
-				<div>
+		<div className="flex max-h-[360px] min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:h-[520px] xl:max-h-none">
+			<div className="mb-3 flex shrink-0 items-start justify-between gap-3">
+				<div className="min-w-0">
 					<h3 className="text-sm font-semibold text-slate-900">
 						Available players
 					</h3>
 
 					<p className="mt-1 text-xs text-slate-500">
-						Drag a player onto the pitch or bench.
+						Drag or tap a player to assign them.
 					</p>
 				</div>
 
-				<span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
-					{availablePlayers.length}
-				</span>
+				<StatusBadge label={String(availablePlayers.length)} tone="neutral" />
 			</div>
 
 			{isLineupLocked && (
@@ -50,7 +49,7 @@ export function AvailablePlayersPanel({
 			)}
 
 			<div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
-				<div className="space-y-2 pb-1">
+				<div className="grid grid-cols-1 gap-2 pb-1 sm:grid-cols-2 xl:grid-cols-1">
 					{availablePlayers.map((player) => (
 						<AvailablePlayer
 							key={player.id}

@@ -21,6 +21,7 @@ interface TeamPitchProps {
 		playerId: string,
 		event: MouseEvent<HTMLButtonElement>
 	) => void;
+	onOpenMobilePositionSelector?: (positionIndex: number) => void;
 }
 
 export function TeamPitch({
@@ -37,6 +38,7 @@ export function TeamPitch({
 	getPlayerPositions,
 	getPlayerInitials,
 	onOpenPlayerMenu,
+	onOpenMobilePositionSelector,
 }: TeamPitchProps) {
 	const hasAvailablePosition = formation.some(
 		(_position, index) => !getPositionOccupant(index)
@@ -45,7 +47,7 @@ export function TeamPitch({
 	return (
 		<div
 			ref={pitchRef}
-			className={`relative h-[360px] w-full overflow-hidden rounded-xl border-4 bg-green-700 shadow-sm transition ${
+			className={`relative h-[420px] w-full min-w-0 overflow-hidden rounded-xl border-4 bg-green-700 shadow-sm transition sm:h-[460px] xl:h-[520px] ${
 				isOverPitch
 					? hasAvailablePosition || hoveredSwapTargetPlayerId
 						? "border-yellow-300"
@@ -78,22 +80,26 @@ export function TeamPitch({
 				const occupant = getPositionOccupant(index);
 
 				return (
-					<div
+					<button
 						key={`${position.label}-${position.x}-${position.y}-${index}`}
-						className={`pointer-events-none absolute z-10 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border text-[10px] font-bold transition ${
+						type="button"
+						disabled={isLineupLocked || Boolean(occupant)}
+						onClick={() => onOpenMobilePositionSelector?.(index)}
+						className={`absolute z-10 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border text-[10px] font-bold transition sm:h-10 sm:w-10 sm:text-[11px] ${
 							isHovered
 								? "scale-110 border-yellow-300 bg-yellow-300 text-slate-900"
 								: occupant
-									? "border-white/60 bg-white/20 text-white/80"
-									: "border-white/40 bg-white/10 text-white/70"
+									? "pointer-events-none border-white/60 bg-white/20 text-white/80"
+									: "border-white/60 bg-white/10 text-white hover:scale-105 hover:border-yellow-300 hover:bg-yellow-300 hover:text-slate-900 disabled:pointer-events-none"
 						}`}
 						style={{
 							left: `${position.x}%`,
 							top: `${position.y}%`,
 						}}
+						aria-label={`Select player for ${position.label}`}
 					>
-						{position.label}
-					</div>
+						{occupant ? position.label : "+"}
+					</button>
 				);
 			})}
 

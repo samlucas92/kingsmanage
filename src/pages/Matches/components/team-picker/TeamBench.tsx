@@ -1,5 +1,6 @@
 import type { MouseEvent, RefObject } from "react";
 import type { SelectedPlayer } from "../../../../stores/match";
+import StatusBadge from "../../../../components/compositions/StatusBadge";
 import { BenchPlayer } from "./PlayerCards";
 
 interface TeamBenchProps {
@@ -29,22 +30,22 @@ export function TeamBench({
 	return (
 		<div
 			ref={benchRef}
-			className={`overflow-hidden rounded-2xl border-2 shadow-sm transition ${
+			className={`min-w-0 overflow-hidden rounded-2xl border-2 shadow-sm transition ${
 				isOverBench
 					? "border-yellow-400 bg-yellow-50 shadow-md"
 					: "border-slate-200 bg-white"
 			}`}
 		>
 			<div
-				className={`flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 ${
+				className={`flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between ${
 					isOverBench
 						? "border-yellow-200 bg-yellow-100"
 						: "border-slate-100 bg-slate-50"
 				}`}
 			>
-				<div className="flex items-center gap-3">
+				<div className="flex min-w-0 items-center gap-3">
 					<div
-						className={`flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black ${
+						className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-black ${
 							isOverBench
 								? "bg-yellow-400 text-slate-950"
 								: "bg-blue-900 text-white"
@@ -53,7 +54,7 @@ export function TeamBench({
 						SUB
 					</div>
 
-					<div>
+					<div className="min-w-0">
 						<h3 className="text-sm font-bold text-slate-900">
 							Matchday Bench
 						</h3>
@@ -65,27 +66,20 @@ export function TeamBench({
 									? "Release to swap this bench player with the dragged player."
 									: isOverBench
 										? "Release to add this player to the bench."
-										: "Drag substitutes here or drop a pitch player onto a bench player to swap."}
+										: "Drag substitutes here or tap players to assign them."}
 						</p>
 					</div>
 				</div>
 
-				<div className="flex items-center gap-2">
-					<span
-						className={`rounded-full px-3 py-1 text-xs font-bold ${
-							benchPlayers.length > 0
-								? "bg-yellow-100 text-yellow-900"
-								: "bg-slate-100 text-slate-600"
+				<div className="flex shrink-0 flex-wrap items-center gap-2">
+					<StatusBadge
+						label={`${benchPlayers.length} ${
+							benchPlayers.length === 1 ? "sub" : "subs"
 						}`}
-					>
-						{benchPlayers.length} {benchPlayers.length === 1 ? "sub" : "subs"}
-					</span>
+						tone={benchPlayers.length > 0 ? "warning" : "neutral"}
+					/>
 
-					{isLineupLocked && (
-						<span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-700">
-							Locked
-						</span>
-					)}
+					{isLineupLocked && <StatusBadge label="Locked" tone="neutral" />}
 				</div>
 			</div>
 

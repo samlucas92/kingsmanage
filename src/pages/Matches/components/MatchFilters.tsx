@@ -1,4 +1,6 @@
 import type { MatchState, ClubTeam } from "../../../stores/match";
+import PanelCard from "../../../components/compositions/PanelCard";
+import FilterButton from "../../../components/compositions/FilterButton";
 
 export type MatchFilter = "all" | "upcoming" | "completed" | "postponed";
 export type MatchTeamFilter = "all" | ClubTeam;
@@ -70,7 +72,7 @@ export function MatchFilters({
 	onTeamFilterChange,
 }: MatchFiltersProps) {
 	return (
-		<div className="space-y-4 rounded-xl bg-white p-4 shadow">
+		<PanelCard contentClassName="space-y-4">
 			<div>
 				<p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
 					Status
@@ -78,27 +80,14 @@ export function MatchFilters({
 
 				<div className="flex flex-wrap gap-2">
 					{filterOptions.map((option) => (
-						<button
+						<FilterButton
 							key={option.value}
-							type="button"
-							onClick={() => onFilterChange(option.value)}
-							className={`rounded-full border px-4 py-2 text-sm font-semibold ${
-								activeFilter === option.value
-									? "border-blue-700 bg-blue-700 text-white"
-									: "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-							}`}
-						>
-							{option.label}{" "}
-							<span
-								className={`ml-1 ${
-									activeFilter === option.value
-										? "text-blue-100"
-										: "text-slate-400"
-								}`}
-							>
-								{counts[option.value]}
-							</span>
-						</button>
+							label={option.label}
+							value={option.value}
+							activeValue={activeFilter}
+							count={counts[option.value]}
+							onChange={onFilterChange}
+						/>
 					))}
 				</div>
 			</div>
@@ -110,31 +99,18 @@ export function MatchFilters({
 
 				<div className="flex flex-wrap gap-2">
 					{teamFilterOptions.map((option) => (
-						<button
+						<FilterButton
 							key={option.value}
-							type="button"
-							onClick={() => onTeamFilterChange(option.value)}
-							className={`rounded-full border px-4 py-2 text-sm font-semibold ${
-								activeTeamFilter === option.value
-									? "border-yellow-400 bg-yellow-400 text-slate-950"
-									: "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-							}`}
-						>
-							{option.label}{" "}
-							<span
-								className={`ml-1 ${
-									activeTeamFilter === option.value
-										? "text-slate-700"
-										: "text-slate-400"
-								}`}
-							>
-								{teamCounts[option.value]}
-							</span>
-						</button>
+							label={option.label}
+							value={option.value}
+							activeValue={activeTeamFilter}
+							count={teamCounts[option.value]}
+							onChange={onTeamFilterChange}
+						/>
 					))}
 				</div>
 			</div>
-		</div>
+		</PanelCard>
 	);
 }
 

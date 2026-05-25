@@ -1,4 +1,6 @@
 import type { MatchState } from "../../../../stores/match";
+import StatusBadge from "../../../../components/compositions/StatusBadge";
+import PanelCard from "../../../../components/compositions/PanelCard";
 import { formatDisplayDateTime } from "../../../../utils/date";
 
 interface MatchHeaderCardProps {
@@ -19,37 +21,31 @@ export function MatchHeaderCard({
 	onPostponeClick,
 }: MatchHeaderCardProps) {
 	return (
-		<div className="rounded-xl bg-white p-6 shadow">
-			<div className="flex items-start justify-between gap-4">
-				<div>
-					<h1 className="text-3xl font-bold text-blue-900">
+		<PanelCard>
+			<div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+				<div className="min-w-0">
+					<p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+						Match detail
+					</p>
+
+					<h1 className="mt-1 truncate text-2xl font-bold text-blue-900 sm:text-3xl">
 						vs {opponent}
 					</h1>
 
-					<p className="text-gray-600">
-						{formatDisplayDateTime(date)} · {venue}
+					<p className="mt-1 text-sm text-gray-600 sm:text-base">
+						{formatDisplayDateTime(date)} ·{" "}
+						<span className="capitalize">{venue}</span>
 					</p>
 
-					<div className="mt-2 flex flex-wrap items-center gap-2">
-						<span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold capitalize text-slate-700">
-							{state}
-						</span>
+					<div className="mt-3 flex flex-wrap items-center gap-2">
+						<StatusBadge label={getStateLabel(state)} tone={getStateTone(state)} />
 
-						<span
-							className={`rounded-full px-3 py-1 text-xs font-semibold ${
-								venue === "home"
-									? "bg-blue-100 text-blue-800"
-									: "bg-yellow-100 text-yellow-800"
-							}`}
-						>
-							{venue === "home" ? "Home" : "Away"}
-						</span>
+						<StatusBadge
+							label={venue === "home" ? "Home" : "Away"}
+							tone={venue === "home" ? "info" : "warning"}
+						/>
 
-						{isCompleted && (
-							<span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
-								Completed
-							</span>
-						)}
+						{isCompleted && <StatusBadge label="Completed" tone="success" />}
 					</div>
 				</div>
 
@@ -57,12 +53,36 @@ export function MatchHeaderCard({
 					<button
 						type="button"
 						onClick={onPostponeClick}
-						className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-50"
+						className="w-full rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-50 sm:w-auto"
 					>
 						Postpone
 					</button>
 				)}
 			</div>
-		</div>
+		</PanelCard>
 	);
+}
+
+function getStateLabel(state: MatchState) {
+	return state.charAt(0).toUpperCase() + state.slice(1);
+}
+
+function getStateTone(state: MatchState) {
+	if (state === "won") {
+		return "success";
+	}
+
+	if (state === "lost") {
+		return "danger";
+	}
+
+	if (state === "draw") {
+		return "neutral";
+	}
+
+	if (state === "postponed") {
+		return "warning";
+	}
+
+	return "info";
 }

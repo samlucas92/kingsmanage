@@ -1,3 +1,5 @@
+import PanelCard from "../../../../components/compositions/PanelCard";
+import StatusBadge from "../../../../components/compositions/StatusBadge";
 import TeamPicker from "../TeamPicker";
 
 interface TeamSelectionCardProps {
@@ -18,30 +20,18 @@ export function TeamSelectionCard({
 	onSaveTeamClick,
 }: TeamSelectionCardProps) {
 	return (
-		<section className="min-h-[520px] rounded-xl bg-white p-6 shadow xl:col-span-2">
-			<div className="flex flex-wrap items-start justify-between gap-4">
-				<div>
-					<h2 className="text-lg font-bold text-blue-900">
-						Team Selection
-					</h2>
+		<PanelCard>
+			<div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+				<div className="min-w-0">
+					<h2 className="text-lg font-bold text-blue-900">Team Selection</h2>
 
-					<div className="mt-2 flex flex-wrap gap-2 text-xs font-medium text-slate-600">
-						<span className="rounded-full bg-slate-100 px-3 py-1">
-							Starters: {starterCount}/11
-						</span>
-
-						<span className="rounded-full bg-slate-100 px-3 py-1">
-							Bench: {benchCount}
-						</span>
-
-						<span className="rounded-full bg-slate-100 px-3 py-1">
-							Total: {totalSelectedCount}
-						</span>
+					<div className="mt-2 flex flex-wrap gap-2">
+						<StatusBadge label={`Starters: ${starterCount}/11`} tone="neutral" />
+						<StatusBadge label={`Bench: ${benchCount}`} tone="neutral" />
+						<StatusBadge label={`Total: ${totalSelectedCount}`} tone="neutral" />
 
 						{isLineupLocked && (
-							<span className="rounded-full bg-blue-100 px-3 py-1 text-blue-800">
-								Lineup locked
-							</span>
+							<StatusBadge label="Lineup locked" tone="info" />
 						)}
 					</div>
 				</div>
@@ -50,7 +40,7 @@ export function TeamSelectionCard({
 					type="button"
 					onClick={onSaveTeamClick}
 					disabled={!isLineupLocked && totalSelectedCount === 0}
-					className={`rounded-xl px-5 py-3 text-sm font-semibold shadow-sm disabled:cursor-not-allowed disabled:opacity-50 ${
+					className={`w-full rounded-xl px-5 py-3 text-sm font-semibold shadow-sm disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto ${
 						isLineupLocked
 							? "bg-slate-900 text-white hover:bg-slate-800"
 							: "bg-blue-700 text-white hover:bg-blue-800"
@@ -67,9 +57,9 @@ export function TeamSelectionCard({
 				</p>
 			)}
 
-			<div className="mt-6 rounded-xl border border-dashed border-gray-300 bg-green-50 p-4 text-gray-500">
+			<div className="mt-6 min-w-0 rounded-xl border border-dashed border-gray-300 bg-green-50 p-3 text-gray-500 sm:p-4">
 				<TeamPicker matchId={matchId} />
 			</div>
-		</section>
+		</PanelCard>
 	);
 }
