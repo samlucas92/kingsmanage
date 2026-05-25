@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import type {
 	MatchPlayerStat,
 	MatchPlayerStatField,
@@ -5,6 +6,11 @@ import type {
 	SelectedPlayer,
 } from "../../../../stores/match";
 import EmptyState from "../../../../components/compositions/EmptyState";
+import StatusBadge from "../../../../components/compositions/StatusBadge";
+import FilterButton from "../../../../components/compositions/FilterButton";
+import MetricCard from "../../../../components/compositions/MetricCard";
+
+type PlayerAreaFilter = "all" | "pitch" | "bench";
 
 interface MatchStatsCardProps {
 	selectedPlayers: SelectedPlayer[];
@@ -25,6 +31,9 @@ export function MatchStatsCard({
 	getPlayerName,
 	onUpdatePlayerStat,
 }: MatchStatsCardProps) {
+	const [searchTerm, setSearchTerm] = useState("");
+	const [areaFilter, setAreaFilter] = useState<PlayerAreaFilter>("all");
+
 	function getPlayerStat(playerId: string) {
 		return (
 			playerStats.find((stat) => stat.playerId === playerId) ?? {
@@ -40,15 +49,32 @@ export function MatchStatsCard({
 		);
 	}
 
-	const orderedPlayers = [...selectedPlayers].sort((firstPlayer, secondPlayer) => {
-		if (firstPlayer.area === secondPlayer.area) {
-			return getPlayerName(firstPlayer.playerId).localeCompare(
-				getPlayerName(secondPlayer.playerId)
-			);
-		}
+	const orderedPlayers = useMemo(() => {
+		return [...selectedPlayers].sort((firstPlayer, secondPlayer) => {
+			if (firstPlayer.area === secondPlayer.area) {
+				return getPlayerName(firstPlayer.playerId).localeCompare(
+					getPlayerName(secondPlayer.playerId)
+				);
+			}
 
-		return firstPlayer.area === "pitch" ? -1 : 1;
-	});
+			return firstPlayer.area === "pitch" ? -1 : 1;
+		});
+	}, [selectedPlayers, getPlayerName]);
+
+	const filteredPlayers = useMemo(() => {
+		return orderedPlayers.filter((selectedPlayer) => {
+			const playerName = getPlayerName(selectedPlayer.playerId);
+
+			const matchesSearch = playerName
+				.toLowerCase()
+				.includes(searchTerm.toLowerCase());
+
+			const matchesArea =
+				areaFilter === "all" || selectedPlayer.area === areaFilter;
+
+			return matchesSearch && matchesArea;
+		});
+	}, [orderedPlayers, getPlayerName, searchTerm, areaFilter]);
 
 	const selectedPlayerIds = new Set(
 		selectedPlayers.map((selectedPlayer) => selectedPlayer.playerId)
@@ -85,11 +111,19 @@ export function MatchStatsCard({
 
 	const motmCount = visibleStats.filter((stat) => stat.isMOTM).length;
 
+	const starterCount = selectedPlayers.filter(
+		(selectedPlayer) => selectedPlayer.area === "pitch"
+	).length;
+
+	const benchCount = selectedPlayers.filter(
+		(selectedPlayer) => selectedPlayer.area === "bench"
+	).length;
+
 	return (
-		<section className="flex max-h-[820px] min-h-0 flex-col overflow-hidden rounded-xl bg-white p-6 shadow">
+		<section className="flex max-h-[820px] min-h-0 flex-col overflow-hidden rounded-xl bg-white p-4 shadow sm:p-6">
 			<div className="shrink-0">
-				<div className="flex flex-wrap items-start justify-between gap-3">
-					<div>
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+					<div className="min-w-0">
 						<h2 className="text-lg font-bold text-blue-900">Player Stats</h2>
 
 						<p className="mt-1 text-xs text-slate-500">
@@ -97,30 +131,71 @@ export function MatchStatsCard({
 						</p>
 					</div>
 
-					<span
-						className={`rounded-full px-3 py-1 text-xs font-semibold ${
-							isCompleted
-								? "bg-green-100 text-green-800"
-								: "bg-amber-100 text-amber-800"
-						}`}
-					>
-						{isCompleted ? "Report editable" : "Complete result first"}
-					</span>
+					<StatusBadge
+						label={isCompleted ? "Report editable" : "Complete result first"}
+						tone={isCompleted ? "success" : "warning"}
+					/>
 				</div>
 
 				<div className="mt-4 grid grid-cols-2 gap-3 xl:grid-cols-3">
-					<SummaryStat label="Goals" value={totalGoals} />
-					<SummaryStat label="Assists" value={totalAssists} />
-					<SummaryStat label="Yellow Cards" value={totalYellowCards} />
-					<SummaryStat label="Red Cards" value={totalRedCards} />
-					<SummaryStat label="Minutes" value={totalMinutes} />
-					<SummaryStat label="MOTM" value={motmCount} />
+					<MetricCard label="Goals" value={totalGoals} size="compact" />
+					<MetricCard label="Assists" value={totalAssists} size="compact" />
+					<MetricCard
+						label="Yellow Cards"
+						value={totalYellowCards}
+						size="compact"
+					/>
+					<MetricCard
+						label="Red Cards"
+						value={totalRedCards}
+						size="compact"
+					/>
+					<MetricCard label="Minutes" value={totalMinutes} size="compact" />
+					<MetricCard label="MOTM" value={motmCount} size="compact" />
 				</div>
 
 				{!isCompleted && (
 					<p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
-						Enter the match result first, then you can complete the player report.
+						Enter the match result first, then you can complete the player
+						report.
 					</p>
+				)}
+
+				{orderedPlayers.length > 0 && (
+					<div className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+						<input
+							value={searchTerm}
+							onChange={(event) => setSearchTerm(event.target.value)}
+							placeholder="Search selected players..."
+							className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+						/>
+
+						<div className="flex flex-wrap gap-2">
+							<FilterButton
+								label="All"
+								value="all"
+								activeValue={areaFilter}
+								count={selectedPlayers.length}
+								onChange={setAreaFilter}
+							/>
+
+							<FilterButton
+								label="Starters"
+								value="pitch"
+								activeValue={areaFilter}
+								count={starterCount}
+								onChange={setAreaFilter}
+							/>
+
+							<FilterButton
+								label="Bench"
+								value="bench"
+								activeValue={areaFilter}
+								count={benchCount}
+								onChange={setAreaFilter}
+							/>
+						</div>
+					</div>
 				)}
 			</div>
 
@@ -131,26 +206,49 @@ export function MatchStatsCard({
 						message="Select players in the team picker before adding player stats."
 					/>
 				</div>
+			) : filteredPlayers.length === 0 ? (
+				<div className="mt-4 shrink-0">
+					<EmptyState
+						title="No matching players"
+						message="No selected players match this search or filter."
+					/>
+				</div>
 			) : (
-				<div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-2">
+				<div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1 sm:pr-2">
 					<div className="space-y-3 pb-1">
-						{orderedPlayers.map((selectedPlayer) => {
+						{filteredPlayers.map((selectedPlayer) => {
 							const stat = getPlayerStat(selectedPlayer.playerId);
+							const playerName = getPlayerName(selectedPlayer.playerId);
 
 							return (
 								<div
 									key={selectedPlayer.playerId}
-									className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+									className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4"
 								>
-									<div className="flex flex-wrap items-center justify-between gap-2">
-										<div>
-											<p className="text-sm font-semibold text-slate-900">
-												{getPlayerName(selectedPlayer.playerId)}
+									<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+										<div className="min-w-0">
+											<p className="truncate text-sm font-semibold text-slate-900">
+												{playerName}
 											</p>
 
-											<span className="mt-1 inline-flex rounded-full bg-white px-2 py-1 text-xs font-semibold capitalize text-slate-700">
-												{selectedPlayer.area}
-											</span>
+											<div className="mt-2 flex flex-wrap gap-2">
+												<StatusBadge
+													label={
+														selectedPlayer.area === "pitch"
+															? "Starter"
+															: "Bench"
+													}
+													tone={
+														selectedPlayer.area === "pitch"
+															? "info"
+															: "warning"
+													}
+												/>
+
+												{stat.isMOTM && (
+													<StatusBadge label="MOTM" tone="success" />
+												)}
+											</div>
 										</div>
 
 										<label className="flex h-10 items-center gap-2 rounded-lg bg-white px-3 text-xs font-semibold text-slate-700">
@@ -252,7 +350,7 @@ export function MatchStatsCard({
 													event.target.value
 												)
 											}
-											className="min-h-24 w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm leading-6 text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+											className="min-h-20 w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm leading-6 text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 sm:min-h-24"
 											placeholder="Optional note about this player's performance..."
 										/>
 									</label>
@@ -263,15 +361,6 @@ export function MatchStatsCard({
 				</div>
 			)}
 		</section>
-	);
-}
-
-function SummaryStat({ label, value }: { label: string; value: number }) {
-	return (
-		<div className="rounded-lg bg-slate-50 p-3">
-			<p className="text-xs font-medium text-slate-500">{label}</p>
-			<p className="mt-1 text-xl font-bold text-blue-900">{value}</p>
-		</div>
 	);
 }
 

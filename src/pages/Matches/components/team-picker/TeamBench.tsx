@@ -15,6 +15,7 @@ interface TeamBenchProps {
 		playerId: string,
 		event: MouseEvent<HTMLButtonElement>
 	) => void;
+	onAddSubstitute?: () => void;
 }
 
 export function TeamBench({
@@ -26,6 +27,7 @@ export function TeamBench({
 	openMenuPlayerId,
 	getPlayerName,
 	onOpenPlayerMenu,
+	onAddSubstitute,
 }: TeamBenchProps) {
 	return (
 		<div
@@ -66,7 +68,7 @@ export function TeamBench({
 									? "Release to swap this bench player with the dragged player."
 									: isOverBench
 										? "Release to add this player to the bench."
-										: "Drag substitutes here or tap players to assign them."}
+										: "Add substitutes on mobile or drag players here on desktop."}
 						</p>
 					</div>
 				</div>
@@ -88,6 +90,16 @@ export function TeamBench({
 					isOverBench ? "bg-yellow-50" : "bg-white"
 				}`}
 			>
+				{onAddSubstitute && !isLineupLocked && (
+					<button
+						type="button"
+						onClick={onAddSubstitute}
+						className="mb-3 w-full rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-800 xl:hidden"
+					>
+						Add substitute
+					</button>
+				)}
+
 				{benchPlayers.length > 0 ? (
 					<div className="flex flex-wrap gap-2">
 						{benchPlayers.map((selectedPlayer, index) => (
@@ -118,7 +130,7 @@ export function TeamBench({
 						<p className="text-sm font-medium">
 							{isLineupLocked
 								? "No substitutes selected."
-								: "Drop players here to add them as substitutes."}
+								: "No substitutes selected yet."}
 						</p>
 					</div>
 				)}

@@ -71,6 +71,7 @@ export function AvailablePlayer({
 				{...(!disabled ? listeners : {})}
 				{...(!disabled ? attributes : {})}
 				className={disabled ? "cursor-not-allowed" : "cursor-grab"}
+				aria-label={`Drag ${name}`}
 			>
 				☰
 			</button>
@@ -92,6 +93,7 @@ export function AvailablePlayer({
 				className={`rounded px-2 text-slate-500 hover:bg-slate-200 disabled:cursor-not-allowed ${
 					isMenuOpen ? "bg-slate-200" : ""
 				}`}
+				aria-label={`Open menu for ${name}`}
 			>
 				⋯
 			</button>
@@ -182,7 +184,7 @@ export function SelectedPitchPlayer({
 			ref={setNodeRef}
 			style={style}
 			title={title}
-			className={`absolute z-20 flex h-12 w-12 items-center justify-center rounded-full border-2 text-xs font-bold shadow-lg transition ${
+			className={`absolute z-20 flex h-12 w-12 items-center justify-center rounded-full border-2 text-xs font-bold shadow-lg transition sm:h-13 sm:w-13 ${
 				isSwapTarget
 					? "scale-110 border-yellow-300 bg-yellow-300 text-slate-900 ring-4 ring-yellow-200"
 					: isMenuOpen
@@ -196,10 +198,11 @@ export function SelectedPitchPlayer({
 				type="button"
 				{...(!disabled ? listeners : {})}
 				{...(!disabled ? attributes : {})}
+				onClick={disabled ? undefined : onOpenMenu}
 				className={`flex h-full w-full items-center justify-center rounded-full ${
-					disabled ? "cursor-default" : "cursor-grab"
+					disabled ? "cursor-default" : "cursor-grab xl:cursor-grab"
 				}`}
-				aria-label={`Move ${name}`}
+				aria-label={`Open actions for ${name}`}
 			>
 				{isSwapTarget ? "↔" : initials}
 			</button>
@@ -214,7 +217,7 @@ export function SelectedPitchPlayer({
 				<button
 					type="button"
 					onClick={onOpenMenu}
-					className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-white bg-white text-xs font-bold text-slate-600 shadow hover:text-blue-700"
+					className="absolute -right-1 -top-1 hidden h-5 w-5 items-center justify-center rounded-full border border-white bg-white text-xs font-bold text-slate-600 shadow hover:text-blue-700 xl:flex"
 					aria-label={`Open menu for ${name}`}
 				>
 					⋯
@@ -297,10 +300,10 @@ export function BenchPlayer({
 				type="button"
 				{...(!disabled ? listeners : {})}
 				{...(!disabled ? attributes : {})}
-				className={`shrink-0 text-slate-500 ${
+				className={`hidden shrink-0 text-slate-500 xl:inline-flex ${
 					disabled ? "cursor-default" : "cursor-grab"
 				}`}
-				aria-label={`Move ${name}`}
+				aria-label={`Drag ${name}`}
 			>
 				☰
 			</button>
@@ -319,7 +322,7 @@ export function BenchPlayer({
 				<button
 					type="button"
 					onClick={onOpenMenu}
-					className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-white hover:text-blue-800 ${
+					className={`hidden h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-white hover:text-blue-800 xl:flex ${
 						isMenuOpen ? "bg-white text-blue-800" : ""
 					}`}
 					aria-label={`Open menu for ${name}`}

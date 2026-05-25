@@ -15,11 +15,27 @@ interface TeamPickerProps {
 	matchId: string;
 }
 
+type MobilePlayerSelectorMode =
+	| {
+			type: "position";
+			positionIndex: number;
+	  }
+	| {
+			type: "bench";
+	  }
+	| {
+			type: "replace";
+			targetPlayerId: string;
+			targetPlayerName: string;
+			targetArea: "pitch" | "bench";
+			positionIndex?: number;
+	  };
+
 export default function TeamPicker({ matchId }: TeamPickerProps) {
 	const teamPicker = useTeamPicker(matchId);
-	const [mobilePositionIndex, setMobilePositionIndex] = useState<number | null>(
-		null
-	);
+
+	const [mobilePlayerSelectorMode, setMobilePlayerSelectorMode] =
+		useState<MobilePlayerSelectorMode | null>(null);
 
 	if (!teamPicker.match) {
 		return (
@@ -28,6 +44,8 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 			</div>
 		);
 	}
+
+	const selectedFormation = formations[teamPicker.selectedFormation];
 
 	const activePlayerName = teamPicker.activeDragData
 		? teamPicker.getPlayerName(teamPicker.activeDragData.playerId)
@@ -55,9 +73,28 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 			? "bench"
 			: "available";
 
-	const selectedFormation = formations[teamPicker.selectedFormation];
+	const mobileSelectedPlayerId = teamPicker.openMenu?.playerId;
+	const mobileSelectedPlayerName = mobileSelectedPlayerId
+		? teamPicker.getPlayerName(mobileSelectedPlayerId)
+		: "";
 
-	function handleOpenMobilePositionSelector(positionIndex: number) {
+	const mobileSelectedPitchPlayer = mobileSelectedPlayerId
+		? teamPicker.pitchPlayers.find(
+				(player) => player.playerId === mobileSelectedPlayerId
+			)
+		: undefined;
+
+	const mobileSelectedBenchPlayer = mobileSelectedPlayerId
+		? teamPicker.benchPlayers.find(
+				(player) => player.playerId === mobileSelectedPlayerId
+			)
+		: undefined;
+
+	function closeMobilePlayerSelector() {
+		setMobilePlayerSelectorMode(null);
+	}
+
+	function openMobilePositionSelector(positionIndex: number) {
 		if (teamPicker.isLineupLocked) {
 			return;
 		}
@@ -68,16 +105,91 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 			return;
 		}
 
-		setMobilePositionIndex(positionIndex);
+		setMobilePlayerSelectorMode({
+			type: "position",
+			positionIndex,
+		});
 	}
 
-	function handleAssignMobilePlayer(playerId: string) {
-		if (mobilePositionIndex === null) {
+	function openMobileBenchSelector() {
+		if (teamPicker.isLineupLocked) {
 			return;
 		}
 
-		teamPicker.assignPlayerToPosition(playerId, mobilePositionIndex);
-		setMobilePositionIndex(null);
+		setMobilePlayerSelectorMode({
+			type: "bench",
+		});
+	}
+
+	function openMobileReplaceSelector(playerId: string) {
+		if (teamPicker.isLineupLocked) {
+			return;
+		}
+
+		const pitchPlayer = teamPicker.pitchPlayers.find(
+			(player) => player.playerId === playerId
+		);
+
+		const benchPlayer = teamPicker.benchPlayers.find(
+			(player) => player.playerId === playerId
+		);
+
+		if (!pitchPlayer && !benchPlayer) {
+			return;
+		}
+
+		teamPicker.setOpenMenu(null);
+
+		setMobilePlayerSelectorMode({
+			type: "replace",
+			targetPlayerId: playerId,
+			targetPlayerName: teamPicker.getPlayerName(playerId),
+			targetArea: pitchPlayer ? "pitch" : "bench",
+			positionIndex: pitchPlayer?.positionIndex,
+		});
+	}
+
+	function handleSelectMobilePlayer(playerId: string) {
+		if (!mobilePlayerSelectorMode) {
+			return;
+		}
+
+		if (mobilePlayerSelectorMode.type === "bench") {
+			teamPicker.assignPlayerToBench(playerId);
+			closeMobilePlayerSelector();
+			return;
+		}
+
+		if (mobilePlayerSelectorMode.type === "position") {
+			teamPicker.assignPlayerToPosition(
+				playerId,
+				mobilePlayerSelectorMode.positionIndex
+			);
+			closeMobilePlayerSelector();
+			return;
+		}
+
+		teamPicker.removePlayerFromSelection(
+			mobilePlayerSelectorMode.targetPlayerId
+		);
+
+		if (
+			mobilePlayerSelectorMode.targetArea === "pitch" &&
+			mobilePlayerSelectorMode.positionIndex !== undefined
+		) {
+			teamPicker.assignPlayerToPosition(
+				playerId,
+				mobilePlayerSelectorMode.positionIndex
+			);
+		} else {
+			teamPicker.assignPlayerToBench(playerId);
+		}
+
+		closeMobilePlayerSelector();
+	}
+
+	function closePlayerActionMenu() {
+		teamPicker.setOpenMenu(null);
 	}
 
 	return (
@@ -137,9 +249,9 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 						</div>
 					</div>
 
-					<div className="xl:hidden rounded-lg bg-blue-50 px-3 py-2 text-xs font-medium text-blue-800">
+					<div className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-medium text-blue-800 xl:hidden">
 						Tap an empty shirt position to choose a player. Tap a selected player
-						to move them, bench them, or remove them.
+						to move, replace, bench, or remove them.
 					</div>
 
 					<div className="min-w-0 overflow-x-auto pb-1">
@@ -158,9 +270,7 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 								getPlayerPositions={teamPicker.getPlayerPositions}
 								getPlayerInitials={teamPicker.getPlayerInitials}
 								onOpenPlayerMenu={teamPicker.openPlayerMenu}
-								onOpenMobilePositionSelector={
-									handleOpenMobilePositionSelector
-								}
+								onOpenMobilePositionSelector={openMobilePositionSelector}
 							/>
 						</div>
 					</div>
@@ -174,6 +284,7 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 						openMenuPlayerId={teamPicker.openMenu?.playerId}
 						getPlayerName={teamPicker.getPlayerName}
 						onOpenPlayerMenu={teamPicker.openPlayerMenu}
+						onAddSubstitute={openMobileBenchSelector}
 					/>
 
 					<div className="hidden xl:block">
@@ -185,14 +296,14 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 				</div>
 			</div>
 
-			{mobilePositionIndex !== null && (
-				<MobilePositionPlayerSelector
-					positionIndex={mobilePositionIndex}
-					position={selectedFormation[mobilePositionIndex]}
+			{mobilePlayerSelectorMode && (
+				<MobilePlayerSelector
+					mode={mobilePlayerSelectorMode}
+					formation={selectedFormation}
 					availablePlayers={teamPicker.availablePlayers}
 					getPlayerPositions={teamPicker.getPlayerPositions}
-					onClose={() => setMobilePositionIndex(null)}
-					onSelectPlayer={handleAssignMobilePlayer}
+					onClose={closeMobilePlayerSelector}
+					onSelectPlayer={handleSelectMobilePlayer}
 				/>
 			)}
 
@@ -201,24 +312,55 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 					<button
 						type="button"
 						aria-label="Close player menu"
-						className="fixed inset-0 z-40 cursor-default bg-transparent"
-						onClick={() => teamPicker.setOpenMenu(null)}
+						className="fixed inset-0 z-40 hidden cursor-default bg-transparent xl:block"
+						onClick={closePlayerActionMenu}
 					/>
 
-					<FloatingPlayerAssignMenu
+					<div className="hidden xl:block">
+						<FloatingPlayerAssignMenu
+							playerId={teamPicker.openMenu.playerId}
+							left={teamPicker.openMenu.left}
+							top={teamPicker.openMenu.top}
+							formation={selectedFormation}
+							pitchPlayers={teamPicker.pitchPlayers}
+							getPlayerName={teamPicker.getPlayerName}
+							getPlayerPositions={teamPicker.getPlayerPositions}
+							isPlayerRecommendedForPosition={
+								teamPicker.isPlayerRecommendedForPosition
+							}
+							onAssignPosition={teamPicker.assignPlayerToPosition}
+							onAssignBench={teamPicker.assignPlayerToBench}
+							onRemove={teamPicker.removePlayerFromSelection}
+							showRemove={teamPicker.openMenuPlayerIsSelected}
+						/>
+					</div>
+
+					<MobileSelectedPlayerActionSheet
 						playerId={teamPicker.openMenu.playerId}
-						left={teamPicker.openMenu.left}
-						top={teamPicker.openMenu.top}
+						playerName={mobileSelectedPlayerName}
 						formation={selectedFormation}
 						pitchPlayers={teamPicker.pitchPlayers}
-						getPlayerName={teamPicker.getPlayerName}
 						getPlayerPositions={teamPicker.getPlayerPositions}
 						isPlayerRecommendedForPosition={
 							teamPicker.isPlayerRecommendedForPosition
 						}
-						onAssignPosition={teamPicker.assignPlayerToPosition}
-						onAssignBench={teamPicker.assignPlayerToBench}
-						onRemove={teamPicker.removePlayerFromSelection}
+						onClose={closePlayerActionMenu}
+						onAssignPosition={(playerId, positionIndex) => {
+							teamPicker.assignPlayerToPosition(playerId, positionIndex);
+							closePlayerActionMenu();
+						}}
+						onAssignBench={(playerId) => {
+							teamPicker.assignPlayerToBench(playerId);
+							closePlayerActionMenu();
+						}}
+						onReplacePlayer={openMobileReplaceSelector}
+						onRemove={(playerId) => {
+							teamPicker.removePlayerFromSelection(playerId);
+							closePlayerActionMenu();
+						}}
+						showReplace={Boolean(
+							mobileSelectedPitchPlayer || mobileSelectedBenchPlayer
+						)}
 						showRemove={teamPicker.openMenuPlayerIsSelected}
 					/>
 				</>
@@ -237,16 +379,16 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 	);
 }
 
-function MobilePositionPlayerSelector({
-	positionIndex,
-	position,
+function MobilePlayerSelector({
+	mode,
+	formation,
 	availablePlayers,
 	getPlayerPositions,
 	onClose,
 	onSelectPlayer,
 }: {
-	positionIndex: number;
-	position: FormationPosition;
+	mode: MobilePlayerSelectorMode;
+	formation: FormationPosition[];
 	availablePlayers: {
 		id: string;
 		name: string;
@@ -256,7 +398,24 @@ function MobilePositionPlayerSelector({
 	onClose: () => void;
 	onSelectPlayer: (playerId: string) => void;
 }) {
-	const sortedPlayers = [...availablePlayers].sort((firstPlayer, secondPlayer) => {
+	const [searchTerm, setSearchTerm] = useState("");
+
+	const position =
+		mode.type === "position"
+			? formation[mode.positionIndex]
+			: mode.type === "replace" && mode.positionIndex !== undefined
+				? formation[mode.positionIndex]
+				: undefined;
+
+	const filteredPlayers = availablePlayers.filter((player) =>
+		player.name.toLowerCase().includes(searchTerm.toLowerCase())
+	);
+
+	const sortedPlayers = [...filteredPlayers].sort((firstPlayer, secondPlayer) => {
+		if (!position) {
+			return firstPlayer.name.localeCompare(secondPlayer.name);
+		}
+
 		const firstFit = getPositionFitLabel(
 			getPlayerPositions(firstPlayer.id),
 			position.label
@@ -285,7 +444,7 @@ function MobilePositionPlayerSelector({
 				aria-label="Close player selector"
 			/>
 
-			<div className="absolute inset-x-0 bottom-0 max-h-[80vh] overflow-hidden rounded-t-2xl bg-white shadow-2xl">
+			<div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-hidden rounded-t-2xl bg-white shadow-2xl">
 				<div className="border-b border-slate-200 p-4">
 					<div className="flex items-start justify-between gap-3">
 						<div>
@@ -294,12 +453,11 @@ function MobilePositionPlayerSelector({
 							</p>
 
 							<h3 className="mt-1 text-lg font-bold text-blue-900">
-								{position.label}
+								{getMobileSelectorTitle(mode, position)}
 							</h3>
 
 							<p className="mt-1 text-sm text-slate-500">
-								Position {positionIndex + 1} · {availablePlayers.length} players
-								available
+								{getMobileSelectorDescription(mode, availablePlayers.length)}
 							</p>
 						</div>
 
@@ -311,22 +469,27 @@ function MobilePositionPlayerSelector({
 							Close
 						</button>
 					</div>
+
+					<input
+						value={searchTerm}
+						onChange={(event) => setSearchTerm(event.target.value)}
+						placeholder="Search players..."
+						className="mt-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm"
+					/>
 				</div>
 
 				<div className="max-h-[60vh] overflow-y-auto p-4">
 					{sortedPlayers.length === 0 ? (
 						<p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
-							No available players left. Remove someone from the pitch or bench
-							first.
+							No available players match this search.
 						</p>
 					) : (
 						<div className="space-y-2">
 							{sortedPlayers.map((player) => {
 								const playerPositions = getPlayerPositions(player.id);
-								const fitLabel = getPositionFitLabel(
-									playerPositions,
-									position.label
-								);
+								const fitLabel = position
+									? getPositionFitLabel(playerPositions, position.label)
+									: "";
 
 								return (
 									<button
@@ -347,13 +510,15 @@ function MobilePositionPlayerSelector({
 											</p>
 										</div>
 
-										<span
-											className={`shrink-0 rounded-full px-2 py-1 text-xs font-bold ${getFitClass(
-												fitLabel
-											)}`}
-										>
-											{fitLabel}
-										</span>
+										{position && (
+											<span
+												className={`shrink-0 rounded-full px-2 py-1 text-xs font-bold ${getFitClass(
+													fitLabel
+												)}`}
+											>
+												{fitLabel}
+											</span>
+										)}
 									</button>
 								);
 							})}
@@ -363,6 +528,207 @@ function MobilePositionPlayerSelector({
 			</div>
 		</div>
 	);
+}
+
+function MobileSelectedPlayerActionSheet({
+	playerId,
+	playerName,
+	formation,
+	pitchPlayers,
+	getPlayerPositions,
+	isPlayerRecommendedForPosition,
+	onClose,
+	onAssignPosition,
+	onAssignBench,
+	onReplacePlayer,
+	onRemove,
+	showReplace,
+	showRemove,
+}: {
+	playerId: string;
+	playerName: string;
+	formation: FormationPosition[];
+	pitchPlayers: {
+		playerId: string;
+		positionIndex?: number;
+		x: number;
+		y: number;
+		area?: string;
+	}[];
+	getPlayerPositions: (playerId: string) => string[];
+	isPlayerRecommendedForPosition: (
+		playerId: string,
+		positionLabel: string
+	) => boolean;
+	onClose: () => void;
+	onAssignPosition: (playerId: string, positionIndex: number) => void;
+	onAssignBench: (playerId: string) => void;
+	onReplacePlayer: (playerId: string) => void;
+	onRemove: (playerId: string) => void;
+	showReplace: boolean;
+	showRemove: boolean;
+}) {
+	const playerPositions = getPlayerPositions(playerId);
+
+	return (
+		<div className="fixed inset-0 z-50 xl:hidden">
+			<button
+				type="button"
+				className="absolute inset-0 bg-black/40"
+				onClick={onClose}
+				aria-label="Close selected player actions"
+			/>
+
+			<div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-hidden rounded-t-2xl bg-white shadow-2xl">
+				<div className="border-b border-slate-200 p-4">
+					<div className="flex items-start justify-between gap-3">
+						<div className="min-w-0">
+							<p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+								Player actions
+							</p>
+
+							<h3 className="mt-1 truncate text-lg font-bold text-blue-900">
+								{playerName}
+							</h3>
+
+							<p className="mt-1 truncate text-sm text-slate-500">
+								{playerPositions.length > 0
+									? playerPositions.join(", ")
+									: "No preferred positions"}
+							</p>
+						</div>
+
+						<button
+							type="button"
+							onClick={onClose}
+							className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700"
+						>
+							Close
+						</button>
+					</div>
+				</div>
+
+				<div className="max-h-[60vh] overflow-y-auto p-4">
+					<div className="space-y-3">
+						{showReplace && (
+							<button
+								type="button"
+								onClick={() => onReplacePlayer(playerId)}
+								className="w-full rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 text-left text-sm font-semibold text-blue-900"
+							>
+								Replace player
+							</button>
+						)}
+
+						<button
+							type="button"
+							onClick={() => onAssignBench(playerId)}
+							className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-left text-sm font-semibold text-slate-800"
+						>
+							Move to bench
+						</button>
+
+						{showRemove && (
+							<button
+								type="button"
+								onClick={() => onRemove(playerId)}
+								className="w-full rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-left text-sm font-semibold text-red-800"
+							>
+								Remove from team
+							</button>
+						)}
+
+						<div>
+							<p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+								Move to position
+							</p>
+
+							<div className="space-y-2">
+								{formation.map((position, index) => {
+									const occupant = pitchPlayers.find(
+										(pitchPlayer) =>
+											pitchPlayer.positionIndex === index &&
+											pitchPlayer.playerId !== playerId
+									);
+
+									const fitLabel = getPositionFitLabel(
+										playerPositions,
+										position.label
+									);
+
+									return (
+										<button
+											key={`${position.label}-${index}`}
+											type="button"
+											onClick={() => onAssignPosition(playerId, index)}
+											className={`flex w-full items-center justify-between gap-3 rounded-xl border p-3 text-left shadow-sm ${
+												occupant
+													? "border-amber-200 bg-amber-50"
+													: "border-slate-200 bg-white hover:bg-slate-50"
+											}`}
+										>
+											<div>
+												<p className="font-semibold text-slate-900">
+													{position.label}
+												</p>
+
+												<p className="text-xs text-slate-500">
+													{occupant ? "Occupied — will swap" : "Available"}
+												</p>
+											</div>
+
+											<span
+												className={`shrink-0 rounded-full px-2 py-1 text-xs font-bold ${
+													isPlayerRecommendedForPosition(
+														playerId,
+														position.label
+													)
+														? getFitClass(fitLabel)
+														: "bg-slate-100 text-slate-600"
+												}`}
+											>
+												{fitLabel}
+											</span>
+										</button>
+									);
+								})}
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function getMobileSelectorTitle(
+	mode: MobilePlayerSelectorMode,
+	position?: FormationPosition
+) {
+	if (mode.type === "bench") {
+		return "Add substitute";
+	}
+
+	if (mode.type === "replace") {
+		return `Replace ${mode.targetPlayerName}`;
+	}
+
+	return position?.label ?? "Position";
+}
+
+function getMobileSelectorDescription(
+	mode: MobilePlayerSelectorMode,
+	availablePlayerCount: number
+) {
+	if (mode.type === "bench") {
+		return `${availablePlayerCount} players available`;
+	}
+
+	if (mode.type === "replace") {
+		return `${availablePlayerCount} replacement options available`;
+	}
+
+	return `Position ${mode.positionIndex + 1} · ${availablePlayerCount} players available`;
 }
 
 function getFitScore(fitLabel: string) {
