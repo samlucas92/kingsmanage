@@ -1,5 +1,5 @@
 import { apiClient } from "./apiClient";
-import type { Season } from "../stores/seasons";
+import type { Season, SeasonInput } from "../stores/seasons";
 
 export const seasonApi = {
 	getSeasons: () => apiClient.get<Season[]>("/seasons"),
@@ -8,7 +8,13 @@ export const seasonApi = {
 
 	getSeason: (id: string) => apiClient.get<Season>(`/seasons/${id}`),
 
-	createSeason: (season: Season) => apiClient.post<Season>("/seasons", season),
+	createSeason: (season: SeasonInput & { isActive?: boolean }) =>
+		apiClient.post<Season>("/seasons", {
+			name: season.name,
+			startDate: season.startDate,
+			endDate: season.endDate,
+			isActive: season.isActive ?? false,
+		}),
 
 	updateSeason: (id: string, season: Season) =>
 		apiClient.put<Season>(`/seasons/${id}`, season),

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMatchStore } from "../../stores/match";
 import { useSeasonStore } from "../../stores/seasons";
 import type { Match, MatchFixtureInput } from "../../stores/match";
@@ -11,10 +11,12 @@ import { getMatchFilterFromState } from "./components/MatchFilters";
 import { PostponeMatchModal } from "./components/match-detail/PostponeMatchModal";
 import { useMatchForm } from "./hooks/useMatchForm";
 import { formatDateForInput } from "../../utils/date";
-import { DEFAULT_SEASON_ID } from "../../data/seedSeasons";
 
 export default function Matches() {
 	const matches = useMatchStore((state) => state.matches);
+	const isLoadingMatches = useMatchStore((state) => state.isLoadingMatches);
+	const matchLoadError = useMatchStore((state) => state.matchLoadError);
+	const loadMatches = useMatchStore((state) => state.loadMatches);
 	const addMatch = useMatchStore((state) => state.addMatch);
 	const updateMatchFixture = useMatchStore(
 		(state) => state.updateMatchFixture
@@ -24,23 +26,38 @@ export default function Matches() {
 
 	const seasons = useSeasonStore((state) => state.seasons);
 	const activeSeasonId = useSeasonStore((state) => state.activeSeasonId);
+	const isLoadingSeasons = useSeasonStore((state) => state.isLoadingSeasons);
+	const seasonLoadError = useSeasonStore((state) => state.seasonLoadError);
+	const loadSeasons = useSeasonStore((state) => state.loadSeasons);
 
 	const [matchFilter, setMatchFilter] = useState<MatchFilter>("all");
 	const [teamFilter, setTeamFilter] = useState<MatchTeamFilter>("all");
 	const [matchToPostpone, setMatchToPostpone] = useState<Match | null>(null);
 	const [postponedDate, setPostponedDate] = useState("");
 
+	useEffect(() => {
+		void loadSeasons();
+	}, [loadSeasons]);
+
+	useEffect(() => {
+		if (!activeSeasonId) {
+			return;
+		}
+
+		void loadMatches(activeSeasonId);
+	}, [activeSeasonId, loadMatches]);
+
 	const activeSeason = seasons.find((season) => season.id === activeSeasonId);
 
-	function handleCreateMatch(match: MatchFixtureInput) {
-		addMatch({
+	async function handleCreateMatch(match: MatchFixtureInput) {
+		await addMatch({
 			...match,
 			seasonId: activeSeasonId,
 		});
 	}
 
-	function handleUpdateMatch(matchId: string, match: MatchFixtureInput) {
-		updateMatchFixture(matchId, match);
+	async function handleUpdateMatch(matchId: string, match: MatchFixtureInput) {
+		await updateMatchFixture(matchId, match);
 	}
 
 	const matchForm = useMatchForm({
@@ -49,29 +66,25 @@ export default function Matches() {
 	});
 
 	const activeSeasonMatches = useMemo(() => {
-		return matches.filter(
-			(match) => (match.seasonId ?? DEFAULT_SEASON_ID) === activeSeasonId
-		);
+		if (!activeSeasonId) {
+			return [];
+		}
+
+		return matches.filter((match) => match.seasonId === activeSeasonId);
 	}, [matches, activeSeasonId]);
 
 	const matchCounts = useMemo(() => {
 		const visibleTeamMatches = activeSeasonMatches.filter(
 			(match) => teamFilter === "all" || match.team === teamFilter
 		);
-
 		const upcoming = visibleTeamMatches.filter(
-			(match) =>
-				getMatchFilterFromState(match.state, match.isCompleted) === "upcoming"
+			(match) => getMatchFilterFromState(match.state, match.isCompleted) === "upcoming"
 		).length;
-
 		const completed = visibleTeamMatches.filter(
-			(match) =>
-				getMatchFilterFromState(match.state, match.isCompleted) === "completed"
+			(match) => getMatchFilterFromState(match.state, match.isCompleted) === "completed"
 		).length;
-
 		const postponed = visibleTeamMatches.filter(
-			(match) =>
-				getMatchFilterFromState(match.state, match.isCompleted) === "postponed"
+			(match) => getMatchFilterFromState(match.state, match.isCompleted) === "postponed"
 		).length;
 
 		return {
@@ -105,7 +118,6 @@ export default function Matches() {
 			const statusMatches =
 				matchFilter === "all" ||
 				getMatchFilterFromState(match.state, match.isCompleted) === matchFilter;
-
 			const teamMatches = teamFilter === "all" || match.team === teamFilter;
 
 			return statusMatches && teamMatches;
@@ -135,49 +147,63 @@ export default function Matches() {
 			return;
 		}
 
-		postponeMatch(matchToPostpone.id, postponedDate);
+		void postponeMatch(matchToPostpone.id, postponedDate);
 		closePostponeModal();
 	}
 
 	return (
 		<div className="space-y-6">
-			<div className="flex flex-wrap items-center justify-between gap-4">
+			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<div>
-					<h1 className="text-2xl font-bold text-blue-900">Matches</h1>
-
-					<p className="text-gray-600">
+					<h1 className="text-2xl font-bold text-slate-900">Matches</h1>
+					<p className="text-sm text-slate-500">
 						Manage fixtures, results and matchday squads.
 					</p>
 				</div>
-
 				<button
 					type="button"
 					onClick={matchForm.openAddMatchModal}
-					className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
+					disabled={!activeSeasonId}
+					className="rounded-lg bg-blue-900 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300"
 				>
 					Add Match
 				</button>
 			</div>
 
-			<section className="rounded-xl bg-white p-4 shadow">
-				<div className="flex flex-wrap items-center justify-between gap-4">
+			<div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 					<div>
-						<p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+						<p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
 							Active season
 						</p>
-
-						<h2 className="mt-1 text-lg font-bold text-slate-900">
+						<h2 className="text-lg font-bold text-slate-900">
 							{activeSeason?.name ?? "No season selected"}
 						</h2>
-
-						<p className="mt-1 text-sm text-slate-500">
-							Matches shown here are filtered to the selected season.
+						<p className="text-sm text-slate-500">
+							Matches shown here are loaded for the selected season.
 						</p>
 					</div>
-
 					<SeasonSelector label="Season" />
 				</div>
-			</section>
+			</div>
+
+			{seasonLoadError && (
+				<div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+					{seasonLoadError}
+				</div>
+			)}
+
+			{matchLoadError && (
+				<div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+					{matchLoadError}
+				</div>
+			)}
+
+			{(isLoadingSeasons || isLoadingMatches) && (
+				<div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+					Loading matches...
+				</div>
+			)}
 
 			<MatchFilters
 				activeFilter={matchFilter}
@@ -192,7 +218,7 @@ export default function Matches() {
 				matches={sortedMatches}
 				onEditMatch={matchForm.openEditMatchModal}
 				onPostponeMatch={openPostponeModal}
-				onRestoreMatch={restoreMatch}
+				onRestoreMatch={(matchId) => void restoreMatch(matchId)}
 			/>
 
 			<MatchFormModal
@@ -212,7 +238,7 @@ export default function Matches() {
 			/>
 
 			<PostponeMatchModal
-				isOpen={matchToPostpone !== null}
+				isOpen={Boolean(matchToPostpone)}
 				newDate={postponedDate}
 				onClose={closePostponeModal}
 				onConfirm={handleConfirmPostpone}

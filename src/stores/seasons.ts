@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { DEFAULT_SEASON_ID, seedSeasons } from "../data/seedSeasons";
+import { seedSeasons } from "../data/seedSeasons";
 import { seasonApi } from "../services/seasonApi";
 
 export type Season = {
@@ -20,9 +20,9 @@ type SeasonStore = {
 	seasons: Season[];
 	activeSeasonId: string;
 	isLoadingSeasons: boolean;
+	hasLoadedSeasons: boolean;
 	seasonLoadError: string;
-
-	loadSeasons: () => Promise<void>;
+	loadSeasons: (force?: boolean) => Promise<void>;
 	setActiveSeason: (seasonId: string) => Promise<void>;
 	addSeason: (season: SeasonInput, isActive?: boolean) => Promise<string | null>;
 	updateSeason: (seasonId: string, season: SeasonInput) => Promise<void>;
@@ -51,20 +51,25 @@ function normaliseApiSeasons(seasons: Season[]) {
 }
 
 function getActiveSeasonId(seasons: Season[]) {
-	return (
-		seasons.find((season) => season.isActive)?.id ??
-		seasons[0]?.id ??
-		DEFAULT_SEASON_ID
-	);
+	return seasons.find((season) => season.isActive)?.id ?? seasons[0]?.id ?? "";
 }
 
 export const useSeasonStore = create<SeasonStore>()((set, get) => ({
 	seasons: seedSeasons,
-	activeSeasonId: DEFAULT_SEASON_ID,
+	activeSeasonId: "",
 	isLoadingSeasons: false,
+	hasLoadedSeasons: false,
 	seasonLoadError: "",
 
-	loadSeasons: async () => {
+	loadSeasons: async (force = false) => {
+		if (get().isLoadingSeasons) {
+			return;
+		}
+
+		if (get().hasLoadedSeasons && !force) {
+			return;
+		}
+
 		set({
 			isLoadingSeasons: true,
 			seasonLoadError: "",
@@ -76,8 +81,11 @@ export const useSeasonStore = create<SeasonStore>()((set, get) => ({
 			set({
 				seasons: seasons.length > 0 ? seasons : seedSeasons,
 				activeSeasonId:
-					seasons.length > 0 ? getActiveSeasonId(seasons) : DEFAULT_SEASON_ID,
+					seasons.length > 0
+						? getActiveSeasonId(seasons)
+						: getActiveSeasonId(seedSeasons),
 				isLoadingSeasons: false,
+				hasLoadedSeasons: true,
 			});
 		} catch (error) {
 			set({
@@ -109,14 +117,14 @@ export const useSeasonStore = create<SeasonStore>()((set, get) => ({
 	},
 
 	addSeason: async (seasonInput, isActive = false) => {
-		const id = createSeasonId(seasonInput.name);
-
-		if (!id) {
+		if (!seasonInput.name.trim()) {
 			return null;
 		}
 
 		const seasonAlreadyExists = get().seasons.some(
-			(season) => season.id === id
+			(season) =>
+				season.name.trim().toLowerCase() ===
+				seasonInput.name.trim().toLowerCase()
 		);
 
 		if (seasonAlreadyExists) {
@@ -124,7 +132,7 @@ export const useSeasonStore = create<SeasonStore>()((set, get) => ({
 		}
 
 		const nextSeason: Season = {
-			id,
+			id: "",
 			name: seasonInput.name.trim(),
 			startDate: seasonInput.startDate,
 			endDate: seasonInput.endDate,
@@ -139,13 +147,14 @@ export const useSeasonStore = create<SeasonStore>()((set, get) => ({
 				: state.activeSeasonId,
 			seasons: createdSeason.isActive
 				? [
-						...state.seasons.map((season) => ({
-							...season,
-							isActive: false,
-						})),
-						createdSeason,
-					]
+					...state.seasons.map((season) => ({
+						...season,
+						isActive: false,
+					})),
+					createdSeason,
+				]
 				: [...state.seasons, createdSeason],
+			hasLoadedSeasons: true,
 		}));
 
 		return createdSeason.id;

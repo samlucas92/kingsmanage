@@ -15,23 +15,46 @@ export type Player = {
 	isActive: boolean;
 };
 
+export type PlayerInput = Omit<Player, "id">;
+
 type PlayerState = {
 	players: Player[];
 	isLoadingPlayers: boolean;
+	hasLoadedPlayers: boolean;
 	playerLoadError: string;
-	loadPlayers: () => Promise<void>;
-	addPlayer: (player: Player) => Promise<void>;
-	updatePlayer: (id: string, player: Omit<Player, "id">) => Promise<void>;
+	loadPlayers: (force?: boolean) => Promise<void>;
+	loadPlayer: (id: string, force?: boolean) => Promise<void>;
+	addPlayer: (player: PlayerInput) => Promise<void>;
+	updatePlayer: (id: string, player: PlayerInput) => Promise<void>;
 	removePlayer: (id: string) => void;
 	togglePlayerActive: (id: string) => Promise<void>;
 };
 
+function replacePlayer(players: Player[], updatedPlayer: Player) {
+	const exists = players.some((player) => player.id === updatedPlayer.id);
+
+	if (!exists) {
+		return addPlayerRecord(players, updatedPlayer);
+	}
+
+	return updatePlayerRecord(players, updatedPlayer.id, updatedPlayer);
+}
+
 export const usePlayerStore = create<PlayerState>()((set, get) => ({
 	players: [],
 	isLoadingPlayers: false,
+	hasLoadedPlayers: false,
 	playerLoadError: "",
 
-	loadPlayers: async () => {
+	loadPlayers: async (force = false) => {
+		if (get().isLoadingPlayers) {
+			return;
+		}
+
+		if (get().hasLoadedPlayers && !force) {
+			return;
+		}
+
 		set({
 			isLoadingPlayers: true,
 			playerLoadError: "",
@@ -43,6 +66,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
 			set({
 				players,
 				isLoadingPlayers: false,
+				hasLoadedPlayers: true,
 			});
 		} catch (error) {
 			set({
@@ -55,28 +79,58 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
 		}
 	},
 
+	loadPlayer: async (id, force = false) => {
+		if (!id) {
+			return;
+		}
+
+		if (!force && get().players.some((player) => player.id === id)) {
+			return;
+		}
+
+		set({
+			isLoadingPlayers: true,
+			playerLoadError: "",
+		});
+
+		try {
+			const player = await playerApi.getPlayer(id);
+
+			set((state) => ({
+				players: replacePlayer(state.players, player),
+				isLoadingPlayers: false,
+			}));
+		} catch (error) {
+			set({
+				isLoadingPlayers: false,
+				playerLoadError:
+					error instanceof Error
+						? error.message
+						: "Failed to load player.",
+			});
+		}
+	},
+
 	addPlayer: async (player) => {
-		const createdPlayer = await playerApi.createPlayer(player);
+		const createdPlayer = await playerApi.createPlayer({
+			id: "",
+			...player,
+		});
 
 		set((state) => ({
 			players: addPlayerRecord(state.players, createdPlayer),
+			hasLoadedPlayers: true,
 		}));
 	},
 
 	updatePlayer: async (id, updatedPlayer) => {
-		const player = get().players.find((currentPlayer) => currentPlayer.id === id);
-
-		if (!player) {
-			return;
-		}
-
 		const savedPlayer = await playerApi.updatePlayer(id, {
 			id,
 			...updatedPlayer,
 		});
 
 		set((state) => ({
-			players: updatePlayerRecord(state.players, id, savedPlayer),
+			players: replacePlayer(state.players, savedPlayer),
 		}));
 	},
 
@@ -86,16 +140,21 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
 		})),
 
 	togglePlayerActive: async (id) => {
-		const player = get().players.find((currentPlayer) => currentPlayer.id === id);
+		const player = get().players.find(
+			(currentPlayer) => currentPlayer.id === id
+		);
 
 		if (!player) {
 			return;
 		}
 
-		const updatedPlayer = await playerApi.setPlayerActive(id, !player.isActive);
+		const updatedPlayer = await playerApi.setPlayerActive(
+			id,
+			!player.isActive
+		);
 
 		set((state) => ({
-			players: updatePlayerRecord(state.players, id, updatedPlayer),
+			players: replacePlayer(state.players, updatedPlayer),
 		}));
 	},
 }));

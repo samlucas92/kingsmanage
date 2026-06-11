@@ -14,36 +14,42 @@ import { useMatchDetail } from "./hooks/useMatchDetails";
 
 export default function MatchDetail() {
 	const { id } = useParams();
-
 	const matchDetail = useMatchDetail(id);
+
+	if (matchDetail.isLoadingMatches && !matchDetail.match) {
+		return (
+			<div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+				Loading match...
+			</div>
+		);
+	}
+
+	if (matchDetail.matchLoadError && !matchDetail.match) {
+		return (
+			<div className="space-y-4">
+				<LinkButton to="/matches">← Back to matches</LinkButton>
+				<div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+					{matchDetail.matchLoadError}
+				</div>
+			</div>
+		);
+	}
 
 	if (!matchDetail.match) {
 		return (
-			<div className="w-full min-w-0 space-y-6 overflow-hidden">
-				<LinkButton to="/matches" variant="back" className="mb-4 inline-flex">
-					← Back to matches
-				</LinkButton>
-
-				<NotFoundCard
-					title="Match not found"
-					message="This match may have been removed, or the link may be incorrect."
-					action={
-						<LinkButton to="/matches" variant="plain">
-							View matches
-						</LinkButton>
-					}
-				/>
-			</div>
+			<NotFoundCard
+				title="Match not found"
+				message="That match could not be found."
+				action={<LinkButton to="/matches">View matches</LinkButton>}
+			/>
 		);
 	}
 
 	const currentMatch = matchDetail.match;
 
 	return (
-		<div className="w-full min-w-0 space-y-6 overflow-hidden">
-			<LinkButton to="/matches" variant="back" className="mb-4 inline-flex">
-				← Back to matches
-			</LinkButton>
+		<div className="space-y-6">
+			<LinkButton to="/matches">← Back to matches</LinkButton>
 
 			<MatchHeaderCard
 				opponent={currentMatch.opponent}
@@ -54,46 +60,42 @@ export default function MatchDetail() {
 				onPostponeClick={() => matchDetail.setShowPostponeModal(true)}
 			/>
 
-			<div className="grid min-w-0 grid-cols-1 gap-6 2xl:grid-cols-[minmax(760px,1fr)_minmax(380px,420px)]">
-				<div className="min-w-0 space-y-6 2xl:order-1">
-					<ResultCard
-						homeTeamName={matchDetail.homeTeamName}
-						awayTeamName={matchDetail.awayTeamName}
-						result={currentMatch.result}
-						state={currentMatch.state}
-						isCompleted={currentMatch.isCompleted}
-						onOpenResultModal={matchDetail.handleOpenResultModal}
-					/>
+			<ResultCard
+				homeTeamName={matchDetail.homeTeamName}
+				awayTeamName={matchDetail.awayTeamName}
+				result={currentMatch.result}
+				state={currentMatch.state}
+				isCompleted={currentMatch.isCompleted}
+				onOpenResultModal={matchDetail.handleOpenResultModal}
+			/>
 
-					<TeamSelectionCard
-						matchId={currentMatch.id}
-						starterCount={matchDetail.starterCount}
-						benchCount={matchDetail.benchCount}
-						totalSelectedCount={matchDetail.totalSelectedCount}
-						isLineupLocked={currentMatch.isLineupLocked}
-						onSaveTeamClick={matchDetail.handleSaveTeamClick}
-					/>
-				</div>
+			<TeamSelectionCard
+				matchId={currentMatch.id}
+				starterCount={matchDetail.starterCount}
+				benchCount={matchDetail.benchCount}
+				totalSelectedCount={matchDetail.totalSelectedCount}
+				isLineupLocked={currentMatch.isLineupLocked}
+				onSaveTeamClick={matchDetail.handleSaveTeamClick}
+			/>
 
-				<div className="min-w-0 space-y-6 2xl:order-2">
-					<MatchStatsCard
-						selectedPlayers={currentMatch.selectedPlayers}
-						playerStats={currentMatch.playerStats ?? []}
-						isCompleted={currentMatch.isCompleted}
-						getPlayerName={matchDetail.getPlayerName}
-						onUpdatePlayerStat={matchDetail.handleUpdateMatchPlayerStat}
-					/>
+			<MatchStatsCard
+				selectedPlayers={currentMatch.selectedPlayers}
+				playerStats={currentMatch.playerStats ?? []}
+				isCompleted={currentMatch.isCompleted}
+				getPlayerName={matchDetail.getPlayerName}
+				onUpdatePlayerStat={matchDetail.handleUpdateMatchPlayerStat}
+			/>
 
-					<MatchNotesCard
-						noteDraft={matchDetail.noteDraft}
-						notesSaved={matchDetail.notesSaved}
-						onUpdateNoteDraft={matchDetail.updateNoteDraft}
-						onSaveNotes={matchDetail.handleSaveNotes}
-					/>
+			<MatchNotesCard
+				noteDraft={matchDetail.noteDraft}
+				notesSaved={matchDetail.notesSaved}
+				onUpdateNoteDraft={matchDetail.updateNoteDraft}
+				onSaveNotes={matchDetail.handleSaveNotes}
+			/>
 
-					<PostponementAuditCard postponements={currentMatch.postponements} />
-				</div>
-			</div>
+			<PostponementAuditCard
+				postponements={currentMatch.postponements}
+			/>
 
 			<ResultModal
 				isOpen={matchDetail.showResultModal}

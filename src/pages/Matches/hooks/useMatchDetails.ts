@@ -18,11 +18,13 @@ const emptyMatchNotes: MatchNotes = {
 
 export function useMatchDetail(matchId?: string) {
 	const players = usePlayerStore((state) => state.players);
-
+	const loadPlayers = usePlayerStore((state) => state.loadPlayers);
 	const match = useMatchStore((state) =>
 		state.matches.find((match) => match.id === matchId)
 	);
-
+	const isLoadingMatches = useMatchStore((state) => state.isLoadingMatches);
+	const matchLoadError = useMatchStore((state) => state.matchLoadError);
+	const loadMatch = useMatchStore((state) => state.loadMatch);
 	const setResult = useMatchStore((state) => state.setResult);
 	const postponeMatch = useMatchStore((state) => state.postponeMatch);
 	const toggleLineupLocked = useMatchStore(
@@ -36,15 +38,24 @@ export function useMatchDetail(matchId?: string) {
 	const [showResultModal, setShowResultModal] = useState(false);
 	const [homeGoals, setHomeGoals] = useState(0);
 	const [awayGoals, setAwayGoals] = useState(0);
-
 	const [showPostponeModal, setShowPostponeModal] = useState(false);
 	const [newDate, setNewDate] = useState("");
-
 	const [showIncompleteLineupModal, setShowIncompleteLineupModal] =
 		useState(false);
-
-	const [noteDraft, setNoteDraft] = useState<MatchNotes>(emptyMatchNotes);
+	const [noteDraft, setNoteDraft] = useState(emptyMatchNotes);
 	const [notesSaved, setNotesSaved] = useState(false);
+
+	useEffect(() => {
+		void loadPlayers();
+	}, [loadPlayers]);
+
+	useEffect(() => {
+		if (!matchId) {
+			return;
+		}
+
+		void loadMatch(matchId);
+	}, [loadMatch, matchId]);
 
 	useEffect(() => {
 		if (!match) {
@@ -57,18 +68,20 @@ export function useMatchDetail(matchId?: string) {
 			injuries: match.notes?.injuries ?? "",
 			general: match.notes?.general ?? "",
 		});
-
 		setNotesSaved(false);
 	}, [match?.id]);
 
 	function getPlayerName(playerId: string) {
 		const player = players.find((player) => player.id === playerId);
+
 		return player?.name ?? "Unknown player";
 	}
 
 	if (!match) {
 		return {
 			match: undefined,
+			isLoadingMatches,
+			matchLoadError,
 			showResultModal,
 			homeGoals,
 			awayGoals,
@@ -102,23 +115,17 @@ export function useMatchDetail(matchId?: string) {
 	}
 
 	const currentMatch = match;
-
 	const starterCount = currentMatch.selectedPlayers.filter(
 		(selectedPlayer) => selectedPlayer.area === "pitch"
 	).length;
-
 	const benchCount = currentMatch.selectedPlayers.filter(
 		(selectedPlayer) => selectedPlayer.area === "bench"
 	).length;
-
 	const totalSelectedCount = currentMatch.selectedPlayers.length;
-
 	const homeTeamName =
 		currentMatch.venue === "home" ? "Kingsbridge Colts" : currentMatch.opponent;
-
 	const awayTeamName =
 		currentMatch.venue === "home" ? currentMatch.opponent : "Kingsbridge Colts";
-
 	const resultPreview: ResultPreview =
 		homeGoals === awayGoals
 			? "Draw"
@@ -136,7 +143,7 @@ export function useMatchDetail(matchId?: string) {
 		}
 
 		if (currentMatch.isLineupLocked) {
-			toggleLineupLocked(currentMatch.id);
+			void toggleLineupLocked(currentMatch.id);
 			return;
 		}
 
@@ -145,7 +152,7 @@ export function useMatchDetail(matchId?: string) {
 			return;
 		}
 
-		toggleLineupLocked(currentMatch.id);
+		void toggleLineupLocked(currentMatch.id);
 	}
 
 	function handleConfirmIncompleteLineup() {
@@ -153,7 +160,7 @@ export function useMatchDetail(matchId?: string) {
 			return;
 		}
 
-		toggleLineupLocked(currentMatch.id);
+		void toggleLineupLocked(currentMatch.id);
 		setShowIncompleteLineupModal(false);
 	}
 
@@ -172,11 +179,10 @@ export function useMatchDetail(matchId?: string) {
 			return;
 		}
 
-		setResult(currentMatch.id, {
+		void setResult(currentMatch.id, {
 			homeGoals,
 			awayGoals,
 		});
-
 		setShowResultModal(false);
 	}
 
@@ -185,7 +191,7 @@ export function useMatchDetail(matchId?: string) {
 			return;
 		}
 
-		postponeMatch(currentMatch.id, newDate);
+		void postponeMatch(currentMatch.id, newDate);
 		setShowPostponeModal(false);
 		setNewDate("");
 	}
@@ -203,7 +209,6 @@ export function useMatchDetail(matchId?: string) {
 			...currentNotes,
 			[field]: value,
 		}));
-
 		setNotesSaved(false);
 	}
 
@@ -212,7 +217,7 @@ export function useMatchDetail(matchId?: string) {
 			return;
 		}
 
-		updateMatchNotes(currentMatch.id, noteDraft);
+		void updateMatchNotes(currentMatch.id, noteDraft);
 		setNotesSaved(true);
 	}
 
@@ -225,14 +230,15 @@ export function useMatchDetail(matchId?: string) {
 			return;
 		}
 
-		const nextValue =
-			typeof value === "number" ? Math.max(0, value) : value;
+		const nextValue = typeof value === "number" ? Math.max(0, value) : value;
 
-		updateMatchPlayerStat(currentMatch.id, playerId, field, nextValue);
+		void updateMatchPlayerStat(currentMatch.id, playerId, field, nextValue);
 	}
 
 	return {
 		match: currentMatch,
+		isLoadingMatches,
+		matchLoadError,
 		showResultModal,
 		homeGoals,
 		awayGoals,

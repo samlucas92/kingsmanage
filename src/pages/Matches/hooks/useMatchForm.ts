@@ -3,8 +3,11 @@ import type { ClubTeam, Match, MatchFixtureInput } from "../../../stores/match";
 import { formatDateForInput } from "../../../utils/date";
 
 type UseMatchFormParams = {
-	onCreateMatch: (match: MatchFixtureInput) => void;
-	onUpdateMatch: (matchId: string, match: MatchFixtureInput) => void;
+	onCreateMatch: (match: MatchFixtureInput) => Promise<void> | void;
+	onUpdateMatch: (
+		matchId: string,
+		match: MatchFixtureInput
+	) => Promise<void> | void;
 };
 
 export function useMatchForm({
@@ -18,6 +21,7 @@ export function useMatchForm({
 	const [date, setDate] = useState("");
 	const [venue, setVenue] = useState<"home" | "away">("home");
 	const [formError, setFormError] = useState("");
+	const [isSavingMatch, setIsSavingMatch] = useState(false);
 
 	const isEditing = editingMatchId !== null;
 
@@ -28,6 +32,7 @@ export function useMatchForm({
 		setDate("");
 		setVenue("home");
 		setFormError("");
+		setIsSavingMatch(false);
 	}
 
 	function openAddMatchModal() {
@@ -46,10 +51,15 @@ export function useMatchForm({
 		setDate(formatDateForInput(match.date));
 		setVenue(match.venue);
 		setFormError("");
+		setIsSavingMatch(false);
 		setIsMatchModalOpen(true);
 	}
 
 	function closeMatchModal() {
+		if (isSavingMatch) {
+			return;
+		}
+
 		setIsMatchModalOpen(false);
 		resetForm();
 	}
@@ -86,7 +96,11 @@ export function useMatchForm({
 		return "";
 	}
 
-	function handleConfirmMatch() {
+	async function handleConfirmMatch() {
+		if (isSavingMatch) {
+			return;
+		}
+
 		const validationError = validateMatchForm();
 
 		if (validationError) {
@@ -101,18 +115,33 @@ export function useMatchForm({
 			venue,
 		};
 
-		if (editingMatchId) {
-			onUpdateMatch(editingMatchId, savedMatch);
-		} else {
-			onCreateMatch(savedMatch);
-		}
+		try {
+			setIsSavingMatch(true);
+			setFormError("");
 
-		closeMatchModal();
+			if (editingMatchId) {
+				await onUpdateMatch(editingMatchId, savedMatch);
+			} else {
+				await onCreateMatch(savedMatch);
+			}
+
+			setIsMatchModalOpen(false);
+			resetForm();
+		} catch (error) {
+			setFormError(
+				error instanceof Error
+					? error.message
+					: "Match could not be saved."
+			);
+		} finally {
+			setIsSavingMatch(false);
+		}
 	}
 
 	return {
 		isMatchModalOpen,
 		isEditing,
+		isSavingMatch,
 		team,
 		opponent,
 		date,

@@ -1,7 +1,6 @@
 import { create } from "zustand";
-import { seedMatches } from "../data/seedMatches";
-import { DEFAULT_SEASON_ID } from "../data/seedSeasons";
 import { matchApi } from "../services/matchApi";
+import { useSeasonStore } from "./seasons";
 
 export type MatchState = "upcoming" | "won" | "lost" | "draw" | "postponed";
 
@@ -88,8 +87,11 @@ export type MatchFixtureInput = {
 type MatchStore = {
 	matches: Match[];
 	isLoadingMatches: boolean;
+	hasLoadedMatches: boolean;
+	loadedSeasonId: string;
 	matchLoadError: string;
-	loadMatches: () => Promise<void>;
+	loadMatches: (seasonId?: string, force?: boolean) => Promise<void>;
+	loadMatch: (matchId: string, force?: boolean) => Promise<void>;
 	addMatch: (match: MatchFixtureInput) => Promise<void>;
 	updateMatchFixture: (
 		matchId: string,
@@ -142,10 +144,9 @@ const emptyMatchNotes: MatchNotes = {
 	general: "",
 };
 
-function normaliseMatchSeason(match: Match): Match {
+function normaliseMatch(match: Match): Match {
 	return {
 		...match,
-		seasonId: match.seasonId ?? DEFAULT_SEASON_ID,
 		notes: match.notes ?? emptyMatchNotes,
 		postponements: match.postponements ?? [],
 		selectedPlayers: match.selectedPlayers ?? [],
@@ -154,7 +155,7 @@ function normaliseMatchSeason(match: Match): Match {
 }
 
 function normaliseMatchStore(matches: Match[]) {
-	return matches.map(normaliseMatchSeason);
+	return matches.map(normaliseMatch);
 }
 
 function createEmptyPlayerStat(playerId: string): MatchPlayerStat {
@@ -171,10 +172,15 @@ function createEmptyPlayerStat(playerId: string): MatchPlayerStat {
 }
 
 function replaceMatch(matches: Match[], updatedMatch: Match) {
+	const normalisedMatch = normaliseMatch(updatedMatch);
+	const exists = matches.some((match) => match.id === normalisedMatch.id);
+
+	if (!exists) {
+		return [...matches, normalisedMatch];
+	}
+
 	return matches.map((match) =>
-		match.id === updatedMatch.id
-			? normaliseMatchSeason(updatedMatch)
-			: match
+		match.id === normalisedMatch.id ? normalisedMatch : match
 	);
 }
 
@@ -206,23 +212,47 @@ function getUpdatedPlayerStats(
 	);
 }
 
+function getDefaultSeasonId() {
+	return useSeasonStore.getState().activeSeasonId || undefined;
+}
+
 export const useMatchStore = create<MatchStore>()((set, get) => ({
-	matches: normaliseMatchStore(seedMatches),
+	matches: [],
 	isLoadingMatches: false,
+	hasLoadedMatches: false,
+	loadedSeasonId: "",
 	matchLoadError: "",
 
-	loadMatches: async () => {
+	loadMatches: async (seasonId, force = false) => {
+		const requestedSeasonId = seasonId ?? getDefaultSeasonId() ?? "";
+
+		if (get().isLoadingMatches) {
+			return;
+		}
+
+		if (
+			get().hasLoadedMatches &&
+			get().loadedSeasonId === requestedSeasonId &&
+			!force
+		) {
+			return;
+		}
+
 		set({
 			isLoadingMatches: true,
 			matchLoadError: "",
 		});
 
 		try {
-			const matches = await matchApi.getMatches();
+			const matches = requestedSeasonId
+				? await matchApi.getSeasonMatches(requestedSeasonId)
+				: await matchApi.getMatches();
 
 			set({
 				matches: normaliseMatchStore(matches),
 				isLoadingMatches: false,
+				hasLoadedMatches: true,
+				loadedSeasonId: requestedSeasonId,
 			});
 		} catch (error) {
 			set({
@@ -235,17 +265,43 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
 		}
 	},
 
+	loadMatch: async (matchId, force = false) => {
+		if (!force && get().matches.some((match) => match.id === matchId)) {
+			return;
+		}
+
+		set({
+			isLoadingMatches: true,
+			matchLoadError: "",
+		});
+
+		try {
+			const match = await matchApi.getMatch(matchId);
+
+			set((state) => ({
+				matches: replaceMatch(state.matches, match),
+				isLoadingMatches: false,
+			}));
+		} catch (error) {
+			set({
+				isLoadingMatches: false,
+				matchLoadError:
+					error instanceof Error
+						? error.message
+						: "Failed to load match.",
+			});
+		}
+	},
+
 	addMatch: async (match) => {
 		const createdMatch = await matchApi.createMatch({
 			...match,
-			seasonId: match.seasonId ?? DEFAULT_SEASON_ID,
+			seasonId: match.seasonId ?? getDefaultSeasonId(),
 		});
 
 		set((state) => ({
-			matches: [
-				...state.matches,
-				normaliseMatchSeason(createdMatch),
-			],
+			matches: replaceMatch(state.matches, createdMatch),
+			hasLoadedMatches: true,
 		}));
 	},
 
@@ -258,10 +314,7 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
 
 		const updatedMatch: Match = {
 			...currentMatch,
-			seasonId:
-				updatedFixture.seasonId ??
-				currentMatch.seasonId ??
-				DEFAULT_SEASON_ID,
+			seasonId: updatedFixture.seasonId ?? currentMatch.seasonId,
 			team: updatedFixture.team,
 			opponent: updatedFixture.opponent,
 			date: updatedFixture.date,
@@ -459,7 +512,3 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
 		}));
 	},
 }));
-
-queueMicrotask(() => {
-	void useMatchStore.getState().loadMatches();
-});
