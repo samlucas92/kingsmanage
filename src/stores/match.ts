@@ -1,21 +1,7 @@
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
 import { seedMatches } from "../data/seedMatches";
-import {
-	createMatchRecord,
-	normaliseMatchSeason,
-	postponeMatchRecord,
-	removeSelectedPlayerRecord,
-	restoreMatchRecord,
-	setLineupFormationRecord,
-	setMatchResultRecord,
-	setSelectedPlayersRecord,
-	toggleLineupLockedRecord,
-	updateMatchFixtureRecord,
-	updateMatchNotesRecord,
-	updateMatchPlayerStatRecord,
-	updateSelectedPlayerPositionRecord,
-} from "../services/matchService";
+import { DEFAULT_SEASON_ID } from "../data/seedSeasons";
+import { matchApi } from "../services/matchApi";
 
 export type MatchState = "upcoming" | "won" | "lost" | "draw" | "postponed";
 
@@ -101,30 +87,29 @@ export type MatchFixtureInput = {
 
 type MatchStore = {
 	matches: Match[];
-
-	addMatch: (match: MatchFixtureInput) => void;
-
+	isLoadingMatches: boolean;
+	matchLoadError: string;
+	loadMatches: () => Promise<void>;
+	addMatch: (match: MatchFixtureInput) => Promise<void>;
 	updateMatchFixture: (
 		matchId: string,
 		match: MatchFixtureInput
-	) => void;
-
-	postponeMatch: (matchId: string, newDate: string, reason?: string) => void;
-
-	restoreMatch: (matchId: string) => void;
-
-	setResult: (matchId: string, result: MatchResult) => void;
-
+	) => Promise<void>;
+	postponeMatch: (
+		matchId: string,
+		newDate: string,
+		reason?: string
+	) => Promise<void>;
+	restoreMatch: (matchId: string) => Promise<void>;
+	setResult: (matchId: string, result: MatchResult) => Promise<void>;
 	setSelectedPlayers: (
 		matchId: string,
 		selectedPlayers: SelectedPlayer[]
-	) => void;
-
+	) => Promise<void>;
 	setLineupFormation: (
 		matchId: string,
 		formation: LineupFormation
-	) => void;
-
+	) => Promise<void>;
 	updateSelectedPlayerPosition: (
 		matchId: string,
 		playerId: string,
@@ -132,153 +117,349 @@ type MatchStore = {
 		y: number,
 		area?: "pitch" | "bench",
 		positionIndex?: number
-	) => void;
-
-	removeSelectedPlayer: (matchId: string, playerId: string) => void;
-
-	toggleLineupLocked: (matchId: string) => void;
-
-	updateMatchNotes: (matchId: string, notes: MatchNotes) => void;
-
+	) => Promise<void>;
+	removeSelectedPlayer: (
+		matchId: string,
+		playerId: string
+	) => Promise<void>;
+	toggleLineupLocked: (matchId: string) => Promise<void>;
+	updateMatchNotes: (
+		matchId: string,
+		notes: MatchNotes
+	) => Promise<void>;
 	updateMatchPlayerStat: (
 		matchId: string,
 		playerId: string,
 		field: MatchPlayerStatField,
 		value: MatchPlayerStatValue
-	) => void;
+	) => Promise<void>;
 };
+
+const emptyMatchNotes: MatchNotes = {
+	availability: "",
+	tactical: "",
+	injuries: "",
+	general: "",
+};
+
+function normaliseMatchSeason(match: Match): Match {
+	return {
+		...match,
+		seasonId: match.seasonId ?? DEFAULT_SEASON_ID,
+		notes: match.notes ?? emptyMatchNotes,
+		postponements: match.postponements ?? [],
+		selectedPlayers: match.selectedPlayers ?? [],
+		playerStats: match.playerStats ?? [],
+	};
+}
 
 function normaliseMatchStore(matches: Match[]) {
 	return matches.map(normaliseMatchSeason);
 }
 
-export const useMatchStore = create<MatchStore>()(
-	persist(
-		(set) => ({
-			matches: normaliseMatchStore(seedMatches),
+function createEmptyPlayerStat(playerId: string): MatchPlayerStat {
+	return {
+		playerId,
+		goals: 0,
+		assists: 0,
+		yellowCards: 0,
+		redCards: 0,
+		minutes: 0,
+		isMOTM: false,
+		note: "",
+	};
+}
 
-			addMatch: (match) =>
-				set((state) => ({
-					matches: [...state.matches, createMatchRecord(match)],
-				})),
+function replaceMatch(matches: Match[], updatedMatch: Match) {
+	return matches.map((match) =>
+		match.id === updatedMatch.id
+			? normaliseMatchSeason(updatedMatch)
+			: match
+	);
+}
 
-			updateMatchFixture: (matchId, updatedFixture) =>
-				set((state) => ({
-					matches: state.matches.map((match) =>
-						match.id === matchId
-							? updateMatchFixtureRecord(match, updatedFixture)
-							: match
-					),
-				})),
+function getUpdatedPlayerStats(
+	currentStats: MatchPlayerStat[],
+	playerId: string,
+	field: MatchPlayerStatField,
+	value: MatchPlayerStatValue
+) {
+	const existingStat = currentStats.find((stat) => stat.playerId === playerId);
 
-			postponeMatch: (matchId, newDate, reason) =>
-				set((state) => ({
-					matches: state.matches.map((match) =>
-						match.id === matchId
-							? postponeMatchRecord(match, newDate, reason)
-							: match
-					),
-				})),
+	if (!existingStat) {
+		return [
+			...currentStats,
+			{
+				...createEmptyPlayerStat(playerId),
+				[field]: value,
+			},
+		];
+	}
 
-			restoreMatch: (matchId) =>
-				set((state) => ({
-					matches: state.matches.map((match) =>
-						match.id === matchId ? restoreMatchRecord(match) : match
-					),
-				})),
+	return currentStats.map((stat) =>
+		stat.playerId === playerId
+			? {
+				...stat,
+				[field]: value,
+			}
+			: stat
+	);
+}
 
-			setResult: (matchId, result) =>
-				set((state) => ({
-					matches: state.matches.map((match) =>
-						match.id === matchId ? setMatchResultRecord(match, result) : match
-					),
-				})),
+export const useMatchStore = create<MatchStore>()((set, get) => ({
+	matches: normaliseMatchStore(seedMatches),
+	isLoadingMatches: false,
+	matchLoadError: "",
 
-			setSelectedPlayers: (matchId, selectedPlayers) =>
-				set((state) => ({
-					matches: state.matches.map((match) =>
-						match.id === matchId
-							? setSelectedPlayersRecord(match, selectedPlayers)
-							: match
-					),
-				})),
+	loadMatches: async () => {
+		set({
+			isLoadingMatches: true,
+			matchLoadError: "",
+		});
 
-			setLineupFormation: (matchId, formation) =>
-				set((state) => ({
-					matches: state.matches.map((match) =>
-						match.id === matchId
-							? setLineupFormationRecord(match, formation)
-							: match
-					),
-				})),
+		try {
+			const matches = await matchApi.getMatches();
 
-			updateSelectedPlayerPosition: (
-				matchId,
-				playerId,
-				x,
-				y,
-				area,
-				positionIndex
-			) =>
-				set((state) => ({
-					matches: state.matches.map((match) =>
-						match.id === matchId
-							? updateSelectedPlayerPositionRecord(
-									match,
-									playerId,
-									x,
-									y,
-									area,
-									positionIndex
-								)
-							: match
-					),
-				})),
+			set({
+				matches: normaliseMatchStore(matches),
+				isLoadingMatches: false,
+			});
+		} catch (error) {
+			set({
+				isLoadingMatches: false,
+				matchLoadError:
+					error instanceof Error
+						? error.message
+						: "Failed to load matches.",
+			});
+		}
+	},
 
-			removeSelectedPlayer: (matchId, playerId) =>
-				set((state) => ({
-					matches: state.matches.map((match) =>
-						match.id === matchId
-							? removeSelectedPlayerRecord(match, playerId)
-							: match
-					),
-				})),
+	addMatch: async (match) => {
+		const createdMatch = await matchApi.createMatch({
+			...match,
+			seasonId: match.seasonId ?? DEFAULT_SEASON_ID,
+		});
 
-			toggleLineupLocked: (matchId) =>
-				set((state) => ({
-					matches: state.matches.map((match) =>
-						match.id === matchId ? toggleLineupLockedRecord(match) : match
-					),
-				})),
+		set((state) => ({
+			matches: [
+				...state.matches,
+				normaliseMatchSeason(createdMatch),
+			],
+		}));
+	},
 
-			updateMatchNotes: (matchId, notes) =>
-				set((state) => ({
-					matches: state.matches.map((match) =>
-						match.id === matchId ? updateMatchNotesRecord(match, notes) : match
-					),
-				})),
+	updateMatchFixture: async (matchId, updatedFixture) => {
+		const currentMatch = get().matches.find((match) => match.id === matchId);
 
-			updateMatchPlayerStat: (matchId, playerId, field, value) =>
-				set((state) => ({
-					matches: state.matches.map((match) =>
-						match.id === matchId
-							? updateMatchPlayerStatRecord(match, playerId, field, value)
-							: match
-					),
-				})),
-		}),
-		{
-			name: "kingsbridge-colts-match-store",
-			storage: createJSONStorage(() => localStorage),
-			version: 2,
-			migrate: (persistedState) => {
-				const state = persistedState as Partial<MatchStore>;
+		if (!currentMatch || currentMatch.isCompleted) {
+			return;
+		}
+
+		const updatedMatch: Match = {
+			...currentMatch,
+			seasonId:
+				updatedFixture.seasonId ??
+				currentMatch.seasonId ??
+				DEFAULT_SEASON_ID,
+			team: updatedFixture.team,
+			opponent: updatedFixture.opponent,
+			date: updatedFixture.date,
+			venue: updatedFixture.venue,
+		};
+
+		const savedMatch = await matchApi.updateMatch(matchId, updatedMatch);
+
+		set((state) => ({
+			matches: replaceMatch(state.matches, savedMatch),
+		}));
+	},
+
+	postponeMatch: async (matchId, newDate, reason) => {
+		const currentMatch = get().matches.find((match) => match.id === matchId);
+
+		if (!currentMatch || currentMatch.isCompleted) {
+			return;
+		}
+
+		const savedMatch = await matchApi.postponeMatch(matchId, {
+			newDate,
+			reason,
+		});
+
+		set((state) => ({
+			matches: replaceMatch(state.matches, savedMatch),
+		}));
+	},
+
+	restoreMatch: async (matchId) => {
+		const currentMatch = get().matches.find((match) => match.id === matchId);
+
+		if (
+			!currentMatch ||
+			currentMatch.isCompleted ||
+			currentMatch.state !== "postponed"
+		) {
+			return;
+		}
+
+		const savedMatch = await matchApi.restoreMatch(matchId);
+
+		set((state) => ({
+			matches: replaceMatch(state.matches, savedMatch),
+		}));
+	},
+
+	setResult: async (matchId, result) => {
+		const currentMatch = get().matches.find((match) => match.id === matchId);
+
+		if (!currentMatch || currentMatch.isCompleted) {
+			return;
+		}
+
+		const savedMatch = await matchApi.setResult(matchId, result);
+
+		set((state) => ({
+			matches: replaceMatch(state.matches, savedMatch),
+		}));
+	},
+
+	setSelectedPlayers: async (matchId, selectedPlayers) => {
+		const currentMatch = get().matches.find((match) => match.id === matchId);
+
+		if (!currentMatch || currentMatch.isLineupLocked) {
+			return;
+		}
+
+		const savedMatch = await matchApi.setSelectedPlayers(
+			matchId,
+			selectedPlayers
+		);
+
+		set((state) => ({
+			matches: replaceMatch(state.matches, savedMatch),
+		}));
+	},
+
+	setLineupFormation: async (matchId, formation) => {
+		const currentMatch = get().matches.find((match) => match.id === matchId);
+
+		if (!currentMatch || currentMatch.isLineupLocked) {
+			return;
+		}
+
+		const savedMatch = await matchApi.setLineupFormation(
+			matchId,
+			formation
+		);
+
+		set((state) => ({
+			matches: replaceMatch(state.matches, savedMatch),
+		}));
+	},
+
+	updateSelectedPlayerPosition: async (
+		matchId,
+		playerId,
+		x,
+		y,
+		area,
+		positionIndex
+	) => {
+		const currentMatch = get().matches.find((match) => match.id === matchId);
+
+		if (!currentMatch || currentMatch.isLineupLocked) {
+			return;
+		}
+
+		const selectedPlayers = currentMatch.selectedPlayers.map(
+			(selectedPlayer) => {
+				if (selectedPlayer.playerId !== playerId) {
+					return selectedPlayer;
+				}
 
 				return {
-					...state,
-					matches: normaliseMatchStore(state.matches ?? seedMatches),
+					...selectedPlayer,
+					x,
+					y,
+					area: area ?? selectedPlayer.area,
+					positionIndex,
 				};
-			},
+			}
+		);
+
+		const savedMatch = await matchApi.setSelectedPlayers(
+			matchId,
+			selectedPlayers
+		);
+
+		set((state) => ({
+			matches: replaceMatch(state.matches, savedMatch),
+		}));
+	},
+
+	removeSelectedPlayer: async (matchId, playerId) => {
+		const currentMatch = get().matches.find((match) => match.id === matchId);
+
+		if (!currentMatch || currentMatch.isLineupLocked) {
+			return;
 		}
-	)
-);
+
+		const selectedPlayers = currentMatch.selectedPlayers.filter(
+			(selectedPlayer) => selectedPlayer.playerId !== playerId
+		);
+
+		const savedMatch = await matchApi.setSelectedPlayers(
+			matchId,
+			selectedPlayers
+		);
+
+		set((state) => ({
+			matches: replaceMatch(state.matches, savedMatch),
+		}));
+	},
+
+	toggleLineupLocked: async (matchId) => {
+		const savedMatch = await matchApi.toggleLineupLocked(matchId);
+
+		set((state) => ({
+			matches: replaceMatch(state.matches, savedMatch),
+		}));
+	},
+
+	updateMatchNotes: async (matchId, notes) => {
+		const savedMatch = await matchApi.updateNotes(matchId, notes);
+
+		set((state) => ({
+			matches: replaceMatch(state.matches, savedMatch),
+		}));
+	},
+
+	updateMatchPlayerStat: async (matchId, playerId, field, value) => {
+		const currentMatch = get().matches.find((match) => match.id === matchId);
+
+		if (!currentMatch) {
+			return;
+		}
+
+		const playerStats = getUpdatedPlayerStats(
+			currentMatch.playerStats ?? [],
+			playerId,
+			field,
+			value
+		);
+
+		const savedMatch = await matchApi.updatePlayerStats(
+			matchId,
+			playerStats
+		);
+
+		set((state) => ({
+			matches: replaceMatch(state.matches, savedMatch),
+		}));
+	},
+}));
+
+queueMicrotask(() => {
+	void useMatchStore.getState().loadMatches();
+});

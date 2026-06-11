@@ -2,7 +2,6 @@ import { create } from "zustand";
 import {
 	addPlayerRecord,
 	removePlayerRecord,
-	togglePlayerActiveRecord,
 	updatePlayerRecord,
 } from "../services/playerService";
 import { playerApi } from "../services/playerApi";
