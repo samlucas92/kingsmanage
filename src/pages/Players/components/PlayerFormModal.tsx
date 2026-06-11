@@ -5,10 +5,11 @@ import type { PlayerFormState } from "../hooks/usePlayerForm";
 interface PlayerFormModalProps {
 	isOpen: boolean;
 	isEditing: boolean;
+	isSaving: boolean;
 	playerForm: PlayerFormState;
 	formError: string;
 	onClose: () => void;
-	onConfirm: () => void;
+	onConfirm: () => Promise<void>;
 	onUpdatePlayerForm: (
 		field: keyof PlayerFormState,
 		value: string | boolean
@@ -19,6 +20,7 @@ interface PlayerFormModalProps {
 export function PlayerFormModal({
 	isOpen,
 	isEditing,
+	isSaving,
 	playerForm,
 	formError,
 	onClose,
@@ -30,7 +32,13 @@ export function PlayerFormModal({
 		<Modal
 			isOpen={isOpen}
 			title={isEditing ? "Edit player" : "Add player"}
-			confirmText={isEditing ? "Save Changes" : "Add Player"}
+			confirmText={
+				isSaving
+					? "Saving..."
+					: isEditing
+						? "Save Changes"
+						: "Add Player"
+			}
 			onClose={onClose}
 			onConfirm={onConfirm}
 		>
@@ -41,6 +49,12 @@ export function PlayerFormModal({
 					</div>
 				)}
 
+				{isSaving && (
+					<div className="rounded-lg bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700">
+						Saving player...
+					</div>
+				)}
+
 				<label className="block space-y-1">
 					<span className="text-sm font-semibold text-slate-700">
 						Name
@@ -48,10 +62,11 @@ export function PlayerFormModal({
 
 					<input
 						value={playerForm.name}
+						disabled={isSaving}
 						onChange={(event) =>
 							onUpdatePlayerForm("name", event.target.value)
 						}
-						className="w-full rounded-lg border px-3 py-2"
+						className="w-full rounded-lg border px-3 py-2 disabled:bg-slate-100"
 						placeholder="Player name"
 					/>
 				</label>
@@ -66,10 +81,11 @@ export function PlayerFormModal({
 							type="number"
 							min={1}
 							value={playerForm.number}
+							disabled={isSaving}
 							onChange={(event) =>
 								onUpdatePlayerForm("number", event.target.value)
 							}
-							className="w-full rounded-lg border px-3 py-2"
+							className="w-full rounded-lg border px-3 py-2 disabled:bg-slate-100"
 						/>
 					</label>
 
@@ -82,10 +98,11 @@ export function PlayerFormModal({
 							type="number"
 							min={0}
 							value={playerForm.appearances}
+							disabled={isSaving}
 							onChange={(event) =>
 								onUpdatePlayerForm("appearances", event.target.value)
 							}
-							className="w-full rounded-lg border px-3 py-2"
+							className="w-full rounded-lg border px-3 py-2 disabled:bg-slate-100"
 						/>
 					</label>
 				</div>
@@ -103,8 +120,9 @@ export function PlayerFormModal({
 								<button
 									key={position}
 									type="button"
+									disabled={isSaving}
 									onClick={() => onTogglePosition(position)}
-									className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+									className={`rounded-full border px-3 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${
 										selected
 											? "border-blue-700 bg-blue-700 text-white"
 											: "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
@@ -121,6 +139,7 @@ export function PlayerFormModal({
 					<input
 						type="checkbox"
 						checked={playerForm.isActive}
+						disabled={isSaving}
 						onChange={(event) =>
 							onUpdatePlayerForm("isActive", event.target.checked)
 						}

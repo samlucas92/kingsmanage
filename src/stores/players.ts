@@ -1,12 +1,11 @@
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
-import { seedPlayers } from "../data/seedPlayers";
 import {
 	addPlayerRecord,
 	removePlayerRecord,
 	togglePlayerActiveRecord,
 	updatePlayerRecord,
 } from "../services/playerService";
+import { playerApi } from "../services/playerApi";
 
 export type Player = {
 	id: string;
@@ -19,40 +18,85 @@ export type Player = {
 
 type PlayerState = {
 	players: Player[];
-	addPlayer: (player: Player) => void;
-	updatePlayer: (id: string, player: Omit<Player, "id">) => void;
+	isLoadingPlayers: boolean;
+	playerLoadError: string;
+	loadPlayers: () => Promise<void>;
+	addPlayer: (player: Player) => Promise<void>;
+	updatePlayer: (id: string, player: Omit<Player, "id">) => Promise<void>;
 	removePlayer: (id: string) => void;
-	togglePlayerActive: (id: string) => void;
+	togglePlayerActive: (id: string) => Promise<void>;
 };
 
-export const usePlayerStore = create<PlayerState>()(
-	persist(
-		(set) => ({
-			players: seedPlayers,
+export const usePlayerStore = create<PlayerState>()((set, get) => ({
+	players: [],
+	isLoadingPlayers: false,
+	playerLoadError: "",
 
-			addPlayer: (player) =>
-				set((state) => ({
-					players: addPlayerRecord(state.players, player),
-				})),
+	loadPlayers: async () => {
+		set({
+			isLoadingPlayers: true,
+			playerLoadError: "",
+		});
 
-			updatePlayer: (id, updatedPlayer) =>
-				set((state) => ({
-					players: updatePlayerRecord(state.players, id, updatedPlayer),
-				})),
+		try {
+			const players = await playerApi.getPlayers();
 
-			removePlayer: (id) =>
-				set((state) => ({
-					players: removePlayerRecord(state.players, id),
-				})),
-
-			togglePlayerActive: (id) =>
-				set((state) => ({
-					players: togglePlayerActiveRecord(state.players, id),
-				})),
-		}),
-		{
-			name: "kingsbridge-colts-player-store",
-			storage: createJSONStorage(() => localStorage),
+			set({
+				players,
+				isLoadingPlayers: false,
+			});
+		} catch (error) {
+			set({
+				isLoadingPlayers: false,
+				playerLoadError:
+					error instanceof Error
+						? error.message
+						: "Failed to load players.",
+			});
 		}
-	)
-);
+	},
+
+	addPlayer: async (player) => {
+		const createdPlayer = await playerApi.createPlayer(player);
+
+		set((state) => ({
+			players: addPlayerRecord(state.players, createdPlayer),
+		}));
+	},
+
+	updatePlayer: async (id, updatedPlayer) => {
+		const player = get().players.find((currentPlayer) => currentPlayer.id === id);
+
+		if (!player) {
+			return;
+		}
+
+		const savedPlayer = await playerApi.updatePlayer(id, {
+			id,
+			...updatedPlayer,
+		});
+
+		set((state) => ({
+			players: updatePlayerRecord(state.players, id, savedPlayer),
+		}));
+	},
+
+	removePlayer: (id) =>
+		set((state) => ({
+			players: removePlayerRecord(state.players, id),
+		})),
+
+	togglePlayerActive: async (id) => {
+		const player = get().players.find((currentPlayer) => currentPlayer.id === id);
+
+		if (!player) {
+			return;
+		}
+
+		const updatedPlayer = await playerApi.setPlayerActive(id, !player.isActive);
+
+		set((state) => ({
+			players: updatePlayerRecord(state.players, id, updatedPlayer),
+		}));
+	},
+}));

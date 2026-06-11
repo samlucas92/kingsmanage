@@ -9,7 +9,13 @@ export type PlayerFormState = {
 	isActive: boolean;
 };
 
-export const emptyPlayerForm: PlayerFormState = {
+type UsePlayerFormProps = {
+	players: Player[];
+	onCreatePlayer: (player: Omit<Player, "id">) => Promise<void>;
+	onUpdatePlayer: (id: string, player: Omit<Player, "id">) => Promise<void>;
+};
+
+const emptyPlayerForm: PlayerFormState = {
 	name: "",
 	number: "",
 	appearances: "0",
@@ -17,22 +23,16 @@ export const emptyPlayerForm: PlayerFormState = {
 	isActive: true,
 };
 
-type UsePlayerFormParams = {
-	players: Player[];
-	onCreatePlayer?: (player: Omit<Player, "id">) => void;
-	onUpdatePlayer?: (id: string, player: Omit<Player, "id">) => void;
-};
-
 export function usePlayerForm({
 	players,
 	onCreatePlayer,
 	onUpdatePlayer,
-}: UsePlayerFormParams) {
+}: UsePlayerFormProps) {
 	const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
 	const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
-	const [playerForm, setPlayerForm] =
-		useState<PlayerFormState>(emptyPlayerForm);
+	const [playerForm, setPlayerForm] = useState<PlayerFormState>(emptyPlayerForm);
 	const [formError, setFormError] = useState("");
+	const [isSavingPlayer, setIsSavingPlayer] = useState(false);
 
 	const isEditing = editingPlayerId !== null;
 
@@ -40,6 +40,7 @@ export function usePlayerForm({
 		setEditingPlayerId(null);
 		setPlayerForm(emptyPlayerForm);
 		setFormError("");
+		setIsSavingPlayer(false);
 		setIsPlayerModalOpen(true);
 	}
 
@@ -53,14 +54,20 @@ export function usePlayerForm({
 			isActive: player.isActive,
 		});
 		setFormError("");
+		setIsSavingPlayer(false);
 		setIsPlayerModalOpen(true);
 	}
 
 	function closePlayerModal() {
+		if (isSavingPlayer) {
+			return;
+		}
+
 		setIsPlayerModalOpen(false);
 		setEditingPlayerId(null);
 		setPlayerForm(emptyPlayerForm);
 		setFormError("");
+		setIsSavingPlayer(false);
 	}
 
 	function updatePlayerForm(
@@ -71,87 +78,103 @@ export function usePlayerForm({
 			...currentForm,
 			[field]: value,
 		}));
-
-		setFormError("");
 	}
 
 	function togglePosition(position: string) {
 		setPlayerForm((currentForm) => {
-			const alreadySelected = currentForm.positions.includes(position);
+			const isSelected = currentForm.positions.includes(position);
 
 			return {
 				...currentForm,
-				positions: alreadySelected
+				positions: isSelected
 					? currentForm.positions.filter(
 							(currentPosition) => currentPosition !== position
 						)
 					: [...currentForm.positions, position],
 			};
 		});
-
-		setFormError("");
 	}
 
-	function validatePlayerForm() {
+	async function handleSavePlayer() {
+		if (isSavingPlayer) {
+			return;
+		}
+
 		const name = playerForm.name.trim();
 		const number = Number(playerForm.number);
 		const appearances = Number(playerForm.appearances);
 
 		if (!name) {
-			return "Player name is required.";
-		}
-
-		if (!Number.isInteger(number) || number <= 0) {
-			return "Shirt number must be a positive whole number.";
-		}
-
-		const shirtNumberAlreadyUsed = players.some(
-			(player) => player.number === number && player.id !== editingPlayerId
-		);
-
-		if (shirtNumberAlreadyUsed) {
-			return `Shirt number ${number} is already being used.`;
-		}
-
-		if (!Number.isInteger(appearances) || appearances < 0) {
-			return "Appearances must be 0 or above.";
-		}
-
-		if (playerForm.positions.length === 0) {
-			return "Select at least one position.";
-		}
-
-		return "";
-	}
-
-	function handleSavePlayer() {
-		const validationError = validatePlayerForm();
-
-		if (validationError) {
-			setFormError(validationError);
+			setFormError("Player name is required.");
 			return;
 		}
 
-		const savedPlayer = {
-			name: playerForm.name.trim(),
-			number: Number(playerForm.number),
-			appearances: Number(playerForm.appearances),
+		if (!Number.isFinite(number) || number <= 0) {
+			setFormError("Shirt number must be greater than 0.");
+			return;
+		}
+
+		if (!Number.isFinite(appearances) || appearances < 0) {
+			setFormError("Appearances cannot be less than 0.");
+			return;
+		}
+
+		if (playerForm.positions.length === 0) {
+			setFormError("Select at least one position.");
+			return;
+		}
+
+		const duplicatePlayer = players.find((player) => {
+			const isSamePlayer = editingPlayerId && player.id === editingPlayerId;
+
+			return (
+				!isSamePlayer &&
+				player.name.trim().toLowerCase() === name.toLowerCase()
+			);
+		});
+
+		if (duplicatePlayer) {
+			setFormError("A player with this name already exists.");
+			return;
+		}
+
+		const playerToSave: Omit<Player, "id"> = {
+			name,
+			number,
+			appearances,
 			positions: playerForm.positions,
 			isActive: playerForm.isActive,
 		};
 
-		if (editingPlayerId) {
-			onUpdatePlayer?.(editingPlayerId, savedPlayer);
-		} else {
-			onCreatePlayer?.(savedPlayer);
-		}
+		try {
+			setIsSavingPlayer(true);
+			setFormError("");
 
-		closePlayerModal();
+			if (editingPlayerId) {
+				await onUpdatePlayer(editingPlayerId, playerToSave);
+			} else {
+				await onCreatePlayer(playerToSave);
+			}
+
+			setIsPlayerModalOpen(false);
+			setEditingPlayerId(null);
+			setPlayerForm(emptyPlayerForm);
+			setFormError("");
+		} catch (error) {
+			setFormError(
+				error instanceof Error
+					? error.message
+					: "Player could not be saved."
+			);
+		} finally {
+			setIsSavingPlayer(false);
+		}
 	}
 
 	return {
 		isPlayerModalOpen,
 		isEditing,
+		isSavingPlayer,
 		playerForm,
 		formError,
 		openAddPlayerModal,

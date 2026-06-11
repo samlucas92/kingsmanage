@@ -31,6 +31,7 @@ export default function PlayerProfile() {
 
 	const players = usePlayerStore((state) => state.players);
 	const matches = useMatchStore((state) => state.matches);
+	const addPlayer = usePlayerStore((state) => state.addPlayer);
 	const updatePlayer = usePlayerStore((state) => state.updatePlayer);
 	const togglePlayerActive = usePlayerStore(
 		(state) => state.togglePlayerActive
@@ -56,7 +57,15 @@ export default function PlayerProfile() {
 
 	const playerForm = usePlayerForm({
 		players,
-		onUpdatePlayer: updatePlayer,
+		onCreatePlayer: async (player) => {
+			await addPlayer({
+				id: crypto.randomUUID(),
+				...player,
+			});
+		},
+		onUpdatePlayer: async (playerId, player) => {
+			await updatePlayer(playerId, player);
+		},
 	});
 
 	useEffect(() => {
@@ -175,7 +184,9 @@ export default function PlayerProfile() {
 
 						<button
 							type="button"
-							onClick={() => togglePlayerActive(currentPlayer.id)}
+							onClick={() => {
+								void togglePlayerActive(currentPlayer.id);
+							}}
 							className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-50"
 						>
 							{currentPlayer.isActive ? "Deactivate" : "Activate"}
@@ -506,6 +517,7 @@ export default function PlayerProfile() {
 			<PlayerFormModal
 				isOpen={playerForm.isPlayerModalOpen}
 				isEditing={playerForm.isEditing}
+				isSaving={playerForm.isSavingPlayer}
 				playerForm={playerForm.playerForm}
 				formError={playerForm.formError}
 				onClose={playerForm.closePlayerModal}

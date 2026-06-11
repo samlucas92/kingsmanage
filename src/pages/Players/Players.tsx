@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePlayerStore } from "../../stores/players";
 import type { Player } from "../../stores/players";
 import { PlayerFormModal } from "./components/PlayerFormModal";
@@ -8,6 +8,9 @@ import { usePlayerForm } from "./hooks/usePlayerForm";
 
 export default function Players() {
 	const players = usePlayerStore((state) => state.players);
+	const isLoadingPlayers = usePlayerStore((state) => state.isLoadingPlayers);
+	const playerLoadError = usePlayerStore((state) => state.playerLoadError);
+	const loadPlayers = usePlayerStore((state) => state.loadPlayers);
 	const addPlayer = usePlayerStore((state) => state.addPlayer);
 	const updatePlayer = usePlayerStore((state) => state.updatePlayer);
 	const togglePlayerActive = usePlayerStore(
@@ -18,15 +21,21 @@ export default function Players() {
 	const [positionFilter, setPositionFilter] = useState("all");
 	const [includeInactive, setIncludeInactive] = useState(false);
 
+	useEffect(() => {
+		void loadPlayers();
+	}, [loadPlayers]);
+
 	const playerForm = usePlayerForm({
 		players,
-		onCreatePlayer: (player) => {
-			addPlayer({
+		onCreatePlayer: async (player) => {
+			await addPlayer({
 				id: crypto.randomUUID(),
 				...player,
 			});
 		},
-		onUpdatePlayer: updatePlayer,
+		onUpdatePlayer: async (id, player) => {
+			await updatePlayer(id, player);
+		},
 	});
 
 	const filteredPlayers = useMemo(() => {
@@ -46,6 +55,10 @@ export default function Players() {
 
 	function openEditPlayerModal(player: Player) {
 		playerForm.openEditPlayerModal(player);
+	}
+
+	function handleTogglePlayerActive(playerId: string) {
+		void togglePlayerActive(playerId);
 	}
 
 	return (
@@ -68,6 +81,18 @@ export default function Players() {
 				</button>
 			</div>
 
+			{playerLoadError && (
+				<div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+					{playerLoadError}
+				</div>
+			)}
+
+			{isLoadingPlayers && (
+				<div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800">
+					Loading players...
+				</div>
+			)}
+
 			<PlayersFilters
 				searchTerm={searchTerm}
 				positionFilter={positionFilter}
@@ -80,12 +105,13 @@ export default function Players() {
 			<PlayersTable
 				players={filteredPlayers}
 				onEditPlayer={openEditPlayerModal}
-				onTogglePlayerActive={togglePlayerActive}
+				onTogglePlayerActive={handleTogglePlayerActive}
 			/>
 
 			<PlayerFormModal
 				isOpen={playerForm.isPlayerModalOpen}
 				isEditing={playerForm.isEditing}
+				isSaving={playerForm.isSavingPlayer}
 				playerForm={playerForm.playerForm}
 				formError={playerForm.formError}
 				onClose={playerForm.closePlayerModal}

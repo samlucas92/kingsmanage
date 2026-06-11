@@ -1,4 +1,4 @@
-import { useMemo, useState, type SyntheticEvent } from "react";
+import { useEffect, useMemo, useState, type SyntheticEvent } from "react";
 import { useSeasonStore } from "../../stores/seasons";
 import { usePlayerStore } from "../../stores/players";
 import { useFinanceStore } from "../../stores/finance";
@@ -15,6 +15,9 @@ export default function Seasons() {
 
 	const seasons = useSeasonStore((state) => state.seasons);
 	const activeSeasonId = useSeasonStore((state) => state.activeSeasonId);
+	const isLoadingSeasons = useSeasonStore((state) => state.isLoadingSeasons);
+	const seasonLoadError = useSeasonStore((state) => state.seasonLoadError);
+	const loadSeasons = useSeasonStore((state) => state.loadSeasons);
 	const setActiveSeason = useSeasonStore((state) => state.setActiveSeason);
 	const addSeason = useSeasonStore((state) => state.addSeason);
 
@@ -23,6 +26,7 @@ export default function Seasons() {
 	const [endDate, setEndDate] = useState("2027-06-30");
 	const [activateImmediately, setActivateImmediately] = useState(false);
 	const [formError, setFormError] = useState("");
+	const [isSavingSeason, setIsSavingSeason] = useState(false);
 
 	const [setupName, setSetupName] = useState("2026-2027");
 	const [setupStartDate, setSetupStartDate] = useState("2026-07-01");
@@ -31,6 +35,11 @@ export default function Seasons() {
 	const [setupSetFinance, setSetupSetFinance] = useState(false);
 	const [setupFinanceAmount, setSetupFinanceAmount] = useState("");
 	const [setupError, setSetupError] = useState("");
+	const [isRunningSetup, setIsRunningSetup] = useState(false);
+
+	useEffect(() => {
+		void loadSeasons();
+	}, [loadSeasons]);
 
 	const sortedSeasons = useMemo(() => {
 		return [...seasons].sort(
@@ -43,8 +52,12 @@ export default function Seasons() {
 	const activeSeason = seasons.find((season) => season.id === activeSeasonId);
 	const activePlayers = players.filter((player) => player.isActive);
 
-	function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
+	async function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
 		event.preventDefault();
+
+		if (isSavingSeason) {
+			return;
+		}
 
 		if (!name.trim()) {
 			setFormError("Season name is required.");
@@ -66,30 +79,45 @@ export default function Seasons() {
 			return;
 		}
 
-		const newSeasonId = addSeason({
-			name: name.trim(),
-			startDate,
-			endDate,
-		});
+		try {
+			setIsSavingSeason(true);
+			setFormError("");
 
-		if (!newSeasonId) {
-			setFormError("That season already exists, or the name is invalid.");
-			return;
+			const newSeasonId = await addSeason(
+				{
+					name: name.trim(),
+					startDate,
+					endDate,
+				},
+				activateImmediately
+			);
+
+			if (!newSeasonId) {
+				setFormError("That season already exists, or the name is invalid.");
+				return;
+			}
+
+			setName("");
+			setStartDate("");
+			setEndDate("");
+			setActivateImmediately(false);
+		} catch (error) {
+			setFormError(
+				error instanceof Error
+					? error.message
+					: "Season could not be created."
+			);
+		} finally {
+			setIsSavingSeason(false);
 		}
-
-		if (activateImmediately) {
-			setActiveSeason(newSeasonId);
-		}
-
-		setFormError("");
-		setName("");
-		setStartDate("");
-		setEndDate("");
-		setActivateImmediately(false);
 	}
 
-	function handleSeasonSetup(event: SyntheticEvent<HTMLFormElement>) {
+	async function handleSeasonSetup(event: SyntheticEvent<HTMLFormElement>) {
 		event.preventDefault();
+
+		if (isRunningSetup) {
+			return;
+		}
 
 		if (!setupName.trim()) {
 			setSetupError("Season name is required.");
@@ -129,22 +157,6 @@ export default function Seasons() {
 				normaliseSeasonName(trimmedSetupName)
 		);
 
-		let seasonId = existingSeason?.id;
-
-		if (!seasonId) {
-			seasonId =
-				addSeason({
-					name: trimmedSetupName,
-					startDate: setupStartDate,
-					endDate: setupEndDate,
-				}) ?? undefined;
-		}
-
-		if (!seasonId) {
-			setSetupError("Could not create that season.");
-			return;
-		}
-
 		const confirmed = window.confirm(
 			buildSetupConfirmationMessage({
 				seasonName: trimmedSetupName,
@@ -160,17 +172,59 @@ export default function Seasons() {
 			return;
 		}
 
-		if (setupMakeActive) {
-			setActiveSeason(seasonId);
-		}
+		try {
+			setIsRunningSetup(true);
+			setSetupError("");
 
-		if (setupSetFinance) {
-			activePlayers.forEach((player) => {
-				setPlayerAmountOwed(player.id, financeAmount, seasonId);
-			});
-		}
+			let seasonId = existingSeason?.id;
 
-		setSetupError("");
+			if (!seasonId) {
+				seasonId =
+					(await addSeason(
+						{
+							name: trimmedSetupName,
+							startDate: setupStartDate,
+							endDate: setupEndDate,
+						},
+						setupMakeActive
+					)) ?? undefined;
+			}
+
+			if (!seasonId) {
+				setSetupError("Could not create that season.");
+				return;
+			}
+
+			if (setupMakeActive && existingSeason) {
+				await setActiveSeason(seasonId);
+			}
+
+			if (setupSetFinance) {
+				activePlayers.forEach((player) => {
+					setPlayerAmountOwed(player.id, financeAmount, seasonId);
+				});
+			}
+		} catch (error) {
+			setSetupError(
+				error instanceof Error
+					? error.message
+					: "Season setup could not be completed."
+			);
+		} finally {
+			setIsRunningSetup(false);
+		}
+	}
+
+	async function handleSetActiveSeason(seasonId: string) {
+		try {
+			await setActiveSeason(seasonId);
+		} catch (error) {
+			setFormError(
+				error instanceof Error
+					? error.message
+					: "Could not set active season."
+			);
+		}
 	}
 
 	return (
@@ -183,6 +237,18 @@ export default function Seasons() {
 					matches, stats and finance records are shown by default.
 				</p>
 			</div>
+
+			{seasonLoadError && (
+				<div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+					{seasonLoadError}
+				</div>
+			)}
+
+			{isLoadingSeasons && (
+				<div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800">
+					Loading seasons...
+				</div>
+			)}
 
 			<section className="rounded-xl bg-white p-6 shadow">
 				<div className="flex flex-wrap items-start justify-between gap-4">
@@ -240,6 +306,12 @@ export default function Seasons() {
 						</div>
 					)}
 
+					{isRunningSetup && (
+						<div className="rounded-lg bg-blue-100 px-3 py-2 text-sm font-medium text-blue-800 xl:col-span-3">
+							Running season setup...
+						</div>
+					)}
+
 					<label className="block">
 						<span className="mb-1 block text-sm font-semibold text-blue-900">
 							Season name
@@ -247,11 +319,12 @@ export default function Seasons() {
 
 						<input
 							value={setupName}
+							disabled={isRunningSetup}
 							onChange={(event) => {
 								setSetupName(event.target.value);
 								setSetupError("");
 							}}
-							className="w-full rounded-lg border border-blue-200 px-3 py-2 text-sm shadow-sm"
+							className="w-full rounded-lg border border-blue-200 px-3 py-2 text-sm shadow-sm disabled:bg-blue-100 disabled:text-blue-400"
 							placeholder="e.g. 2026-2027"
 						/>
 					</label>
@@ -264,11 +337,12 @@ export default function Seasons() {
 						<input
 							type="date"
 							value={setupStartDate}
+							disabled={isRunningSetup}
 							onChange={(event) => {
 								setSetupStartDate(event.target.value);
 								setSetupError("");
 							}}
-							className="w-full rounded-lg border border-blue-200 px-3 py-2 text-sm shadow-sm"
+							className="w-full rounded-lg border border-blue-200 px-3 py-2 text-sm shadow-sm disabled:bg-blue-100 disabled:text-blue-400"
 						/>
 					</label>
 
@@ -280,11 +354,12 @@ export default function Seasons() {
 						<input
 							type="date"
 							value={setupEndDate}
+							disabled={isRunningSetup}
 							onChange={(event) => {
 								setSetupEndDate(event.target.value);
 								setSetupError("");
 							}}
-							className="w-full rounded-lg border border-blue-200 px-3 py-2 text-sm shadow-sm"
+							className="w-full rounded-lg border border-blue-200 px-3 py-2 text-sm shadow-sm disabled:bg-blue-100 disabled:text-blue-400"
 						/>
 					</label>
 
@@ -292,6 +367,7 @@ export default function Seasons() {
 						<input
 							type="checkbox"
 							checked={setupMakeActive}
+							disabled={isRunningSetup}
 							onChange={(event) => setSetupMakeActive(event.target.checked)}
 						/>
 						Make this the active season
@@ -301,6 +377,7 @@ export default function Seasons() {
 						<input
 							type="checkbox"
 							checked={setupSetFinance}
+							disabled={isRunningSetup}
 							onChange={(event) => setSetupSetFinance(event.target.checked)}
 						/>
 						Set starting finance amount
@@ -320,7 +397,7 @@ export default function Seasons() {
 								setSetupFinanceAmount(event.target.value);
 								setSetupError("");
 							}}
-							disabled={!setupSetFinance}
+							disabled={!setupSetFinance || isRunningSetup}
 							className="w-full rounded-lg border border-blue-200 px-3 py-2 text-sm shadow-sm disabled:bg-blue-100 disabled:text-blue-400"
 							placeholder="0.00"
 						/>
@@ -348,9 +425,10 @@ export default function Seasons() {
 					<div className="flex items-end">
 						<button
 							type="submit"
-							className="w-full rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
+							disabled={isRunningSetup}
+							className="w-full rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-blue-400"
 						>
-							Run Season Setup
+							{isRunningSetup ? "Running..." : "Run Season Setup"}
 						</button>
 					</div>
 				</form>
@@ -371,6 +449,12 @@ export default function Seasons() {
 							</div>
 						)}
 
+						{isSavingSeason && (
+							<div className="rounded-lg bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700">
+								Saving season...
+							</div>
+						)}
+
 						<label className="block">
 							<span className="mb-1 block text-sm font-semibold text-slate-700">
 								Season name
@@ -378,11 +462,12 @@ export default function Seasons() {
 
 							<input
 								value={name}
+								disabled={isSavingSeason}
 								onChange={(event) => {
 									setName(event.target.value);
 									setFormError("");
 								}}
-								className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm"
+								className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm disabled:bg-slate-100 disabled:text-slate-400"
 								placeholder="e.g. 2026-2027"
 							/>
 						</label>
@@ -395,11 +480,12 @@ export default function Seasons() {
 							<input
 								type="date"
 								value={startDate}
+								disabled={isSavingSeason}
 								onChange={(event) => {
 									setStartDate(event.target.value);
 									setFormError("");
 								}}
-								className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm"
+								className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm disabled:bg-slate-100 disabled:text-slate-400"
 							/>
 						</label>
 
@@ -411,11 +497,12 @@ export default function Seasons() {
 							<input
 								type="date"
 								value={endDate}
+								disabled={isSavingSeason}
 								onChange={(event) => {
 									setEndDate(event.target.value);
 									setFormError("");
 								}}
-								className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm"
+								className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm disabled:bg-slate-100 disabled:text-slate-400"
 							/>
 						</label>
 
@@ -423,6 +510,7 @@ export default function Seasons() {
 							<input
 								type="checkbox"
 								checked={activateImmediately}
+								disabled={isSavingSeason}
 								onChange={(event) =>
 									setActivateImmediately(event.target.checked)
 								}
@@ -432,9 +520,10 @@ export default function Seasons() {
 
 						<button
 							type="submit"
-							className="w-full rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
+							disabled={isSavingSeason}
+							className="w-full rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-blue-400"
 						>
-							Add Season
+							{isSavingSeason ? "Saving..." : "Add Season"}
 						</button>
 					</form>
 				</section>
@@ -510,7 +599,9 @@ export default function Seasons() {
 												<button
 													type="button"
 													disabled={isActive}
-													onClick={() => setActiveSeason(season.id)}
+													onClick={() => {
+														void handleSetActiveSeason(season.id);
+													}}
 													className="inline-flex rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
 												>
 													{isActive ? "Selected" : "Set active"}
