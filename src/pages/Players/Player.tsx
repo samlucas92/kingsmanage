@@ -9,13 +9,19 @@ import MetricCard from "../../components/compositions/MetricCard";
 import StatusBadge from "../../components/compositions/StatusBadge";
 import { usePlayerStore } from "../../stores/players";
 import { useSeasonStore } from "../../stores/seasons";
+import { useStatsStore } from "../../stores/stats";
+import { matchApi } from "../../services/matchApi";
 import { PlayerFormModal } from "./components/PlayerFormModal";
 import { usePlayerForm } from "./hooks/usePlayerForm";
 import { formatDisplayDate } from "../../utils/date";
-import { matchApi, type PlayerMatchRecord } from "../../services/matchApi";
+
+type PlayerMatchRecord = Awaited<ReturnType<typeof matchApi.getPlayerMatches>>[number];
 
 export default function PlayerProfile() {
 	const { id } = useParams();
+	const [recentAppearances, setRecentAppearances] = useState<PlayerMatchRecord[]>([]);
+	const [isLoadingRecentAppearances, setIsLoadingRecentAppearances] = useState(false);
+	const [recentAppearancesError, setRecentAppearancesError] = useState("");
 
 	const players = usePlayerStore((state) => state.players);
 	const isLoadingPlayers = usePlayerStore((state) => state.isLoadingPlayers);
@@ -33,12 +39,14 @@ export default function PlayerProfile() {
 	const seasonLoadError = useSeasonStore((state) => state.seasonLoadError);
 	const loadSeasons = useSeasonStore((state) => state.loadSeasons);
 
-	const [playerMatches, setPlayerMatches] = useState<PlayerMatchRecord[]>([]);
-	const [isLoadingPlayerMatches, setIsLoadingPlayerMatches] = useState(false);
-	const [playerMatchesError, setPlayerMatchesError] = useState("");
+	const seasonStats = useStatsStore((state) => state.seasonStats);
+	const isLoadingStats = useStatsStore((state) => state.isLoadingStats);
+	const statsLoadError = useStatsStore((state) => state.statsLoadError);
+	const loadSeasonStats = useStatsStore((state) => state.loadSeasonStats);
 
 	const player = players.find((player) => player.id === id);
 	const activeSeason = seasons.find((season) => season.id === activeSeasonId);
+	const playerStats = seasonStats.find((stats) => stats.playerId === id);
 
 	useEffect(() => {
 		if (!id) {
@@ -53,48 +61,63 @@ export default function PlayerProfile() {
 	}, [loadSeasons]);
 
 	useEffect(() => {
-		if (!id || !activeSeasonId) {
-			setPlayerMatches([]);
+		if (!activeSeasonId) {
 			return;
 		}
 
-		const playerId = id;
-		const seasonId = activeSeasonId;
-		let isCurrent = true;
+		void loadSeasonStats(activeSeasonId, true);
+	}, [activeSeasonId, loadSeasonStats]);
 
-		async function loadPlayerMatches() {
-			setIsLoadingPlayerMatches(true);
-			setPlayerMatchesError("");
+	useEffect(() => {
+		if (!id || !activeSeasonId) {
+			setRecentAppearances([]);
+			return;
+		}
+
+		let isMounted = true;
+
+		async function loadRecentAppearances() {
+			setIsLoadingRecentAppearances(true);
+			setRecentAppearancesError("");
 
 			try {
-				const matches = await matchApi.getPlayerMatches(playerId, seasonId);
+				const matches = id ? await matchApi.getPlayerMatches(id, activeSeasonId) : [];
 
-				if (!isCurrent) {
+				if (!isMounted) {
 					return;
 				}
 
-				setPlayerMatches(matches);
+				setRecentAppearances(
+					[...matches]
+						.sort(
+							(firstMatch, secondMatch) =>
+								new Date(secondMatch.date).getTime() -
+								new Date(firstMatch.date).getTime()
+						)
+						.slice(0, 10)
+				);
 			} catch (error) {
-				if (!isCurrent) {
+				if (!isMounted) {
 					return;
 				}
 
-				setPlayerMatchesError(
+				setRecentAppearances([]);
+				setRecentAppearancesError(
 					error instanceof Error
 						? error.message
-						: "Failed to load player match records."
+						: "Failed to load recent appearances."
 				);
 			} finally {
-				if (isCurrent) {
-					setIsLoadingPlayerMatches(false);
+				if (isMounted) {
+					setIsLoadingRecentAppearances(false);
 				}
 			}
 		}
 
-		void loadPlayerMatches();
+		void loadRecentAppearances();
 
 		return () => {
-			isCurrent = false;
+			isMounted = false;
 		};
 	}, [id, activeSeasonId]);
 
@@ -108,21 +131,17 @@ export default function PlayerProfile() {
 		},
 	});
 
-	const selectedSeasonGoals = useMemo(() => {
-		return playerMatches.reduce((totalGoals, match) => {
-			return totalGoals + (match.playerStat?.goals ?? 0);
-		}, 0);
-	}, [playerMatches]);
+	const careerApps = useMemo(() => {
+		return playerStats?.careerApps ?? player?.appearances ?? 0;
+	}, [player, playerStats]);
 
-	const recentAppearances = useMemo(() => {
-		return [...playerMatches]
-			.sort(
-				(firstMatch, secondMatch) =>
-					new Date(secondMatch.date).getTime() -
-					new Date(firstMatch.date).getTime()
-			)
-			.slice(0, 10);
-	}, [playerMatches]);
+	const seasonApps = useMemo(() => {
+		return playerStats?.seasonApps ?? recentAppearances.length;
+	}, [playerStats, recentAppearances]);
+
+	const seasonGoals = useMemo(() => {
+		return playerStats?.seasonGoals ?? 0;
+	}, [playerStats]);
 
 	if (!id) {
 		return (
@@ -168,13 +187,19 @@ export default function PlayerProfile() {
 				</div>
 			)}
 
-			{playerMatchesError && (
+			{statsLoadError && (
 				<div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-					{playerMatchesError}
+					{statsLoadError}
 				</div>
 			)}
 
-			{(isLoadingSeasons || isLoadingPlayerMatches) && (
+			{recentAppearancesError && (
+				<div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+					{recentAppearancesError}
+				</div>
+			)}
+
+			{(isLoadingSeasons || isLoadingStats || isLoadingRecentAppearances) && (
 				<div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
 					Loading season data...
 				</div>
@@ -237,14 +262,15 @@ export default function PlayerProfile() {
 							{activeSeason?.name ?? "No season selected"}
 						</h2>
 					</div>
+
 					<SeasonSelector label="Season" />
 				</div>
 			</div>
 
 			<div className="grid gap-4 sm:grid-cols-3">
-				<MetricCard label="Career Apps" value={player.appearances} />
-				<MetricCard label="Season Apps" value={playerMatches.length} />
-				<MetricCard label="Season Goals" value={selectedSeasonGoals} />
+				<MetricCard label="Career Apps" value={careerApps} />
+				<MetricCard label="Season Apps" value={seasonApps} />
+				<MetricCard label="Season Goals" value={seasonGoals} />
 			</div>
 
 			<div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">

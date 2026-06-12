@@ -71,7 +71,7 @@ export type Match = {
 	notes?: MatchNotes;
 	postponements: PostponementAudit[];
 	selectedPlayers: SelectedPlayer[];
-	playerStats?: MatchPlayerStat[];
+	playerStat?: MatchPlayerStat[];
 	isDetailLoaded?: boolean;
 };
 
