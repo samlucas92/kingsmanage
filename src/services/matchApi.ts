@@ -14,6 +14,20 @@ import type {
 
 type MatchVenue = Match["venue"];
 
+
+export type PlayerMatchRecord = {
+	id: string;
+	seasonId?: string;
+	team: ClubTeam;
+	opponent: string;
+	date: string;
+	venue: MatchVenue;
+	state: MatchState;
+	result?: MatchResult;
+	isCompleted: boolean;
+	playerStat?: MatchPlayerStat;
+};
+
 type ApiClubTeam = "First" | "Second";
 type ApiMatchVenue = "Home" | "Away";
 type ApiMatchState = "Upcoming" | "Won" | "Lost" | "Draw" | "Postponed";
@@ -25,7 +39,7 @@ type ApiLineupFormation =
 
 type ApiMatch = Omit<
 	Match,
-	"team" | "venue" | "state" | "selectedFormation"
+	"team" | "venue" | "state" | "selectedFormation" | "isDetailLoaded"
 > & {
 	team: ApiClubTeam;
 	venue: ApiMatchVenue;
@@ -33,10 +47,36 @@ type ApiMatch = Omit<
 	selectedFormation: ApiLineupFormation;
 };
 
-type ApiMatchFixtureInput = Omit<
-	MatchFixtureInput,
-	"team" | "venue"
+type ApiMatchViewModel = Omit<
+	Match,
+	| "team"
+	| "venue"
+	| "state"
+	| "selectedFormation"
+	| "notes"
+	| "postponements"
+	| "selectedPlayers"
+	| "playerStats"
+	| "isDetailLoaded"
 > & {
+	team: ApiClubTeam;
+	venue: ApiMatchVenue;
+	state: ApiMatchState;
+};
+
+
+
+type ApiPlayerMatchViewModel = Omit<
+	PlayerMatchRecord,
+	"team" | "venue" | "state" | "playerStat"
+> & {
+	team: ApiClubTeam;
+	venue: ApiMatchVenue;
+	state: ApiMatchState;
+	playerStat?: MatchPlayerStat | null;
+};
+
+type ApiMatchFixtureInput = Omit<MatchFixtureInput, "team" | "venue"> & {
 	team: ApiClubTeam;
 	venue: ApiMatchVenue;
 	state: ApiMatchState;
@@ -173,12 +213,43 @@ function fromApiMatch(match: ApiMatch): Match {
 		postponements: match.postponements ?? [],
 		selectedPlayers: match.selectedPlayers ?? [],
 		playerStats: match.playerStats ?? [],
+		isDetailLoaded: true,
+	};
+}
+
+function fromApiMatchViewModel(match: ApiMatchViewModel): Match {
+	return {
+		...match,
+		team: fromApiClubTeam(match.team),
+		venue: fromApiVenue(match.venue),
+		state: fromApiState(match.state),
+		selectedFormation: "4-3-3",
+		result: match.result ?? undefined,
+		notes: emptyMatchNotes,
+		postponements: [],
+		selectedPlayers: [],
+		playerStats: [],
+		isDetailLoaded: false,
+	};
+}
+
+
+function fromApiPlayerMatchViewModel(match: ApiPlayerMatchViewModel): PlayerMatchRecord {
+	return {
+		...match,
+		team: fromApiClubTeam(match.team),
+		venue: fromApiVenue(match.venue),
+		state: fromApiState(match.state),
+		result: match.result ?? undefined,
+		playerStat: match.playerStat ?? undefined,
 	};
 }
 
 function toApiMatch(match: Match): ApiMatch {
+	const { isDetailLoaded, ...matchToSave } = match;
+
 	return {
-		...match,
+		...matchToSave,
 		team: toApiClubTeam(match.team),
 		venue: toApiVenue(match.venue),
 		state: toApiState(match.state),
@@ -208,22 +279,29 @@ function toApiMatchFixture(match: MatchFixtureInput): ApiMatchFixtureInput {
 
 export const matchApi = {
 	getMatches: async () => {
-		const matches = await apiClient.get<ApiMatch[]>("/matches");
-
-		return matches.map(fromApiMatch);
+		const matches = await apiClient.get<ApiMatchViewModel[]>("/matches");
+		return matches.map(fromApiMatchViewModel);
 	},
 
 	getSeasonMatches: async (seasonId: string) => {
-		const matches = await apiClient.get<ApiMatch[]>(
+		const matches = await apiClient.get<ApiMatchViewModel[]>(
 			`/matches?seasonId=${encodeURIComponent(seasonId)}`
 		);
+		return matches.map(fromApiMatchViewModel);
+	},
 
-		return matches.map(fromApiMatch);
+	getPlayerMatches: async (playerId: string, seasonId?: string) => {
+		const query = seasonId
+			? `?seasonId=${encodeURIComponent(seasonId)}`
+			: "";
+		const matches = await apiClient.get<ApiPlayerMatchViewModel[]>(
+			`/matches/player/${encodeURIComponent(playerId)}${query}`
+		);
+		return matches.map(fromApiPlayerMatchViewModel);
 	},
 
 	getMatch: async (id: string) => {
 		const match = await apiClient.get<ApiMatch>(`/matches/${id}`);
-
 		return fromApiMatch(match);
 	},
 
@@ -232,7 +310,6 @@ export const matchApi = {
 			"/matches",
 			toApiMatchFixture(match)
 		);
-
 		return fromApiMatch(createdMatch);
 	},
 
@@ -241,7 +318,6 @@ export const matchApi = {
 			`/matches/${id}`,
 			toApiMatch(match)
 		);
-
 		return fromApiMatch(updatedMatch);
 	},
 
@@ -254,7 +330,6 @@ export const matchApi = {
 			`/matches/${id}/result`,
 			result
 		);
-
 		return fromApiMatch(updatedMatch);
 	},
 
@@ -262,7 +337,6 @@ export const matchApi = {
 		const updatedMatch = await apiClient.delete<ApiMatch>(
 			`/matches/${id}/result`
 		);
-
 		return fromApiMatch(updatedMatch);
 	},
 
@@ -274,7 +348,6 @@ export const matchApi = {
 			`/matches/${id}/lineup`,
 			selectedPlayers
 		);
-
 		return fromApiMatch(updatedMatch);
 	},
 
@@ -283,12 +356,10 @@ export const matchApi = {
 		formation: LineupFormation
 	) => {
 		const apiFormation = toApiFormation(formation);
-
 		const updatedMatch = await apiClient.put<ApiMatch>(
 			`/matches/${id}/formation?formation=${encodeURIComponent(apiFormation)}`,
 			undefined
 		);
-
 		return fromApiMatch(updatedMatch);
 	},
 
@@ -297,7 +368,6 @@ export const matchApi = {
 			`/matches/${id}/lineup/toggle-lock`,
 			undefined
 		);
-
 		return fromApiMatch(updatedMatch);
 	},
 
@@ -306,7 +376,6 @@ export const matchApi = {
 			`/matches/${id}/notes`,
 			notes
 		);
-
 		return fromApiMatch(updatedMatch);
 	},
 
@@ -318,7 +387,6 @@ export const matchApi = {
 			`/matches/${id}/player-stats`,
 			playerStats
 		);
-
 		return fromApiMatch(updatedMatch);
 	},
 
@@ -330,7 +398,6 @@ export const matchApi = {
 			`/matches/${id}/postpone`,
 			input
 		);
-
 		return fromApiMatch(updatedMatch);
 	},
 
@@ -339,7 +406,6 @@ export const matchApi = {
 			`/matches/${id}/restore`,
 			undefined
 		);
-
 		return fromApiMatch(updatedMatch);
 	},
 };

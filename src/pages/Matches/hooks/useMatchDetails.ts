@@ -7,7 +7,7 @@ import type {
 } from "../../../stores/match";
 import { usePlayerStore } from "../../../stores/players";
 
-type ResultPreview = "Won" | "Lost" | "Draw";
+type ResultPreview = "won" | "lost" | "draw";
 
 const emptyMatchNotes: MatchNotes = {
 	availability: "",
@@ -18,7 +18,10 @@ const emptyMatchNotes: MatchNotes = {
 
 export function useMatchDetail(matchId?: string) {
 	const players = usePlayerStore((state) => state.players);
+	const isLoadingPlayers = usePlayerStore((state) => state.isLoadingPlayers);
+	const playerLoadError = usePlayerStore((state) => state.playerLoadError);
 	const loadPlayers = usePlayerStore((state) => state.loadPlayers);
+
 	const match = useMatchStore((state) =>
 		state.matches.find((match) => match.id === matchId)
 	);
@@ -40,8 +43,7 @@ export function useMatchDetail(matchId?: string) {
 	const [awayGoals, setAwayGoals] = useState(0);
 	const [showPostponeModal, setShowPostponeModal] = useState(false);
 	const [newDate, setNewDate] = useState("");
-	const [showIncompleteLineupModal, setShowIncompleteLineupModal] =
-		useState(false);
+	const [showIncompleteLineupModal, setShowIncompleteLineupModal] = useState(false);
 	const [noteDraft, setNoteDraft] = useState(emptyMatchNotes);
 	const [notesSaved, setNotesSaved] = useState(false);
 
@@ -73,69 +75,37 @@ export function useMatchDetail(matchId?: string) {
 
 	function getPlayerName(playerId: string) {
 		const player = players.find((player) => player.id === playerId);
-
 		return player?.name ?? "Unknown player";
 	}
 
-	if (!match) {
-		return {
-			match: undefined,
-			isLoadingMatches,
-			matchLoadError,
-			showResultModal,
-			homeGoals,
-			awayGoals,
-			showPostponeModal,
-			newDate,
-			showIncompleteLineupModal,
-			noteDraft,
-			notesSaved,
-			starterCount: 0,
-			benchCount: 0,
-			totalSelectedCount: 0,
-			homeTeamName: "",
-			awayTeamName: "",
-			resultPreview: "Draw" as ResultPreview,
-			setShowResultModal,
-			setShowPostponeModal,
-			setShowIncompleteLineupModal,
-			setNewDate,
-			handleSaveTeamClick,
-			handleConfirmIncompleteLineup,
-			handleOpenResultModal,
-			handleConfirmResult,
-			handleConfirmPostpone,
-			updateHomeGoals,
-			updateAwayGoals,
-			updateNoteDraft,
-			handleSaveNotes,
-			getPlayerName,
-			handleUpdateMatchPlayerStat,
-		};
-	}
-
 	const currentMatch = match;
-	const starterCount = currentMatch.selectedPlayers.filter(
-		(selectedPlayer) => selectedPlayer.area === "pitch"
-	).length;
-	const benchCount = currentMatch.selectedPlayers.filter(
-		(selectedPlayer) => selectedPlayer.area === "bench"
-	).length;
-	const totalSelectedCount = currentMatch.selectedPlayers.length;
+	const starterCount =
+		currentMatch?.selectedPlayers.filter(
+			(selectedPlayer) => selectedPlayer.area === "pitch"
+		).length ?? 0;
+	const benchCount =
+		currentMatch?.selectedPlayers.filter(
+			(selectedPlayer) => selectedPlayer.area === "bench"
+		).length ?? 0;
+	const totalSelectedCount = currentMatch?.selectedPlayers.length ?? 0;
 	const homeTeamName =
-		currentMatch.venue === "home" ? "Kingsbridge Colts" : currentMatch.opponent;
+		currentMatch?.venue === "home"
+			? "Kingsbridge Colts"
+			: currentMatch?.opponent ?? "";
 	const awayTeamName =
-		currentMatch.venue === "home" ? currentMatch.opponent : "Kingsbridge Colts";
+		currentMatch?.venue === "home"
+			? currentMatch?.opponent ?? ""
+			: "Kingsbridge Colts";
 	const resultPreview: ResultPreview =
 		homeGoals === awayGoals
-			? "Draw"
-			: currentMatch.venue === "home"
+			? "draw"
+			: currentMatch?.venue === "home"
 				? homeGoals > awayGoals
-					? "Won"
-					: "Lost"
+					? "won"
+					: "lost"
 				: awayGoals > homeGoals
-					? "Won"
-					: "Lost";
+					? "won"
+					: "lost";
 
 	function handleSaveTeamClick() {
 		if (!currentMatch) {
@@ -231,7 +201,6 @@ export function useMatchDetail(matchId?: string) {
 		}
 
 		const nextValue = typeof value === "number" ? Math.max(0, value) : value;
-
 		void updateMatchPlayerStat(currentMatch.id, playerId, field, nextValue);
 	}
 
@@ -239,6 +208,8 @@ export function useMatchDetail(matchId?: string) {
 		match: currentMatch,
 		isLoadingMatches,
 		matchLoadError,
+		isLoadingPlayers,
+		playerLoadError,
 		showResultModal,
 		homeGoals,
 		awayGoals,

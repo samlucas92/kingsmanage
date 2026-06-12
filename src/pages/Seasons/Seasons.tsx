@@ -8,6 +8,8 @@ import { formatCurrency } from "../../utils/format";
 
 export default function Seasons() {
 	const players = usePlayerStore((state) => state.players);
+	const isLoadingPlayers = usePlayerStore((state) => state.isLoadingPlayers);
+	const playerLoadError = usePlayerStore((state) => state.playerLoadError);
 	const loadPlayers = usePlayerStore((state) => state.loadPlayers);
 	const setPlayerAmountOwed = useFinanceStore(
 		(state) => state.setPlayerAmountOwed
@@ -94,9 +96,7 @@ export default function Seasons() {
 			setActivateImmediately(false);
 		} catch (error) {
 			setFormError(
-				error instanceof Error
-					? error.message
-					: "Season could not be created."
+				error instanceof Error ? error.message : "Season could not be created."
 			);
 		} finally {
 			setIsSavingSeason(false);
@@ -133,7 +133,8 @@ export default function Seasons() {
 
 		const trimmedSetupName = setupName.trim();
 		const existingSeason = seasons.find(
-			(season) => normaliseSeasonName(season.name) === normaliseSeasonName(trimmedSetupName)
+			(season) =>
+				normaliseSeasonName(season.name) === normaliseSeasonName(trimmedSetupName)
 		);
 
 		const confirmed = window.confirm(
@@ -196,12 +197,11 @@ export default function Seasons() {
 
 	async function handleSetActiveSeason(seasonId: string) {
 		try {
+			setFormError("");
 			await setActiveSeason(seasonId);
 		} catch (error) {
 			setFormError(
-				error instanceof Error
-					? error.message
-					: "Could not set active season."
+				error instanceof Error ? error.message : "Could not set active season."
 			);
 		}
 	}
@@ -210,144 +210,237 @@ export default function Seasons() {
 		<div className="space-y-6">
 			<div>
 				<h1 className="text-2xl font-bold text-slate-900">Seasons</h1>
-				<p className="text-sm text-slate-500">
-					Create and manage club seasons. The active season controls which matches, stats and finance records are shown by default.
+				<p className="mt-1 text-sm text-slate-600">
+					Create and manage club seasons. The active season controls which
+					matches, stats and finance records are shown by default.
 				</p>
 			</div>
 
 			{seasonLoadError && (
-				<div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-					{seasonLoadError}
+				<div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-800 shadow-sm">
+					<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+						<span>{seasonLoadError}</span>
+						<button
+							type="button"
+							onClick={() => void loadSeasons(true)}
+							className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-100"
+						>
+							Retry
+						</button>
+					</div>
 				</div>
 			)}
 
-			{isLoadingSeasons && (
-				<div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+			{playerLoadError && (
+				<div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800 shadow-sm">
+					{playerLoadError}
+				</div>
+			)}
+
+			{isLoadingSeasons && seasons.length === 0 && (
+				<div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm font-medium text-slate-600 shadow-sm">
 					Loading seasons...
 				</div>
 			)}
 
-			<section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-				<p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-					Current active season
-				</p>
-				<h2 className="mt-1 text-xl font-bold text-slate-900">
-					{activeSeason?.name ?? "No active season"}
-				</h2>
-				{activeSeason && (
-					<p className="mt-1 text-sm text-slate-500">
-						{formatDisplayDate(activeSeason.startDate)} to{" "}
-						{formatDisplayDate(activeSeason.endDate)}
-					</p>
-				)}
+			<section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+					<div>
+						<p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+							Current active season
+						</p>
+						<h2 className="mt-1 text-xl font-bold text-slate-900">
+							{activeSeason?.name ?? "No active season"}
+						</h2>
+						{activeSeason && (
+							<p className="mt-1 text-sm text-slate-600">
+								{formatDisplayDate(activeSeason.startDate)} to{" "}
+								{formatDisplayDate(activeSeason.endDate)}
+							</p>
+						)}
+					</div>
+
+					{activeSeason && <StatusBadge label="Active" tone="success" />}
+				</div>
 			</section>
 
-			<section className="rounded-xl border border-blue-100 bg-blue-50 p-5 shadow-sm">
-				<h2 className="text-lg font-bold text-blue-950">Set up next season</h2>
-				<p className="mt-1 text-sm text-blue-900">
-					Use this when you are ready to start a new season. It creates the season, can make it active, and can set the same starting finance amount for all active players.
-				</p>
-				<p className="mt-2 text-sm font-semibold text-blue-950">
-					{activePlayers.length} active players
-				</p>
+			<section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+				<div className="mb-4">
+					<h2 className="text-lg font-bold text-slate-900">Set up next season</h2>
+					<p className="mt-1 text-sm text-slate-600">
+						Use this when you are ready to start a new season. It creates the
+						season, can make it active, and can set the same starting finance
+						amount for all active players.
+					</p>
+					<p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+						{isLoadingPlayers ? "Loading players..." : `${activePlayers.length} active players`}
+					</p>
+				</div>
 
 				{setupError && (
-					<div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+					<div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">
 						{setupError}
 					</div>
 				)}
 
-				<form onSubmit={handleSeasonSetup} className="mt-4 grid gap-4 lg:grid-cols-4">
-					<TextInput label="Season name" value={setupName} onChange={setSetupName} disabled={isRunningSetup} />
-					<TextInput label="Start date" type="date" value={setupStartDate} onChange={setSetupStartDate} disabled={isRunningSetup} />
-					<TextInput label="End date" type="date" value={setupEndDate} onChange={setSetupEndDate} disabled={isRunningSetup} />
-					<TextInput label="Finance amount" value={setupFinanceAmount} onChange={setSetupFinanceAmount} disabled={!setupSetFinance || isRunningSetup} placeholder="0.00" />
+				<form onSubmit={handleSeasonSetup} className="space-y-4">
+					<div className="grid gap-4 md:grid-cols-3">
+						<TextInput
+							label="Season name"
+							value={setupName}
+							onChange={setSetupName}
+						/>
+						<TextInput
+							label="Start date"
+							type="date"
+							value={setupStartDate}
+							onChange={setSetupStartDate}
+						/>
+						<TextInput
+							label="End date"
+							type="date"
+							value={setupEndDate}
+							onChange={setSetupEndDate}
+						/>
+					</div>
 
-					<label className="flex items-center gap-2 text-sm font-semibold text-blue-950 lg:col-span-2">
-						<input type="checkbox" checked={setupMakeActive} disabled={isRunningSetup} onChange={(event) => setSetupMakeActive(event.target.checked)} />
+					<label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+						<input
+							type="checkbox"
+							checked={setupMakeActive}
+							onChange={(event) => setSetupMakeActive(event.target.checked)}
+						/>
 						Make this the active season
 					</label>
-					<label className="flex items-center gap-2 text-sm font-semibold text-blue-950 lg:col-span-2">
-						<input type="checkbox" checked={setupSetFinance} disabled={isRunningSetup} onChange={(event) => setSetupSetFinance(event.target.checked)} />
-						Set starting finance amount
-					</label>
+
+					<div className="grid gap-4 md:grid-cols-[auto_1fr] md:items-end">
+						<label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+							<input
+								type="checkbox"
+								checked={setupSetFinance}
+								onChange={(event) =>
+									setSetupSetFinance(event.target.checked)
+								}
+							/>
+							Set starting finance amount
+						</label>
+
+						<TextInput
+							label="Amount owed"
+							type="number"
+							value={setupFinanceAmount}
+							onChange={setSetupFinanceAmount}
+							disabled={!setupSetFinance}
+							placeholder="0"
+						/>
+					</div>
 
 					<button
 						type="submit"
-						disabled={isRunningSetup}
-						className="rounded-lg bg-blue-900 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300 lg:col-span-4"
+						disabled={isRunningSetup || isLoadingSeasons || isLoadingPlayers}
+						className="rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300"
 					>
 						{isRunningSetup ? "Running..." : "Run Season Setup"}
 					</button>
 				</form>
 			</section>
 
-			<section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-				<h2 className="text-lg font-bold text-slate-900">Add season</h2>
-				<p className="mt-1 text-sm text-slate-500">
-					Create a season manually without running the rollover helper.
-				</p>
+			<section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+				<div className="mb-4">
+					<h2 className="text-lg font-bold text-slate-900">Add season</h2>
+					<p className="mt-1 text-sm text-slate-600">
+						Create a season manually without running the rollover helper.
+					</p>
+				</div>
 
 				{formError && (
-					<div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+					<div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">
 						{formError}
 					</div>
 				)}
 
-				<form onSubmit={handleSubmit} className="mt-4 grid gap-4 lg:grid-cols-4">
-					<TextInput label="Season name" value={name} onChange={setName} disabled={isSavingSeason} />
-					<TextInput label="Start date" type="date" value={startDate} onChange={setStartDate} disabled={isSavingSeason} />
-					<TextInput label="End date" type="date" value={endDate} onChange={setEndDate} disabled={isSavingSeason} />
-					<label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-						<input type="checkbox" checked={activateImmediately} disabled={isSavingSeason} onChange={(event) => setActivateImmediately(event.target.checked)} />
+				<form onSubmit={handleSubmit} className="space-y-4">
+					<div className="grid gap-4 md:grid-cols-3">
+						<TextInput label="Season name" value={name} onChange={setName} />
+						<TextInput
+							label="Start date"
+							type="date"
+							value={startDate}
+							onChange={setStartDate}
+						/>
+						<TextInput
+							label="End date"
+							type="date"
+							value={endDate}
+							onChange={setEndDate}
+						/>
+					</div>
+
+					<label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+						<input
+							type="checkbox"
+							checked={activateImmediately}
+							onChange={(event) =>
+								setActivateImmediately(event.target.checked)
+							}
+						/>
 						Make active
 					</label>
+
 					<button
 						type="submit"
-						disabled={isSavingSeason}
-						className="rounded-lg bg-blue-900 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300 lg:col-span-4"
+						disabled={isSavingSeason || isLoadingSeasons}
+						className="rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300"
 					>
 						{isSavingSeason ? "Saving..." : "Add Season"}
 					</button>
 				</form>
 			</section>
 
-			<section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-				<h2 className="text-lg font-bold text-slate-900">Season history</h2>
-				<p className="mt-1 text-sm text-slate-500">
-					Switching season changes the default season used across the app.
-				</p>
+			<section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+				<div className="mb-4">
+					<h2 className="text-lg font-bold text-slate-900">Season history</h2>
+					<p className="mt-1 text-sm text-slate-600">
+						Switching season changes the default season used across the app.
+					</p>
+				</div>
 
-				<div className="mt-4 divide-y divide-slate-100">
+				<div className="space-y-3">
+					{sortedSeasons.length === 0 && !isLoadingSeasons ? (
+						<div className="rounded-xl border border-slate-200 p-4 text-sm text-slate-600">
+							No seasons found. Add a season or run the setup helper to get started.
+						</div>
+					) : null}
+
 					{sortedSeasons.map((season) => {
 						const isActive = season.id === activeSeasonId;
 
 						return (
 							<div
 								key={season.id}
-								className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
+								className="flex flex-col gap-3 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between"
 							>
 								<div>
-									<p className="font-semibold text-slate-900">{season.name}</p>
-									<p className="text-sm text-slate-500">
+									<div className="flex items-center gap-2">
+										<h3 className="font-semibold text-slate-900">
+											{season.name}
+										</h3>
+										{isActive && <StatusBadge label="Active" tone="success" />}
+									</div>
+									<p className="mt-1 text-sm text-slate-600">
 										{formatDisplayDate(season.startDate)} -{" "}
 										{formatDisplayDate(season.endDate)}
 									</p>
 								</div>
-								<div className="flex items-center gap-3">
-									<StatusBadge
-										label={isActive ? "Active" : "Inactive"}
-										tone={isActive ? "success" : "neutral"}
-									/>
-									<button
-										type="button"
-										disabled={isActive}
-										onClick={() => void handleSetActiveSeason(season.id)}
-										className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-									>
-										{isActive ? "Selected" : "Set active"}
-									</button>
-								</div>
+
+								<button
+									type="button"
+									disabled={isActive || isSavingSeason || isRunningSetup}
+									onClick={() => void handleSetActiveSeason(season.id)}
+									className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+								>
+									{isActive ? "Selected" : "Set active"}
+								</button>
 							</div>
 						);
 					})}

@@ -3,7 +3,6 @@ import { matchApi } from "../services/matchApi";
 import { useSeasonStore } from "./seasons";
 
 export type MatchState = "upcoming" | "won" | "lost" | "draw" | "postponed";
-
 export type LineupFormation = "4-4-2" | "4-3-3" | "3-5-2" | "4-2-3-1";
 
 export type PostponementAudit = {
@@ -55,7 +54,6 @@ export type MatchPlayerStatField =
 	| "note";
 
 export type MatchPlayerStatValue = number | boolean | string;
-
 export type ClubTeam = "first" | "second";
 
 export type Match = {
@@ -74,6 +72,7 @@ export type Match = {
 	postponements: PostponementAudit[];
 	selectedPlayers: SelectedPlayer[];
 	playerStats?: MatchPlayerStat[];
+	isDetailLoaded?: boolean;
 };
 
 export type MatchFixtureInput = {
@@ -104,6 +103,7 @@ type MatchStore = {
 	) => Promise<void>;
 	restoreMatch: (matchId: string) => Promise<void>;
 	setResult: (matchId: string, result: MatchResult) => Promise<void>;
+	clearResult: (matchId: string) => Promise<void>;
 	setSelectedPlayers: (
 		matchId: string,
 		selectedPlayers: SelectedPlayer[]
@@ -120,10 +120,7 @@ type MatchStore = {
 		area?: "pitch" | "bench",
 		positionIndex?: number
 	) => Promise<void>;
-	removeSelectedPlayer: (
-		matchId: string,
-		playerId: string
-	) => Promise<void>;
+	removeSelectedPlayer: (matchId: string, playerId: string) => Promise<void>;
 	toggleLineupLocked: (matchId: string) => Promise<void>;
 	updateMatchNotes: (
 		matchId: string,
@@ -258,15 +255,15 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
 			set({
 				isLoadingMatches: false,
 				matchLoadError:
-					error instanceof Error
-						? error.message
-						: "Failed to load matches.",
+					error instanceof Error ? error.message : "Failed to load matches.",
 			});
 		}
 	},
 
 	loadMatch: async (matchId, force = false) => {
-		if (!force && get().matches.some((match) => match.id === matchId)) {
+		const currentMatch = get().matches.find((match) => match.id === matchId);
+
+		if (!force && currentMatch?.isDetailLoaded) {
 			return;
 		}
 
@@ -286,9 +283,7 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
 			set({
 				isLoadingMatches: false,
 				matchLoadError:
-					error instanceof Error
-						? error.message
-						: "Failed to load match.",
+					error instanceof Error ? error.message : "Failed to load match.",
 			});
 		}
 	},
@@ -306,9 +301,13 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
 	},
 
 	updateMatchFixture: async (matchId, updatedFixture) => {
-		const currentMatch = get().matches.find((match) => match.id === matchId);
+		let currentMatch = get().matches.find((match) => match.id === matchId);
 
-		if (!currentMatch || currentMatch.isCompleted) {
+		if (!currentMatch?.isDetailLoaded) {
+			currentMatch = await matchApi.getMatch(matchId);
+		}
+
+		if (!currentMatch) {
 			return;
 		}
 
@@ -329,12 +328,6 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
 	},
 
 	postponeMatch: async (matchId, newDate, reason) => {
-		const currentMatch = get().matches.find((match) => match.id === matchId);
-
-		if (!currentMatch || currentMatch.isCompleted) {
-			return;
-		}
-
 		const savedMatch = await matchApi.postponeMatch(matchId, {
 			newDate,
 			reason,
@@ -346,16 +339,6 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
 	},
 
 	restoreMatch: async (matchId) => {
-		const currentMatch = get().matches.find((match) => match.id === matchId);
-
-		if (
-			!currentMatch ||
-			currentMatch.isCompleted ||
-			currentMatch.state !== "postponed"
-		) {
-			return;
-		}
-
 		const savedMatch = await matchApi.restoreMatch(matchId);
 
 		set((state) => ({
@@ -364,13 +347,15 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
 	},
 
 	setResult: async (matchId, result) => {
-		const currentMatch = get().matches.find((match) => match.id === matchId);
-
-		if (!currentMatch || currentMatch.isCompleted) {
-			return;
-		}
-
 		const savedMatch = await matchApi.setResult(matchId, result);
+
+		set((state) => ({
+			matches: replaceMatch(state.matches, savedMatch),
+		}));
+	},
+
+	clearResult: async (matchId) => {
+		const savedMatch = await matchApi.clearResult(matchId);
 
 		set((state) => ({
 			matches: replaceMatch(state.matches, savedMatch),

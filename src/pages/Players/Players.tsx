@@ -9,6 +9,7 @@ import { usePlayerForm } from "./hooks/usePlayerForm";
 export default function Players() {
 	const players = usePlayerStore((state) => state.players);
 	const isLoadingPlayers = usePlayerStore((state) => state.isLoadingPlayers);
+	const hasLoadedPlayers = usePlayerStore((state) => state.hasLoadedPlayers);
 	const playerLoadError = usePlayerStore((state) => state.playerLoadError);
 	const loadPlayers = usePlayerStore((state) => state.loadPlayers);
 	const addPlayer = usePlayerStore((state) => state.addPlayer);
@@ -20,17 +21,21 @@ export default function Players() {
 	const [searchTerm, setSearchTerm] = useState("");
 	const [positionFilter, setPositionFilter] = useState("all");
 	const [includeInactive, setIncludeInactive] = useState(false);
+	const [actionError, setActionError] = useState("");
+	const [activeTogglePlayerId, setActiveTogglePlayerId] = useState<string | null>(null);
 
 	useEffect(() => {
-		void loadPlayers();
+		void loadPlayers(true);
 	}, [loadPlayers]);
 
 	const playerForm = usePlayerForm({
 		players,
 		onCreatePlayer: async (player) => {
+			setActionError("");
 			await addPlayer(player);
 		},
 		onUpdatePlayer: async (id, player) => {
+			setActionError("");
 			await updatePlayer(id, player);
 		},
 	});
@@ -52,9 +57,30 @@ export default function Players() {
 		playerForm.openEditPlayerModal(player);
 	}
 
-	function handleTogglePlayerActive(playerId: string) {
-		void togglePlayerActive(playerId);
+	async function handleTogglePlayerActive(playerId: string) {
+		if (activeTogglePlayerId) {
+			return;
+		}
+
+		try {
+			setActionError("");
+			setActiveTogglePlayerId(playerId);
+			await togglePlayerActive(playerId);
+		} catch (error) {
+			setActionError(
+				error instanceof Error
+					? error.message
+					: "Could not update player active status."
+			);
+		} finally {
+			setActiveTogglePlayerId(null);
+		}
 	}
+
+	const isInitialLoading = isLoadingPlayers && !hasLoadedPlayers && players.length === 0;
+	const hasNoPlayers = hasLoadedPlayers && players.length === 0;
+	const hasNoFilteredPlayers =
+		hasLoadedPlayers && players.length > 0 && filteredPlayers.length === 0;
 
 	return (
 		<div className="space-y-6">
@@ -65,10 +91,12 @@ export default function Players() {
 						Manage squad members and active status.
 					</p>
 				</div>
+
 				<button
 					type="button"
 					onClick={playerForm.openAddPlayerModal}
-					className="rounded-lg bg-blue-900 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
+					disabled={isInitialLoading}
+					className="rounded-lg bg-blue-900 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300"
 				>
 					Add Player
 				</button>
@@ -76,13 +104,34 @@ export default function Players() {
 
 			{playerLoadError && (
 				<div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-					{playerLoadError}
+					<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+						<span>{playerLoadError}</span>
+						<button
+							type="button"
+							onClick={() => void loadPlayers(true)}
+							className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-100"
+						>
+							Retry
+						</button>
+					</div>
 				</div>
 			)}
 
-			{isLoadingPlayers && (
+			{actionError && (
+				<div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+					{actionError}
+				</div>
+			)}
+
+			{isInitialLoading && (
 				<div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
 					Loading players...
+				</div>
+			)}
+
+			{activeTogglePlayerId && (
+				<div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
+					Updating player status...
 				</div>
 			)}
 
@@ -95,11 +144,21 @@ export default function Players() {
 				onIncludeInactiveChange={setIncludeInactive}
 			/>
 
-			<PlayersTable
-				players={filteredPlayers}
-				onEditPlayer={openEditPlayerModal}
-				onTogglePlayerActive={handleTogglePlayerActive}
-			/>
+			{hasNoPlayers ? (
+				<div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">
+					No players have been added yet. Add your first player to start building the squad.
+				</div>
+			) : hasNoFilteredPlayers ? (
+				<div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">
+					No players match those filters.
+				</div>
+			) : (
+				<PlayersTable
+					players={filteredPlayers}
+					onEditPlayer={openEditPlayerModal}
+					onTogglePlayerActive={(playerId) => void handleTogglePlayerActive(playerId)}
+				/>
+			)}
 
 			<PlayerFormModal
 				isOpen={playerForm.isPlayerModalOpen}

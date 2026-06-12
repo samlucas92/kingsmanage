@@ -18,8 +18,11 @@ export default function MatchDetail() {
 
 	if (matchDetail.isLoadingMatches && !matchDetail.match) {
 		return (
-			<div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-				Loading match...
+			<div className="space-y-4">
+				<LinkButton to="/matches">← Back to matches</LinkButton>
+				<div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm font-medium text-slate-600 shadow-sm">
+					Loading match...
+				</div>
 			</div>
 		);
 	}
@@ -28,7 +31,7 @@ export default function MatchDetail() {
 		return (
 			<div className="space-y-4">
 				<LinkButton to="/matches">← Back to matches</LinkButton>
-				<div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+				<div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm font-medium text-red-800 shadow-sm">
 					{matchDetail.matchLoadError}
 				</div>
 			</div>
@@ -39,7 +42,7 @@ export default function MatchDetail() {
 		return (
 			<NotFoundCard
 				title="Match not found"
-				message="That match could not be found."
+				message="This match could not be found. It may have been deleted or the link may be wrong."
 				action={<LinkButton to="/matches">View matches</LinkButton>}
 			/>
 		);
@@ -50,6 +53,18 @@ export default function MatchDetail() {
 	return (
 		<div className="space-y-6">
 			<LinkButton to="/matches">← Back to matches</LinkButton>
+
+			{matchDetail.playerLoadError && (
+				<div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800 shadow-sm">
+					{matchDetail.playerLoadError}
+				</div>
+			)}
+
+			{matchDetail.isLoadingPlayers && (
+				<div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm font-medium text-slate-600 shadow-sm">
+					Loading players...
+				</div>
+			)}
 
 			<MatchHeaderCard
 				opponent={currentMatch.opponent}
@@ -93,9 +108,7 @@ export default function MatchDetail() {
 				onSaveNotes={matchDetail.handleSaveNotes}
 			/>
 
-			<PostponementAuditCard
-				postponements={currentMatch.postponements}
-			/>
+			<PostponementAuditCard postponements={currentMatch.postponements} />
 
 			<ResultModal
 				isOpen={matchDetail.showResultModal}

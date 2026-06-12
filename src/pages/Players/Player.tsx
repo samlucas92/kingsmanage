@@ -1,5 +1,6 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+
 import LinkButton from "../../components/compositions/LinkButton";
 import NotFoundCard from "../../components/compositions/NotFoundCard";
 import EmptyState from "../../components/compositions/EmptyState";
@@ -7,14 +8,15 @@ import SeasonSelector from "../../components/compositions/SeasonSelector";
 import MetricCard from "../../components/compositions/MetricCard";
 import StatusBadge from "../../components/compositions/StatusBadge";
 import { usePlayerStore } from "../../stores/players";
-import { useMatchStore } from "../../stores/match";
 import { useSeasonStore } from "../../stores/seasons";
 import { PlayerFormModal } from "./components/PlayerFormModal";
 import { usePlayerForm } from "./hooks/usePlayerForm";
 import { formatDisplayDate } from "../../utils/date";
+import { matchApi, type PlayerMatchRecord } from "../../services/matchApi";
 
 export default function PlayerProfile() {
 	const { id } = useParams();
+
 	const players = usePlayerStore((state) => state.players);
 	const isLoadingPlayers = usePlayerStore((state) => state.isLoadingPlayers);
 	const playerLoadError = usePlayerStore((state) => state.playerLoadError);
@@ -25,16 +27,15 @@ export default function PlayerProfile() {
 		(state) => state.togglePlayerActive
 	);
 
-	const matches = useMatchStore((state) => state.matches);
-	const isLoadingMatches = useMatchStore((state) => state.isLoadingMatches);
-	const matchLoadError = useMatchStore((state) => state.matchLoadError);
-	const loadMatches = useMatchStore((state) => state.loadMatches);
-
 	const seasons = useSeasonStore((state) => state.seasons);
 	const activeSeasonId = useSeasonStore((state) => state.activeSeasonId);
 	const isLoadingSeasons = useSeasonStore((state) => state.isLoadingSeasons);
 	const seasonLoadError = useSeasonStore((state) => state.seasonLoadError);
 	const loadSeasons = useSeasonStore((state) => state.loadSeasons);
+
+	const [playerMatches, setPlayerMatches] = useState<PlayerMatchRecord[]>([]);
+	const [isLoadingPlayerMatches, setIsLoadingPlayerMatches] = useState(false);
+	const [playerMatchesError, setPlayerMatchesError] = useState("");
 
 	const player = players.find((player) => player.id === id);
 	const activeSeason = seasons.find((season) => season.id === activeSeasonId);
@@ -52,12 +53,50 @@ export default function PlayerProfile() {
 	}, [loadSeasons]);
 
 	useEffect(() => {
-		if (!activeSeasonId) {
+		if (!id || !activeSeasonId) {
+			setPlayerMatches([]);
 			return;
 		}
 
-		void loadMatches(activeSeasonId);
-	}, [activeSeasonId, loadMatches]);
+		const playerId = id;
+		const seasonId = activeSeasonId;
+		let isCurrent = true;
+
+		async function loadPlayerMatches() {
+			setIsLoadingPlayerMatches(true);
+			setPlayerMatchesError("");
+
+			try {
+				const matches = await matchApi.getPlayerMatches(playerId, seasonId);
+
+				if (!isCurrent) {
+					return;
+				}
+
+				setPlayerMatches(matches);
+			} catch (error) {
+				if (!isCurrent) {
+					return;
+				}
+
+				setPlayerMatchesError(
+					error instanceof Error
+						? error.message
+						: "Failed to load player match records."
+				);
+			} finally {
+				if (isCurrent) {
+					setIsLoadingPlayerMatches(false);
+				}
+			}
+		}
+
+		void loadPlayerMatches();
+
+		return () => {
+			isCurrent = false;
+		};
+	}, [id, activeSeasonId]);
 
 	const playerForm = usePlayerForm({
 		players,
@@ -69,44 +108,21 @@ export default function PlayerProfile() {
 		},
 	});
 
-	const selectedSeasonMatches = useMemo(() => {
-		if (!player || !activeSeasonId) {
-			return [];
-		}
-
-		return matches.filter(
-			(match) =>
-				match.seasonId === activeSeasonId &&
-				match.isCompleted &&
-				match.selectedPlayers.some(
-					(selectedPlayer) => selectedPlayer.playerId === player.id
-				)
-		);
-	}, [matches, player, activeSeasonId]);
-
 	const selectedSeasonGoals = useMemo(() => {
-		if (!player) {
-			return 0;
-		}
-
-		return selectedSeasonMatches.reduce((totalGoals, match) => {
-			const playerStat = match.playerStats?.find(
-				(stat) => stat.playerId === player.id
-			);
-
-			return totalGoals + (playerStat?.goals ?? 0);
+		return playerMatches.reduce((totalGoals, match) => {
+			return totalGoals + (match.playerStat?.goals ?? 0);
 		}, 0);
-	}, [player, selectedSeasonMatches]);
+	}, [playerMatches]);
 
 	const recentAppearances = useMemo(() => {
-		return [...selectedSeasonMatches]
+		return [...playerMatches]
 			.sort(
 				(firstMatch, secondMatch) =>
 					new Date(secondMatch.date).getTime() -
 					new Date(firstMatch.date).getTime()
 			)
 			.slice(0, 10);
-	}, [selectedSeasonMatches]);
+	}, [playerMatches]);
 
 	if (!id) {
 		return (
@@ -152,13 +168,13 @@ export default function PlayerProfile() {
 				</div>
 			)}
 
-			{matchLoadError && (
+			{playerMatchesError && (
 				<div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-					{matchLoadError}
+					{playerMatchesError}
 				</div>
 			)}
 
-			{(isLoadingSeasons || isLoadingMatches) && (
+			{(isLoadingSeasons || isLoadingPlayerMatches) && (
 				<div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
 					Loading season data...
 				</div>
@@ -191,6 +207,7 @@ export default function PlayerProfile() {
 							))}
 						</div>
 					</div>
+
 					<div className="flex flex-wrap gap-2">
 						<button
 							type="button"
@@ -226,7 +243,7 @@ export default function PlayerProfile() {
 
 			<div className="grid gap-4 sm:grid-cols-3">
 				<MetricCard label="Career Apps" value={player.appearances} />
-				<MetricCard label="Season Apps" value={selectedSeasonMatches.length} />
+				<MetricCard label="Season Apps" value={playerMatches.length} />
 				<MetricCard label="Season Goals" value={selectedSeasonGoals} />
 			</div>
 
@@ -247,37 +264,32 @@ export default function PlayerProfile() {
 					</div>
 				) : (
 					<div className="mt-4 divide-y divide-slate-100">
-						{recentAppearances.map((match) => {
-							const playerStat = match.playerStats?.find(
-								(stat) => stat.playerId === player.id
-							);
-
-							return (
-								<div
-									key={match.id}
-									className="flex items-center justify-between gap-4 py-3 text-sm"
-								>
-									<div>
-										<p className="font-semibold text-slate-900">
-											vs {match.opponent}
-										</p>
-										<p className="text-slate-500">
-											{formatDisplayDate(match.date)}
-										</p>
-									</div>
-									<div className="text-right">
-										<p className="font-semibold text-slate-900">
-											{playerStat?.goals ?? 0} goals
-										</p>
-										{playerStat?.isMOTM && (
-											<p className="text-xs font-semibold text-amber-700">
-												MOTM
-											</p>
-										)}
-									</div>
+						{recentAppearances.map((match) => (
+							<div
+								key={match.id}
+								className="flex items-center justify-between gap-4 py-3 text-sm"
+							>
+								<div>
+									<p className="font-semibold text-slate-900">
+										vs {match.opponent}
+									</p>
+									<p className="text-slate-500">
+										{formatDisplayDate(match.date)}
+									</p>
 								</div>
-							);
-						})}
+
+								<div className="text-right">
+									<p className="font-semibold text-slate-900">
+										{match.playerStat?.goals ?? 0} goals
+									</p>
+									{match.playerStat?.isMOTM && (
+										<p className="text-xs font-semibold text-amber-700">
+											MOTM
+										</p>
+									)}
+								</div>
+							</div>
+						))}
 					</div>
 				)}
 			</div>
