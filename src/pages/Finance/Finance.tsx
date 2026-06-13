@@ -366,8 +366,7 @@ export default function Finance() {
 				title="Finance view"
 				action={
 					<SeasonSelector
-						seasons={seasons}
-						activeSeasonId={activeSeasonId}
+						label="Finance season"
 					/>
 				}
 			>
