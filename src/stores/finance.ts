@@ -1,14 +1,12 @@
 import { create } from "zustand";
 import { financeApi } from "../services/financeApi";
 import type {
-	FinancePayment,
 	NewFinanceAdjustmentInput,
 	NewFinancePaymentInput,
 	PlayerFinanceRecord,
 } from "../types/finance";
 
 export type {
-	FinancePayment,
 	NewFinanceAdjustmentInput,
 	NewFinancePaymentInput,
 	PlayerFinanceRecord,
