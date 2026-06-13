@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { seedSeasons } from "../data/seedSeasons";
-import { seasonApi } from "../services/seasonApi";
+import { seasonApi, type SeasonSetupInput } from "../services/seasonApi";
 
 export type Season = {
 	id: string;
@@ -25,6 +25,7 @@ type SeasonStore = {
 	loadSeasons: (force?: boolean) => Promise<void>;
 	setActiveSeason: (seasonId: string) => Promise<void>;
 	addSeason: (season: SeasonInput, isActive?: boolean) => Promise<string | null>;
+	setupSeason: (input: SeasonSetupInput) => Promise<Season>;
 	updateSeason: (seasonId: string, season: SeasonInput) => Promise<void>;
 };
 
@@ -60,7 +61,6 @@ export const useSeasonStore = create<SeasonStore>()((set, get) => ({
 	isLoadingSeasons: false,
 	hasLoadedSeasons: false,
 	seasonLoadError: "",
-
 	loadSeasons: async (force = false) => {
 		if (get().isLoadingSeasons) {
 			return;
@@ -97,7 +97,6 @@ export const useSeasonStore = create<SeasonStore>()((set, get) => ({
 			});
 		}
 	},
-
 	setActiveSeason: async (seasonId) => {
 		const seasonExists = get().seasons.some((season) => season.id === seasonId);
 
@@ -115,7 +114,6 @@ export const useSeasonStore = create<SeasonStore>()((set, get) => ({
 			})),
 		}));
 	},
-
 	addSeason: async (seasonInput, isActive = false) => {
 		if (!seasonInput.name.trim()) {
 			return null;
@@ -131,15 +129,12 @@ export const useSeasonStore = create<SeasonStore>()((set, get) => ({
 			return null;
 		}
 
-		const nextSeason: Season = {
-			id: "",
+		const createdSeason = await seasonApi.createSeason({
 			name: seasonInput.name.trim(),
 			startDate: seasonInput.startDate,
 			endDate: seasonInput.endDate,
 			isActive,
-		};
-
-		const createdSeason = await seasonApi.createSeason(nextSeason);
+		});
 
 		set((state) => ({
 			activeSeasonId: createdSeason.isActive
@@ -147,19 +142,30 @@ export const useSeasonStore = create<SeasonStore>()((set, get) => ({
 				: state.activeSeasonId,
 			seasons: createdSeason.isActive
 				? [
-					...state.seasons.map((season) => ({
-						...season,
-						isActive: false,
-					})),
-					createdSeason,
-				]
+						...state.seasons.map((season) => ({
+							...season,
+							isActive: false,
+						})),
+						createdSeason,
+					]
 				: [...state.seasons, createdSeason],
 			hasLoadedSeasons: true,
 		}));
 
 		return createdSeason.id;
 	},
+	setupSeason: async (input) => {
+		const result = await seasonApi.setupSeason(input);
+		const seasons = normaliseApiSeasons(await seasonApi.getSeasons());
 
+		set({
+			seasons,
+			activeSeasonId: getActiveSeasonId(seasons),
+			hasLoadedSeasons: true,
+		});
+
+		return result.season;
+	},
 	updateSeason: async (seasonId, seasonInput) => {
 		const existingSeason = get().seasons.find(
 			(season) => season.id === seasonId

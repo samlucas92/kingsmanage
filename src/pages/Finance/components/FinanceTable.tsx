@@ -4,6 +4,7 @@ import type { PlayerFinanceRecord } from "../../../types/finance";
 import type { FinanceRowData } from "../../../services/financeService";
 import StatusBadge from "../../../components/compositions/StatusBadge";
 import DataTable from "../../../components/compositions/DataTable";
+import ActionMenu from "../../../components/compositions/ActionMenu";
 import { formatCurrency, formatDateTime } from "../../../utils/format";
 
 type FinanceTableProps = {
@@ -11,6 +12,7 @@ type FinanceTableProps = {
 	activeSeasonId: string;
 	onSetOwed: (player: Player) => void;
 	onAddPayment: (player: Player) => void;
+	onAddAdjustment: (player: Player) => void;
 	onRemovePayment: (
 		playerId: string,
 		paymentId: string,
@@ -23,79 +25,60 @@ export default function FinanceTable({
 	activeSeasonId,
 	onSetOwed,
 	onAddPayment,
+	onAddAdjustment,
 	onRemovePayment,
 }: FinanceTableProps) {
 	if (rows.length === 0) {
 		return (
-			<DataTable
-				empty
-				emptyTitle="No finance records found"
-				emptyMessage="No players match this finance filter for the active season."
-				minWidthClassName="min-w-[900px]"
-			>
-				<thead />
-				<tbody />
-			</DataTable>
+			<div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+				No finance records match this filter.
+			</div>
 		);
 	}
 
 	return (
 		<>
-			<div className="space-y-3 p-3 md:hidden">
+			<div className="space-y-3 md:hidden">
 				{rows.map((row) => (
 					<FinanceMobileCard
 						key={row.player.id}
-						player={row.player}
-						record={row.record}
-						amountOwed={row.amountOwed}
-						totalPaid={row.totalPaid}
-						balance={row.balance}
-						status={row.status}
+						{...row}
 						activeSeasonId={activeSeasonId}
 						onSetOwed={() => onSetOwed(row.player)}
 						onAddPayment={() => onAddPayment(row.player)}
+						onAddAdjustment={() => onAddAdjustment(row.player)}
 						onRemovePayment={onRemovePayment}
 					/>
 				))}
 			</div>
 
-			<div className="hidden md:block">
-				<DataTable
-					empty={rows.length === 0}
-					emptyTitle="No finance records found"
-					emptyMessage="No players match this finance filter for the active season."
-					minWidthClassName="min-w-[900px]"
-				>
-					<thead className="border-b bg-gray-50">
-						<tr className="text-left">
-							<th className="p-3">Player</th>
-							<th className="p-3">Owed</th>
-							<th className="p-3">Paid</th>
-							<th className="p-3">Outstanding</th>
-							<th className="p-3">Status</th>
-							<th className="p-3 text-right">Actions</th>
+			<DataTable className="hidden md:block overflow-x-auto">
+				<table className="w-full min-w-[820px] divide-y divide-slate-200 text-sm">
+					<thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+						<tr>
+							<th className="px-4 py-3">Player</th>
+							<th className="px-4 py-3 text-right whitespace-nowrap">Owed</th>
+							<th className="px-4 py-3 text-right whitespace-nowrap">Paid</th>
+							<th className="px-4 py-3 text-right whitespace-nowrap">Outstanding</th>
+							<th className="px-4 py-3 whitespace-nowrap">Status</th>
+							<th className="px-4 py-3 text-right whitespace-nowrap">Actions</th>
 						</tr>
 					</thead>
-
-					<tbody>
+					<tbody className="divide-y divide-slate-100 bg-white">
 						{rows.map((row) => (
 							<FinanceRow
 								key={row.player.id}
-								player={row.player}
-								record={row.record}
-								amountOwed={row.amountOwed}
-								totalPaid={row.totalPaid}
-								balance={row.balance}
-								status={row.status}
+								{...row}
 								activeSeasonId={activeSeasonId}
 								onSetOwed={() => onSetOwed(row.player)}
 								onAddPayment={() => onAddPayment(row.player)}
+								onAddAdjustment={() => onAddAdjustment(row.player)}
 								onRemovePayment={onRemovePayment}
 							/>
 						))}
 					</tbody>
-				</DataTable>
-			</div>
+				</table>
+			</DataTable>
 		</>
 	);
 }
@@ -110,6 +93,7 @@ function FinanceMobileCard({
 	activeSeasonId,
 	onSetOwed,
 	onAddPayment,
+	onAddAdjustment,
 	onRemovePayment,
 }: {
 	player: Player;
@@ -121,6 +105,7 @@ function FinanceMobileCard({
 	activeSeasonId: string;
 	onSetOwed: () => void;
 	onAddPayment: () => void;
+	onAddAdjustment: () => void;
 	onRemovePayment: (
 		playerId: string,
 		paymentId: string,
@@ -132,24 +117,20 @@ function FinanceMobileCard({
 	const payments = record?.payments ?? [];
 
 	return (
-		<div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+		<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
 			<div className="flex items-start justify-between gap-3">
-				<div className="min-w-0">
-					<p className="truncate text-base font-bold text-blue-900">
-						{player.name}
-					</p>
-
-					<p className="mt-1 text-xs text-slate-500">
+				<div>
+					<p className="font-semibold text-slate-900">{player.name}</p>
+					<p className="text-xs text-slate-500">
 						#{player.number} · {player.isActive ? "Active" : "Inactive"}
 					</p>
 				</div>
-
 				<StatusBadge label={statusBadge.label} tone={statusBadge.tone} />
 			</div>
 
-			<div className="mt-4 grid grid-cols-3 gap-2">
+			<div className="mt-4 grid grid-cols-3 gap-2 text-center">
 				<FinanceAmountBlock label="Owed" value={amountOwed} />
-				<FinanceAmountBlock label="Paid" value={totalPaid} />
+				<FinanceAmountBlock label="Paid" value={totalPaid} tone="success" />
 				<FinanceAmountBlock
 					label="Outstanding"
 					value={balance}
@@ -157,79 +138,57 @@ function FinanceMobileCard({
 				/>
 			</div>
 
-			<div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
-				<button
-					type="button"
-					onClick={onSetOwed}
-					className="rounded-xl border border-slate-200 px-3 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-				>
-					Set Owed
-				</button>
-
-				<button
-					type="button"
-					onClick={onAddPayment}
-					className="rounded-xl border border-green-200 bg-green-50 px-3 py-3 text-sm font-semibold text-green-800 hover:bg-green-100"
-				>
-					Add Payment
-				</button>
-
-				<button
-					type="button"
-					onClick={() => setShowPayments((current) => !current)}
-					className="rounded-xl border border-slate-200 px-3 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-				>
-					{showPayments ? "Hide Payments" : `Payments (${payments.length})`}
-				</button>
+			<div className="mt-4 flex justify-end">
+				<FinanceActionsMenu
+					paymentsCount={payments.length}
+					showPayments={showPayments}
+					onSetOwed={onSetOwed}
+					onAddPayment={onAddPayment}
+					onAddAdjustment={onAddAdjustment}
+					onTogglePayments={() => setShowPayments((current) => !current)}
+				/>
 			</div>
 
 			{showPayments && (
-				<div className="mt-4 rounded-xl bg-slate-50 p-3">
+				<div className="mt-4 space-y-2 rounded-xl bg-slate-50 p-3">
 					{payments.length === 0 ? (
 						<p className="text-sm text-slate-500">
 							No payments recorded for this player yet.
 						</p>
 					) : (
-						<div className="space-y-2">
-							{payments.map((payment) => (
-								<div
-									key={payment.id}
-									className="rounded-xl border border-slate-200 bg-white p-3"
-								>
-									<div className="flex items-start justify-between gap-3">
-										<div className="min-w-0">
-											<p className="text-sm font-bold text-slate-900">
-												{formatCurrency(payment.amount)}
-											</p>
-
-											<p className="mt-1 text-xs text-slate-500">
-												{formatDateTime(payment.paidAt)}
-											</p>
-
-											{payment.note && (
-												<p className="mt-2 rounded-lg bg-slate-50 px-2 py-1 text-xs text-slate-600">
-													{payment.note}
-												</p>
-											)}
-										</div>
-
-										<button
-											type="button"
-											onClick={() =>
-												onRemovePayment(
-													player.id,
-													payment.id,
-													activeSeasonId
-												)
-											}
-											className="shrink-0 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
-										>
-											Remove
-										</button>
-									</div>
+						payments.map((payment) => (
+							<div
+								key={payment.id}
+								className="flex items-start justify-between gap-3 rounded-lg bg-white p-3 text-sm"
+							>
+								<div>
+									<p className="font-semibold text-slate-900">
+										{formatCurrency(payment.amount)}
+									</p>
+									<p className="text-xs text-slate-500">
+										{formatDateTime(payment.paidAt)}
+									</p>
+									{payment.note && (
+										<p className="mt-1 text-xs text-slate-500">
+											{payment.note}
+										</p>
+									)}
 								</div>
-							))}
-						</div>
+								<button
+									type="button"
+									onClick={() =>
+										onRemovePayment(
+											player.id,
+											payment.id,
+											activeSeasonId
+										)
+									}
+									className="shrink-0 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+								>
+									Remove
+								</button>
+							</div>
+						))
 					)}
 				</div>
 			)}
@@ -247,17 +206,16 @@ function FinanceAmountBlock({
 	tone?: "default" | "success" | "danger";
 }) {
 	return (
-		<div className="rounded-xl bg-slate-50 p-3 text-center">
-			<p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+		<div className="rounded-xl bg-slate-50 p-3">
+			<p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
 				{label}
 			</p>
-
 			<p
-				className={`mt-1 text-sm font-black ${
-					tone === "danger"
-						? "text-red-700"
-						: tone === "success"
-							? "text-green-700"
+				className={`mt-1 font-bold ${
+					tone === "success"
+						? "text-green-700"
+						: tone === "danger"
+							? "text-red-700"
 							: "text-slate-900"
 				}`}
 			>
@@ -277,6 +235,7 @@ function FinanceRow({
 	activeSeasonId,
 	onSetOwed,
 	onAddPayment,
+	onAddAdjustment,
 	onRemovePayment,
 }: {
 	player: Player;
@@ -288,6 +247,7 @@ function FinanceRow({
 	activeSeasonId: string;
 	onSetOwed: () => void;
 	onAddPayment: () => void;
+	onAddAdjustment: () => void;
 	onRemovePayment: (
 		playerId: string,
 		paymentId: string,
@@ -296,65 +256,51 @@ function FinanceRow({
 }) {
 	const [showPayments, setShowPayments] = useState(false);
 	const statusBadge = getFinanceStatusBadge(status);
+	const paymentsCount = record?.payments.length ?? 0;
 
 	return (
 		<>
-			<tr className="border-b hover:bg-gray-50">
-				<td className="p-3">
-					<div>
-						<p className="font-semibold text-blue-900">{player.name}</p>
-
-						<p className="text-xs text-slate-500">
-							#{player.number} · {player.isActive ? "Active" : "Inactive"}
-						</p>
-					</div>
+			<tr>
+				<td className="px-4 py-3">
+					<p className="font-semibold text-slate-900">{player.name}</p>
+					<p className="text-xs text-slate-500">
+						#{player.number} · {player.isActive ? "Active" : "Inactive"}
+					</p>
 				</td>
-
-				<td className="p-3">{formatCurrency(amountOwed)}</td>
-				<td className="p-3">{formatCurrency(totalPaid)}</td>
-
-				<td className="p-3 font-semibold">
-					<span className={balance > 0 ? "text-red-700" : "text-green-700"}>
-						{formatCurrency(balance)}
-					</span>
+				<td className="px-4 py-3 text-right font-semibold text-slate-900">
+					{formatCurrency(amountOwed)}
 				</td>
-
-				<td className="p-3">
-					<StatusBadge label={statusBadge.label} tone={statusBadge.tone} />
+				<td className="px-4 py-3 text-right text-green-700">
+					{formatCurrency(totalPaid)}
 				</td>
-
-				<td className="p-3">
-					<div className="flex flex-wrap justify-end gap-2">
-						<button
-							type="button"
-							onClick={onSetOwed}
-							className="rounded-lg border px-3 py-1 text-sm hover:bg-gray-100"
-						>
-							Set Owed
-						</button>
-
-						<button
-							type="button"
-							onClick={onAddPayment}
-							className="rounded-lg border border-green-200 px-3 py-1 text-sm text-green-700 hover:bg-green-50"
-						>
-							Add Payment
-						</button>
-
-						<button
-							type="button"
-							onClick={() => setShowPayments((current) => !current)}
-							className="rounded-lg border px-3 py-1 text-sm hover:bg-gray-100"
-						>
-							{showPayments ? "Hide" : "Payments"}
-						</button>
-					</div>
+				<td
+					className={`px-4 py-3 text-right font-semibold ${
+						balance > 0 ? "text-red-700" : "text-green-700"
+					}`}
+				>
+					{formatCurrency(balance)}
+				</td>
+				<td className="px-4 py-3 whitespace-nowrap">
+					<StatusBadge
+						label={statusBadge.label}
+						tone={statusBadge.tone}
+						className="inline-flex whitespace-nowrap px-2.5 py-1 text-xs"
+					/>
+				</td>
+				<td className="px-4 py-3 text-right align-middle">
+					<FinanceActionsMenu
+						paymentsCount={paymentsCount}
+						showPayments={showPayments}
+						onSetOwed={onSetOwed}
+						onAddPayment={onAddPayment}
+						onAddAdjustment={onAddAdjustment}
+						onTogglePayments={() => setShowPayments((current) => !current)}
+					/>
 				</td>
 			</tr>
-
 			{showPayments && (
-				<tr className="border-b bg-slate-50">
-					<td colSpan={6} className="p-4">
+				<tr>
+					<td colSpan={6} className="bg-slate-50 px-4 py-3">
 						{!record || record.payments.length === 0 ? (
 							<p className="text-sm text-slate-500">
 								No payments recorded for this player yet.
@@ -364,19 +310,14 @@ function FinanceRow({
 								{record.payments.map((payment) => (
 									<div
 										key={payment.id}
-										className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-white p-3 shadow-sm"
+										className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-sm"
 									>
-										<div>
-											<p className="text-sm font-semibold text-slate-900">
-												{formatCurrency(payment.amount)}
-											</p>
-
-											<p className="text-xs text-slate-500">
-												{formatDateTime(payment.paidAt)}
-												{payment.note ? ` · ${payment.note}` : ""}
-											</p>
-										</div>
-
+										<span>
+											<strong>{formatCurrency(payment.amount)}</strong>
+											{" · "}
+											{formatDateTime(payment.paidAt)}
+											{payment.note ? ` · ${payment.note}` : ""}
+										</span>
 										<button
 											type="button"
 											onClick={() =>
@@ -401,33 +342,54 @@ function FinanceRow({
 	);
 }
 
+function FinanceActionsMenu({
+	paymentsCount,
+	showPayments,
+	onSetOwed,
+	onAddPayment,
+	onAddAdjustment,
+	onTogglePayments,
+}: {
+	paymentsCount: number;
+	showPayments: boolean;
+	onSetOwed: () => void;
+	onAddPayment: () => void;
+	onAddAdjustment: () => void;
+	onTogglePayments: () => void;
+}) {
+	return (
+		<ActionMenu
+			className="justify-end"
+			items={[
+				{ label: "Set owed", onClick: onSetOwed },
+				{ label: "Add payment", onClick: onAddPayment },
+				{ label: "Add adjustment", onClick: onAddAdjustment },
+				{
+					label: showPayments
+						? "Hide payments"
+						: `Payments (${paymentsCount})`,
+					onClick: onTogglePayments,
+				},
+			]}
+		/>
+	);
+}
+
 function getFinanceStatusBadge(status: string): {
 	label: string;
 	tone: "success" | "warning" | "danger" | "neutral";
 } {
 	if (status === "paid") {
-		return {
-			label: "Paid",
-			tone: "success",
-		};
+		return { label: "Paid", tone: "success" };
 	}
 
 	if (status === "part-paid") {
-		return {
-			label: "Part paid",
-			tone: "warning",
-		};
+		return { label: "Part paid", tone: "warning" };
 	}
 
 	if (status === "unpaid") {
-		return {
-			label: "Unpaid",
-			tone: "danger",
-		};
+		return { label: "Unpaid", tone: "danger" };
 	}
 
-	return {
-		label: "Nothing owed",
-		tone: "neutral",
-	};
+	return { label: "No charge", tone: "neutral" };
 }

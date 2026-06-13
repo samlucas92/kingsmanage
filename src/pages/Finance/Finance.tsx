@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePlayerStore } from "../../stores/players";
 import { useFinanceStore } from "../../stores/finance";
 import { useSeasonStore } from "../../stores/seasons";
@@ -30,7 +30,7 @@ import PanelCard from "../../components/compositions/PanelCard";
 import FinanceTable from "./components/FinanceTable";
 import { formatCurrency } from "../../utils/format";
 
-type AmountModalMode = "owed" | "payment";
+type AmountModalMode = "owed" | "payment" | "adjustment";
 
 type AmountModalState = {
 	mode: AmountModalMode;
@@ -39,21 +39,30 @@ type AmountModalState = {
 
 export default function Finance() {
 	const players = usePlayerStore((state) => state.players);
-
+	const loadPlayers = usePlayerStore((state) => state.loadPlayers);
+	const isLoadingPlayers = usePlayerStore((state) => state.isLoadingPlayers);
+	const playerLoadError = usePlayerStore((state) => state.playerLoadError);
 	const playerFinanceRecords = useFinanceStore(
 		(state) => state.playerFinanceRecords
 	);
+	const isLoadingFinance = useFinanceStore((state) => state.isLoadingFinance);
+	const financeLoadError = useFinanceStore((state) => state.financeLoadError);
+	const loadFinance = useFinanceStore((state) => state.loadFinance);
 	const setPlayerAmountOwed = useFinanceStore(
 		(state) => state.setPlayerAmountOwed
 	);
 	const addPlayerPayment = useFinanceStore((state) => state.addPlayerPayment);
+	const addPlayerAdjustment = useFinanceStore(
+		(state) => state.addPlayerAdjustment
+	);
 	const removePlayerPayment = useFinanceStore(
 		(state) => state.removePlayerPayment
 	);
-
 	const seasons = useSeasonStore((state) => state.seasons);
 	const activeSeasonId = useSeasonStore((state) => state.activeSeasonId);
-
+	const loadSeasons = useSeasonStore((state) => state.loadSeasons);
+	const isLoadingSeasons = useSeasonStore((state) => state.isLoadingSeasons);
+	const seasonLoadError = useSeasonStore((state) => state.seasonLoadError);
 	const [financeFilter, setFinanceFilter] = useState<FinanceFilter>("owed");
 	const [includeInactive, setIncludeInactive] = useState(false);
 	const [amountModal, setAmountModal] = useState<AmountModalState | null>(null);
@@ -65,9 +74,30 @@ export default function Finance() {
 	const [formError, setFormError] = useState("");
 	const [bulkFormError, setBulkFormError] = useState("");
 	const [copyStatus, setCopyStatus] = useState("");
+	const [isSavingFinance, setIsSavingFinance] = useState(false);
+
+	useEffect(() => {
+		void loadPlayers(true);
+	}, [loadPlayers]);
+
+	useEffect(() => {
+		void loadSeasons();
+	}, [loadSeasons]);
+
+	useEffect(() => {
+		if (!activeSeasonId) {
+			return;
+		}
+
+		void loadFinance(activeSeasonId, true);
+	}, [activeSeasonId, loadFinance]);
 
 	const activeSeason = seasons.find((season) => season.id === activeSeasonId);
 	const activeSeasonName = activeSeason?.name ?? "active-season";
+	const isInitialLoading =
+		(isLoadingPlayers && players.length === 0) ||
+		(isLoadingSeasons && seasons.length === 0) ||
+		(isLoadingFinance && playerFinanceRecords.length === 0);
 
 	const allFinanceRows = useMemo(() => {
 		return buildFinanceRows({
@@ -112,11 +142,7 @@ export default function Finance() {
 			seasonId: activeSeasonId,
 		});
 
-		setAmountModal({
-			mode,
-			player,
-		});
-
+		setAmountModal({ mode, player });
 		setAmountValue(mode === "owed" ? String(record?.amountOwed ?? "") : "");
 		setPaymentNote("");
 		setFormError("");
@@ -143,14 +169,19 @@ export default function Finance() {
 		setIsBulkModalOpen(false);
 	}
 
-	function handleConfirmAmountModal() {
-		if (!amountModal) {
+	async function handleConfirmAmountModal() {
+		if (!amountModal || isSavingFinance) {
 			return;
 		}
 
 		const amount = Number(amountValue);
 
-		if (!Number.isFinite(amount) || amount < 0) {
+		if (!Number.isFinite(amount)) {
+			setFormError("Amount must be a valid number.");
+			return;
+		}
+
+		if (amountModal.mode !== "adjustment" && amount < 0) {
 			setFormError("Amount must be 0 or above.");
 			return;
 		}
@@ -160,23 +191,53 @@ export default function Finance() {
 			return;
 		}
 
-		if (amountModal.mode === "owed") {
-			setPlayerAmountOwed(amountModal.player.id, amount, activeSeasonId);
-		} else {
-			addPlayerPayment(
-				amountModal.player.id,
-				{
-					amount,
-					note: paymentNote.trim() || undefined,
-				},
-				activeSeasonId
-			);
+		if (amountModal.mode === "adjustment" && amount === 0) {
+			setFormError("Adjustment amount cannot be 0.");
+			return;
 		}
 
-		closeAmountModal();
+		try {
+			setIsSavingFinance(true);
+
+			if (amountModal.mode === "owed") {
+				await setPlayerAmountOwed(
+					amountModal.player.id,
+					amount,
+					activeSeasonId
+				);
+			} else if (amountModal.mode === "payment") {
+				await addPlayerPayment(
+					amountModal.player.id,
+					{
+						amount,
+						note: paymentNote.trim() || undefined,
+					},
+					activeSeasonId
+				);
+			} else {
+				await addPlayerAdjustment(
+					amountModal.player.id,
+					{
+						amount,
+						note: paymentNote.trim() || undefined,
+					},
+					activeSeasonId
+				);
+			}
+
+			closeAmountModal();
+		} catch (error) {
+			setFormError(
+				error instanceof Error
+					? error.message
+					: "Finance record could not be saved."
+			);
+		} finally {
+			setIsSavingFinance(false);
+		}
 	}
 
-	function handleConfirmBulkAmount() {
+	async function handleConfirmBulkAmount() {
 		const amount = Number(bulkAmountValue);
 
 		if (!Number.isFinite(amount) || amount < 0) {
@@ -201,16 +262,28 @@ export default function Finance() {
 			return;
 		}
 
-		bulkTargetRows.forEach((row) => {
-			setPlayerAmountOwed(row.player.id, amount, activeSeasonId);
-		});
+		try {
+			setIsSavingFinance(true);
+			setBulkFormError("");
 
-		closeBulkModal();
+			for (const row of bulkTargetRows) {
+				await setPlayerAmountOwed(row.player.id, amount, activeSeasonId);
+			}
+
+			closeBulkModal();
+		} catch (error) {
+			setBulkFormError(
+				error instanceof Error
+					? error.message
+					: "Bulk finance update could not be completed."
+			);
+		} finally {
+			setIsSavingFinance(false);
+		}
 	}
 
 	function handleCopyTable() {
 		const exportColumns = getFinanceExportColumns();
-
 		const tableText = buildSeparatedTableText({
 			rows: financeRows,
 			columns: exportColumns,
@@ -231,7 +304,6 @@ export default function Finance() {
 
 	function handleExportCsv() {
 		const exportColumns = getFinanceExportColumns();
-
 		const csvText = buildCsvText({
 			rows: financeRows,
 			columns: exportColumns,
@@ -247,413 +319,341 @@ export default function Finance() {
 	}
 
 	const modalTitle =
-		amountModal?.mode === "owed" ? "Set amount owed" : "Add payment";
-
+		amountModal?.mode === "owed"
+			? "Set amount owed"
+			: amountModal?.mode === "payment"
+				? "Add payment"
+				: "Add adjustment";
 	const modalConfirmText =
-		amountModal?.mode === "owed" ? "Save Amount" : "Add Payment";
+		amountModal?.mode === "owed"
+			? "Save Amount"
+			: amountModal?.mode === "payment"
+				? "Add Payment"
+				: "Add Adjustment";
 
 	return (
-		<div className="w-full min-w-0 space-y-6 overflow-hidden">
-			<div className="flex min-w-0 flex-wrap items-start justify-between gap-4">
-				<div className="min-w-0">
-					<h1 className="text-2xl font-bold text-blue-900">Finance</h1>
-
-					<p className="text-gray-600">
+		<div className="space-y-6">
+			<div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+				<div>
+					<h1 className="text-2xl font-bold text-slate-900">Finance</h1>
+					<p className="mt-1 text-sm text-slate-500">
 						Track who has paid, who owes money, and total outstanding club
 						payments for the active season.
 					</p>
 				</div>
-
-				<div className="flex flex-wrap items-end gap-3">
-					<button
-						type="button"
-						onClick={openBulkModal}
-						className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
-					>
-						Bulk Set Owed
-					</button>
-
-					<SeasonSelector label="Active season" />
-				</div>
+				<button
+					type="button"
+					onClick={openBulkModal}
+					className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+				>
+					Bulk Set Owed
+				</button>
 			</div>
 
-			<PanelCard>
-				<div className="flex flex-wrap items-center justify-between gap-4">
-					<div className="min-w-0">
-						<p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-							Finance view
-						</p>
+			{(playerLoadError || seasonLoadError || financeLoadError) && (
+				<div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+					{playerLoadError || seasonLoadError || financeLoadError}
+				</div>
+			)}
 
-						<h2 className="mt-1 text-lg font-bold text-slate-900">
+			{isInitialLoading && (
+				<div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+					Loading finance records...
+				</div>
+			)}
+
+			<PanelCard
+				title="Finance view"
+				action={
+					<SeasonSelector
+						seasons={seasons}
+						activeSeasonId={activeSeasonId}
+					/>
+				}
+			>
+				<div className="space-y-4">
+					<div>
+						<h2 className="text-lg font-semibold text-slate-900">
 							{activeSeason?.name ?? "No active season"}
 						</h2>
-
-						<p className="mt-1 text-sm text-slate-500">
+						<p className="text-sm text-slate-500">
 							Amounts owed and payments are stored against this season. The
 							default list only shows players with money outstanding.
 						</p>
 					</div>
 
-					<div className="text-right">
-						<p className="text-2xl font-bold text-blue-900">
-							{financeSummary.paidPercentage}%
-						</p>
-						<p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-							collected
-						</p>
-					</div>
-				</div>
-
-				<div className="mt-5">
-					<div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-500">
-						<span>Paid {formatCurrency(financeSummary.totalPaid)}</span>
-						<span>
-							Outstanding {formatCurrency(financeSummary.totalOutstanding)}
-						</span>
-					</div>
-
-					<ProgressBar
-						value={financeSummary.paidPercentage}
-						heightClassName="h-4"
-					/>
-				</div>
-			</PanelCard>
-
-			<div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
-				<MetricCard
-					label="Expected"
-					value={formatCurrency(financeSummary.totalExpected)}
-					helper={`${allFinanceRows.length} visible players`}
-				/>
-
-				<MetricCard
-					label="Paid"
-					value={formatCurrency(financeSummary.totalPaid)}
-					helper={`${financeSummary.paidPercentage}% collected`}
-					tone="success"
-				/>
-
-				<MetricCard
-					label="Outstanding"
-					value={formatCurrency(financeSummary.totalOutstanding)}
-					helper={`${financeSummary.outstandingPercentage}% still owed`}
-					tone={financeSummary.totalOutstanding > 0 ? "danger" : "success"}
-				/>
-
-				<MetricCard
-					label="Players Owing"
-					value={financeSummary.playersOwingMoney.length}
-					helper={`${financeSummary.paidPlayers.length} fully paid`}
-					tone={
-						financeSummary.playersOwingMoney.length > 0 ? "danger" : "success"
-					}
-				/>
-			</div>
-
-			<div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
-				<MetricCard
-					label="Average Owed"
-					value={formatCurrency(financeSummary.averageOwed)}
-					helper="Per visible player"
-				/>
-
-				<MetricCard
-					label="Average Paid"
-					value={formatCurrency(financeSummary.averagePaid)}
-					helper="Per visible player"
-				/>
-
-				<MetricCard
-					label="Part Paid"
-					value={financeSummary.partPaidPlayers.length}
-					tone={financeSummary.partPaidPlayers.length > 0 ? "warning" : "default"}
-				/>
-
-				<MetricCard
-					label="Unpaid"
-					value={financeSummary.unpaidPlayers.length}
-					tone={financeSummary.unpaidPlayers.length > 0 ? "danger" : "default"}
-				/>
-			</div>
-
-			<div className="grid min-w-0 gap-6 xl:grid-cols-2">
-				<PanelCard
-					title="Payment Status"
-					description="Breakdown of players by payment state."
-				>
-					<div className="space-y-4">
-						<StatusBar
+					<div className="grid gap-4 md:grid-cols-4">
+						<MetricCard
+							label="Expected"
+							value={formatCurrency(financeSummary.totalExpected)}
+						/>
+						<MetricCard
 							label="Paid"
-							value={financeSummary.paidPlayers.length}
-							total={allFinanceRows.length}
+							value={formatCurrency(financeSummary.totalPaid)}
 							tone="success"
 						/>
-
-						<StatusBar
-							label="Part paid"
-							value={financeSummary.partPaidPlayers.length}
-							total={allFinanceRows.length}
-							tone="warning"
+						<MetricCard
+							label="Outstanding"
+							value={formatCurrency(financeSummary.totalOutstanding)}
+							tone={
+								financeSummary.totalOutstanding > 0 ? "danger" : "success"
+							}
 						/>
-
-						<StatusBar
-							label="Unpaid"
-							value={financeSummary.unpaidPlayers.length}
-							total={allFinanceRows.length}
-							tone="danger"
-						/>
-
-						<StatusBar
-							label="Nothing owed"
-							value={financeSummary.nothingOwedPlayers.length}
-							total={allFinanceRows.length}
-							tone="neutral"
+						<MetricCard
+							label="Players owing"
+							value={financeSummary.playersOwingMoney.length}
+							tone={
+								financeSummary.playersOwingMoney.length > 0
+									? "warning"
+									: "success"
+							}
 						/>
 					</div>
-				</PanelCard>
 
-				<PanelCard
-					title="Top Outstanding"
-					description="Players with the highest active-season balance."
-				>
-					{topOutstandingRows.length === 0 ? (
-						<div className="rounded-xl bg-green-50 p-4 text-sm font-medium text-green-800">
-							No outstanding balances for the current filter.
-						</div>
-					) : (
-						<div className="space-y-4">
-							{topOutstandingRows.map((row) => (
-								<OutstandingBar
-									key={row.player.id}
-									name={row.player.name}
-									value={row.balance}
-									maxValue={highestOutstanding}
+					<div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+						<div className="rounded-2xl border border-slate-200 bg-white p-4">
+							<div className="flex items-center justify-between gap-4">
+								<div>
+									<p className="text-sm font-semibold text-slate-700">
+										{financeSummary.paidPercentage}% collected
+									</p>
+									<p className="text-xs text-slate-500">
+										Paid {formatCurrency(financeSummary.totalPaid)} ·
+										Outstanding {formatCurrency(financeSummary.totalOutstanding)}
+									</p>
+								</div>
+							</div>
+							<div className="mt-4">
+								<ProgressBar value={financeSummary.paidPercentage} />
+							</div>
+							<div className="mt-4 grid gap-3 sm:grid-cols-2">
+								<StatusBar
+									label="Paid players"
+									value={financeSummary.paidPlayers.length}
+									total={allFinanceRows.length}
+									tone="success"
 								/>
-							))}
+								<StatusBar
+									label="Part paid"
+									value={financeSummary.partPaidPlayers.length}
+									total={allFinanceRows.length}
+									tone="warning"
+								/>
+								<StatusBar
+									label="Unpaid"
+									value={financeSummary.unpaidPlayers.length}
+									total={allFinanceRows.length}
+									tone="danger"
+								/>
+								<StatusBar
+									label="Nothing owed"
+									value={financeSummary.nothingOwedPlayers.length}
+									total={allFinanceRows.length}
+									tone="neutral"
+								/>
+							</div>
 						</div>
-					)}
-				</PanelCard>
-			</div>
 
-			<PanelCard
-				title="Bulk finance tools"
-				description="Set the same amount owed for a group of players in the active season."
-				tone="info"
-				action={
-					<button
-						type="button"
-						onClick={openBulkModal}
-						className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
-					>
-						Bulk Set Owed
-					</button>
-				}
-			>
-				<p className="text-sm text-blue-800">
-					Use this when subs, fines or starting balances need applying to
-					multiple players at once.
-				</p>
-			</PanelCard>
-
-			<PanelCard contentClassName="flex min-w-0 flex-wrap items-center gap-3">
-				<FilterButton
-					label="Owes Money"
-					value="owed"
-					count={financeSummary.playersOwingMoney.length}
-					activeValue={financeFilter}
-					onChange={setFinanceFilter}
-				/>
-
-				<FilterButton
-					label="Unpaid"
-					value="unpaid"
-					count={financeSummary.unpaidPlayers.length}
-					activeValue={financeFilter}
-					onChange={setFinanceFilter}
-				/>
-
-				<FilterButton
-					label="Part Paid"
-					value="part-paid"
-					count={financeSummary.partPaidPlayers.length}
-					activeValue={financeFilter}
-					onChange={setFinanceFilter}
-				/>
-
-				<FilterButton
-					label="Paid"
-					value="paid"
-					count={financeSummary.paidPlayers.length}
-					activeValue={financeFilter}
-					onChange={setFinanceFilter}
-				/>
-
-				<FilterButton
-					label="Nothing Owed"
-					value="nothing-owed"
-					count={financeSummary.nothingOwedPlayers.length}
-					activeValue={financeFilter}
-					onChange={setFinanceFilter}
-				/>
-
-				<FilterButton
-					label="All"
-					value="all"
-					count={allFinanceRows.length}
-					activeValue={financeFilter}
-					onChange={setFinanceFilter}
-				/>
-
-				<label className="ml-auto flex items-center gap-2 text-sm font-medium text-slate-700">
-					<input
-						type="checkbox"
-						checked={includeInactive}
-						onChange={(event) => setIncludeInactive(event.target.checked)}
-					/>
-					Include inactive players
-				</label>
-
-				<div className="flex flex-wrap items-center gap-2">
-					{copyStatus && (
-						<span className="text-xs font-semibold text-slate-500">
-							{copyStatus}
-						</span>
-					)}
-
-					<button
-						type="button"
-						onClick={handleCopyTable}
-						disabled={financeRows.length === 0}
-						className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-					>
-						Copy table
-					</button>
-
-					<button
-						type="button"
-						onClick={handleExportCsv}
-						disabled={financeRows.length === 0}
-						className="rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
-					>
-						Export CSV
-					</button>
+						<div className="rounded-2xl border border-slate-200 bg-white p-4">
+							<h3 className="font-semibold text-slate-900">
+								Top outstanding
+							</h3>
+							{topOutstandingRows.length === 0 ? (
+								<p className="mt-3 text-sm text-slate-500">
+									No outstanding balances for the current filter.
+								</p>
+							) : (
+								<div className="mt-4 space-y-3">
+									{topOutstandingRows.map((row) => (
+										<OutstandingBar
+											key={row.player.id}
+											name={row.player.name}
+											value={row.balance}
+											maxValue={highestOutstanding}
+										/>
+									))}
+								</div>
+							)}
+						</div>
+					</div>
 				</div>
 			</PanelCard>
 
-			<div className="min-w-0 overflow-hidden rounded-xl bg-white shadow">
+			<PanelCard
+				title="Player balances"
+				action={
+					<div className="flex flex-wrap items-center gap-2">
+							<FilterButton
+								label="Owed"
+								value="owed"
+								activeValue={financeFilter}
+								onChange={(value) => setFinanceFilter(value as FinanceFilter)}
+								count={financeSummary.playersOwingMoney.length}
+							/>
+							<FilterButton
+								label="All"
+								value="all"
+								activeValue={financeFilter}
+								onChange={(value) => setFinanceFilter(value as FinanceFilter)}
+								count={allFinanceRows.length}
+							/>
+							<FilterButton
+								label="Paid"
+								value="paid"
+								activeValue={financeFilter}
+								onChange={(value) => setFinanceFilter(value as FinanceFilter)}
+								count={financeSummary.paidPlayers.length}
+							/>
+							<FilterButton
+								label="Part paid"
+								value="part-paid"
+								activeValue={financeFilter}
+								onChange={(value) => setFinanceFilter(value as FinanceFilter)}
+								count={financeSummary.partPaidPlayers.length}
+							/>
+							<FilterButton
+								label="Unpaid"
+								value="unpaid"
+								activeValue={financeFilter}
+								onChange={(value) => setFinanceFilter(value as FinanceFilter)}
+								count={financeSummary.unpaidPlayers.length}
+							/>
+						</div>
+				}
+			>
+				<div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+					<label className="flex items-center gap-2 text-sm text-slate-600">
+						<input
+							type="checkbox"
+							checked={includeInactive}
+							onChange={(event) => setIncludeInactive(event.target.checked)}
+						/>
+						Include inactive players
+					</label>
+					<div className="flex items-center gap-2">
+						{copyStatus && (
+							<span className="text-xs font-semibold text-slate-500">
+								{copyStatus}
+							</span>
+						)}
+						<button
+							type="button"
+							onClick={handleCopyTable}
+							className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+						>
+							Copy table
+						</button>
+						<button
+							type="button"
+							onClick={handleExportCsv}
+							className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+						>
+							Export CSV
+						</button>
+					</div>
+				</div>
+
 				<FinanceTable
 					rows={financeRows}
 					activeSeasonId={activeSeasonId}
 					onSetOwed={(player) => openAmountModal("owed", player)}
 					onAddPayment={(player) => openAmountModal("payment", player)}
+					onAddAdjustment={(player) => openAmountModal("adjustment", player)}
 					onRemovePayment={removePlayerPayment}
 				/>
-			</div>
+			</PanelCard>
 
 			<Modal
-				isOpen={amountModal !== null}
-				title={
-					amountModal
-						? `${modalTitle}: ${amountModal.player.name}`
-						: modalTitle
-				}
-				confirmText={modalConfirmText}
+				isOpen={Boolean(amountModal)}
+				title={modalTitle}
 				onClose={closeAmountModal}
 				onConfirm={handleConfirmAmountModal}
+				confirmText={isSavingFinance ? "Saving..." : modalConfirmText}
 			>
 				<div className="space-y-4">
 					{formError && (
-						<div className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+						<p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
 							{formError}
-						</div>
+						</p>
 					)}
-
-					<label className="block space-y-1">
-						<span className="text-sm font-semibold text-slate-700">
-							Amount
-						</span>
-
+					<label className="block text-sm font-semibold text-slate-700">
+						Amount
 						<input
 							type="number"
-							min={0}
 							step="0.01"
 							value={amountValue}
 							onChange={(event) => {
 								setAmountValue(event.target.value);
 								setFormError("");
 							}}
-							className="w-full rounded-lg border px-3 py-2"
-							placeholder="0.00"
+							className="mt-1 w-full rounded-lg border px-3 py-2"
+							placeholder={amountModal?.mode === "adjustment" ? "e.g. -5.00" : "0.00"}
 						/>
 					</label>
-
-					{amountModal?.mode === "payment" && (
-						<label className="block space-y-1">
-							<span className="text-sm font-semibold text-slate-700">
-								Note
-							</span>
-
+					{amountModal?.mode !== "owed" && (
+						<label className="block text-sm font-semibold text-slate-700">
+							Note
 							<input
 								value={paymentNote}
 								onChange={(event) => setPaymentNote(event.target.value)}
-								className="w-full rounded-lg border px-3 py-2"
-								placeholder="e.g. subs, fines, kit money"
+								className="mt-1 w-full rounded-lg border px-3 py-2"
+								placeholder={
+									amountModal?.mode === "adjustment"
+										? "e.g. discount, correction"
+										: "e.g. subs, fines, kit money"
+								}
 							/>
 						</label>
+					)}
+					{amountModal?.mode === "adjustment" && (
+						<p className="text-sm text-slate-500">
+							Use a negative amount for a discount or credit. Use a positive
+							amount for a correction that increases the balance.
+						</p>
 					)}
 				</div>
 			</Modal>
 
 			<Modal
 				isOpen={isBulkModalOpen}
-				title="Bulk set amount owed"
-				confirmText="Apply Amount"
+				title="Bulk Set Owed"
 				onClose={closeBulkModal}
 				onConfirm={handleConfirmBulkAmount}
+				confirmText={isSavingFinance ? "Saving..." : "Apply Amount"}
 			>
 				<div className="space-y-4">
 					{bulkFormError && (
-						<div className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+						<p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
 							{bulkFormError}
-						</div>
+						</p>
 					)}
-
-					<div className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800">
+					<p className="text-sm text-slate-500">
 						This updates the amount owed for the selected group in{" "}
-						<strong>{activeSeason?.name ?? "the active season"}</strong>. It
-						does not remove existing payments.
-					</div>
-
-					<label className="block space-y-1">
-						<span className="text-sm font-semibold text-slate-700">
-							Amount owed
-						</span>
-
+						{activeSeason?.name ?? "the active season"}. It does not remove
+						existing payments.
+					</p>
+					<label className="block text-sm font-semibold text-slate-700">
+						Amount owed
 						<input
 							type="number"
-							min={0}
 							step="0.01"
 							value={bulkAmountValue}
 							onChange={(event) => {
 								setBulkAmountValue(event.target.value);
 								setBulkFormError("");
 							}}
-							className="w-full rounded-lg border px-3 py-2"
+							className="mt-1 w-full rounded-lg border px-3 py-2"
 							placeholder="0.00"
 						/>
 					</label>
-
-					<label className="block space-y-1">
-						<span className="text-sm font-semibold text-slate-700">
-							Apply to
-						</span>
-
+					<label className="block text-sm font-semibold text-slate-700">
+						Apply to
 						<select
 							value={bulkTarget}
 							onChange={(event) =>
 								setBulkTarget(event.target.value as BulkTarget)
 							}
-							className="w-full rounded-lg border px-3 py-2"
+							className="mt-1 w-full rounded-lg border px-3 py-2"
 						>
 							<option value="active">
 								Active players only (
@@ -667,15 +667,11 @@ export default function Finance() {
 							</option>
 						</select>
 					</label>
-
-					<div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
+					<p className="text-sm text-slate-500">
 						This will update{" "}
-						<strong>
-							{bulkTargetRows.length}{" "}
-							{bulkTargetRows.length === 1 ? "player" : "players"}
-						</strong>
-						.
-					</div>
+						<strong>{bulkTargetRows.length}</strong>{" "}
+						{bulkTargetRows.length === 1 ? "player" : "players"}.
+					</p>
 				</div>
 			</Modal>
 		</div>
@@ -686,7 +682,6 @@ function StatusBar({
 	label,
 	value,
 	total,
-	tone,
 }: {
 	label: string;
 	value: number;
@@ -696,15 +691,16 @@ function StatusBar({
 	const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
 
 	return (
-		<div>
-			<div className="mb-1 flex items-center justify-between gap-3 text-sm">
+		<div className="rounded-xl bg-slate-50 p-3">
+			<div className="flex items-center justify-between text-sm">
 				<span className="font-semibold text-slate-700">{label}</span>
 				<span className="text-slate-500">
 					{value} · {percentage}%
 				</span>
 			</div>
-
-			<ProgressBar value={value} max={total} tone={tone} />
+			<div className="mt-2">
+				<ProgressBar value={percentage} />
+			</div>
 		</div>
 	);
 }
@@ -718,18 +714,15 @@ function OutstandingBar({
 	value: number;
 	maxValue: number;
 }) {
+	const percentage = maxValue > 0 ? Math.round((value / maxValue) * 100) : 0;
+
 	return (
 		<div>
-			<div className="mb-1 flex items-center justify-between gap-3 text-sm">
-				<span className="min-w-0 truncate font-semibold text-slate-700">
-					{name}
-				</span>
-				<span className="shrink-0 text-slate-500">
-					{formatCurrency(value)}
-				</span>
+			<div className="mb-1 flex items-center justify-between text-sm">
+				<span className="font-semibold text-slate-700">{name}</span>
+				<span className="text-slate-500">{formatCurrency(value)}</span>
 			</div>
-
-			<ProgressBar value={value} max={maxValue} tone="danger" />
+			<ProgressBar value={percentage} />
 		</div>
 	);
 }

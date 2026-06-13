@@ -1,93 +1,113 @@
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
-import {
-	addPlayerPaymentRecord,
-	normaliseFinanceRecords,
-	removePlayerPaymentRecord,
-	setPlayerAmountOwedRecord,
-} from "../services/financeService";
+import { financeApi } from "../services/financeApi";
 import type {
+	FinancePayment,
+	NewFinanceAdjustmentInput,
 	NewFinancePaymentInput,
 	PlayerFinanceRecord,
 } from "../types/finance";
 
 export type {
 	FinancePayment,
+	NewFinanceAdjustmentInput,
 	NewFinancePaymentInput,
 	PlayerFinanceRecord,
 } from "../types/finance";
 
 type FinanceStore = {
 	playerFinanceRecords: PlayerFinanceRecord[];
-
+	isLoadingFinance: boolean;
+	hasLoadedFinance: boolean;
+	financeLoadError: string;
+	loadFinance: (seasonId?: string, force?: boolean) => Promise<void>;
 	setPlayerAmountOwed: (
 		playerId: string,
 		amountOwed: number,
 		seasonId?: string
-	) => void;
-
+	) => Promise<void>;
 	addPlayerPayment: (
 		playerId: string,
 		payment: NewFinancePaymentInput,
 		seasonId?: string
-	) => void;
-
+	) => Promise<void>;
+	addPlayerAdjustment: (
+		playerId: string,
+		adjustment: NewFinanceAdjustmentInput,
+		seasonId?: string
+	) => Promise<void>;
 	removePlayerPayment: (
 		playerId: string,
 		paymentId: string,
 		seasonId?: string
-	) => void;
+	) => Promise<void>;
 };
 
-export const useFinanceStore = create<FinanceStore>()(
-	persist(
-		(set) => ({
-			playerFinanceRecords: [],
-
-			setPlayerAmountOwed: (playerId, amountOwed, seasonId) =>
-				set((state) => ({
-					playerFinanceRecords: setPlayerAmountOwedRecord({
-						records: state.playerFinanceRecords,
-						playerId,
-						amountOwed,
-						seasonId,
-					}),
-				})),
-
-			addPlayerPayment: (playerId, payment, seasonId) =>
-				set((state) => ({
-					playerFinanceRecords: addPlayerPaymentRecord({
-						records: state.playerFinanceRecords,
-						playerId,
-						payment,
-						seasonId,
-					}),
-				})),
-
-			removePlayerPayment: (playerId, paymentId, seasonId) =>
-				set((state) => ({
-					playerFinanceRecords: removePlayerPaymentRecord({
-						records: state.playerFinanceRecords,
-						playerId,
-						paymentId,
-						seasonId,
-					}),
-				})),
-		}),
-		{
-			name: "kingsbridge-colts-finance-store",
-			storage: createJSONStorage(() => localStorage),
-			version: 2,
-			migrate: (persistedState) => {
-				const state = persistedState as Partial<FinanceStore>;
-
-				return {
-					...state,
-					playerFinanceRecords: normaliseFinanceRecords(
-						state.playerFinanceRecords ?? []
-					),
-				};
-			},
+export const useFinanceStore = create<FinanceStore>()((set, get) => ({
+	playerFinanceRecords: [],
+	isLoadingFinance: false,
+	hasLoadedFinance: false,
+	financeLoadError: "",
+	loadFinance: async (seasonId, force = false) => {
+		if (get().isLoadingFinance) {
+			return;
 		}
-	)
-);
+
+		if (get().hasLoadedFinance && !force) {
+			return;
+		}
+
+		set({
+			isLoadingFinance: true,
+			financeLoadError: "",
+		});
+
+		try {
+			const records = await financeApi.getSeasonFinance(seasonId);
+			set({
+				playerFinanceRecords: records,
+				isLoadingFinance: false,
+				hasLoadedFinance: true,
+			});
+		} catch (error) {
+			set({
+				isLoadingFinance: false,
+				financeLoadError:
+					error instanceof Error
+						? error.message
+						: "Failed to load finance records.",
+			});
+		}
+	},
+	setPlayerAmountOwed: async (playerId, amountOwed, seasonId) => {
+		await financeApi.setPlayerAmountOwed({
+			playerId,
+			seasonId,
+			amount: amountOwed,
+		});
+		await get().loadFinance(seasonId, true);
+	},
+	addPlayerPayment: async (playerId, payment, seasonId) => {
+		await financeApi.addTransaction({
+			playerId,
+			seasonId,
+			type: "Payment",
+			amount: payment.amount,
+			note: payment.note,
+		});
+		await get().loadFinance(seasonId, true);
+	},
+	addPlayerAdjustment: async (playerId, adjustment, seasonId) => {
+		await financeApi.addTransaction({
+			playerId,
+			seasonId,
+			type: "Adjustment",
+			amount: adjustment.amount,
+			note: adjustment.note,
+		});
+		await get().loadFinance(seasonId, true);
+	},
+	removePlayerPayment: async (_playerId, paymentId, seasonId) => {
+		await financeApi.deleteTransaction(paymentId);
+		await get().loadFinance(seasonId, true);
+	},
+}));

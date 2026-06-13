@@ -59,7 +59,10 @@ export function getPlayerTotalPaid(record?: PlayerFinanceRecord) {
 		return 0;
 	}
 
-	return record.payments.reduce((total, payment) => total + payment.amount, 0);
+	return record.totalPaid ?? record.payments.reduce(
+		(total, payment) => total + payment.amount,
+		0
+	);
 }
 
 export function getPlayerBalance(record?: PlayerFinanceRecord) {
@@ -67,7 +70,7 @@ export function getPlayerBalance(record?: PlayerFinanceRecord) {
 		return 0;
 	}
 
-	return Math.max(0, record.amountOwed - getPlayerTotalPaid(record));
+	return record.balance ?? Math.max(0, record.amountOwed - getPlayerTotalPaid(record));
 }
 
 export function getPlayerPaymentStatus(record?: PlayerFinanceRecord) {
@@ -119,7 +122,6 @@ export function setPlayerAmountOwedRecord({
 }) {
 	const targetSeasonId = getFinanceRecordSeasonId(seasonId);
 	const safeAmountOwed = normaliseMoneyAmount(amountOwed);
-
 	const existingRecord = getFinanceRecord({
 		records,
 		playerId,
@@ -168,14 +170,12 @@ export function addPlayerPaymentRecord({
 	seasonId?: string;
 }) {
 	const targetSeasonId = getFinanceRecordSeasonId(seasonId);
-
 	const newPayment: FinancePayment = {
 		id: crypto.randomUUID(),
 		amount: normaliseMoneyAmount(payment.amount),
 		note: payment.note,
 		paidAt: new Date().toISOString(),
 	};
-
 	const existingRecord = getFinanceRecord({
 		records,
 		playerId,
@@ -262,7 +262,6 @@ export function buildFinanceRows({
 				playerId: player.id,
 				seasonId,
 			});
-
 			const amountOwed = record?.amountOwed ?? 0;
 			const totalPaid = getPlayerTotalPaid(record);
 			const balance = getPlayerBalance(record);
@@ -315,14 +314,11 @@ export function getFinanceSummary(rows: FinanceRowData[]): FinanceSummary {
 		(total, row) => total + row.amountOwed,
 		0
 	);
-
 	const totalPaid = rows.reduce((total, row) => total + row.totalPaid, 0);
-
 	const totalOutstanding = rows.reduce(
 		(total, row) => total + row.balance,
 		0
 	);
-
 	const playersOwingMoney = rows.filter((row) => row.balance > 0);
 	const paidPlayers = rows.filter((row) => row.status === "paid");
 	const partPaidPlayers = rows.filter((row) => row.status === "part-paid");
@@ -330,15 +326,12 @@ export function getFinanceSummary(rows: FinanceRowData[]): FinanceSummary {
 	const nothingOwedPlayers = rows.filter(
 		(row) => row.status === "nothing-owed"
 	);
-
 	const paidPercentage =
 		totalExpected > 0 ? Math.round((totalPaid / totalExpected) * 100) : 0;
-
 	const outstandingPercentage =
 		totalExpected > 0
 			? Math.round((totalOutstanding / totalExpected) * 100)
 			: 0;
-
 	const averageOwed = rows.length > 0 ? totalExpected / rows.length : 0;
 	const averagePaid = rows.length > 0 ? totalPaid / rows.length : 0;
 
