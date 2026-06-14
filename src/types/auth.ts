@@ -37,3 +37,12 @@ export type UpdateUserRequest = {
 	isActive: boolean;
 	password?: string | null;
 };
+
+export type ChangePasswordRequest = {
+	currentPassword: string;
+	newPassword: string;
+};
+
+export type ResetPasswordRequest = {
+	newPassword: string;
+};

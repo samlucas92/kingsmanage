@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
+
 import SeasonSelector from "../../components/compositions/SeasonSelector";
 import { DEFAULT_SEASON_ID } from "../../data/seedSeasons";
 import {
@@ -7,52 +8,82 @@ import {
 	getFinanceSummary,
 	getTopOutstandingRows,
 } from "../../services/financeService";
+import { useAuthStore } from "../../stores/auth";
+import { useEventStore } from "../../stores/events";
 import { useFinanceStore } from "../../stores/finance";
 import { useMatchStore, type ClubTeam, type Match, type MatchState } from "../../stores/match";
 import { usePlayerStore } from "../../stores/players";
 import { useSeasonStore } from "../../stores/seasons";
+import type { ClubEvent, ClubEventAvailabilityStatus } from "../../types/events";
+import type { UserRole } from "../../types/auth";
 import { formatDisplayDateTime } from "../../utils/date";
 import { formatCurrency } from "../../utils/format";
+import DashboardEventCard from "./components/DashboardEventCard";
+import EventFormModal from "./components/EventFormModal";
 
 type DashboardTab = "overview" | "matches" | "finance" | "events" | "posts";
 
-const dashboardTabs: Array<{
+type DashboardTabDefinition = {
 	id: DashboardTab;
 	label: string;
 	description: string;
 	isFuture?: boolean;
-}> = [
+	roles: UserRole[];
+};
+
+const dashboardTabs: DashboardTabDefinition[] = [
 	{
 		id: "overview",
 		label: "Overview",
 		description: "Season health, quick actions, and areas needing attention.",
+		roles: ["Admin", "Coach", "Player"],
 	},
 	{
 		id: "matches",
 		label: "Matches",
 		description: "Upcoming fixtures, recent results, and match actions.",
+		roles: ["Admin", "Coach"],
 	},
 	{
 		id: "finance",
 		label: "Finance",
 		description: "Outstanding balances and payment attention list.",
+		roles: ["Admin"],
 	},
 	{
 		id: "events",
 		label: "Events",
-		description: "Future player-facing events such as fixtures, socials, and presentation nights.",
-		isFuture: true,
+		description: "Fixtures, training, socials, meetings, and availability tracking.",
+		roles: ["Admin", "Coach", "Player"],
 	},
 	{
 		id: "posts",
 		label: "Posts",
 		description: "Future club updates, reminders, and player-facing posts.",
 		isFuture: true,
+		roles: ["Admin", "Coach", "Player"],
 	},
 ];
 
 export default function Dashboard() {
+	const currentUser = useAuthStore((state) => state.currentUser);
+	const currentRole = currentUser?.role ?? "Player";
+	const isManagementRole = currentRole === "Admin" || currentRole === "Coach";
+	const isAdmin = currentRole === "Admin";
+
+	const availableTabs = useMemo(
+		() => dashboardTabs.filter((tab) => tab.roles.includes(currentRole)),
+		[currentRole]
+	);
+
 	const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
+	const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+
+	useEffect(() => {
+		if (!availableTabs.some((tab) => tab.id === activeTab)) {
+			setActiveTab(availableTabs[0]?.id ?? "overview");
+		}
+	}, [activeTab, availableTabs]);
 
 	const players = usePlayerStore((state) => state.players);
 	const loadPlayers = usePlayerStore((state) => state.loadPlayers);
@@ -75,19 +106,35 @@ export default function Dashboard() {
 	const isLoadingSeasons = useSeasonStore((state) => state.isLoadingSeasons);
 	const seasonLoadError = useSeasonStore((state) => state.seasonLoadError);
 
-	useEffect(() => {
-		void loadSeasons();
-		void loadPlayers();
-	}, [loadPlayers, loadSeasons]);
+	const events = useEventStore((state) => state.events);
+	const loadEvents = useEventStore((state) => state.loadEvents);
+	const createEvent = useEventStore((state) => state.createEvent);
+	const setEventAvailability = useEventStore((state) => state.setAvailability);
+	const isLoadingEvents = useEventStore((state) => state.isLoadingEvents);
+	const eventsLoadError = useEventStore((state) => state.eventsLoadError);
 
 	useEffect(() => {
-		if (!activeSeasonId) {
+		void loadEvents();
+
+		if (!isManagementRole) {
+			return;
+		}
+
+		void loadSeasons();
+		void loadPlayers();
+	}, [isManagementRole, loadEvents, loadPlayers, loadSeasons]);
+
+	useEffect(() => {
+		if (!isManagementRole || !activeSeasonId) {
 			return;
 		}
 
 		void loadMatches(activeSeasonId);
-		void loadFinance(activeSeasonId);
-	}, [activeSeasonId, loadFinance, loadMatches]);
+
+		if (isAdmin) {
+			void loadFinance(activeSeasonId);
+		}
+	}, [activeSeasonId, isAdmin, isManagementRole, loadFinance, loadMatches]);
 
 	const activeSeason = seasons.find((season) => season.id === activeSeasonId);
 	const activePlayers = players.filter((player) => player.isActive);
@@ -117,23 +164,41 @@ export default function Dashboard() {
 		[activeSeasonMatches]
 	);
 
+	const upcomingEvents = useMemo(
+		() =>
+			events
+				.filter((event) => new Date(event.startDateTime).getTime() >= startOfToday().getTime())
+				.sort(sortEventsAscending),
+		[events]
+	);
+
+	const recentEvents = useMemo(
+		() =>
+			events
+				.filter((event) => new Date(event.startDateTime).getTime() < startOfToday().getTime())
+				.sort(sortEventsDescending)
+				.slice(0, 4),
+		[events]
+	);
+
 	const postponedMatches = activeSeasonMatches.filter(
 		(match) => match.state === "postponed"
 	);
-
 	const unlockedUpcomingMatches = upcomingMatches.filter(
 		(match) => !match.isLineupLocked
 	);
 
 	const financeRows = useMemo(
 		() =>
-			buildFinanceRows({
-				players,
-				playerFinanceRecords,
-				seasonId: activeSeasonId,
-				includeInactive: false,
-			}),
-		[activeSeasonId, playerFinanceRecords, players]
+			isAdmin
+				? buildFinanceRows({
+						players,
+						playerFinanceRecords,
+						seasonId: activeSeasonId,
+						includeInactive: false,
+					})
+				: [],
+		[activeSeasonId, isAdmin, playerFinanceRecords, players]
 	);
 
 	const financeSummary = useMemo(
@@ -150,70 +215,138 @@ export default function Dashboard() {
 	const latestCompletedMatch = completedMatches[0];
 	const nextThreeMatches = upcomingMatches.slice(0, 3);
 	const latestThreeResults = completedMatches.slice(0, 3);
-	const isLoading = isLoadingSeasons || isLoadingPlayers || isLoadingMatches || isLoadingFinance;
-	const loadErrors = [seasonLoadError, playerLoadError, matchLoadError, financeLoadError].filter(Boolean);
+
+	const isLoading =
+		isLoadingEvents ||
+		(isManagementRole &&
+			(isLoadingSeasons ||
+				isLoadingPlayers ||
+				isLoadingMatches ||
+				(isAdmin && isLoadingFinance)));
+
+	const loadErrors = [
+		eventsLoadError,
+		isManagementRole ? seasonLoadError : "",
+		isManagementRole ? playerLoadError : "",
+		isManagementRole ? matchLoadError : "",
+		isAdmin ? financeLoadError : "",
+	].filter(Boolean);
+
+	const activeTabDefinition = availableTabs.find((tab) => tab.id === activeTab);
+	const showSeasonSelector = isManagementRole && ["overview", "matches", "finance"].includes(activeTab);
+
+	async function handleCreateEvent(request: Parameters<typeof createEvent>[0]) {
+		await createEvent(request);
+		await loadEvents(true);
+
+		if (isManagementRole && activeSeasonId) {
+			await loadMatches(activeSeasonId);
+		}
+	}
+
+	async function handleSetAvailability(
+		eventId: string,
+		status: ClubEventAvailabilityStatus
+	) {
+		await setEventAvailability(eventId, status);
+	}
 
 	return (
 		<div className="space-y-6">
-			<DashboardTabBar activeTab={activeTab} onTabChange={setActiveTab} />
+			<DashboardTabBar
+				activeTab={activeTab}
+				tabs={availableTabs}
+				onTabChange={setActiveTab}
+			/>
 
-			<section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-				<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+			<section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+				<div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
 					<div>
-						<p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-							Standard landing point
+						<p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
+							{currentRole === "Player" ? "Player landing point" : "Management landing point"}
 						</p>
-						<h1 className="mt-1 text-2xl font-bold text-slate-950">
-							{dashboardTabs.find((tab) => tab.id === activeTab)?.label ?? "Dashboard"}
+
+						<h1 className="mt-2 text-3xl font-bold text-slate-900">
+							{activeTabDefinition?.label ?? "Dashboard"}
 						</h1>
+
 						<p className="mt-2 max-w-3xl text-sm text-slate-600">
-							{dashboardTabs.find((tab) => tab.id === activeTab)?.description}
+							{activeTabDefinition?.description}
 						</p>
+
+						<div className="mt-4 flex flex-wrap gap-2">
+							<span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">
+								{currentRole}
+							</span>
+
+							{showSeasonSelector && (
+								<span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">
+									{activeSeason?.name ?? "No active season"}
+								</span>
+							)}
+
+							{isLoading && (
+								<span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700">
+									Loading dashboard data...
+								</span>
+							)}
+
+							{loadErrors.length > 0 && (
+								<span className="rounded-full bg-red-50 px-3 py-1 text-sm font-semibold text-red-700">
+									Some dashboard data failed to load.
+								</span>
+							)}
+						</div>
 					</div>
 
-					<div className="w-full lg:w-72">
-						<SeasonSelector />
-					</div>
-				</div>
+					{showSeasonSelector && (
+						<div className="w-full lg:max-w-64">
+							<p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+								Selected season
+							</p>
 
-				<div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-					<span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
-						{activeSeason?.name ?? "No active season"}
-					</span>
-					{isLoading && <span>Loading dashboard data...</span>}
-					{loadErrors.length > 0 && (
-						<span className="font-medium text-red-700">
-							Some dashboard data failed to load.
-						</span>
+							<SeasonSelector />
+						</div>
 					)}
 				</div>
 			</section>
 
 			{loadErrors.length > 0 && (
-				<div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-					<p className="font-semibold">Dashboard loading issues</p>
+				<section className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+					<h2 className="font-bold">Dashboard loading issues</h2>
+
 					<ul className="mt-2 list-disc space-y-1 pl-5">
 						{loadErrors.map((error) => (
 							<li key={error}>{error}</li>
 						))}
 					</ul>
-				</div>
+				</section>
 			)}
 
 			{activeTab === "overview" && (
-				<OverviewTab
-					activePlayersCount={activePlayers.length}
-					inactivePlayersCount={inactivePlayers.length}
-					completedMatchesCount={completedMatches.length}
-					financeOutstanding={financeSummary.totalOutstanding}
-					financePaidPercentage={financeSummary.paidPercentage}
-					latestCompletedMatch={latestCompletedMatch}
-					nextMatch={nextMatch}
-					playersOwingCount={financeSummary.playersOwingMoney.length}
-					postponedMatchesCount={postponedMatches.length}
-					unlockedUpcomingMatchesCount={unlockedUpcomingMatches.length}
-					upcomingMatchesCount={upcomingMatches.length}
-				/>
+				currentRole === "Player" ? (
+					<PlayerOverviewTab
+						currentPlayerId={currentUser?.playerId}
+						onSetAvailability={handleSetAvailability}
+						upcomingEvents={upcomingEvents.slice(0, 3)}
+					/>
+				) : (
+					<OverviewTab
+						activePlayersCount={activePlayers.length}
+						completedMatchesCount={completedMatches.length}
+						financeOutstanding={isAdmin ? financeSummary.totalOutstanding : 0}
+						financePaidPercentage={isAdmin ? financeSummary.paidPercentage : 0}
+						inactivePlayersCount={inactivePlayers.length}
+						isAdmin={isAdmin}
+						latestCompletedMatch={latestCompletedMatch}
+						nextMatch={nextMatch}
+						playersOwingCount={isAdmin ? financeSummary.playersOwingCount : 0}
+						postponedMatchesCount={postponedMatches.length}
+						unlockedUpcomingMatchesCount={unlockedUpcomingMatches.length}
+						upcomingEventsCount={upcomingEvents.length}
+						upcomingMatchesCount={upcomingMatches.length}
+					/>
+				)
 			)}
 
 			{activeTab === "matches" && (
@@ -225,39 +358,52 @@ export default function Dashboard() {
 				/>
 			)}
 
-			{activeTab === "finance" && (
+			{activeTab === "finance" && isAdmin && (
 				<FinanceTab
 					financeOutstanding={financeSummary.totalOutstanding}
 					financePaidPercentage={financeSummary.paidPercentage}
 					financeWatchlist={financeWatchlist}
-					playersOwingCount={financeSummary.playersOwingMoney.length}
+					playersOwingCount={financeSummary.playersOwingCount}
 					totalExpected={financeSummary.totalExpected}
 					totalPaid={financeSummary.totalPaid}
 				/>
 			)}
 
-			{activeTab === "events" && <EventsTab nextThreeMatches={nextThreeMatches} />}
+			{activeTab === "events" && (
+				<EventsTab
+					canManageEvents={isManagementRole}
+					currentPlayerId={currentUser?.playerId}
+					onCreateEvent={() => setIsEventModalOpen(true)}
+					onSetAvailability={handleSetAvailability}
+					recentEvents={recentEvents}
+					upcomingEvents={upcomingEvents}
+				/>
+			)}
 
 			{activeTab === "posts" && <PostsTab />}
+
+			<EventFormModal
+				isOpen={isEventModalOpen}
+				onClose={() => setIsEventModalOpen(false)}
+				onCreateEvent={handleCreateEvent}
+			/>
 		</div>
 	);
 }
 
-
 function DashboardTabBar({
 	activeTab,
 	onTabChange,
+	tabs,
 }: {
 	activeTab: DashboardTab;
 	onTabChange: (tab: DashboardTab) => void;
+	tabs: DashboardTabDefinition[];
 }) {
 	return (
-		<nav
-			aria-label="Dashboard sections"
-			className="overflow-x-auto border-b border-slate-200 bg-white"
-		>
-			<div className="flex min-w-max items-end gap-6 px-1 sm:px-0">
-				{dashboardTabs.map((tab) => {
+		<div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+			<div className="flex gap-2 overflow-x-auto">
+				{tabs.map((tab) => {
 					const isActive = activeTab === tab.id;
 
 					return (
@@ -265,19 +411,20 @@ function DashboardTabBar({
 							key={tab.id}
 							type="button"
 							onClick={() => onTabChange(tab.id)}
-							className={`relative -mb-px flex items-center gap-2 border-b-2 px-1 py-4 text-sm font-semibold transition ${
+							className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
 								isActive
-									? "border-blue-600 text-blue-700"
-									: "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-900"
+									? "bg-blue-700 text-white shadow-sm"
+									: "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
 							}`}
 							aria-current={isActive ? "page" : undefined}
 						>
 							<span>{tab.label}</span>
+
 							{tab.isFuture && (
 								<span
-									className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+									className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${
 										isActive
-											? "bg-blue-100 text-blue-800"
+											? "bg-white/20 text-white"
 											: "bg-amber-100 text-amber-800"
 									}`}
 								>
@@ -288,21 +435,83 @@ function DashboardTabBar({
 					);
 				})}
 			</div>
-		</nav>
+		</div>
+	);
+}
+
+function PlayerOverviewTab({
+	currentPlayerId,
+	onSetAvailability,
+	upcomingEvents,
+}: {
+	currentPlayerId?: string | null;
+	onSetAvailability: (eventId: string, status: ClubEventAvailabilityStatus) => Promise<void>;
+	upcomingEvents: ClubEvent[];
+}) {
+	return (
+		<div className="grid gap-5 lg:grid-cols-3">
+			<section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
+				<p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
+					Player dashboard
+				</p>
+
+				<h2 className="mt-2 text-2xl font-bold text-slate-900">
+					Your club events
+				</h2>
+
+				<p className="mt-2 text-sm text-slate-600">
+					Update your availability for matches, training, and socials.
+				</p>
+
+				<div className="mt-5 space-y-3">
+					{upcomingEvents.map((event) => (
+						<DashboardEventCard
+							key={event.id}
+							currentPlayerId={currentPlayerId}
+							event={event}
+							onSetAvailability={onSetAvailability}
+						/>
+					))}
+
+					{upcomingEvents.length === 0 && (
+						<EmptyState message="No upcoming events are available yet." />
+					)}
+				</div>
+			</section>
+
+			<section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+				<h2 className="text-lg font-bold text-slate-900">Available now</h2>
+
+				<div className="mt-4 space-y-3">
+					<QuickAction
+						title="Account settings"
+						description="Change your password and view your account details."
+						to="/settings"
+					/>
+
+					<div className="rounded-xl border border-dashed border-slate-300 p-4">
+						<p className="text-sm font-bold text-slate-900">Coming later</p>
+						<p className="mt-1 text-sm text-slate-500">
+							My stats, my finance, and posts will be added after their safe player APIs exist.
+						</p>
+					</div>
+				</div>
+			</section>
+		</div>
 	);
 }
 
 function OverviewTab({
 	activePlayersCount,
-	completedMatchesCount,
 	financeOutstanding,
 	financePaidPercentage,
 	inactivePlayersCount,
+	isAdmin,
 	latestCompletedMatch,
 	nextMatch,
 	playersOwingCount,
-	postponedMatchesCount,
 	unlockedUpcomingMatchesCount,
+	upcomingEventsCount,
 	upcomingMatchesCount,
 }: {
 	activePlayersCount: number;
@@ -310,24 +519,48 @@ function OverviewTab({
 	financeOutstanding: number;
 	financePaidPercentage: number;
 	inactivePlayersCount: number;
+	isAdmin: boolean;
 	latestCompletedMatch?: Match;
 	nextMatch?: Match;
 	playersOwingCount: number;
 	postponedMatchesCount: number;
 	unlockedUpcomingMatchesCount: number;
+	upcomingEventsCount: number;
 	upcomingMatchesCount: number;
 }) {
 	return (
 		<div className="space-y-6">
-			<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-				<SummaryCard label="Active players" value={activePlayersCount} helper={`${inactivePlayersCount} inactive`} />
-				<SummaryCard label="Upcoming matches" value={upcomingMatchesCount} helper={`${unlockedUpcomingMatchesCount} lineups still unlocked`} />
-				<SummaryCard label="Completed matches" value={completedMatchesCount} helper={`${postponedMatchesCount} postponed`} />
-				<SummaryCard label="Outstanding finance" value={formatCurrency(financeOutstanding)} helper={`${playersOwingCount} players owing · ${financePaidPercentage}% paid`} tone={financeOutstanding > 0 ? "danger" : "good"} />
+			<div className={`grid gap-5 ${isAdmin ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
+				<SummaryCard
+					label="Active players"
+					value={activePlayersCount}
+					helper={`${inactivePlayersCount} inactive`}
+				/>
+
+				<SummaryCard
+					label="Upcoming matches"
+					value={upcomingMatchesCount}
+					helper={`${unlockedUpcomingMatchesCount} lineups still unlocked`}
+				/>
+
+				<SummaryCard
+					label="Upcoming events"
+					value={upcomingEventsCount}
+					helper="Events are not tied to the season selector"
+				/>
+
+				{isAdmin && (
+					<SummaryCard
+						label="Outstanding finance"
+						value={formatCurrency(financeOutstanding)}
+						helper={`${playersOwingCount} players owing · ${financePaidPercentage}% paid`}
+						tone={financeOutstanding > 0 ? "danger" : "good"}
+					/>
+				)}
 			</div>
 
-			<div className="grid gap-4 lg:grid-cols-3">
-				<AttentionCard title="Next fixture" to={nextMatch ? `/matches/${nextMatch.id}` : "/matches"} tone={nextMatch ? "neutral" : "muted"}>
+			<div className="grid gap-5 lg:grid-cols-3">
+				<AttentionCard title="Next fixture" tone={nextMatch ? "neutral" : "muted"}>
 					{nextMatch ? (
 						<MatchPreview match={nextMatch} />
 					) : (
@@ -335,7 +568,7 @@ function OverviewTab({
 					)}
 				</AttentionCard>
 
-				<AttentionCard title="Latest result" to={latestCompletedMatch ? `/matches/${latestCompletedMatch.id}` : "/matches"} tone="neutral">
+				<AttentionCard title="Latest result" tone={latestCompletedMatch ? "neutral" : "muted"}>
 					{latestCompletedMatch ? (
 						<MatchPreview match={latestCompletedMatch} showResult />
 					) : (
@@ -343,29 +576,60 @@ function OverviewTab({
 					)}
 				</AttentionCard>
 
-				<AttentionCard title="Finance attention" to="/finances" tone={financeOutstanding > 0 ? "danger" : "good"}>
-					<p className={`text-2xl font-bold ${financeOutstanding > 0 ? "text-red-700" : "text-green-700"}`}>
-						{formatCurrency(financeOutstanding)}
-					</p>
-					<p className="mt-2 text-sm text-slate-600">
-						Outstanding from {playersOwingCount} {playersOwingCount === 1 ? "player" : "players"}.
-					</p>
-				</AttentionCard>
+				{isAdmin ? (
+					<AttentionCard
+						title="Finance attention"
+						tone={financeOutstanding > 0 ? "danger" : "good"}
+					>
+						<p className={`text-2xl font-bold ${financeOutstanding > 0 ? "text-red-700" : "text-green-700"}`}>
+							{formatCurrency(financeOutstanding)}
+						</p>
+
+						<p className="mt-2 text-sm text-slate-600">
+							Outstanding from {playersOwingCount} {playersOwingCount === 1 ? "player" : "players"}.
+						</p>
+					</AttentionCard>
+				) : (
+					<AttentionCard title="Coach focus" tone="neutral">
+						<p className="text-sm text-slate-600">
+							Finance and user administration are hidden from coach accounts.
+						</p>
+					</AttentionCard>
+				)}
 			</div>
 
-			<section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-					<div>
-						<h2 className="text-lg font-bold text-slate-950">Quick actions</h2>
-						<p className="text-sm text-slate-500">Common management tasks for the current season.</p>
-					</div>
+			<section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+				<div className="mb-4">
+					<h2 className="text-lg font-bold text-slate-900">Quick actions</h2>
+					<p className="text-sm text-slate-500">Common tasks for the current season.</p>
 				</div>
 
-				<div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-					<QuickAction to="/matches" title="Manage matches" description="Add fixtures, update results, and manage lineups." />
-					<QuickAction to="/players" title="Manage players" description="Add players, edit details, and handle active status." />
-					<QuickAction to="/finances" title="Review finances" description="Check outstanding balances and transactions." />
-					<QuickAction to="/stats" title="View stats" description="Check stored season and career stats." />
+				<div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+					<QuickAction
+						title="Open matches"
+						description="Review fixtures, lineups, and results."
+						to="/matches"
+					/>
+
+					<QuickAction
+						title="Manage players"
+						description="Update player details and active status."
+						to="/players"
+					/>
+
+					<QuickAction
+						title="View stats"
+						description="Check season stats and totals."
+						to="/stats"
+					/>
+
+					{isAdmin && (
+						<QuickAction
+							title="Open finance"
+							description="Review balances and payments."
+							to="/finance"
+						/>
+					)}
 				</div>
 			</section>
 		</div>
@@ -384,7 +648,7 @@ function MatchesTab({
 	unlockedUpcomingMatchesCount: number;
 }) {
 	return (
-		<div className="grid gap-4 xl:grid-cols-2">
+		<div className="grid gap-5 lg:grid-cols-2">
 			<DashboardPanel
 				action={<LinkButton to="/matches">View all matches</LinkButton>}
 				description={`${unlockedUpcomingMatchesCount} upcoming lineups still unlocked.`}
@@ -436,36 +700,53 @@ function FinanceTab({
 	totalPaid: number;
 }) {
 	return (
-		<div className="space-y-4">
-			<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-				<SummaryCard label="Total charged" value={formatCurrency(totalExpected)} helper="Current season active players" />
-				<SummaryCard label="Total paid" value={formatCurrency(totalPaid)} helper={`${financePaidPercentage}% of charges paid`} tone="good" />
-				<SummaryCard label="Outstanding" value={formatCurrency(financeOutstanding)} helper={`${playersOwingCount} players owing`} tone={financeOutstanding > 0 ? "danger" : "good"} />
-				<SummaryCard label="Finance status" value={financeOutstanding > 0 ? "Attention" : "Clear"} helper="Based on current season balances" tone={financeOutstanding > 0 ? "warning" : "good"} />
+		<div className="space-y-6">
+			<div className="grid gap-5 lg:grid-cols-3">
+				<SummaryCard
+					label="Expected"
+					value={formatCurrency(totalExpected)}
+					helper="Current season charges"
+				/>
+
+				<SummaryCard
+					label="Paid"
+					value={formatCurrency(totalPaid)}
+					helper={`${financePaidPercentage}% paid`}
+					tone="good"
+				/>
+
+				<SummaryCard
+					label="Outstanding"
+					value={formatCurrency(financeOutstanding)}
+					helper={`${playersOwingCount} players owing`}
+					tone={financeOutstanding > 0 ? "danger" : "good"}
+				/>
 			</div>
 
 			<DashboardPanel
-				action={<LinkButton to="/finances">Open finance page</LinkButton>}
+				action={<LinkButton to="/finance">Open finance page</LinkButton>}
 				description="Top active players with an outstanding balance."
 				title="Finance watchlist"
 			>
 				<div className="space-y-3">
 					{financeWatchlist.map((row) => (
-						<Link
+						<div
 							key={row.player.id}
-							to={`/players/${row.player.id}`}
-							className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 transition hover:border-blue-200 hover:bg-blue-50"
+							className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 p-4"
 						>
 							<div>
-								<p className="font-semibold text-slate-950">{row.player.name}</p>
-								<p className="text-xs text-slate-500">Paid {formatCurrency(row.totalPaid)} of {formatCurrency(row.amountOwed)}</p>
+								<p className="font-bold text-slate-900">{row.player.name}</p>
+								<p className="text-sm text-slate-500">
+									Paid {formatCurrency(row.totalPaid)} of {formatCurrency(row.amountOwed)}
+								</p>
 							</div>
-							<p className="font-bold text-red-700">{formatCurrency(row.balance)}</p>
-						</Link>
+
+							<p className="text-lg font-bold text-red-700">{formatCurrency(row.balance)}</p>
+						</div>
 					))}
 
 					{financeWatchlist.length === 0 && (
-						<EmptyState message="No active players currently owe money." />
+						<EmptyState message="No active players have an outstanding balance." />
 					)}
 				</div>
 			</DashboardPanel>
@@ -473,36 +754,74 @@ function FinanceTab({
 	);
 }
 
-function EventsTab({ nextThreeMatches }: { nextThreeMatches: Match[] }) {
+function EventsTab({
+	canManageEvents,
+	currentPlayerId,
+	onCreateEvent,
+	onSetAvailability,
+	recentEvents,
+	upcomingEvents,
+}: {
+	canManageEvents: boolean;
+	currentPlayerId?: string | null;
+	onCreateEvent: () => void;
+	onSetAvailability: (eventId: string, status: ClubEventAvailabilityStatus) => Promise<void>;
+	recentEvents: ClubEvent[];
+	upcomingEvents: ClubEvent[];
+}) {
 	return (
-		<div className="grid gap-4 xl:grid-cols-2">
+		<div className="space-y-6">
 			<DashboardPanel
-				description="For now, upcoming fixtures are surfaced from Matches. Later this tab can include presentation nights, player socials, fundraisers, and other club events."
-				title="Events plan"
+				action={
+					canManageEvents ? (
+						<button
+							type="button"
+							onClick={onCreateEvent}
+							className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800"
+						>
+							Create event
+						</button>
+					) : undefined
+				}
+				description={
+					canManageEvents
+						? "Create training, social, meeting, and match events. Events are season agnostic."
+						: "Update your availability for upcoming club events."
+				}
+				title="Upcoming events"
 			>
-				<div className="space-y-3 text-sm text-slate-600">
-					<p>
-						This tab is a placeholder for the future player-facing Events area. It keeps Dashboard as the standard landing point while leaving room for role-aware content later.
-					</p>
-					<div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
-						<p className="font-semibold text-slate-800">Future event types</p>
-						<p className="mt-1">Fixtures, training, presentation nights, player socials, meetings, fundraisers, and other club events.</p>
-					</div>
+				<div className="space-y-3">
+					{upcomingEvents.map((event) => (
+						<DashboardEventCard
+							key={event.id}
+							currentPlayerId={currentPlayerId}
+							event={event}
+							onSetAvailability={currentPlayerId ? onSetAvailability : undefined}
+						/>
+					))}
+
+					{upcomingEvents.length === 0 && (
+						<EmptyState message="No upcoming events are available yet." />
+					)}
 				</div>
 			</DashboardPanel>
 
 			<DashboardPanel
-				action={<LinkButton to="/matches">Manage fixtures</LinkButton>}
-				description="Current fixture data that will eventually feed player events."
-				title="Upcoming fixture events"
+				description="Most recent past events."
+				title="Recent events"
 			>
 				<div className="space-y-3">
-					{nextThreeMatches.map((match) => (
-						<MatchListItem key={match.id} match={match} />
+					{recentEvents.map((event) => (
+						<DashboardEventCard
+							key={event.id}
+							currentPlayerId={currentPlayerId}
+							event={event}
+							onSetAvailability={currentPlayerId ? onSetAvailability : undefined}
+						/>
 					))}
 
-					{nextThreeMatches.length === 0 && (
-						<EmptyState message="No upcoming fixtures to show as events yet." />
+					{recentEvents.length === 0 && (
+						<EmptyState message="No recent events are available yet." />
 					)}
 				</div>
 			</DashboardPanel>
@@ -512,16 +831,27 @@ function EventsTab({ nextThreeMatches }: { nextThreeMatches: Match[] }) {
 
 function PostsTab() {
 	return (
-		<DashboardPanel
-			description="Posts will make more sense after login and role-aware navigation exist."
-			title="Posts plan"
-		>
-			<div className="grid gap-3 md:grid-cols-3">
-				<FutureCard title="Club updates" description="General reminders, notices, and announcements for players." />
-				<FutureCard title="Matchday posts" description="Squad news, fixture reminders, and post-match updates." />
-				<FutureCard title="Event posts" description="Presentation night, socials, fundraisers, and club nights." />
-			</div>
-		</DashboardPanel>
+		<div className="grid gap-5 md:grid-cols-2">
+			<FutureCard
+				description="Short updates for players, coaches, and club admins."
+				title="Club updates"
+			/>
+
+			<FutureCard
+				description="Future targeting for all players, first team, second team, coaches, and committee."
+				title="Audience targeting"
+			/>
+
+			<FutureCard
+				description="Reminders for payments, fixtures, socials, and presentation nights."
+				title="Reminders"
+			/>
+
+			<FutureCard
+				description="A player-facing feed without exposing management-only data."
+				title="Player feed"
+			/>
+		</div>
 	);
 }
 
@@ -537,10 +867,10 @@ function SummaryCard({
 	value: ReactNode;
 }) {
 	return (
-		<div className={`rounded-2xl border bg-white p-4 shadow-sm ${getToneBorder(tone)}`}>
-			<p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-			<p className={`mt-2 text-2xl font-bold ${getToneText(tone)}`}>{value}</p>
-			<p className="mt-1 text-sm text-slate-500">{helper}</p>
+		<div className={`rounded-2xl border bg-white p-5 shadow-sm ${getToneBorder(tone)}`}>
+			<p className="text-sm font-bold uppercase tracking-wide text-slate-500">{label}</p>
+			<p className={`mt-3 text-3xl font-bold ${getToneText(tone)}`}>{value}</p>
+			<p className="mt-2 text-sm text-slate-500">{helper}</p>
 		</div>
 	);
 }
@@ -548,22 +878,18 @@ function SummaryCard({
 function AttentionCard({
 	children,
 	title,
-	to,
 	tone,
 }: {
 	children: ReactNode;
 	title: string;
-	to: string;
 	tone: "neutral" | "good" | "danger" | "muted";
 }) {
 	return (
-		<Link
-			to={to}
-			className={`block rounded-2xl border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${getToneBorder(tone)}`}
-		>
-			<p className="text-sm font-semibold text-slate-500">{title}</p>
-			<div className="mt-3">{children}</div>
-		</Link>
+		<section className={`rounded-2xl border bg-white p-5 shadow-sm ${getToneBorder(tone)}`}>
+			<h2 className="text-base font-bold text-slate-700">{title}</h2>
+
+			<div className="mt-4">{children}</div>
+		</section>
 	);
 }
 
@@ -579,15 +905,17 @@ function DashboardPanel({
 	title: string;
 }) {
 	return (
-		<section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+		<section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+			<div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 				<div>
-					<h2 className="text-lg font-bold text-slate-950">{title}</h2>
+					<h2 className="text-lg font-bold text-slate-900">{title}</h2>
 					<p className="mt-1 text-sm text-slate-500">{description}</p>
 				</div>
+
 				{action}
 			</div>
-			<div className="mt-4">{children}</div>
+
+			{children}
 		</section>
 	);
 }
@@ -596,10 +924,11 @@ function MatchPreview({ match, showResult = false }: { match: Match; showResult?
 	return (
 		<div>
 			<div className="flex flex-wrap items-center gap-2">
-				<p className="text-lg font-bold text-slate-950">vs {match.opponent}</p>
+				<p className="text-lg font-bold text-slate-900">vs {match.opponent}</p>
 				<StatusPill state={match.state} />
 				{showResult && match.result && <ResultPill match={match} />}
 			</div>
+
 			<p className="mt-2 text-sm text-slate-600">
 				{formatDisplayDateTime(match.date)} · {getVenueLabel(match.venue)} · {getTeamLabel(match.team)}
 			</p>
@@ -609,23 +938,19 @@ function MatchPreview({ match, showResult = false }: { match: Match; showResult?
 
 function MatchListItem({ match, showResult = false }: { match: Match; showResult?: boolean }) {
 	return (
-		<Link
-			to={`/matches/${match.id}`}
-			className="block rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 transition hover:border-blue-200 hover:bg-blue-50"
-		>
-			<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-				<div>
-					<p className="font-semibold text-slate-950">vs {match.opponent}</p>
-					<p className="mt-1 text-xs text-slate-500">
-						{formatDisplayDateTime(match.date)} · {getVenueLabel(match.venue)} · {getTeamLabel(match.team)}
-					</p>
-				</div>
-				<div className="flex items-center gap-2">
-					<StatusPill state={match.state} />
-					{showResult && match.result && <ResultPill match={match} />}
-				</div>
+		<div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 p-4">
+			<div>
+				<p className="font-bold text-slate-900">vs {match.opponent}</p>
+				<p className="mt-1 text-sm text-slate-500">
+					{formatDisplayDateTime(match.date)} · {getVenueLabel(match.venue)} · {getTeamLabel(match.team)}
+				</p>
 			</div>
-		</Link>
+
+			<div className="flex shrink-0 items-center gap-2">
+				<StatusPill state={match.state} />
+				{showResult && match.result && <ResultPill match={match} />}
+			</div>
+		</div>
 	);
 }
 
@@ -641,9 +966,9 @@ function QuickAction({
 	return (
 		<Link
 			to={to}
-			className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition hover:border-blue-200 hover:bg-blue-50"
+			className="block rounded-xl border border-slate-200 p-4 transition hover:border-blue-300 hover:bg-blue-50"
 		>
-			<p className="font-semibold text-slate-950">{title}</p>
+			<p className="font-bold text-slate-900">{title}</p>
 			<p className="mt-1 text-sm text-slate-500">{description}</p>
 		</Link>
 	);
@@ -651,16 +976,17 @@ function QuickAction({
 
 function FutureCard({ description, title }: { description: string; title: string }) {
 	return (
-		<div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
-			<p className="font-semibold text-slate-900">{title}</p>
-			<p className="mt-1 text-sm text-slate-500">{description}</p>
-		</div>
+		<section className="rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-5">
+			<p className="text-xs font-black uppercase tracking-wide text-amber-700">Future</p>
+			<h2 className="mt-2 text-lg font-bold text-slate-900">{title}</h2>
+			<p className="mt-2 text-sm text-slate-600">{description}</p>
+		</section>
 	);
 }
 
 function EmptyState({ message }: { message: string }) {
 	return (
-		<div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
+		<div className="rounded-xl border border-dashed border-slate-300 p-5 text-center text-sm font-semibold text-slate-500">
 			{message}
 		</div>
 	);
@@ -670,7 +996,7 @@ function LinkButton({ children, to }: { children: ReactNode; to: string }) {
 	return (
 		<Link
 			to={to}
-			className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+			className="inline-flex items-center justify-center rounded-xl border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
 		>
 			{children}
 		</Link>
@@ -679,7 +1005,7 @@ function LinkButton({ children, to }: { children: ReactNode; to: string }) {
 
 function StatusPill({ state }: { state: MatchState }) {
 	return (
-		<span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusClass(state)}`}>
+		<span className={`rounded-full px-2.5 py-1 text-xs font-bold ${getStatusClass(state)}`}>
 			{getStatusLabel(state)}
 		</span>
 	);
@@ -691,7 +1017,7 @@ function ResultPill({ match }: { match: Match }) {
 	}
 
 	return (
-		<span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-800 ring-1 ring-slate-200">
+		<span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-900">
 			{match.result.homeGoals} - {match.result.awayGoals}
 		</span>
 	);
@@ -705,48 +1031,74 @@ function sortMatchesDescending(firstMatch: Match, secondMatch: Match) {
 	return new Date(secondMatch.date).getTime() - new Date(firstMatch.date).getTime();
 }
 
-function getTeamLabel(team: ClubTeam) {
-	return team === "first" ? "First Team" : "Second Team";
+function sortEventsAscending(firstEvent: ClubEvent, secondEvent: ClubEvent) {
+	return new Date(firstEvent.startDateTime).getTime() - new Date(secondEvent.startDateTime).getTime();
 }
 
-function getVenueLabel(venue: Match["venue"]) {
-	return venue === "home" ? "Home" : "Away";
+function sortEventsDescending(firstEvent: ClubEvent, secondEvent: ClubEvent) {
+	return new Date(secondEvent.startDateTime).getTime() - new Date(firstEvent.startDateTime).getTime();
 }
 
-function getStatusLabel(state: MatchState) {
-	if (state === "won") {
+function startOfToday() {
+	const date = new Date();
+	date.setHours(0, 0, 0, 0);
+	return date;
+}
+
+function getTeamLabel(team: ClubTeam | string) {
+	if (team === "First" || team === "first") {
+		return "First Team";
+	}
+
+	if (team === "Second" || team === "second") {
+		return "Second Team";
+	}
+
+	return "Team";
+}
+
+function getVenueLabel(venue: Match["venue"] | string) {
+	if (venue === "Home" || venue === "home") {
+		return "Home";
+	}
+
+	return "Away";
+}
+
+function getStatusLabel(state: MatchState | string) {
+	if (state === "won" || state === "Won") {
 		return "Won";
 	}
 
-	if (state === "lost") {
+	if (state === "lost" || state === "Lost") {
 		return "Lost";
 	}
 
-	if (state === "draw") {
+	if (state === "draw" || state === "Draw") {
 		return "Draw";
 	}
 
-	if (state === "postponed") {
+	if (state === "postponed" || state === "Postponed") {
 		return "Postponed";
 	}
 
 	return "Upcoming";
 }
 
-function getStatusClass(state: MatchState) {
-	if (state === "won") {
+function getStatusClass(state: MatchState | string) {
+	if (state === "won" || state === "Won") {
 		return "bg-green-100 text-green-800";
 	}
 
-	if (state === "lost") {
+	if (state === "lost" || state === "Lost") {
 		return "bg-red-100 text-red-800";
 	}
 
-	if (state === "draw") {
+	if (state === "draw" || state === "Draw") {
 		return "bg-amber-100 text-amber-800";
 	}
 
-	if (state === "postponed") {
+	if (state === "postponed" || state === "Postponed") {
 		return "bg-slate-200 text-slate-700";
 	}
 

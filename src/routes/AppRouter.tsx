@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { Navigate, Outlet, Route, Routes } from "react-router-dom";
+
+import Header from "../components/layout/Header";
+import Sidebar from "../components/layout/Sidebar";
+import ProtectedRoute from "../components/routing/ProtectedRoute";
 import AccessDenied from "../pages/AccessDenied/AccessDenied";
 import Dashboard from "../pages/Dashboard/Dashboard";
+import EventDetail from "../pages/Events/EventDetail";
 import Finance from "../pages/Finance/Finance";
 import HistoricalStats from "../pages/HistoricalStats/HistoricalStats";
 import Login from "../pages/Login/Login";
@@ -12,9 +17,6 @@ import Players from "../pages/Players/Players";
 import Seasons from "../pages/Seasons/Seasons";
 import Stats from "../pages/Stats/Stats";
 import Users from "../pages/Users/Users";
-import Header from "../components/layout/Header";
-import Sidebar from "../components/layout/Sidebar";
-import ProtectedRoute from "../components/routing/ProtectedRoute";
 
 const managementRoles = ["Admin", "Coach"] as const;
 const adminRoles = ["Admin"] as const;
@@ -27,8 +29,8 @@ export default function AppRouter() {
 
 			<Route element={<ProtectedRoute allowedRoles={[...allRoles]} />}>
 				<Route element={<AppShell />}>
-					<Route path="/" element={<Dashboard />} />
-					<Route path="/dashboard" element={<Dashboard />} />
+					<Route index element={<Dashboard />} />
+					<Route path="/events/:id" element={<EventDetail />} />
 					<Route path="/access-denied" element={<AccessDenied />} />
 
 					<Route element={<ProtectedRoute allowedRoles={[...managementRoles]} />}>
@@ -62,8 +64,10 @@ function AppShell() {
 				isMobileMenuOpen={isMobileMenuOpen}
 				onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
 			/>
+
 			<div className="lg:pl-64">
 				<Header onOpenMobileMenu={() => setIsMobileMenuOpen(true)} />
+
 				<main className="px-4 py-4 sm:px-6 lg:px-8">
 					<Outlet />
 				</main>

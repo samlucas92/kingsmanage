@@ -1,4 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
+
 import { useAuthStore } from "../../stores/auth";
 import ProfileSummary from "./ProfileSummary";
 
@@ -75,6 +76,7 @@ export default function Sidebar({
 								<p className="text-xs uppercase tracking-[0.25em] text-yellow-300">Kingsbridge</p>
 								<p className="text-lg font-bold">KingsManage</p>
 							</div>
+
 							<button
 								type="button"
 								onClick={onCloseMobileMenu}
@@ -83,6 +85,7 @@ export default function Sidebar({
 								✕
 							</button>
 						</div>
+
 						<SidebarContent onNavigate={onCloseMobileMenu} />
 					</div>
 				</div>
@@ -93,6 +96,7 @@ export default function Sidebar({
 					<p className="text-xs uppercase tracking-[0.25em] text-yellow-300">Kingsbridge</p>
 					<p className="text-xl font-bold">KingsManage</p>
 				</div>
+
 				<SidebarContent />
 			</aside>
 		</>
@@ -101,8 +105,10 @@ export default function Sidebar({
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 	const navigate = useNavigate();
+
 	const currentUser = useAuthStore((state) => state.currentUser);
 	const logout = useAuthStore((state) => state.logout);
+
 	const role = currentUser?.role as NavigationRole | undefined;
 
 	const visibleNavigationItems = navigationItems.filter((item) => {
@@ -132,8 +138,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 					/>
 				))}
 			</nav>
+
 			<div className="space-y-3 border-t border-white/10 p-3">
-				<ProfileSummary />
+				<ProfileSummary variant="dark" />
+
 				<button
 					type="button"
 					onClick={handleSignOut}
@@ -164,9 +172,7 @@ function SidebarItem({
 			onClick={onClick}
 			className={({ isActive }) =>
 				`block rounded-lg px-4 py-2 text-sm font-semibold transition ${
-					isActive
-						? "bg-yellow-400 text-black"
-						: "text-white hover:bg-blue-800"
+					isActive ? "bg-yellow-400 text-black" : "text-white hover:bg-blue-800"
 				}`
 			}
 		>
