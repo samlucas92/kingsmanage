@@ -2,7 +2,6 @@ import { create } from "zustand";
 
 import { financeApi } from "../services/financeApi";
 import type {
-	FinancePayment,
 	NewFinanceAdjustmentInput,
 	NewFinancePaymentInput,
 	PlayerFinanceRecord,

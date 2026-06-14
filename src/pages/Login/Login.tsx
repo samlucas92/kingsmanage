@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../stores/auth";
 
@@ -29,7 +29,7 @@ export default function Login() {
 		return <Navigate to={fromPath} replace />;
 	}
 
-	async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+	const handleSubmit = async (event: React.SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
 
 		try {
