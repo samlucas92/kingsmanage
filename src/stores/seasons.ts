@@ -1,4 +1,5 @@
 import { create } from "zustand";
+
 import { seedSeasons } from "../data/seedSeasons";
 import { seasonApi, type SeasonSetupInput } from "../services/seasonApi";
 
@@ -61,6 +62,7 @@ export const useSeasonStore = create<SeasonStore>()((set, get) => ({
 	isLoadingSeasons: false,
 	hasLoadedSeasons: false,
 	seasonLoadError: "",
+
 	loadSeasons: async (force = false) => {
 		if (get().isLoadingSeasons) {
 			return;
@@ -77,13 +79,12 @@ export const useSeasonStore = create<SeasonStore>()((set, get) => ({
 
 		try {
 			const seasons = normaliseApiSeasons(await seasonApi.getSeasons());
+			const fallbackSeasons = normaliseApiSeasons(seedSeasons);
+			const nextSeasons = seasons.length > 0 ? seasons : fallbackSeasons;
 
 			set({
-				seasons: seasons.length > 0 ? seasons : seedSeasons,
-				activeSeasonId:
-					seasons.length > 0
-						? getActiveSeasonId(seasons)
-						: getActiveSeasonId(seedSeasons),
+				seasons: nextSeasons,
+				activeSeasonId: getActiveSeasonId(nextSeasons),
 				isLoadingSeasons: false,
 				hasLoadedSeasons: true,
 			});
@@ -91,12 +92,11 @@ export const useSeasonStore = create<SeasonStore>()((set, get) => ({
 			set({
 				isLoadingSeasons: false,
 				seasonLoadError:
-					error instanceof Error
-						? error.message
-						: "Failed to load seasons.",
+					error instanceof Error ? error.message : "Failed to load seasons.",
 			});
 		}
 	},
+
 	setActiveSeason: async (seasonId) => {
 		const seasonExists = get().seasons.some((season) => season.id === seasonId);
 
@@ -114,6 +114,7 @@ export const useSeasonStore = create<SeasonStore>()((set, get) => ({
 			})),
 		}));
 	},
+
 	addSeason: async (seasonInput, isActive = false) => {
 		if (!seasonInput.name.trim()) {
 			return null;
@@ -142,18 +143,19 @@ export const useSeasonStore = create<SeasonStore>()((set, get) => ({
 				: state.activeSeasonId,
 			seasons: createdSeason.isActive
 				? [
-						...state.seasons.map((season) => ({
-							...season,
-							isActive: false,
-						})),
-						createdSeason,
-					]
+					...state.seasons.map((season) => ({
+						...season,
+						isActive: false,
+					})),
+					createdSeason,
+				]
 				: [...state.seasons, createdSeason],
 			hasLoadedSeasons: true,
 		}));
 
 		return createdSeason.id;
 	},
+
 	setupSeason: async (input) => {
 		const result = await seasonApi.setupSeason(input);
 		const seasons = normaliseApiSeasons(await seasonApi.getSeasons());
@@ -162,10 +164,12 @@ export const useSeasonStore = create<SeasonStore>()((set, get) => ({
 			seasons,
 			activeSeasonId: getActiveSeasonId(seasons),
 			hasLoadedSeasons: true,
+			seasonLoadError: "",
 		});
 
 		return result.season;
 	},
+
 	updateSeason: async (seasonId, seasonInput) => {
 		const existingSeason = get().seasons.find(
 			(season) => season.id === seasonId

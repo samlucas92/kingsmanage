@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-
 import LinkButton from "../../components/compositions/LinkButton";
 import NotFoundCard from "../../components/compositions/NotFoundCard";
 import EmptyState from "../../components/compositions/EmptyState";
@@ -10,15 +9,86 @@ import StatusBadge from "../../components/compositions/StatusBadge";
 import { usePlayerStore } from "../../stores/players";
 import { useSeasonStore } from "../../stores/seasons";
 import { useStatsStore } from "../../stores/stats";
+import { useFinanceStore } from "../../stores/finance";
 import { matchApi } from "../../services/matchApi";
 import { PlayerFormModal } from "./components/PlayerFormModal";
 import { usePlayerForm } from "./hooks/usePlayerForm";
 import { formatDisplayDate } from "../../utils/date";
+import type { FinanceTransaction } from "../../types/finance";
 
 type PlayerMatchRecord = Awaited<ReturnType<typeof matchApi.getPlayerMatches>>[number];
 
+type FinanceStatus = {
+	label: string;
+	tone: "success" | "warning" | "danger" | "neutral";
+};
+
+function formatCurrency(amount: number) {
+	return new Intl.NumberFormat("en-GB", {
+		style: "currency",
+		currency: "GBP",
+	}).format(amount);
+}
+
+function formatTransactionDate(date: string) {
+	if (!date) {
+		return "Unknown date";
+	}
+
+	return formatDisplayDate(date);
+}
+
+function getTransactionAmountClass(transaction: FinanceTransaction) {
+	if (transaction.type === "Payment") {
+		return "text-green-700";
+	}
+
+	if (transaction.type === "Adjustment" && transaction.amount < 0) {
+		return "text-amber-700";
+	}
+
+	if (transaction.type === "Adjustment") {
+		return "text-blue-700";
+	}
+
+	return "text-slate-900";
+}
+
+function getFinanceStatus(
+	amountOwed: number,
+	totalPaid: number,
+	balance: number
+): FinanceStatus {
+	if (amountOwed === 0 && totalPaid === 0 && balance === 0) {
+		return {
+			label: "No charge",
+			tone: "neutral",
+		};
+	}
+
+	if (balance <= 0) {
+		return {
+			label: "Paid",
+			tone: "success",
+		};
+	}
+
+	if (totalPaid > 0) {
+		return {
+			label: "Part paid",
+			tone: "warning",
+		};
+	}
+
+	return {
+		label: "Outstanding",
+		tone: "danger",
+	};
+}
+
 export default function PlayerProfile() {
 	const { id } = useParams();
+
 	const [recentAppearances, setRecentAppearances] = useState<PlayerMatchRecord[]>([]);
 	const [isLoadingRecentAppearances, setIsLoadingRecentAppearances] = useState(false);
 	const [recentAppearancesError, setRecentAppearancesError] = useState("");
@@ -44,9 +114,19 @@ export default function PlayerProfile() {
 	const statsLoadError = useStatsStore((state) => state.statsLoadError);
 	const loadSeasonStats = useStatsStore((state) => state.loadSeasonStats);
 
+	const playerFinanceRecords = useFinanceStore(
+		(state) => state.playerFinanceRecords
+	);
+	const isLoadingFinance = useFinanceStore((state) => state.isLoadingFinance);
+	const financeLoadError = useFinanceStore((state) => state.financeLoadError);
+	const loadFinance = useFinanceStore((state) => state.loadFinance);
+
 	const player = players.find((player) => player.id === id);
 	const activeSeason = seasons.find((season) => season.id === activeSeasonId);
 	const playerStats = seasonStats.find((stats) => stats.playerId === id);
+	const playerFinanceRecord = playerFinanceRecords.find(
+		(record) => record.playerId === id
+	);
 
 	useEffect(() => {
 		if (!id) {
@@ -66,7 +146,8 @@ export default function PlayerProfile() {
 		}
 
 		void loadSeasonStats(activeSeasonId, true);
-	}, [activeSeasonId, loadSeasonStats]);
+		void loadFinance(activeSeasonId);
+	}, [activeSeasonId, loadSeasonStats, loadFinance]);
 
 	useEffect(() => {
 		if (!id || !activeSeasonId) {
@@ -81,7 +162,9 @@ export default function PlayerProfile() {
 			setRecentAppearancesError("");
 
 			try {
-				const matches = id ? await matchApi.getPlayerMatches(id, activeSeasonId) : [];
+				const matches = id
+					? await matchApi.getPlayerMatches(id, activeSeasonId)
+					: [];
 
 				if (!isMounted) {
 					return;
@@ -143,6 +226,23 @@ export default function PlayerProfile() {
 		return playerStats?.seasonGoals ?? 0;
 	}, [playerStats]);
 
+	const financeAmountOwed = playerFinanceRecord?.amountOwed ?? 0;
+	const financeTotalPaid = playerFinanceRecord?.totalPaid ?? 0;
+	const financeTotalAdjustments = playerFinanceRecord?.totalAdjustments ?? 0;
+	const financeBalance = playerFinanceRecord?.balance ?? financeAmountOwed - financeTotalPaid;
+	const financeTransactions = useMemo(() => {
+		return [...(playerFinanceRecord?.transactions ?? [])].sort(
+			(firstTransaction, secondTransaction) =>
+				new Date(secondTransaction.transactionDate).getTime() -
+				new Date(firstTransaction.transactionDate).getTime()
+		);
+	}, [playerFinanceRecord]);
+	const financeStatus = getFinanceStatus(
+		financeAmountOwed,
+		financeTotalPaid,
+		financeBalance
+	);
+
 	if (!id) {
 		return (
 			<NotFoundCard
@@ -193,13 +293,22 @@ export default function PlayerProfile() {
 				</div>
 			)}
 
+			{financeLoadError && (
+				<div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+					{financeLoadError}
+				</div>
+			)}
+
 			{recentAppearancesError && (
 				<div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
 					{recentAppearancesError}
 				</div>
 			)}
 
-			{(isLoadingSeasons || isLoadingStats || isLoadingRecentAppearances) && (
+			{(isLoadingSeasons ||
+				isLoadingStats ||
+				isLoadingFinance ||
+				isLoadingRecentAppearances) && (
 				<div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
 					Loading season data...
 				</div>
@@ -262,7 +371,6 @@ export default function PlayerProfile() {
 							{activeSeason?.name ?? "No season selected"}
 						</h2>
 					</div>
-
 					<SeasonSelector label="Season" />
 				</div>
 			</div>
@@ -271,6 +379,108 @@ export default function PlayerProfile() {
 				<MetricCard label="Career Apps" value={careerApps} />
 				<MetricCard label="Season Apps" value={seasonApps} />
 				<MetricCard label="Season Goals" value={seasonGoals} />
+			</div>
+
+			<div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+					<div>
+						<h2 className="text-lg font-bold text-slate-900">
+							Season Finance
+						</h2>
+						<p className="mt-1 text-sm text-slate-500">
+							Shows the selected season balance and transaction audit for this player.
+						</p>
+					</div>
+					<StatusBadge label={financeStatus.label} tone={financeStatus.tone} />
+				</div>
+
+				<div className="mt-4 grid gap-3 sm:grid-cols-4">
+					<MetricCard
+						label="Charged"
+						value={formatCurrency(financeAmountOwed)}
+						size="compact"
+					/>
+					<MetricCard
+						label="Paid"
+						value={formatCurrency(financeTotalPaid)}
+						tone={financeTotalPaid > 0 ? "success" : "default"}
+						size="compact"
+					/>
+					<MetricCard
+						label="Adjustments"
+						value={formatCurrency(financeTotalAdjustments)}
+						tone={financeTotalAdjustments < 0 ? "warning" : "default"}
+						size="compact"
+					/>
+					<MetricCard
+						label="Outstanding"
+						value={formatCurrency(financeBalance)}
+						tone={financeBalance > 0 ? "danger" : "success"}
+						size="compact"
+					/>
+				</div>
+
+				<div className="mt-5">
+					<h3 className="text-sm font-semibold text-slate-900">
+						Finance History
+					</h3>
+
+					{financeTransactions.length === 0 ? (
+						<div className="mt-3 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+							No finance transactions have been recorded for this player in the selected season.
+						</div>
+					) : (
+						<div className="mt-3 overflow-hidden rounded-lg border border-slate-200">
+							<div className="hidden bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 sm:grid sm:grid-cols-[1fr_1fr_1fr_2fr] sm:gap-4">
+								<span>Date</span>
+								<span>Type</span>
+								<span className="text-right">Amount</span>
+								<span>Note</span>
+							</div>
+							<div className="divide-y divide-slate-100">
+								{financeTransactions.map((transaction) => (
+									<div
+										key={transaction.id}
+										className="grid gap-2 px-4 py-3 text-sm sm:grid-cols-[1fr_1fr_1fr_2fr] sm:gap-4"
+									>
+										<div>
+											<span className="text-xs font-semibold uppercase tracking-wide text-slate-400 sm:hidden">
+												Date
+											</span>
+											<p className="text-slate-700">
+												{formatTransactionDate(transaction.transactionDate)}
+											</p>
+										</div>
+										<div>
+											<span className="text-xs font-semibold uppercase tracking-wide text-slate-400 sm:hidden">
+												Type
+											</span>
+											<p className="font-medium text-slate-900">
+												{transaction.type}
+											</p>
+										</div>
+										<div className="sm:text-right">
+											<span className="text-xs font-semibold uppercase tracking-wide text-slate-400 sm:hidden">
+												Amount
+											</span>
+											<p className={`font-semibold ${getTransactionAmountClass(transaction)}`}>
+												{formatCurrency(transaction.amount)}
+											</p>
+										</div>
+										<div>
+											<span className="text-xs font-semibold uppercase tracking-wide text-slate-400 sm:hidden">
+												Note
+											</span>
+											<p className="text-slate-600">
+												{transaction.note?.trim() || "—"}
+											</p>
+										</div>
+									</div>
+								))}
+							</div>
+						</div>
+					)}
+				</div>
 			</div>
 
 			<div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -303,7 +513,6 @@ export default function PlayerProfile() {
 										{formatDisplayDate(match.date)}
 									</p>
 								</div>
-
 								<div className="text-right">
 									<p className="font-semibold text-slate-900">
 										{match.playerStat?.goals ?? 0} goals

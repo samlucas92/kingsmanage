@@ -1,8 +1,6 @@
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
-import type { Player } from "./players";
-import { getPreSeasonPlayerStats } from "../data/preSeasonPlayerStats";
 import { historicalStatsApi } from "../services/historicalStatsApi";
+import type { Player } from "./players";
 
 export type HistoricalPlayerStatRecord = {
 	playerId: string;
@@ -19,6 +17,13 @@ type HistoricalStatsStore = {
 	loadHistoricalStats: (force?: boolean) => Promise<void>;
 	initialiseHistoricalStats: (players: Player[]) => void;
 	setHistoricalPlayerStats: (
+		playerId: string,
+		stats: {
+			appearances: number;
+			goals: number;
+		}
+	) => Promise<void>;
+	saveHistoricalPlayerStats: (
 		playerId: string,
 		stats: {
 			appearances: number;
@@ -53,145 +58,108 @@ function upsertRecord(
 	);
 }
 
-export const useHistoricalStatsStore = create<HistoricalStatsStore>()(
-	persist(
-		(set, get) => ({
-			historicalPlayerStats: [],
-			isLoadingHistoricalStats: false,
-			hasLoadedHistoricalStats: false,
+export const useHistoricalStatsStore = create<HistoricalStatsStore>()((set, get) => ({
+	historicalPlayerStats: [],
+	isLoadingHistoricalStats: false,
+	hasLoadedHistoricalStats: false,
+	historicalStatsLoadError: "",
+
+	loadHistoricalStats: async (force = false) => {
+		if (get().isLoadingHistoricalStats) {
+			return;
+		}
+
+		if (get().hasLoadedHistoricalStats && !force) {
+			return;
+		}
+
+		set({
+			isLoadingHistoricalStats: true,
 			historicalStatsLoadError: "",
-			loadHistoricalStats: async (force = false) => {
-				if (get().isLoadingHistoricalStats) {
-					return;
-				}
+		});
 
-				if (get().hasLoadedHistoricalStats && !force) {
-					return;
-				}
+		try {
+			const records = await historicalStatsApi.getHistoricalStats();
 
-				set({
-					isLoadingHistoricalStats: true,
-					historicalStatsLoadError: "",
-				});
+			set({
+				historicalPlayerStats: records,
+				isLoadingHistoricalStats: false,
+				hasLoadedHistoricalStats: true,
+			});
+		} catch (error) {
+			set({
+				isLoadingHistoricalStats: false,
+				historicalStatsLoadError:
+					error instanceof Error
+						? error.message
+						: "Failed to load historical stats.",
+			});
+		}
+	},
 
-				try {
-					const records = await historicalStatsApi.getHistoricalStats();
+	initialiseHistoricalStats: () => {
+		// Historical stats are now API-backed. Page load must be read-only.
+	},
 
-					set((state) => ({
-						historicalPlayerStats:
-							records.length > 0 ? records : state.historicalPlayerStats,
-						isLoadingHistoricalStats: false,
-						hasLoadedHistoricalStats: true,
-					}));
-				} catch (error) {
-					set({
-						isLoadingHistoricalStats: false,
-						historicalStatsLoadError:
-							error instanceof Error
-								? error.message
-								: "Failed to load historical stats.",
-					});
-				}
-			},
-			initialiseHistoricalStats: (players) => {
-				const existingRecords = get().historicalPlayerStats;
-				const missingRecords = players
-					.filter(
-						(player) =>
-							!existingRecords.some(
-								(record) => record.playerId === player.id
-							)
-					)
-					.map((player) => {
-						const preSeasonStats = getPreSeasonPlayerStats(player.name);
+	setHistoricalPlayerStats: async (playerId, stats) => {
+		const appearances = normaliseNumber(stats.appearances);
+		const goals = normaliseNumber(stats.goals);
+		const updatedAt = new Date().toISOString();
 
-						return {
-							playerId: player.id,
-							appearances: preSeasonStats.appearances,
-							goals: preSeasonStats.goals,
-							updatedAt: new Date().toISOString(),
-						};
-					});
+		set((state) => ({
+			historicalPlayerStats: upsertRecord(state.historicalPlayerStats, {
+				playerId,
+				appearances,
+				goals,
+				updatedAt,
+			}),
+		}));
+	},
 
-				if (missingRecords.length === 0) {
-					return;
-				}
+	saveHistoricalPlayerStats: async (playerId, stats) => {
+		const appearances = normaliseNumber(stats.appearances);
+		const goals = normaliseNumber(stats.goals);
+		const optimisticRecord = {
+			playerId,
+			appearances,
+			goals,
+			updatedAt: new Date().toISOString(),
+		};
 
-				set({
-					historicalPlayerStats: [...existingRecords, ...missingRecords],
-				});
-			},
-			setHistoricalPlayerStats: async (playerId, stats) => {
-				const appearances = normaliseNumber(stats.appearances);
-				const goals = normaliseNumber(stats.goals);
-				const updatedAt = new Date().toISOString();
-				const localRecord = {
-					playerId,
+		set((state) => ({
+			historicalPlayerStats: upsertRecord(
+				state.historicalPlayerStats,
+				optimisticRecord
+			),
+			historicalStatsLoadError: "",
+		}));
+
+		try {
+			const savedRecord = await historicalStatsApi.updateHistoricalStats(
+				playerId,
+				{
 					appearances,
 					goals,
-					updatedAt,
-				};
-
-				set((state) => ({
-					historicalPlayerStats: upsertRecord(
-						state.historicalPlayerStats,
-						localRecord
-					),
-				}));
-
-				try {
-					const savedRecord = await historicalStatsApi.updateHistoricalStats(
-						playerId,
-						{
-							appearances,
-							goals,
-						}
-					);
-
-					set((state) => ({
-						historicalPlayerStats: upsertRecord(
-							state.historicalPlayerStats,
-							savedRecord
-						),
-					}));
-				} catch (error) {
-					set({
-						historicalStatsLoadError:
-							error instanceof Error
-								? error.message
-								: "Failed to save historical stats.",
-					});
 				}
-			},
-			syncHistoricalStatsToApi: async () => {
-				const records = get().historicalPlayerStats;
+			);
 
-				try {
-					await Promise.all(
-						records.map((record) =>
-							historicalStatsApi.updateHistoricalStats(record.playerId, {
-								appearances: record.appearances,
-								goals: record.goals,
-							})
-						)
-					);
-				} catch (error) {
-					set({
-						historicalStatsLoadError:
-							error instanceof Error
-								? error.message
-								: "Failed to sync historical stats.",
-					});
-				}
-			},
-		}),
-		{
-			name: "kingsbridge-colts-historical-stats-store",
-			storage: createJSONStorage(() => localStorage),
-			version: 1,
-			partialize: (state) => ({
-				historicalPlayerStats: state.historicalPlayerStats,
-			}),
+			set((state) => ({
+				historicalPlayerStats: upsertRecord(
+					state.historicalPlayerStats,
+					savedRecord
+				),
+			}));
+		} catch (error) {
+			set({
+				historicalStatsLoadError:
+					error instanceof Error
+						? error.message
+						: "Failed to save historical stats.",
+			});
 		}
-	)
-);
+	},
+
+	syncHistoricalStatsToApi: async () => {
+		// Historical stats must only be saved after deliberate user edits.
+	},
+}));

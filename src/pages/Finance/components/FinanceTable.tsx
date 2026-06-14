@@ -1,11 +1,21 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { Player } from "../../../stores/players";
-import type { PlayerFinanceRecord } from "../../../types/finance";
+import type {
+	FinanceTransaction,
+	FinanceTransactionType,
+	PlayerFinanceRecord,
+} from "../../../types/finance";
 import type { FinanceRowData } from "../../../services/financeService";
 import StatusBadge from "../../../components/compositions/StatusBadge";
 import DataTable from "../../../components/compositions/DataTable";
 import ActionMenu from "../../../components/compositions/ActionMenu";
 import { formatCurrency, formatDateTime } from "../../../utils/format";
+
+type RemoveTransactionDetails = {
+	playerName: string;
+	amount: number;
+	type: string;
+};
 
 type FinanceTableProps = {
 	rows: FinanceRowData[];
@@ -16,8 +26,17 @@ type FinanceTableProps = {
 	onRemovePayment: (
 		playerId: string,
 		paymentId: string,
-		seasonId: string
+		seasonId: string,
+		details: RemoveTransactionDetails
 	) => void;
+};
+
+type DisplayTransaction = {
+	id: string;
+	type: FinanceTransactionType | "Payment";
+	amount: number;
+	note?: string;
+	date: string;
 };
 
 export default function FinanceTable({
@@ -30,7 +49,7 @@ export default function FinanceTable({
 }: FinanceTableProps) {
 	if (rows.length === 0) {
 		return (
-			<div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+			<div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
 				No finance records match this filter.
 			</div>
 		);
@@ -38,7 +57,7 @@ export default function FinanceTable({
 
 	return (
 		<>
-			<div className="space-y-3 md:hidden">
+			<div className="space-y-3 lg:hidden">
 				{rows.map((row) => (
 					<FinanceMobileCard
 						key={row.player.id}
@@ -52,19 +71,20 @@ export default function FinanceTable({
 				))}
 			</div>
 
-			<DataTable className="hidden md:block overflow-x-auto">
-				<table className="w-full min-w-[820px] divide-y divide-slate-200 text-sm">
+			<div className="hidden lg:block">
+				<DataTable minWidthClassName="min-w-[980px]">
 					<thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
 						<tr>
 							<th className="px-4 py-3">Player</th>
-							<th className="px-4 py-3 text-right whitespace-nowrap">Owed</th>
-							<th className="px-4 py-3 text-right whitespace-nowrap">Paid</th>
-							<th className="px-4 py-3 text-right whitespace-nowrap">Outstanding</th>
-							<th className="px-4 py-3 whitespace-nowrap">Status</th>
-							<th className="px-4 py-3 text-right whitespace-nowrap">Actions</th>
+							<th className="px-4 py-3">Owed</th>
+							<th className="px-4 py-3">Paid</th>
+							<th className="px-4 py-3">Adjustments</th>
+							<th className="px-4 py-3">Outstanding</th>
+							<th className="px-4 py-3">Status</th>
+							<th className="px-4 py-3 text-right">Actions</th>
 						</tr>
 					</thead>
-					<tbody className="divide-y divide-slate-100 bg-white">
+					<tbody className="divide-y divide-slate-100 bg-white text-sm">
 						{rows.map((row) => (
 							<FinanceRow
 								key={row.player.id}
@@ -77,8 +97,8 @@ export default function FinanceTable({
 							/>
 						))}
 					</tbody>
-				</table>
-			</DataTable>
+				</DataTable>
+			</div>
 		</>
 	);
 }
@@ -95,42 +115,34 @@ function FinanceMobileCard({
 	onAddPayment,
 	onAddAdjustment,
 	onRemovePayment,
-}: {
-	player: Player;
-	record?: PlayerFinanceRecord;
-	amountOwed: number;
-	totalPaid: number;
-	balance: number;
-	status: string;
+}: FinanceRowData & {
 	activeSeasonId: string;
 	onSetOwed: () => void;
 	onAddPayment: () => void;
 	onAddAdjustment: () => void;
-	onRemovePayment: (
-		playerId: string,
-		paymentId: string,
-		seasonId: string
-	) => void;
+	onRemovePayment: FinanceTableProps["onRemovePayment"];
 }) {
-	const [showPayments, setShowPayments] = useState(false);
+	const [showTransactions, setShowTransactions] = useState(false);
 	const statusBadge = getFinanceStatusBadge(status);
-	const payments = record?.payments ?? [];
+	const transactions = useDisplayTransactions(record);
+	const totalAdjustments = getTotalAdjustments(record);
 
 	return (
-		<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+		<div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
 			<div className="flex items-start justify-between gap-3">
 				<div>
-					<p className="font-semibold text-slate-900">{player.name}</p>
-					<p className="text-xs text-slate-500">
+					<h3 className="font-semibold text-blue-950">{player.name}</h3>
+					<p className="text-sm text-slate-500">
 						#{player.number} · {player.isActive ? "Active" : "Inactive"}
 					</p>
 				</div>
 				<StatusBadge label={statusBadge.label} tone={statusBadge.tone} />
 			</div>
 
-			<div className="mt-4 grid grid-cols-3 gap-2 text-center">
+			<div className="mt-4 grid grid-cols-2 gap-3">
 				<FinanceAmountBlock label="Owed" value={amountOwed} />
 				<FinanceAmountBlock label="Paid" value={totalPaid} tone="success" />
+				<FinanceAmountBlock label="Adjustments" value={totalAdjustments} />
 				<FinanceAmountBlock
 					label="Outstanding"
 					value={balance}
@@ -140,57 +152,24 @@ function FinanceMobileCard({
 
 			<div className="mt-4 flex justify-end">
 				<FinanceActionsMenu
-					paymentsCount={payments.length}
-					showPayments={showPayments}
+					transactionsCount={transactions.length}
+					showTransactions={showTransactions}
 					onSetOwed={onSetOwed}
 					onAddPayment={onAddPayment}
 					onAddAdjustment={onAddAdjustment}
-					onTogglePayments={() => setShowPayments((current) => !current)}
+					onToggleTransactions={() =>
+						setShowTransactions((current) => !current)
+					}
 				/>
 			</div>
 
-			{showPayments && (
-				<div className="mt-4 space-y-2 rounded-xl bg-slate-50 p-3">
-					{payments.length === 0 ? (
-						<p className="text-sm text-slate-500">
-							No payments recorded for this player yet.
-						</p>
-					) : (
-						payments.map((payment) => (
-							<div
-								key={payment.id}
-								className="flex items-start justify-between gap-3 rounded-lg bg-white p-3 text-sm"
-							>
-								<div>
-									<p className="font-semibold text-slate-900">
-										{formatCurrency(payment.amount)}
-									</p>
-									<p className="text-xs text-slate-500">
-										{formatDateTime(payment.paidAt)}
-									</p>
-									{payment.note && (
-										<p className="mt-1 text-xs text-slate-500">
-											{payment.note}
-										</p>
-									)}
-								</div>
-								<button
-									type="button"
-									onClick={() =>
-										onRemovePayment(
-											player.id,
-											payment.id,
-											activeSeasonId
-										)
-									}
-									className="shrink-0 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
-								>
-									Remove
-								</button>
-							</div>
-						))
-					)}
-				</div>
+			{showTransactions && (
+				<TransactionList
+					player={player}
+					transactions={transactions}
+					activeSeasonId={activeSeasonId}
+					onRemovePayment={onRemovePayment}
+				/>
 			)}
 		</div>
 	);
@@ -205,20 +184,19 @@ function FinanceAmountBlock({
 	value: number;
 	tone?: "default" | "success" | "danger";
 }) {
+	const valueClassName =
+		tone === "success"
+			? "text-green-700"
+			: tone === "danger"
+				? "text-red-700"
+				: "text-blue-950";
+
 	return (
-		<div className="rounded-xl bg-slate-50 p-3">
+		<div className="rounded-lg bg-slate-50 p-3">
 			<p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
 				{label}
 			</p>
-			<p
-				className={`mt-1 font-bold ${
-					tone === "success"
-						? "text-green-700"
-						: tone === "danger"
-							? "text-red-700"
-							: "text-slate-900"
-				}`}
-			>
+			<p className={`mt-1 text-lg font-bold ${valueClassName}`}>
 				{formatCurrency(value)}
 			</p>
 		</div>
@@ -237,104 +215,68 @@ function FinanceRow({
 	onAddPayment,
 	onAddAdjustment,
 	onRemovePayment,
-}: {
-	player: Player;
-	record?: PlayerFinanceRecord;
-	amountOwed: number;
-	totalPaid: number;
-	balance: number;
-	status: string;
+}: FinanceRowData & {
 	activeSeasonId: string;
 	onSetOwed: () => void;
 	onAddPayment: () => void;
 	onAddAdjustment: () => void;
-	onRemovePayment: (
-		playerId: string,
-		paymentId: string,
-		seasonId: string
-	) => void;
+	onRemovePayment: FinanceTableProps["onRemovePayment"];
 }) {
-	const [showPayments, setShowPayments] = useState(false);
+	const [showTransactions, setShowTransactions] = useState(false);
 	const statusBadge = getFinanceStatusBadge(status);
-	const paymentsCount = record?.payments.length ?? 0;
+	const transactions = useDisplayTransactions(record);
+	const totalAdjustments = getTotalAdjustments(record);
 
 	return (
 		<>
-			<tr>
+			<tr className="align-top">
 				<td className="px-4 py-3">
-					<p className="font-semibold text-slate-900">{player.name}</p>
-					<p className="text-xs text-slate-500">
+					<div className="font-semibold text-blue-950">{player.name}</div>
+					<div className="text-xs text-slate-500">
 						#{player.number} · {player.isActive ? "Active" : "Inactive"}
-					</p>
+					</div>
 				</td>
-				<td className="px-4 py-3 text-right font-semibold text-slate-900">
+				<td className="px-4 py-3 font-semibold text-slate-700">
 					{formatCurrency(amountOwed)}
 				</td>
-				<td className="px-4 py-3 text-right text-green-700">
+				<td className="px-4 py-3 font-semibold text-green-700">
 					{formatCurrency(totalPaid)}
 				</td>
+				<td className="px-4 py-3 font-semibold text-slate-700">
+					{formatCurrency(totalAdjustments)}
+				</td>
 				<td
-					className={`px-4 py-3 text-right font-semibold ${
+					className={`px-4 py-3 font-semibold ${
 						balance > 0 ? "text-red-700" : "text-green-700"
 					}`}
 				>
 					{formatCurrency(balance)}
 				</td>
-				<td className="px-4 py-3 whitespace-nowrap">
-					<StatusBadge
-						label={statusBadge.label}
-						tone={statusBadge.tone}
-						className="inline-flex whitespace-nowrap px-2.5 py-1 text-xs"
-					/>
+				<td className="px-4 py-3">
+					<StatusBadge label={statusBadge.label} tone={statusBadge.tone} />
 				</td>
-				<td className="px-4 py-3 text-right align-middle">
+				<td className="px-4 py-3 text-right">
 					<FinanceActionsMenu
-						paymentsCount={paymentsCount}
-						showPayments={showPayments}
+						transactionsCount={transactions.length}
+						showTransactions={showTransactions}
 						onSetOwed={onSetOwed}
 						onAddPayment={onAddPayment}
 						onAddAdjustment={onAddAdjustment}
-						onTogglePayments={() => setShowPayments((current) => !current)}
+						onToggleTransactions={() =>
+							setShowTransactions((current) => !current)
+						}
 					/>
 				</td>
 			</tr>
-			{showPayments && (
+			{showTransactions && (
 				<tr>
-					<td colSpan={6} className="bg-slate-50 px-4 py-3">
-						{!record || record.payments.length === 0 ? (
-							<p className="text-sm text-slate-500">
-								No payments recorded for this player yet.
-							</p>
-						) : (
-							<div className="space-y-2">
-								{record.payments.map((payment) => (
-									<div
-										key={payment.id}
-										className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-sm"
-									>
-										<span>
-											<strong>{formatCurrency(payment.amount)}</strong>
-											{" · "}
-											{formatDateTime(payment.paidAt)}
-											{payment.note ? ` · ${payment.note}` : ""}
-										</span>
-										<button
-											type="button"
-											onClick={() =>
-												onRemovePayment(
-													player.id,
-													payment.id,
-													activeSeasonId
-												)
-											}
-											className="rounded-lg border border-red-200 px-3 py-1 text-sm text-red-700 hover:bg-red-50"
-										>
-											Remove
-										</button>
-									</div>
-								))}
-							</div>
-						)}
+					<td colSpan={7} className="bg-slate-50 px-4 py-4">
+						<TransactionList
+							player={player}
+							transactions={transactions}
+							activeSeasonId={activeSeasonId}
+							onRemovePayment={onRemovePayment}
+						/>
 					</td>
 				</tr>
 			)}
@@ -343,36 +285,157 @@ function FinanceRow({
 }
 
 function FinanceActionsMenu({
-	paymentsCount,
-	showPayments,
+	transactionsCount,
+	showTransactions,
 	onSetOwed,
 	onAddPayment,
 	onAddAdjustment,
-	onTogglePayments,
+	onToggleTransactions,
 }: {
-	paymentsCount: number;
-	showPayments: boolean;
+	transactionsCount: number;
+	showTransactions: boolean;
 	onSetOwed: () => void;
 	onAddPayment: () => void;
 	onAddAdjustment: () => void;
-	onTogglePayments: () => void;
+	onToggleTransactions: () => void;
 }) {
 	return (
 		<ActionMenu
-			className="justify-end"
 			items={[
-				{ label: "Set owed", onClick: onSetOwed },
-				{ label: "Add payment", onClick: onAddPayment },
-				{ label: "Add adjustment", onClick: onAddAdjustment },
 				{
-					label: showPayments
-						? "Hide payments"
-						: `Payments (${paymentsCount})`,
-					onClick: onTogglePayments,
+					label: "Set owed",
+					onClick: onSetOwed,
+				},
+				{
+					label: "Add payment",
+					onClick: onAddPayment,
+				},
+				{
+					label: "Add discount / adjustment",
+					onClick: onAddAdjustment,
+				},
+				{
+					label: showTransactions
+						? "Hide transactions"
+						: `View transactions (${transactionsCount})`,
+					onClick: onToggleTransactions,
+					disabled: transactionsCount === 0,
 				},
 			]}
 		/>
 	);
+}
+
+function TransactionList({
+	player,
+	transactions,
+	activeSeasonId,
+	onRemovePayment,
+}: {
+	player: Player;
+	transactions: DisplayTransaction[];
+	activeSeasonId: string;
+	onRemovePayment: FinanceTableProps["onRemovePayment"];
+}) {
+	if (transactions.length === 0) {
+		return (
+			<p className="text-sm text-slate-500">
+				No finance transactions recorded for this player yet.
+			</p>
+		);
+	}
+
+	return (
+		<div className="space-y-2">
+			{transactions.map((transaction) => (
+				<div
+					key={transaction.id}
+					className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
+				>
+					<div>
+						<div className="flex flex-wrap items-center gap-2">
+							<StatusBadge
+								label={transaction.type}
+								tone={getTransactionBadgeTone(transaction.type)}
+							/>
+							<span className="font-semibold text-slate-800">
+								{formatCurrency(transaction.amount)}
+							</span>
+							<span className="text-xs text-slate-500">
+								{formatDateTime(transaction.date)}
+							</span>
+						</div>
+						{transaction.note && (
+							<p className="mt-1 text-sm text-slate-600">{transaction.note}</p>
+						)}
+					</div>
+
+					<button
+						type="button"
+						onClick={() =>
+							onRemovePayment(player.id, transaction.id, activeSeasonId, {
+								playerName: player.name,
+								amount: transaction.amount,
+								type: transaction.type,
+							})
+						}
+						className="shrink-0 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+					>
+						Remove
+					</button>
+				</div>
+			))}
+		</div>
+	);
+}
+
+function useDisplayTransactions(record?: PlayerFinanceRecord) {
+	return useMemo(() => {
+		const transactions = record?.transactions ?? [];
+
+		if (transactions.length > 0) {
+			return transactions
+				.map(toDisplayTransaction)
+				.sort(sortTransactionsDescending);
+		}
+
+		return (record?.payments ?? [])
+			.map((payment) => ({
+				id: payment.id,
+				type: "Payment" as const,
+				amount: payment.amount,
+				note: payment.note,
+				date: payment.paidAt,
+			}))
+			.sort(sortTransactionsDescending);
+	}, [record]);
+}
+
+function toDisplayTransaction(transaction: FinanceTransaction): DisplayTransaction {
+	return {
+		id: transaction.id,
+		type: transaction.type,
+		amount: transaction.amount,
+		note: transaction.note,
+		date: transaction.transactionDate,
+	};
+}
+
+function sortTransactionsDescending(
+	first: DisplayTransaction,
+	second: DisplayTransaction
+) {
+	return new Date(second.date).getTime() - new Date(first.date).getTime();
+}
+
+function getTotalAdjustments(record?: PlayerFinanceRecord) {
+	if (typeof record?.totalAdjustments === "number") {
+		return record.totalAdjustments;
+	}
+
+	return (record?.transactions ?? [])
+		.filter((transaction) => transaction.type === "Adjustment")
+		.reduce((total, transaction) => total + transaction.amount, 0);
 }
 
 function getFinanceStatusBadge(status: string): {
@@ -392,4 +455,16 @@ function getFinanceStatusBadge(status: string): {
 	}
 
 	return { label: "No charge", tone: "neutral" };
+}
+
+function getTransactionBadgeTone(type: string) {
+	if (type === "Payment") {
+		return "success";
+	}
+
+	if (type === "Adjustment") {
+		return "warning";
+	}
+
+	return "info";
 }

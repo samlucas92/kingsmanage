@@ -1,12 +1,15 @@
 import { create } from "zustand";
+
 import { financeApi } from "../services/financeApi";
 import type {
+	FinancePayment,
 	NewFinanceAdjustmentInput,
 	NewFinancePaymentInput,
 	PlayerFinanceRecord,
 } from "../types/finance";
 
 export type {
+	FinancePayment,
 	NewFinanceAdjustmentInput,
 	NewFinancePaymentInput,
 	PlayerFinanceRecord,
@@ -16,6 +19,7 @@ type FinanceStore = {
 	playerFinanceRecords: PlayerFinanceRecord[];
 	isLoadingFinance: boolean;
 	hasLoadedFinance: boolean;
+	loadedFinanceSeasonId: string;
 	financeLoadError: string;
 	loadFinance: (seasonId?: string, force?: boolean) => Promise<void>;
 	setPlayerAmountOwed: (
@@ -40,17 +44,30 @@ type FinanceStore = {
 	) => Promise<void>;
 };
 
+function normaliseSeasonId(seasonId?: string) {
+	return seasonId ?? "";
+}
+
 export const useFinanceStore = create<FinanceStore>()((set, get) => ({
 	playerFinanceRecords: [],
 	isLoadingFinance: false,
 	hasLoadedFinance: false,
+	loadedFinanceSeasonId: "",
 	financeLoadError: "",
+
 	loadFinance: async (seasonId, force = false) => {
-		if (get().isLoadingFinance) {
+		const targetSeasonId = normaliseSeasonId(seasonId);
+		const state = get();
+
+		if (state.isLoadingFinance) {
 			return;
 		}
 
-		if (get().hasLoadedFinance && !force) {
+		if (
+			state.hasLoadedFinance &&
+			state.loadedFinanceSeasonId === targetSeasonId &&
+			!force
+		) {
 			return;
 		}
 
@@ -61,10 +78,12 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
 
 		try {
 			const records = await financeApi.getSeasonFinance(seasonId);
+
 			set({
 				playerFinanceRecords: records,
 				isLoadingFinance: false,
 				hasLoadedFinance: true,
+				loadedFinanceSeasonId: targetSeasonId,
 			});
 		} catch (error) {
 			set({
@@ -76,14 +95,17 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
 			});
 		}
 	},
+
 	setPlayerAmountOwed: async (playerId, amountOwed, seasonId) => {
 		await financeApi.setPlayerAmountOwed({
 			playerId,
 			seasonId,
 			amount: amountOwed,
 		});
+
 		await get().loadFinance(seasonId, true);
 	},
+
 	addPlayerPayment: async (playerId, payment, seasonId) => {
 		await financeApi.addTransaction({
 			playerId,
@@ -92,8 +114,10 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
 			amount: payment.amount,
 			note: payment.note,
 		});
+
 		await get().loadFinance(seasonId, true);
 	},
+
 	addPlayerAdjustment: async (playerId, adjustment, seasonId) => {
 		await financeApi.addTransaction({
 			playerId,
@@ -102,8 +126,10 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
 			amount: adjustment.amount,
 			note: adjustment.note,
 		});
+
 		await get().loadFinance(seasonId, true);
 	},
+
 	removePlayerPayment: async (_playerId, paymentId, seasonId) => {
 		await financeApi.deleteTransaction(paymentId);
 		await get().loadFinance(seasonId, true);

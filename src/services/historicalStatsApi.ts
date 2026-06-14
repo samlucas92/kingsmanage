@@ -28,9 +28,10 @@ export const historicalStatsApi = {
 		const records = await apiClient.get<ApiHistoricalStatsRecord[]>("/stats/historical");
 		return records.map(fromApiRecord);
 	},
+
 	updateHistoricalStats: async (playerId: string, stats: HistoricalStatsUpdate) => {
 		const record = await apiClient.put<ApiHistoricalStatsRecord>(
-			`/stats/historical/${playerId}`,
+			`/stats/historical/${encodeURIComponent(playerId)}`,
 			stats
 		);
 

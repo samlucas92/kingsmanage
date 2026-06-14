@@ -3,10 +3,11 @@ import { DEFAULT_SEASON_ID } from "../data/seedSeasons";
 import type { ExportColumn } from "./exportService";
 import type {
 	FinancePayment,
+	FinanceTransaction,
 	NewFinancePaymentInput,
 	PlayerFinanceRecord,
 } from "../types/finance";
-import { formatDate } from "../utils/format";
+import { formatDate, formatDateTime } from "../utils/format";
 
 export type FinanceFilter =
 	| "owed"
@@ -42,6 +43,13 @@ export type FinanceSummary = {
 	nothingOwedPlayers: FinanceRowData[];
 };
 
+export type FinanceTransactionExportRow = {
+	player: Player;
+	seasonId?: string;
+	transaction: FinanceTransaction;
+	balanceAfterTransaction: number;
+};
+
 export function getFinanceRecordSeasonId(seasonId?: string) {
 	return seasonId ?? DEFAULT_SEASON_ID;
 }
@@ -51,6 +59,7 @@ export function normaliseFinanceRecords(records: PlayerFinanceRecord[]) {
 		...record,
 		seasonId: getFinanceRecordSeasonId(record.seasonId),
 		payments: record.payments ?? [],
+		transactions: record.transactions ?? [],
 	}));
 }
 
@@ -59,9 +68,9 @@ export function getPlayerTotalPaid(record?: PlayerFinanceRecord) {
 		return 0;
 	}
 
-	return record.totalPaid ?? record.payments.reduce(
-		(total, payment) => total + payment.amount,
-		0
+	return (
+		record.totalPaid ??
+		record.payments.reduce((total, payment) => total + payment.amount, 0)
 	);
 }
 
@@ -136,6 +145,7 @@ export function setPlayerAmountOwedRecord({
 				seasonId: targetSeasonId,
 				amountOwed: safeAmountOwed,
 				payments: [],
+				transactions: [],
 			},
 		];
 	}
@@ -154,6 +164,7 @@ export function setPlayerAmountOwedRecord({
 			seasonId: targetSeasonId,
 			amountOwed: safeAmountOwed,
 			payments: record.payments ?? [],
+			transactions: record.transactions ?? [],
 		};
 	});
 }
@@ -190,6 +201,7 @@ export function addPlayerPaymentRecord({
 				seasonId: targetSeasonId,
 				amountOwed: 0,
 				payments: [newPayment],
+				transactions: [],
 			},
 		];
 	}
@@ -207,6 +219,7 @@ export function addPlayerPaymentRecord({
 			...record,
 			seasonId: targetSeasonId,
 			payments: [...(record.payments ?? []), newPayment],
+			transactions: record.transactions ?? [],
 		};
 	});
 }
@@ -238,6 +251,9 @@ export function removePlayerPaymentRecord({
 			seasonId: targetSeasonId,
 			payments: (record.payments ?? []).filter(
 				(payment) => payment.id !== paymentId
+			),
+			transactions: (record.transactions ?? []).filter(
+				(transaction) => transaction.id !== paymentId
 			),
 		};
 	});
@@ -310,22 +326,14 @@ export function filterFinanceRows({
 }
 
 export function getFinanceSummary(rows: FinanceRowData[]): FinanceSummary {
-	const totalExpected = rows.reduce(
-		(total, row) => total + row.amountOwed,
-		0
-	);
+	const totalExpected = rows.reduce((total, row) => total + row.amountOwed, 0);
 	const totalPaid = rows.reduce((total, row) => total + row.totalPaid, 0);
-	const totalOutstanding = rows.reduce(
-		(total, row) => total + row.balance,
-		0
-	);
+	const totalOutstanding = rows.reduce((total, row) => total + row.balance, 0);
 	const playersOwingMoney = rows.filter((row) => row.balance > 0);
 	const paidPlayers = rows.filter((row) => row.status === "paid");
 	const partPaidPlayers = rows.filter((row) => row.status === "part-paid");
 	const unpaidPlayers = rows.filter((row) => row.status === "unpaid");
-	const nothingOwedPlayers = rows.filter(
-		(row) => row.status === "nothing-owed"
-	);
+	const nothingOwedPlayers = rows.filter((row) => row.status === "nothing-owed");
 	const paidPercentage =
 		totalExpected > 0 ? Math.round((totalPaid / totalExpected) * 100) : 0;
 	const outstandingPercentage =
@@ -394,6 +402,14 @@ export function getFinanceExportColumns(): ExportColumn<FinanceRowData>[] {
 			getValue: (row) => (row.player.isActive ? "Yes" : "No"),
 		},
 		{
+			label: "Total Charged",
+			getValue: (row) => row.record?.totalCharged ?? row.amountOwed,
+		},
+		{
+			label: "Adjustments",
+			getValue: (row) => row.record?.totalAdjustments ?? 0,
+		},
+		{
 			label: "Amount Owed",
 			getValue: (row) => row.amountOwed,
 		},
@@ -408,6 +424,10 @@ export function getFinanceExportColumns(): ExportColumn<FinanceRowData>[] {
 		{
 			label: "Status",
 			getValue: (row) => getReadableFinanceStatus(row.status),
+		},
+		{
+			label: "Transactions Recorded",
+			getValue: (row) => row.record?.transactions?.length ?? row.record?.payments.length ?? 0,
 		},
 		{
 			label: "Payments Recorded",
@@ -428,16 +448,99 @@ export function getFinanceExportColumns(): ExportColumn<FinanceRowData>[] {
 	];
 }
 
+export function getFinanceTransactionExportRows(
+	rows: FinanceRowData[]
+): FinanceTransactionExportRow[] {
+	return rows.flatMap((row) => {
+		const transactions = row.record?.transactions ?? [];
+		let runningTotal = 0;
+
+		return [...transactions]
+			.sort(
+				(firstTransaction, secondTransaction) =>
+					new Date(firstTransaction.transactionDate).getTime() -
+					new Date(secondTransaction.transactionDate).getTime()
+			)
+			.map((transaction) => {
+				if (transaction.type === "Payment") {
+					runningTotal -= transaction.amount;
+				} else {
+					runningTotal += transaction.amount;
+				}
+
+				return {
+					player: row.player,
+					seasonId: row.record?.seasonId,
+					transaction,
+					balanceAfterTransaction: Math.max(0, runningTotal),
+				};
+			});
+	});
+}
+
+export function getFinanceTransactionExportColumns(): ExportColumn<FinanceTransactionExportRow>[] {
+	return [
+		{
+			label: "Date",
+			getValue: (row) => formatDateTime(row.transaction.transactionDate),
+		},
+		{
+			label: "Player",
+			getValue: (row) => row.player.name,
+		},
+		{
+			label: "Number",
+			getValue: (row) => row.player.number,
+		},
+		{
+			label: "Active",
+			getValue: (row) => (row.player.isActive ? "Yes" : "No"),
+		},
+		{
+			label: "Type",
+			getValue: (row) => row.transaction.type,
+		},
+		{
+			label: "Amount",
+			getValue: (row) => row.transaction.amount,
+		},
+		{
+			label: "Signed Amount",
+			getValue: (row) => getSignedTransactionAmount(row.transaction),
+		},
+		{
+			label: "Balance After Transaction",
+			getValue: (row) => row.balanceAfterTransaction,
+		},
+		{
+			label: "Note",
+			getValue: (row) => row.transaction.note ?? "",
+		},
+		{
+			label: "Transaction Id",
+			getValue: (row) => row.transaction.id,
+		},
+	];
+}
+
 export function getReadableFinanceStatus(status: string) {
 	if (status === "part-paid") {
 		return "Part paid";
 	}
 
 	if (status === "nothing-owed") {
-		return "Nothing owed";
+		return "No charge";
 	}
 
 	return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+function getSignedTransactionAmount(transaction: FinanceTransaction) {
+	if (transaction.type === "Payment") {
+		return -transaction.amount;
+	}
+
+	return transaction.amount;
 }
 
 function normaliseMoneyAmount(value: number) {
