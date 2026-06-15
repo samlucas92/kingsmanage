@@ -12,6 +12,7 @@ type AuthState = {
 	error: string | null;
 	initialise: () => Promise<void>;
 	login: (email: string, password: string) => Promise<void>;
+	changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 	logout: () => void;
 	clearError: () => void;
 };
@@ -71,7 +72,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
 		try {
 			const response = await authApi.login({ email, password });
-
 			setStoredAuthToken(response.token);
 
 			set({
@@ -91,8 +91,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 				isLoading: false,
 				error: error instanceof Error ? error.message : "Login failed.",
 			});
+
 			throw error;
 		}
+	},
+	changePassword: async (currentPassword: string, newPassword: string) => {
+		await authApi.changePassword({ currentPassword, newPassword });
 	},
 	logout: () => {
 		clearStoredAuthToken();

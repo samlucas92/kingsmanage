@@ -100,7 +100,7 @@ export const useUserStore = create<UserState>((set, get) => ({
 	},
 
 	resetUserPassword: async (id, newPassword) => {
-		await usersApi.resetPassword(id, { newPassword });
+		await usersApi.resetUserPassword(id, newPassword);
 	},
 
 	clearUserLoadError: () => set({ userLoadError: "" }),

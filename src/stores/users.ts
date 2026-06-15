@@ -11,6 +11,7 @@ type UserState = {
 	createUser: (request: CreateUserRequest) => Promise<AuthUser>;
 	updateUser: (id: string, request: UpdateUserRequest) => Promise<AuthUser>;
 	setUserActive: (id: string, isActive: boolean) => Promise<AuthUser>;
+	resetUserPassword: (id: string, newPassword: string) => Promise<void>;
 	clearUserLoadError: () => void;
 };
 
@@ -92,6 +93,9 @@ export const useUserStore = create<UserState>((set, get) => ({
 		}));
 
 		return updatedUser;
+	},
+	resetUserPassword: async (id, newPassword) => {
+		await usersApi.resetUserPassword(id, newPassword);
 	},
 	clearUserLoadError: () => set({ userLoadError: "" }),
 }));

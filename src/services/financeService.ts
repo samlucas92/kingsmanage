@@ -36,6 +36,7 @@ export type FinanceSummary = {
 	outstandingPercentage: number;
 	averageOwed: number;
 	averagePaid: number;
+	playersOwingCount: number;
 	playersOwingMoney: FinanceRowData[];
 	paidPlayers: FinanceRowData[];
 	partPaidPlayers: FinanceRowData[];
@@ -69,8 +70,7 @@ export function getPlayerTotalPaid(record?: PlayerFinanceRecord) {
 	}
 
 	return (
-		record.totalPaid ??
-		record.payments.reduce((total, payment) => total + payment.amount, 0)
+		record.totalPaid ?? record.payments.reduce((total, payment) => total + payment.amount, 0)
 	);
 }
 
@@ -249,9 +249,7 @@ export function removePlayerPaymentRecord({
 		return {
 			...record,
 			seasonId: targetSeasonId,
-			payments: (record.payments ?? []).filter(
-				(payment) => payment.id !== paymentId
-			),
+			payments: (record.payments ?? []).filter((payment) => payment.id !== paymentId),
 			transactions: (record.transactions ?? []).filter(
 				(transaction) => transaction.id !== paymentId
 			),
@@ -334,12 +332,9 @@ export function getFinanceSummary(rows: FinanceRowData[]): FinanceSummary {
 	const partPaidPlayers = rows.filter((row) => row.status === "part-paid");
 	const unpaidPlayers = rows.filter((row) => row.status === "unpaid");
 	const nothingOwedPlayers = rows.filter((row) => row.status === "nothing-owed");
-	const paidPercentage =
-		totalExpected > 0 ? Math.round((totalPaid / totalExpected) * 100) : 0;
+	const paidPercentage = totalExpected > 0 ? Math.round((totalPaid / totalExpected) * 100) : 0;
 	const outstandingPercentage =
-		totalExpected > 0
-			? Math.round((totalOutstanding / totalExpected) * 100)
-			: 0;
+		totalExpected > 0 ? Math.round((totalOutstanding / totalExpected) * 100) : 0;
 	const averageOwed = rows.length > 0 ? totalExpected / rows.length : 0;
 	const averagePaid = rows.length > 0 ? totalPaid / rows.length : 0;
 
@@ -351,6 +346,7 @@ export function getFinanceSummary(rows: FinanceRowData[]): FinanceSummary {
 		outstandingPercentage,
 		averageOwed,
 		averagePaid,
+		playersOwingCount: playersOwingMoney.length,
 		playersOwingMoney,
 		paidPlayers,
 		partPaidPlayers,
