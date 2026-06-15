@@ -3,7 +3,7 @@ export type ClubEventTeamScope = "First" | "Second" | "Both";
 export type ClubEventAvailabilityStatus = "Unanswered" | "Available" | "Declined";
 export type EventClubTeam = "First" | "Second";
 export type EventMatchVenue = "Home" | "Away";
-export type EventLineupFormation = "FourThreeThree" | "FourTwoThreeOne";
+export type EventLineupFormation = "FourFourTwo" | "FourThreeThree" | "ThreeFiveTwo" | "FourTwoThreeOne";
 
 export type ClubEventMatchLink = {
 	team: EventClubTeam;
@@ -41,8 +41,10 @@ export type CreateMatchForEventRequest = {
 	seasonId?: string | null;
 	team: EventClubTeam;
 	opponent: string;
+	competition: string;
 	date?: string | null;
 	venue: EventMatchVenue;
+	location: string;
 	selectedFormation: EventLineupFormation;
 };
 

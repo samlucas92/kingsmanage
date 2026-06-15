@@ -31,6 +31,7 @@ export default function Matches() {
 	const seasonLoadError = useSeasonStore((state) => state.seasonLoadError);
 	const loadSeasons = useSeasonStore((state) => state.loadSeasons);
 
+	const [selectedSeasonId, setSelectedSeasonId] = useState("");
 	const [matchFilter, setMatchFilter] = useState<MatchFilter>("all");
 	const [teamFilter, setTeamFilter] = useState<MatchTeamFilter>("all");
 	const [matchToPostpone, setMatchToPostpone] = useState<Match | null>(null);
@@ -43,21 +44,29 @@ export default function Matches() {
 	}, [loadSeasons]);
 
 	useEffect(() => {
-		if (!activeSeasonId) {
+		if (selectedSeasonId && seasons.some((season) => season.id === selectedSeasonId)) {
 			return;
 		}
 
-		void loadMatches(activeSeasonId);
-	}, [activeSeasonId, loadMatches]);
+		setSelectedSeasonId(activeSeasonId || seasons[0]?.id || "");
+	}, [activeSeasonId, seasons, selectedSeasonId]);
 
-	const activeSeason = seasons.find((season) => season.id === activeSeasonId);
+	useEffect(() => {
+		if (!selectedSeasonId) {
+			return;
+		}
+
+		void loadMatches(selectedSeasonId);
+	}, [selectedSeasonId, loadMatches]);
+
+	const selectedSeason = seasons.find((season) => season.id === selectedSeasonId);
 
 	async function handleCreateMatch(match: MatchFixtureInput) {
 		try {
 			setActionError("");
 			await addMatch({
 				...match,
-				seasonId: activeSeasonId,
+				seasonId: selectedSeasonId,
 			});
 		} catch (error) {
 			setActionError(
@@ -72,7 +81,7 @@ export default function Matches() {
 			setActionError("");
 			await updateMatchFixture(matchId, {
 				...match,
-				seasonId: activeSeasonId,
+				seasonId: selectedSeasonId,
 			});
 		} catch (error) {
 			setActionError(
@@ -87,16 +96,16 @@ export default function Matches() {
 		onUpdateMatch: handleUpdateMatch,
 	});
 
-	const activeSeasonMatches = useMemo(() => {
-		if (!activeSeasonId) {
+	const selectedSeasonMatches = useMemo(() => {
+		if (!selectedSeasonId) {
 			return [];
 		}
 
-		return matches.filter((match) => match.seasonId === activeSeasonId);
-	}, [matches, activeSeasonId]);
+		return matches.filter((match) => match.seasonId === selectedSeasonId);
+	}, [matches, selectedSeasonId]);
 
 	const matchCounts = useMemo(() => {
-		const visibleTeamMatches = activeSeasonMatches.filter(
+		const visibleTeamMatches = selectedSeasonMatches.filter(
 			(match) => teamFilter === "all" || match.team === teamFilter
 		);
 		const upcoming = visibleTeamMatches.filter(
@@ -118,10 +127,10 @@ export default function Matches() {
 			completed,
 			postponed,
 		};
-	}, [activeSeasonMatches, teamFilter]);
+	}, [selectedSeasonMatches, teamFilter]);
 
 	const teamCounts = useMemo(() => {
-		const visibleStatusMatches = activeSeasonMatches.filter((match) => {
+		const visibleStatusMatches = selectedSeasonMatches.filter((match) => {
 			if (matchFilter === "all") {
 				return true;
 			}
@@ -136,10 +145,10 @@ export default function Matches() {
 			first: visibleStatusMatches.filter((match) => match.team === "first").length,
 			second: visibleStatusMatches.filter((match) => match.team === "second").length,
 		};
-	}, [activeSeasonMatches, matchFilter]);
+	}, [selectedSeasonMatches, matchFilter]);
 
 	const filteredMatches = useMemo(() => {
-		return activeSeasonMatches.filter((match) => {
+		return selectedSeasonMatches.filter((match) => {
 			const statusMatches =
 				matchFilter === "all" ||
 				getMatchFilterFromState(match.state, match.isCompleted) === matchFilter;
@@ -147,7 +156,7 @@ export default function Matches() {
 
 			return statusMatches && teamMatches;
 		});
-	}, [activeSeasonMatches, matchFilter, teamFilter]);
+	}, [selectedSeasonMatches, matchFilter, teamFilter]);
 
 	const sortedMatches = useMemo(() => {
 		return [...filteredMatches].sort(
@@ -206,10 +215,10 @@ export default function Matches() {
 
 	const isLoadingInitialData =
 		(isLoadingSeasons && seasons.length === 0) ||
-		(Boolean(activeSeasonId) &&
+		(Boolean(selectedSeasonId) &&
 			isLoadingMatches &&
-			loadedSeasonId !== activeSeasonId &&
-			activeSeasonMatches.length === 0);
+			loadedSeasonId !== selectedSeasonId &&
+			selectedSeasonMatches.length === 0);
 
 	return (
 		<div className="space-y-6">
@@ -224,7 +233,7 @@ export default function Matches() {
 				<button
 					type="button"
 					onClick={matchForm.openAddMatchModal}
-					disabled={!activeSeasonId}
+					disabled={!selectedSeasonId}
 					className="rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300"
 				>
 					Add Match
@@ -235,17 +244,21 @@ export default function Matches() {
 				<div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 					<div>
 						<p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-							Active season
+							Season filter
 						</p>
 						<h2 className="mt-1 text-lg font-bold text-slate-900">
-							{activeSeason?.name ?? "No season selected"}
+							{selectedSeason?.name ?? "No season selected"}
 						</h2>
 						<p className="mt-1 text-sm text-slate-600">
-							Matches shown here are loaded for the selected season.
+							Changing this only filters the matches page. It does not change the active season.
 						</p>
 					</div>
 
-					<SeasonSelector label="Change season" />
+					<SeasonSelector
+						label="Filter season"
+						selectedSeasonId={selectedSeasonId}
+						onSeasonChange={setSelectedSeasonId}
+					/>
 				</div>
 			</section>
 
@@ -259,10 +272,10 @@ export default function Matches() {
 				<div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-800 shadow-sm">
 					<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 						<span>{matchLoadError}</span>
-						{activeSeasonId && (
+						{selectedSeasonId && (
 							<button
 								type="button"
-								onClick={() => void loadMatches(activeSeasonId, true)}
+								onClick={() => void loadMatches(selectedSeasonId, true)}
 								className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-100"
 							>
 								Retry
@@ -297,9 +310,9 @@ export default function Matches() {
 				<div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm font-medium text-slate-600 shadow-sm">
 					Loading matches...
 				</div>
-			) : !activeSeasonId ? (
+			) : !selectedSeasonId ? (
 				<div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">
-					Select or create an active season before managing matches.
+					Select or create a season before managing matches.
 				</div>
 			) : sortedMatches.length === 0 ? (
 				<div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">

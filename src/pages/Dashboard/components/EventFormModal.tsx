@@ -1,11 +1,15 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 
+import { useMatchStore, type ClubTeam, type Match } from "../../../stores/match";
+import { useSeasonStore } from "../../../stores/seasons";
 import type {
 	ClubEventTeamScope,
 	ClubEventType,
 	CreateClubEventRequest,
+	EventClubTeam,
 	EventMatchVenue,
 } from "../../../types/events";
+
 
 type EventFormModalProps = {
 	isOpen: boolean;
@@ -13,26 +17,71 @@ type EventFormModalProps = {
 	onCreateEvent: (request: CreateClubEventRequest) => Promise<void>;
 };
 
+type MatchLinkMode = "none" | "link" | "create";
+
+type MatchDetails = {
+	opponent: string;
+	competition: string;
+	location: string;
+	venue: EventMatchVenue;
+};
+
 const eventTypes: ClubEventType[] = ["Match", "Training", "Social", "Meeting"];
+
+const emptyMatchDetails: MatchDetails = {
+	opponent: "",
+	competition: "",
+	location: "",
+	venue: "Home",
+};
 
 export default function EventFormModal({
 	isOpen,
 	onClose,
 	onCreateEvent,
 }: EventFormModalProps) {
+	const activeSeasonId = useSeasonStore((state) => state.activeSeasonId);
+	const matches = useMatchStore((state) => state.matches);
+	const loadMatches = useMatchStore((state) => state.loadMatches);
+	const isLoadingMatches = useMatchStore((state) => state.isLoadingMatches);
+
 	const [type, setType] = useState<ClubEventType>("Training");
-	const [teamScope, setTeamScope] = useState<ClubEventTeamScope>("Both");
+	const [teamScope, setTeamScope] = useState<ClubEventTeamScope>("First");
 	const [title, setTitle] = useState("");
 	const [description, setDescription] = useState("");
 	const [startDateTime, setStartDateTime] = useState("");
 	const [endDateTime, setEndDateTime] = useState("");
 	const [location, setLocation] = useState("");
-	const [matchMode, setMatchMode] = useState<"none" | "create">("none");
-	const [firstOpponent, setFirstOpponent] = useState("");
-	const [secondOpponent, setSecondOpponent] = useState("");
-	const [venue, setVenue] = useState<EventMatchVenue>("Home");
+	const [matchMode, setMatchMode] = useState<MatchLinkMode>("none");
+	const [firstMatchId, setFirstMatchId] = useState("");
+	const [secondMatchId, setSecondMatchId] = useState("");
+	const [firstMatchDetails, setFirstMatchDetails] = useState<MatchDetails>(emptyMatchDetails);
+	const [secondMatchDetails, setSecondMatchDetails] = useState<MatchDetails>(emptyMatchDetails);
 	const [error, setError] = useState("");
 	const [isSaving, setIsSaving] = useState(false);
+
+	const teamsInScope = useMemo(
+		() => (type === "Match" ? getTeamsForScope(teamScope) : []),
+		[teamScope, type]
+	);
+
+	const firstTeamMatches = useMemo(
+		() => getAvailableMatchesForTeam(matches, "first"),
+		[matches]
+	);
+
+	const secondTeamMatches = useMemo(
+		() => getAvailableMatchesForTeam(matches, "second"),
+		[matches]
+	);
+
+	useEffect(() => {
+		if (!isOpen || type !== "Match" || matchMode !== "link") {
+			return;
+		}
+
+		void loadMatches(activeSeasonId || undefined);
+	}, [activeSeasonId, isOpen, loadMatches, matchMode, type]);
 
 	if (!isOpen) {
 		return null;
@@ -58,51 +107,81 @@ export default function EventFormModal({
 			return;
 		}
 
+		const matchLinks = [];
 		const createMatches = [];
 
+		if (type === "Match" && matchMode === "link") {
+			if (teamsInScope.includes("First") && !firstMatchId) {
+				setError("Choose the existing first team match to link.");
+				return;
+			}
+
+			if (teamsInScope.includes("Second") && !secondMatchId) {
+				setError("Choose the existing second team match to link.");
+				return;
+			}
+
+			if (teamsInScope.includes("First")) {
+				matchLinks.push({
+					team: "First" as const,
+					matchId: firstMatchId,
+				});
+			}
+
+			if (teamsInScope.includes("Second")) {
+				matchLinks.push({
+					team: "Second" as const,
+					matchId: secondMatchId,
+				});
+			}
+		}
+
 		if (type === "Match" && matchMode === "create") {
-			if ((teamScope === "First" || teamScope === "Both") && !firstOpponent.trim()) {
+			if (!activeSeasonId) {
+				setError("Choose an active season before creating linked matches.");
+				return;
+			}
+
+			if (teamsInScope.includes("First") && !firstMatchDetails.opponent.trim()) {
 				setError("Enter the first team opponent.");
 				return;
 			}
 
-			if ((teamScope === "Second" || teamScope === "Both") && !secondOpponent.trim()) {
+			if (teamsInScope.includes("Second") && !secondMatchDetails.opponent.trim()) {
 				setError("Enter the second team opponent.");
 				return;
 			}
 
-			if (teamScope === "First" || teamScope === "Both") {
-				createMatches.push({
-					seasonId: null,
-					team: "First" as const,
-					opponent: firstOpponent.trim(),
-					date: new Date(startDateTime).toISOString(),
-					venue,
-					selectedFormation: "FourThreeThree" as const,
-				});
+			if (teamsInScope.includes("First")) {
+				createMatches.push(buildCreateMatchRequest({
+					seasonId: activeSeasonId,
+					team: "First",
+					details: firstMatchDetails,
+					eventStartDateTime: startDateTime,
+					eventLocation: location,
+				}));
 			}
 
-			if (teamScope === "Second" || teamScope === "Both") {
-				createMatches.push({
-					seasonId: null,
-					team: "Second" as const,
-					opponent: secondOpponent.trim(),
-					date: new Date(startDateTime).toISOString(),
-					venue,
-					selectedFormation: "FourThreeThree" as const,
-				});
+			if (teamsInScope.includes("Second")) {
+				createMatches.push(buildCreateMatchRequest({
+					seasonId: activeSeasonId,
+					team: "Second",
+					details: secondMatchDetails,
+					eventStartDateTime: startDateTime,
+					eventLocation: location,
+				}));
 			}
 		}
 
 		const request: CreateClubEventRequest = {
 			type,
-			teamScope,
+			teamScope: type === "Match" ? teamScope : "Both",
 			title: title.trim(),
 			description: description.trim(),
 			startDateTime: new Date(startDateTime).toISOString(),
 			endDateTime: endDateTime ? new Date(endDateTime).toISOString() : null,
 			location: location.trim(),
-			matchLinks: [],
+			matchLinks,
 			createLinkedMatches: type === "Match" && matchMode === "create",
 			createMatches,
 		};
@@ -127,31 +206,42 @@ export default function EventFormModal({
 
 	function resetForm() {
 		setType("Training");
-		setTeamScope("Both");
+		setTeamScope("First");
 		setTitle("");
 		setDescription("");
 		setStartDateTime("");
 		setEndDateTime("");
 		setLocation("");
 		setMatchMode("none");
-		setFirstOpponent("");
-		setSecondOpponent("");
-		setVenue("Home");
+		setFirstMatchId("");
+		setSecondMatchId("");
+		setFirstMatchDetails(emptyMatchDetails);
+		setSecondMatchDetails(emptyMatchDetails);
 		setError("");
 		setIsSaving(false);
 	}
 
 	function handleTypeChange(nextType: ClubEventType) {
 		setType(nextType);
+		setError("");
 
 		if (nextType !== "Match") {
+			setTeamScope("First");
 			setMatchMode("none");
+			setFirstMatchId("");
+			setSecondMatchId("");
 		}
+	}
+
+	function handleTeamScopeChange(nextTeamScope: ClubEventTeamScope) {
+		setTeamScope(nextTeamScope);
+		setFirstMatchId("");
+		setSecondMatchId("");
 	}
 
 	return (
 		<div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/40 px-3 py-6 sm:px-6">
-			<div className="mx-auto w-full max-w-3xl rounded-2xl bg-white shadow-xl">
+			<div className="mx-auto w-full max-w-4xl rounded-2xl bg-white shadow-xl">
 				<div className="border-b border-slate-200 px-5 py-4 sm:px-6">
 					<div className="flex items-start justify-between gap-4">
 						<div>
@@ -162,7 +252,7 @@ export default function EventFormModal({
 								Create club event
 							</h2>
 							<p className="mt-1 text-sm text-slate-500">
-								Events are season agnostic. Match creation only happens when explicitly selected.
+								Create normal club events, or create/link match records when the event type is Match.
 							</p>
 						</div>
 
@@ -183,7 +273,7 @@ export default function EventFormModal({
 						</div>
 					)}
 
-					<div className="grid gap-4 md:grid-cols-2">
+					<div className={`grid gap-4 ${type === "Match" ? "md:grid-cols-2" : "md:grid-cols-1"}`}>
 						<label className="block text-sm font-semibold text-slate-700">
 							Event type
 							<select
@@ -199,18 +289,20 @@ export default function EventFormModal({
 							</select>
 						</label>
 
-						<label className="block text-sm font-semibold text-slate-700">
-							Team scope
-							<select
-								value={teamScope}
-								onChange={(event) => setTeamScope(event.target.value as ClubEventTeamScope)}
-								className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-							>
-								<option value="First">First Team</option>
-								<option value="Second">Second Team</option>
-								<option value="Both">Both Teams</option>
-							</select>
-						</label>
+						{type === "Match" && (
+							<label className="block text-sm font-semibold text-slate-700">
+								Team
+								<select
+									value={teamScope}
+									onChange={(event) => handleTeamScopeChange(event.target.value as ClubEventTeamScope)}
+									className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+								>
+									<option value="First">First Team</option>
+									<option value="Second">Second Team</option>
+									<option value="Both">Both Teams</option>
+								</select>
+							</label>
+						)}
 					</div>
 
 					<label className="block text-sm font-semibold text-slate-700">
@@ -269,60 +361,73 @@ export default function EventFormModal({
 
 					{type === "Match" && (
 						<section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-							<h3 className="text-sm font-bold text-slate-900">Match creation</h3>
+							<h3 className="text-sm font-bold text-slate-900">Match record</h3>
 							<p className="mt-1 text-sm text-slate-500">
-								Keep this as an event only, or explicitly create linked match records.
+								Choose whether this is just an event, links to existing matches, or creates new linked matches.
 							</p>
 
-							<div className="mt-4 grid gap-2 sm:grid-cols-2">
+							<div className="mt-4 grid gap-2 sm:grid-cols-3">
 								<MatchModeButton
 									isSelected={matchMode === "none"}
 									label="Event only"
 									onClick={() => setMatchMode("none")}
 								/>
 								<MatchModeButton
+									isSelected={matchMode === "link"}
+									label="Link existing match"
+									onClick={() => setMatchMode("link")}
+								/>
+								<MatchModeButton
 									isSelected={matchMode === "create"}
-									label="Create match records"
+									label="Create new match"
 									onClick={() => setMatchMode("create")}
 								/>
 							</div>
 
-							{matchMode === "create" && (
+							{matchMode === "link" && (
 								<div className="mt-4 space-y-4">
-									<label className="block text-sm font-semibold text-slate-700">
-										Venue
-										<select
-											value={venue}
-											onChange={(event) => setVenue(event.target.value as EventMatchVenue)}
-											className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-										>
-											<option value="Home">Home</option>
-											<option value="Away">Away</option>
-										</select>
-									</label>
-
-									{(teamScope === "First" || teamScope === "Both") && (
-										<label className="block text-sm font-semibold text-slate-700">
-											First team opponent
-											<input
-												type="text"
-												value={firstOpponent}
-												onChange={(event) => setFirstOpponent(event.target.value)}
-												className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-											/>
-										</label>
+									{isLoadingMatches && (
+										<p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-500">
+											Loading existing matches...
+										</p>
 									)}
 
-									{(teamScope === "Second" || teamScope === "Both") && (
-										<label className="block text-sm font-semibold text-slate-700">
-											Second team opponent
-											<input
-												type="text"
-												value={secondOpponent}
-												onChange={(event) => setSecondOpponent(event.target.value)}
-												className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-											/>
-										</label>
+									{teamsInScope.includes("First") && (
+										<ExistingMatchSelect
+											label="First team existing match"
+											matches={firstTeamMatches}
+											value={firstMatchId}
+											onChange={setFirstMatchId}
+										/>
+									)}
+
+									{teamsInScope.includes("Second") && (
+										<ExistingMatchSelect
+											label="Second team existing match"
+											matches={secondTeamMatches}
+											value={secondMatchId}
+											onChange={setSecondMatchId}
+										/>
+									)}
+								</div>
+							)}
+
+							{matchMode === "create" && (
+								<div className="mt-4 grid gap-4 lg:grid-cols-2">
+									{teamsInScope.includes("First") && (
+										<MatchDetailsFields
+											details={firstMatchDetails}
+											label="First Team match details"
+											onChange={setFirstMatchDetails}
+										/>
+									)}
+
+									{teamsInScope.includes("Second") && (
+										<MatchDetailsFields
+											details={secondMatchDetails}
+											label="Second Team match details"
+											onChange={setSecondMatchDetails}
+										/>
 									)}
 								</div>
 							)}
@@ -374,4 +479,164 @@ function MatchModeButton({
 			{label}
 		</button>
 	);
+}
+
+function ExistingMatchSelect({
+	label,
+	matches,
+	onChange,
+	value,
+}: {
+	label: string;
+	matches: Match[];
+	onChange: (matchId: string) => void;
+	value: string;
+}) {
+	return (
+		<label className="block text-sm font-semibold text-slate-700">
+			{label}
+			<select
+				value={value}
+				onChange={(event) => onChange(event.target.value)}
+				className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+			>
+				<option value="">Select a match...</option>
+				{matches.map((match) => (
+					<option key={match.id} value={match.id}>
+						{formatMatchOption(match)}
+					</option>
+				))}
+			</select>
+			{matches.length === 0 && (
+				<p className="mt-1 text-xs font-medium text-slate-500">
+					No unlinked matches found for this team in the loaded season.
+				</p>
+			)}
+		</label>
+	);
+}
+
+function MatchDetailsFields({
+	details,
+	label,
+	onChange,
+}: {
+	details: MatchDetails;
+	label: string;
+	onChange: (details: MatchDetails) => void;
+}) {
+	return (
+		<section className="rounded-2xl border border-slate-200 bg-white p-4">
+			<h4 className="text-sm font-bold text-slate-900">{label}</h4>
+
+			<div className="mt-4 space-y-4">
+				<label className="block text-sm font-semibold text-slate-700">
+					Opponent
+					<input
+						type="text"
+						value={details.opponent}
+						onChange={(event) => onChange({ ...details, opponent: event.target.value })}
+						className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+					/>
+				</label>
+
+				<label className="block text-sm font-semibold text-slate-700">
+					Home/Away
+					<select
+						value={details.venue}
+						onChange={(event) => onChange({ ...details, venue: event.target.value as EventMatchVenue })}
+						className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+					>
+						<option value="Home">Home</option>
+						<option value="Away">Away</option>
+					</select>
+				</label>
+
+				<label className="block text-sm font-semibold text-slate-700">
+					Competition
+					<input
+						type="text"
+						value={details.competition}
+						onChange={(event) => onChange({ ...details, competition: event.target.value })}
+						className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+					/>
+				</label>
+
+				<label className="block text-sm font-semibold text-slate-700">
+					Venue / location
+					<input
+						type="text"
+						value={details.location}
+						onChange={(event) => onChange({ ...details, location: event.target.value })}
+						className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+					/>
+				</label>
+			</div>
+		</section>
+	);
+}
+
+function getTeamsForScope(teamScope: ClubEventTeamScope): EventClubTeam[] {
+	if (teamScope === "First") {
+		return ["First"];
+	}
+
+	if (teamScope === "Second") {
+		return ["Second"];
+	}
+
+	return ["First", "Second"];
+}
+
+function getAvailableMatchesForTeam(matches: Match[], team: ClubTeam) {
+	return [...matches]
+		.filter((match) => match.team === team && !match.clubEventId)
+		.sort(
+			(firstMatch, secondMatch) =>
+				new Date(firstMatch.date).getTime() - new Date(secondMatch.date).getTime()
+		);
+}
+
+function buildCreateMatchRequest({
+	details,
+	eventLocation,
+	eventStartDateTime,
+	seasonId,
+	team,
+}: {
+	details: MatchDetails;
+	eventLocation: string;
+	eventStartDateTime: string;
+	seasonId: string;
+	team: EventClubTeam;
+}) {
+	return {
+		seasonId,
+		team,
+		opponent: details.opponent.trim(),
+		competition: details.competition.trim(),
+		date: new Date(eventStartDateTime).toISOString(),
+		venue: details.venue,
+		location: details.location.trim() || eventLocation.trim(),
+		selectedFormation: "FourThreeThree" as const,
+	};
+}
+
+function formatMatchOption(match: Match) {
+	return `${formatShortDate(match.date)} · ${match.opponent} · ${match.venue === "home" ? "Home" : "Away"}`;
+}
+
+function formatShortDate(value: string) {
+	const date = new Date(value);
+
+	if (Number.isNaN(date.getTime())) {
+		return "Date TBC";
+	}
+
+	return date.toLocaleString("en-GB", {
+		day: "2-digit",
+		month: "short",
+		hour: "2-digit",
+		minute: "2-digit",
+	});
 }

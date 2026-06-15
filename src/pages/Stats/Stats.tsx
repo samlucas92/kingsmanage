@@ -139,30 +139,39 @@ export default function Stats() {
 	const [includeInactive, setIncludeInactive] = useState(false);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [copyStatus, setCopyStatus] = useState("");
+	const [selectedSeasonId, setSelectedSeasonId] = useState("");
 
-	const activeSeason = seasons.find((season) => season.id === activeSeasonId);
-	const selectedSeasonName = activeSeason?.name ?? "Selected season";
+	const selectedSeason = seasons.find((season) => season.id === selectedSeasonId);
+	const selectedSeasonName = selectedSeason?.name ?? "Selected season";
 
 	useEffect(() => {
 		void loadSeasons();
 	}, [loadSeasons]);
 
 	useEffect(() => {
-		if (!activeSeasonId) {
+		if (selectedSeasonId && seasons.some((season) => season.id === selectedSeasonId)) {
 			return;
 		}
 
-		void loadSeasonStats(activeSeasonId, true);
-		void loadMatches(activeSeasonId);
-	}, [activeSeasonId, loadMatches, loadSeasonStats]);
+		setSelectedSeasonId(activeSeasonId || seasons[0]?.id || "");
+	}, [activeSeasonId, seasons, selectedSeasonId]);
+
+	useEffect(() => {
+		if (!selectedSeasonId) {
+			return;
+		}
+
+		void loadSeasonStats(selectedSeasonId, true);
+		void loadMatches(selectedSeasonId);
+	}, [selectedSeasonId, loadMatches, loadSeasonStats]);
 
 	const completedSeasonMatches = useMemo(() => {
-		if (!activeSeasonId) {
+		if (!selectedSeasonId) {
 			return [];
 		}
 
-		return getCompletedMatchesForSeason(matches, activeSeasonId);
-	}, [matches, activeSeasonId]);
+		return getCompletedMatchesForSeason(matches, selectedSeasonId);
+	}, [matches, selectedSeasonId]);
 
 	const statsRows = useMemo<StatsRow[]>(() => {
 		return seasonStats
@@ -298,7 +307,11 @@ export default function Stats() {
 					</p>
 				</div>
 
-				<SeasonSelector label="Selected season" />
+				<SeasonSelector
+					label="Filter season"
+					selectedSeasonId={selectedSeasonId}
+					onSeasonChange={setSelectedSeasonId}
+				/>
 			</div>
 
 			<PanelCard>

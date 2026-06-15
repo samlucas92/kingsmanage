@@ -92,6 +92,7 @@ export default function PlayerProfile() {
 	const [recentAppearances, setRecentAppearances] = useState<PlayerMatchRecord[]>([]);
 	const [isLoadingRecentAppearances, setIsLoadingRecentAppearances] = useState(false);
 	const [recentAppearancesError, setRecentAppearancesError] = useState("");
+	const [selectedSeasonId, setSelectedSeasonId] = useState("");
 
 	const players = usePlayerStore((state) => state.players);
 	const isLoadingPlayers = usePlayerStore((state) => state.isLoadingPlayers);
@@ -122,7 +123,7 @@ export default function PlayerProfile() {
 	const loadFinance = useFinanceStore((state) => state.loadFinance);
 
 	const player = players.find((player) => player.id === id);
-	const activeSeason = seasons.find((season) => season.id === activeSeasonId);
+	const selectedSeason = seasons.find((season) => season.id === selectedSeasonId);
 	const playerStats = seasonStats.find((stats) => stats.playerId === id);
 	const playerFinanceRecord = playerFinanceRecords.find(
 		(record) => record.playerId === id
@@ -141,16 +142,24 @@ export default function PlayerProfile() {
 	}, [loadSeasons]);
 
 	useEffect(() => {
-		if (!activeSeasonId) {
+		if (selectedSeasonId && seasons.some((season) => season.id === selectedSeasonId)) {
 			return;
 		}
 
-		void loadSeasonStats(activeSeasonId, true);
-		void loadFinance(activeSeasonId);
-	}, [activeSeasonId, loadSeasonStats, loadFinance]);
+		setSelectedSeasonId(activeSeasonId || seasons[0]?.id || "");
+	}, [activeSeasonId, seasons, selectedSeasonId]);
 
 	useEffect(() => {
-		if (!id || !activeSeasonId) {
+		if (!selectedSeasonId) {
+			return;
+		}
+
+		void loadSeasonStats(selectedSeasonId, true);
+		void loadFinance(selectedSeasonId);
+	}, [selectedSeasonId, loadSeasonStats, loadFinance]);
+
+	useEffect(() => {
+		if (!id || !selectedSeasonId) {
 			setRecentAppearances([]);
 			return;
 		}
@@ -163,7 +172,7 @@ export default function PlayerProfile() {
 
 			try {
 				const matches = id
-					? await matchApi.getPlayerMatches(id, activeSeasonId)
+					? await matchApi.getPlayerMatches(id, selectedSeasonId)
 					: [];
 
 				if (!isMounted) {
@@ -202,7 +211,7 @@ export default function PlayerProfile() {
 		return () => {
 			isMounted = false;
 		};
-	}, [id, activeSeasonId]);
+	}, [id, selectedSeasonId]);
 
 	const playerForm = usePlayerForm({
 		players,
@@ -368,10 +377,14 @@ export default function PlayerProfile() {
 							Season view
 						</p>
 						<h2 className="text-lg font-bold text-slate-900">
-							{activeSeason?.name ?? "No season selected"}
+							{selectedSeason?.name ?? "No season selected"}
 						</h2>
 					</div>
-					<SeasonSelector label="Season" />
+					<SeasonSelector
+						label="Season filter"
+						selectedSeasonId={selectedSeasonId}
+						onSeasonChange={setSelectedSeasonId}
+					/>
 				</div>
 			</div>
 

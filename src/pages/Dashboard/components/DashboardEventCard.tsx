@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 
+import { useAuthStore } from "../../../stores/auth";
 import type { ClubEvent, ClubEventAvailabilityStatus } from "../../../types/events";
 import { getEventCounts, getPlayerAvailabilityStatus } from "../../../utils/events";
 
@@ -14,6 +15,10 @@ export default function DashboardEventCard({
 	event,
 	onSetAvailability,
 }: DashboardEventCardProps) {
+	const currentUser = useAuthStore((state) => state.currentUser);
+	const isManagementRole = currentUser?.role === "Admin" || currentUser?.role === "Coach";
+	const linkedMatches = getLinkedMatchActions(event);
+	const dateSummary = getEventDateSummary(event.startDateTime);
 	const canUpdateOwnAvailability = Boolean(currentPlayerId && onSetAvailability);
 	const currentStatus = currentPlayerId
 		? getPlayerAvailabilityStatus(event, currentPlayerId)
@@ -23,58 +28,101 @@ export default function DashboardEventCard({
 
 	return (
 		<div className="rounded-xl border border-slate-200 p-4">
-			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-				<div>
-					<div className="flex flex-wrap gap-2">
-						<Pill label={event.type} />
-						<Pill label={getTeamScopeLabel(event.teamScope)} />
-						{event.matchLinks?.some((matchLink) => matchLink.matchId) && (
-							<Pill label="Linked match" />
-						)}
-					</div>
+			<div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+				<EventDateBadge summary={dateSummary} />
 
-					<Link
-						to={`/events/${event.id}`}
-						className="mt-2 block font-bold text-slate-900 hover:text-blue-700"
-					>
-						{event.title}
-					</Link>
+				<div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+					<div className="min-w-0 flex-1">
+						<div className="flex flex-wrap gap-2">
+							<Pill label={event.type} />
+							<Pill label={getTeamScopeLabel(event.teamScope)} />
+							{linkedMatches.length > 0 && <Pill label="Linked match" />}
+						</div>
 
-					<p className="mt-1 text-sm text-slate-500">
-						{formatDateTime(event.startDateTime)}
-						{event.location ? ` · ${event.location}` : ""}
-					</p>
+						<Link
+							to={`/events/${event.id}`}
+							className="mt-2 block text-lg font-bold text-slate-900 hover:text-blue-700"
+						>
+							{event.title}
+						</Link>
 
-					<p className="mt-2 text-xs font-semibold text-slate-500">
-						Seen {counts.seen} · Available {counts.available} · Declined {counts.declined}
-					</p>
-				</div>
-
-				{canUpdateOwnAvailability && (
-					<div className="min-w-48 rounded-xl bg-slate-50 p-3">
-						<p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-							Your availability
+						<p className="mt-1 text-sm font-semibold text-slate-700">
+							{dateSummary.fullLabel}
 						</p>
 
-						<div className="mt-2 flex flex-wrap gap-2">
-							<AvailabilityButton
-								isSelected={currentStatus === "Available"}
-								label="Available"
-								onClick={() => void onSetAvailability?.(event.id, "Available")}
-							/>
-							<AvailabilityButton
-								isSelected={currentStatus === "Declined"}
-								label="Declined"
-								onClick={() => void onSetAvailability?.(event.id, "Declined")}
-							/>
-							<AvailabilityButton
-								isSelected={currentStatus === "Unanswered"}
-								label="Unanswered"
-								onClick={() => void onSetAvailability?.(event.id, "Unanswered")}
-							/>
-						</div>
+						{event.location && (
+							<p className="mt-1 text-sm text-slate-500">{event.location}</p>
+						)}
+
+						{isManagementRole && linkedMatches.length > 0 && (
+							<div className="mt-3 flex flex-wrap gap-2">
+								{linkedMatches.map((matchLink) => (
+									<Link
+										key={`${matchLink.team}-${matchLink.matchId}`}
+										to={`/matches/${matchLink.matchId}`}
+										className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100"
+									>
+										Open {getEventTeamLabel(matchLink.team)} match
+									</Link>
+								))}
+							</div>
+						)}
+
+						<p className="mt-3 text-xs font-semibold text-slate-500">
+							Seen {counts.seen} · Available {counts.available} · Declined {counts.declined}
+						</p>
 					</div>
-				)}
+
+					{canUpdateOwnAvailability && (
+						<div className="min-w-48 rounded-xl bg-slate-50 p-3">
+							<p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+								Your availability
+							</p>
+
+							<div className="mt-2 flex flex-wrap gap-2">
+								<AvailabilityButton
+									isSelected={currentStatus === "Available"}
+									label="Available"
+									onClick={() => void onSetAvailability?.(event.id, "Available")}
+								/>
+								<AvailabilityButton
+									isSelected={currentStatus === "Declined"}
+									label="Declined"
+									onClick={() => void onSetAvailability?.(event.id, "Declined")}
+								/>
+								{isManagementRole && (
+									<AvailabilityButton
+										isSelected={currentStatus === "Unanswered"}
+										label="Unanswered"
+										onClick={() => void onSetAvailability?.(event.id, "Unanswered")}
+									/>
+								)}
+							</div>
+						</div>
+					)}
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function EventDateBadge({ summary }: { summary: EventDateSummary }) {
+	return (
+		<div className="flex shrink-0 items-center justify-between gap-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-blue-900 lg:w-32 lg:flex-col lg:items-start lg:gap-1">
+			<div>
+				<p className="text-xs font-black uppercase tracking-wide text-blue-700">
+					{summary.relativeLabel}
+				</p>
+
+				<div className="mt-1 flex items-baseline gap-1 lg:block">
+					<p className="text-3xl font-black leading-none">{summary.dayNumber}</p>
+					<p className="text-sm font-black uppercase tracking-wide">{summary.monthLabel}</p>
+				</div>
+			</div>
+
+			<div className="text-right lg:text-left">
+				<p className="text-sm font-bold">{summary.weekdayLabel}</p>
+				<p className="text-sm font-semibold text-blue-700">{summary.timeLabel}</p>
 			</div>
 		</div>
 	);
@@ -112,6 +160,15 @@ function AvailabilityButton({
 	);
 }
 
+function getLinkedMatchActions(event: ClubEvent) {
+	return (event.matchLinks ?? [])
+		.filter((matchLink) => Boolean(matchLink.matchId))
+		.map((matchLink) => ({
+			team: matchLink.team,
+			matchId: matchLink.matchId as string,
+		}));
+}
+
 function getTeamScopeLabel(teamScope: string) {
 	if (teamScope === "First") {
 		return "First Team";
@@ -124,18 +181,94 @@ function getTeamScopeLabel(teamScope: string) {
 	return "Both Teams";
 }
 
-function formatDateTime(value: string) {
+function getEventTeamLabel(team: string) {
+	if (team === "First") {
+		return "First Team";
+	}
+
+	return "Second Team";
+}
+
+type EventDateSummary = {
+	relativeLabel: string;
+	weekdayLabel: string;
+	dayNumber: string;
+	monthLabel: string;
+	timeLabel: string;
+	fullLabel: string;
+};
+
+function getEventDateSummary(value: string): EventDateSummary {
 	const date = new Date(value);
 
 	if (Number.isNaN(date.getTime())) {
-		return "Date TBC";
+		return {
+			relativeLabel: "Date TBC",
+			weekdayLabel: "TBC",
+			dayNumber: "--",
+			monthLabel: "",
+			timeLabel: "Time TBC",
+			fullLabel: "Date and time to be confirmed",
+		};
 	}
 
-	return date.toLocaleString("en-GB", {
-		weekday: "short",
-		day: "2-digit",
-		month: "short",
+	const relativeLabel = getRelativeDateLabel(date);
+	const weekdayLabel = date.toLocaleDateString("en-GB", { weekday: "short" });
+	const dayNumber = date.toLocaleDateString("en-GB", { day: "2-digit" });
+	const monthLabel = date.toLocaleDateString("en-GB", { month: "short" });
+	const timeLabel = date.toLocaleTimeString("en-GB", {
 		hour: "2-digit",
 		minute: "2-digit",
 	});
+	const fullLabel = date.toLocaleString("en-GB", {
+		weekday: "long",
+		day: "2-digit",
+		month: "long",
+		year: "numeric",
+		hour: "2-digit",
+		minute: "2-digit",
+	});
+
+	return {
+		relativeLabel,
+		weekdayLabel,
+		dayNumber,
+		monthLabel,
+		timeLabel,
+		fullLabel,
+	};
+}
+
+function getRelativeDateLabel(date: Date) {
+	const today = startOfDay(new Date());
+	const eventDay = startOfDay(date);
+	const daysDifference = Math.round(
+		(eventDay.getTime() - today.getTime()) / 86_400_000
+	);
+
+	if (daysDifference === 0) {
+		return "Today";
+	}
+
+	if (daysDifference === 1) {
+		return "Tomorrow";
+	}
+
+	if (daysDifference > 1 && daysDifference <= 14) {
+		return `In ${daysDifference} days`;
+	}
+
+	if (daysDifference === -1) {
+		return "Yesterday";
+	}
+
+	if (daysDifference < 0) {
+		return "Past";
+	}
+
+	return date.toLocaleDateString("en-GB", { weekday: "short" });
+}
+
+function startOfDay(date: Date) {
+	return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }

@@ -59,10 +59,13 @@ export type ClubTeam = "first" | "second";
 export type Match = {
 	id: string;
 	seasonId?: string;
+	clubEventId?: string | null;
 	team: ClubTeam;
 	opponent: string;
+	competition?: string;
 	date: string;
 	venue: "home" | "away";
+	location?: string;
 	state: MatchState;
 	result?: MatchResult;
 	isCompleted: boolean;

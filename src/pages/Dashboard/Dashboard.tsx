@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-import SeasonSelector from "../../components/compositions/SeasonSelector";
+import ConfirmationModal from "../../components/compositions/ConfirmationModal";
 import { DEFAULT_SEASON_ID } from "../../data/seedSeasons";
 import {
 	buildFinanceRows,
@@ -13,13 +13,16 @@ import { useEventStore } from "../../stores/events";
 import { useFinanceStore } from "../../stores/finance";
 import { useMatchStore, type ClubTeam, type Match, type MatchState } from "../../stores/match";
 import { usePlayerStore } from "../../stores/players";
+import { usePostStore } from "../../stores/posts";
 import { useSeasonStore } from "../../stores/seasons";
 import type { ClubEvent, ClubEventAvailabilityStatus } from "../../types/events";
 import type { UserRole } from "../../types/auth";
+import type { ClubPost, ClubPostType } from "../../types/posts";
 import { formatDisplayDateTime } from "../../utils/date";
 import { formatCurrency } from "../../utils/format";
 import DashboardEventCard from "./components/DashboardEventCard";
 import EventFormModal from "./components/EventFormModal";
+import PostFormModal from "./components/PostFormModal";
 
 type DashboardTab = "overview" | "matches" | "finance" | "events" | "posts";
 
@@ -59,8 +62,7 @@ const dashboardTabs: DashboardTabDefinition[] = [
 	{
 		id: "posts",
 		label: "Posts",
-		description: "Future club updates, reminders, and player-facing posts.",
-		isFuture: true,
+		description: "Club updates, reminders, and player-facing announcements.",
 		roles: ["Admin", "Coach", "Player"],
 	},
 ];
@@ -77,7 +79,25 @@ export default function Dashboard() {
 	);
 
 	const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
+	const [hasAppliedDefaultTab, setHasAppliedDefaultTab] = useState(false);
 	const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+	const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+	const [postToDelete, setPostToDelete] = useState<ClubPost | null>(null);
+	const [isDeletingPost, setIsDeletingPost] = useState(false);
+
+	useEffect(() => {
+		if (!currentUser || hasAppliedDefaultTab) {
+			return;
+		}
+
+		const defaultTab = currentRole === "Player" ? "events" : "overview";
+
+		if (availableTabs.some((tab) => tab.id === defaultTab)) {
+			setActiveTab(defaultTab);
+		}
+
+		setHasAppliedDefaultTab(true);
+	}, [availableTabs, currentRole, currentUser, hasAppliedDefaultTab]);
 
 	useEffect(() => {
 		if (!availableTabs.some((tab) => tab.id === activeTab)) {
@@ -100,7 +120,6 @@ export default function Dashboard() {
 	const isLoadingFinance = useFinanceStore((state) => state.isLoadingFinance);
 	const financeLoadError = useFinanceStore((state) => state.financeLoadError);
 
-	const seasons = useSeasonStore((state) => state.seasons);
 	const activeSeasonId = useSeasonStore((state) => state.activeSeasonId);
 	const loadSeasons = useSeasonStore((state) => state.loadSeasons);
 	const isLoadingSeasons = useSeasonStore((state) => state.isLoadingSeasons);
@@ -113,8 +132,16 @@ export default function Dashboard() {
 	const isLoadingEvents = useEventStore((state) => state.isLoadingEvents);
 	const eventsLoadError = useEventStore((state) => state.eventsLoadError);
 
+	const posts = usePostStore((state) => state.posts);
+	const loadPosts = usePostStore((state) => state.loadPosts);
+	const createPost = usePostStore((state) => state.createPost);
+	const deletePost = usePostStore((state) => state.deletePost);
+	const isLoadingPosts = usePostStore((state) => state.isLoadingPosts);
+	const postsLoadError = usePostStore((state) => state.postsLoadError);
+
 	useEffect(() => {
 		void loadEvents();
+		void loadPosts();
 
 		if (!isManagementRole) {
 			return;
@@ -122,7 +149,7 @@ export default function Dashboard() {
 
 		void loadSeasons();
 		void loadPlayers();
-	}, [isManagementRole, loadEvents, loadPlayers, loadSeasons]);
+	}, [isManagementRole, loadEvents, loadPlayers, loadPosts, loadSeasons]);
 
 	useEffect(() => {
 		if (!isManagementRole || !activeSeasonId) {
@@ -136,7 +163,6 @@ export default function Dashboard() {
 		}
 	}, [activeSeasonId, isAdmin, isManagementRole, loadFinance, loadMatches]);
 
-	const activeSeason = seasons.find((season) => season.id === activeSeasonId);
 	const activePlayers = players.filter((player) => player.isActive);
 	const inactivePlayers = players.filter((player) => !player.isActive);
 
@@ -218,6 +244,7 @@ export default function Dashboard() {
 
 	const isLoading =
 		isLoadingEvents ||
+		isLoadingPosts ||
 		(isManagementRole &&
 			(isLoadingSeasons ||
 				isLoadingPlayers ||
@@ -226,6 +253,7 @@ export default function Dashboard() {
 
 	const loadErrors = [
 		eventsLoadError,
+		postsLoadError,
 		isManagementRole ? seasonLoadError : "",
 		isManagementRole ? playerLoadError : "",
 		isManagementRole ? matchLoadError : "",
@@ -233,14 +261,12 @@ export default function Dashboard() {
 	].filter(Boolean);
 
 	const activeTabDefinition = availableTabs.find((tab) => tab.id === activeTab);
-	const showSeasonSelector = isManagementRole && ["overview", "matches", "finance"].includes(activeTab);
-
 	async function handleCreateEvent(request: Parameters<typeof createEvent>[0]) {
 		await createEvent(request);
 		await loadEvents(true);
 
 		if (isManagementRole && activeSeasonId) {
-			await loadMatches(activeSeasonId);
+			await loadMatches(activeSeasonId, true);
 		}
 	}
 
@@ -249,6 +275,26 @@ export default function Dashboard() {
 		status: ClubEventAvailabilityStatus
 	) {
 		await setEventAvailability(eventId, status);
+	}
+
+	async function handleCreatePost(request: Parameters<typeof createPost>[0]) {
+		await createPost(request);
+		await loadPosts(true);
+	}
+
+	async function handleDeletePost() {
+		if (!postToDelete) {
+			return;
+		}
+
+		setIsDeletingPost(true);
+
+		try {
+			await deletePost(postToDelete.id);
+			setPostToDelete(null);
+		} finally {
+			setIsDeletingPost(false);
+		}
 	}
 
 	return (
@@ -279,11 +325,6 @@ export default function Dashboard() {
 								{currentRole}
 							</span>
 
-							{showSeasonSelector && (
-								<span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">
-									{activeSeason?.name ?? "No active season"}
-								</span>
-							)}
 
 							{isLoading && (
 								<span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700">
@@ -299,15 +340,6 @@ export default function Dashboard() {
 						</div>
 					</div>
 
-					{showSeasonSelector && (
-						<div className="w-full lg:max-w-64">
-							<p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-								Selected season
-							</p>
-
-							<SeasonSelector />
-						</div>
-					)}
 				</div>
 			</section>
 
@@ -380,12 +412,38 @@ export default function Dashboard() {
 				/>
 			)}
 
-			{activeTab === "posts" && <PostsTab />}
+			{activeTab === "posts" && (
+				<PostsTab
+					canManagePosts={isManagementRole}
+					isLoadingPosts={isLoadingPosts}
+					onCreatePost={() => setIsPostModalOpen(true)}
+					onDeletePost={setPostToDelete}
+					posts={posts}
+					postsLoadError={postsLoadError}
+				/>
+			)}
 
 			<EventFormModal
 				isOpen={isEventModalOpen}
 				onClose={() => setIsEventModalOpen(false)}
 				onCreateEvent={handleCreateEvent}
+			/>
+
+			<PostFormModal
+				isOpen={isPostModalOpen}
+				onClose={() => setIsPostModalOpen(false)}
+				onCreatePost={handleCreatePost}
+			/>
+
+			<ConfirmationModal
+				isOpen={Boolean(postToDelete)}
+				title="Delete post"
+				message={postToDelete ? `Delete “${postToDelete.title}”? This cannot be undone.` : undefined}
+				confirmText="Delete post"
+				isBusy={isDeletingPost}
+				variant="danger"
+				onCancel={() => setPostToDelete(null)}
+				onConfirm={handleDeletePost}
 			/>
 		</div>
 	);
@@ -546,7 +604,7 @@ function OverviewTab({
 				<SummaryCard
 					label="Upcoming events"
 					value={upcomingEventsCount}
-					helper="Events are not tied to the season selector"
+					helper="Events are season-agnostic"
 				/>
 
 				{isAdmin && (
@@ -564,7 +622,7 @@ function OverviewTab({
 					{nextMatch ? (
 						<MatchPreview match={nextMatch} />
 					) : (
-						<p className="text-sm text-slate-500">No upcoming fixtures in this season.</p>
+						<p className="text-sm text-slate-500">No upcoming fixtures in the active season.</p>
 					)}
 				</AttentionCard>
 
@@ -572,7 +630,7 @@ function OverviewTab({
 					{latestCompletedMatch ? (
 						<MatchPreview match={latestCompletedMatch} showResult />
 					) : (
-						<p className="text-sm text-slate-500">No completed results in this season.</p>
+						<p className="text-sm text-slate-500">No completed results in the active season.</p>
 					)}
 				</AttentionCard>
 
@@ -601,7 +659,7 @@ function OverviewTab({
 			<section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
 				<div className="mb-4">
 					<h2 className="text-lg font-bold text-slate-900">Quick actions</h2>
-					<p className="text-sm text-slate-500">Common tasks for the current season.</p>
+					<p className="text-sm text-slate-500">Common management tasks.</p>
 				</div>
 
 				<div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -660,14 +718,14 @@ function MatchesTab({
 					))}
 
 					{nextThreeMatches.length === 0 && (
-						<EmptyState message="No upcoming fixtures in this season." />
+						<EmptyState message="No upcoming fixtures in the active season." />
 					)}
 				</div>
 			</DashboardPanel>
 
 			<DashboardPanel
 				action={<LinkButton to="/matches">View results</LinkButton>}
-				description={`${postponedMatchesCount} postponed matches in this season.`}
+				description={`${postponedMatchesCount} postponed matches in the active season.`}
 				title="Recent results"
 			>
 				<div className="space-y-3">
@@ -676,7 +734,7 @@ function MatchesTab({
 					))}
 
 					{latestThreeResults.length === 0 && (
-						<EmptyState message="No completed results in this season." />
+						<EmptyState message="No completed results in the active season." />
 					)}
 				</div>
 			</DashboardPanel>
@@ -829,30 +887,134 @@ function EventsTab({
 	);
 }
 
-function PostsTab() {
+function PostsTab({
+	canManagePosts,
+	isLoadingPosts,
+	onCreatePost,
+	onDeletePost,
+	posts,
+	postsLoadError,
+}: {
+	canManagePosts: boolean;
+	isLoadingPosts: boolean;
+	onCreatePost: () => void;
+	onDeletePost: (post: ClubPost) => void;
+	posts: ClubPost[];
+	postsLoadError: string;
+}) {
 	return (
-		<div className="grid gap-5 md:grid-cols-2">
-			<FutureCard
-				description="Short updates for players, coaches, and club admins."
-				title="Club updates"
-			/>
+		<DashboardPanel
+			action={
+				canManagePosts ? (
+					<button
+						type="button"
+						onClick={onCreatePost}
+						className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800"
+					>
+						Create post
+					</button>
+				) : undefined
+			}
+			description={
+				canManagePosts
+					? "Create season-agnostic club updates for players, coaches, and admins."
+					: "Read the latest club updates and reminders."
+			}
+			title="Club posts"
+		>
+			{postsLoadError && (
+				<div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+					{postsLoadError}
+				</div>
+			)}
 
-			<FutureCard
-				description="Future targeting for all players, first team, second team, coaches, and committee."
-				title="Audience targeting"
-			/>
+			{isLoadingPosts && (
+				<div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700">
+					Loading posts...
+				</div>
+			)}
 
-			<FutureCard
-				description="Reminders for payments, fixtures, socials, and presentation nights."
-				title="Reminders"
-			/>
+			{!isLoadingPosts && posts.length === 0 && (
+				<EmptyState message="No club posts have been added yet." />
+			)}
 
-			<FutureCard
-				description="A player-facing feed without exposing management-only data."
-				title="Player feed"
-			/>
-		</div>
+			<div className="space-y-4">
+				{posts.map((post) => (
+					<PostCard
+						key={post.id}
+						canManagePosts={canManagePosts}
+						onDeletePost={onDeletePost}
+						post={post}
+					/>
+				))}
+			</div>
+		</DashboardPanel>
 	);
+}
+
+function PostCard({
+	canManagePosts,
+	onDeletePost,
+	post,
+}: {
+	canManagePosts: boolean;
+	onDeletePost: (post: ClubPost) => void;
+	post: ClubPost;
+}) {
+	return (
+		<article className={`rounded-2xl border bg-white p-5 shadow-sm ${post.isPinned ? "border-amber-200" : "border-slate-200"}`}>
+			<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+				<div className="min-w-0 flex-1">
+					<div className="flex flex-wrap items-center gap-2">
+						<span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-blue-700">
+							{getPostTypeLabel(post.type)}
+						</span>
+
+						{post.isPinned && (
+							<span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black uppercase tracking-wide text-amber-800">
+								Pinned
+							</span>
+						)}
+					</div>
+
+					<h3 className="mt-3 text-lg font-bold text-slate-900">{post.title}</h3>
+
+					<p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600">
+						{post.body}
+					</p>
+
+					<p className="mt-4 text-xs font-semibold text-slate-400">
+						Posted {formatDisplayDateTime(post.createdAt)}
+						{post.createdByUserEmail ? ` by ${post.createdByUserEmail}` : ""}
+					</p>
+				</div>
+
+				{canManagePosts && (
+					<button
+						type="button"
+						onClick={() => onDeletePost(post)}
+						className="rounded-xl border border-red-200 px-3 py-2 text-sm font-bold text-red-700 hover:bg-red-50"
+					>
+						Delete
+					</button>
+				)}
+			</div>
+		</article>
+	);
+}
+
+function getPostTypeLabel(type: ClubPostType) {
+	switch (type) {
+		case "Announcement":
+			return "Announcement";
+		case "MatchInfo":
+			return "Match info";
+		case "Social":
+			return "Social";
+		case "General":
+		default:
+			return "General";
+	}
 }
 
 function SummaryCard({

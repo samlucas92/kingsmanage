@@ -128,6 +128,7 @@ export default function Finance() {
 	const [deleteError, setDeleteError] = useState("");
 	const [copyStatus, setCopyStatus] = useState("");
 	const [isSavingFinance, setIsSavingFinance] = useState(false);
+	const [selectedSeasonId, setSelectedSeasonId] = useState("");
 
 	useEffect(() => {
 		void loadPlayers(true);
@@ -138,33 +139,41 @@ export default function Finance() {
 	}, [loadSeasons]);
 
 	useEffect(() => {
-		if (!activeSeasonId) {
+		if (selectedSeasonId && seasons.some((season) => season.id === selectedSeasonId)) {
 			return;
 		}
 
-		void loadFinance(activeSeasonId, true);
-	}, [activeSeasonId, loadFinance]);
+		setSelectedSeasonId(activeSeasonId || seasons[0]?.id || "");
+	}, [activeSeasonId, seasons, selectedSeasonId]);
 
-	const activeSeason = seasons.find((season) => season.id === activeSeasonId);
-	const activeSeasonName = activeSeason?.name ?? "active-season";
-	const hasActiveSeason = Boolean(activeSeasonId);
+	useEffect(() => {
+		if (!selectedSeasonId) {
+			return;
+		}
+
+		void loadFinance(selectedSeasonId, true);
+	}, [selectedSeasonId, loadFinance]);
+
+	const selectedSeason = seasons.find((season) => season.id === selectedSeasonId);
+	const selectedSeasonName = selectedSeason?.name ?? "selected-season";
+	const hasSelectedSeason = Boolean(selectedSeasonId);
 	const isInitialLoading =
 		(isLoadingPlayers && players.length === 0) ||
 		(isLoadingSeasons && seasons.length === 0) ||
 		(isLoadingFinance && playerFinanceRecords.length === 0);
 
 	const allFinanceRows = useMemo(() => {
-		if (!activeSeasonId) {
+		if (!selectedSeasonId) {
 			return [];
 		}
 
 		return buildFinanceRows({
 			players,
 			playerFinanceRecords,
-			seasonId: activeSeasonId,
+			seasonId: selectedSeasonId,
 			includeInactive,
 		});
-	}, [players, playerFinanceRecords, activeSeasonId, includeInactive]);
+	}, [players, playerFinanceRecords, selectedSeasonId, includeInactive]);
 
 	const financeRows = useMemo(() => {
 		return filterFinanceRows({
@@ -197,7 +206,7 @@ export default function Finance() {
 		const record = getFinanceRecord({
 			records: playerFinanceRecords,
 			playerId: player.id,
-			seasonId: activeSeasonId,
+			seasonId: selectedSeasonId,
 		});
 
 		setAmountModal({ mode, player });
@@ -242,8 +251,8 @@ export default function Finance() {
 			return;
 		}
 
-		if (!activeSeasonId) {
-			setFormError("Select an active season before saving finance records.");
+		if (!selectedSeasonId) {
+			setFormError("Select a season before saving finance records.");
 			return;
 		}
 
@@ -273,7 +282,7 @@ export default function Finance() {
 			setIsSavingFinance(true);
 
 			if (amountModal.mode === "owed") {
-				await setPlayerAmountOwed(amountModal.player.id, amount, activeSeasonId);
+				await setPlayerAmountOwed(amountModal.player.id, amount, selectedSeasonId);
 			} else if (amountModal.mode === "payment") {
 				await addPlayerPayment(
 					amountModal.player.id,
@@ -281,7 +290,7 @@ export default function Finance() {
 						amount,
 						note: paymentNote.trim() || undefined,
 					},
-					activeSeasonId
+					selectedSeasonId
 				);
 			} else {
 				await addPlayerAdjustment(
@@ -290,7 +299,7 @@ export default function Finance() {
 						amount,
 						note: paymentNote.trim() || undefined,
 					},
-					activeSeasonId
+					selectedSeasonId
 				);
 			}
 
@@ -307,8 +316,8 @@ export default function Finance() {
 	}
 
 	async function handleConfirmBulkAmount() {
-		if (!activeSeasonId) {
-			setBulkFormError("Select an active season before saving finance records.");
+		if (!selectedSeasonId) {
+			setBulkFormError("Select a season before saving finance records.");
 			return;
 		}
 
@@ -328,7 +337,7 @@ export default function Finance() {
 			`Set amount owed to ${formatCurrency(amount)} for ${
 				bulkTargetRows.length
 			} ${bulkTargetRows.length === 1 ? "player" : "players"} in ${
-				activeSeason?.name ?? "the active season"
+				selectedSeason?.name ?? "the filtered season"
 			}?`
 		);
 
@@ -341,7 +350,7 @@ export default function Finance() {
 			setBulkFormError("");
 
 			for (const row of bulkTargetRows) {
-				await setPlayerAmountOwed(row.player.id, amount, activeSeasonId);
+				await setPlayerAmountOwed(row.player.id, amount, selectedSeasonId);
 			}
 
 			closeBulkModal();
@@ -357,7 +366,7 @@ export default function Finance() {
 	}
 
 	async function handleConfirmDeleteTransaction() {
-		if (!deleteTransaction || isSavingFinance || !activeSeasonId) {
+		if (!deleteTransaction || isSavingFinance || !selectedSeasonId) {
 			return;
 		}
 
@@ -367,7 +376,7 @@ export default function Finance() {
 			await removePlayerPayment(
 				deleteTransaction.playerId,
 				deleteTransaction.transactionId,
-				activeSeasonId
+				selectedSeasonId
 			);
 			closeDeleteTransactionModal();
 		} catch (error) {
@@ -410,7 +419,7 @@ export default function Finance() {
 
 		downloadTextFile({
 			filename: `kingsbridge-colts-finance-summary-${slugify(
-				activeSeasonName
+				selectedSeasonName
 			)}-${financeFilter}.csv`,
 			content: csvText,
 			mimeType: "text/csv;charset=utf-8;",
@@ -427,7 +436,7 @@ export default function Finance() {
 
 		downloadTextFile({
 			filename: `kingsbridge-colts-finance-transactions-${slugify(
-				activeSeasonName
+				selectedSeasonName
 			)}-${financeFilter}.csv`,
 			content: csvText,
 			mimeType: "text/csv;charset=utf-8;",
@@ -455,16 +464,20 @@ export default function Finance() {
 					<h1 className="text-3xl font-bold text-blue-950">Finance</h1>
 					<p className="mt-1 max-w-3xl text-sm text-slate-600">
 						Track who has paid, who owes money, and total outstanding club
-						payments for the active season.
+						payments for the filtered season.
 					</p>
 				</div>
 
 				<div className="flex flex-wrap gap-2">
-					<SeasonSelector />
+					<SeasonSelector
+						label="Filter season"
+						selectedSeasonId={selectedSeasonId}
+						onSeasonChange={setSelectedSeasonId}
+					/>
 					<button
 						type="button"
 						onClick={openBulkModal}
-						disabled={!hasActiveSeason || isSavingFinance}
+						disabled={!hasSelectedSeason || isSavingFinance}
 						className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						Bulk Set Owed
@@ -484,16 +497,16 @@ export default function Finance() {
 				</div>
 			)}
 
-			{!hasActiveSeason && !isInitialLoading && (
+			{!hasSelectedSeason && !isInitialLoading && (
 				<div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-					No active season is selected. Create or select a season before
+					No season is selected. Create or select a season before
 					managing finance.
 				</div>
 			)}
 
 			<PanelCard
-				title={activeSeason?.name ?? "No active season"}
-				description="Amounts owed, payments, and adjustments are stored against this season."
+				title={selectedSeason?.name ?? "No season selected"}
+				description="Amounts owed, payments, and adjustments are filtered by this season."
 			>
 				<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
 					<MetricCard
@@ -616,7 +629,7 @@ export default function Finance() {
 
 				<FinanceTable
 					rows={financeRows}
-					activeSeasonId={activeSeasonId ?? ""}
+					activeSeasonId={selectedSeasonId}
 					onSetOwed={(player) => openAmountModal("owed", player)}
 					onAddPayment={(player) => openAmountModal("payment", player)}
 					onAddAdjustment={(player) => openAmountModal("adjustment", player)}
@@ -706,7 +719,7 @@ export default function Finance() {
 
 					<p className="text-sm text-slate-600">
 						This updates the amount owed for the selected group in{" "}
-						{activeSeason?.name ?? "the active season"}. It does not remove
+						{selectedSeason?.name ?? "the filtered season"}. It does not remove
 						existing payments.
 					</p>
 

@@ -2,27 +2,29 @@ import { useSeasonStore } from "../../stores/seasons";
 
 type SeasonSelectorProps = {
 	label?: string;
+	selectedSeasonId: string;
+	onSeasonChange: (seasonId: string) => void;
 	disabled?: boolean;
 	className?: string;
 	selectClassName?: string;
 };
 
 export default function SeasonSelector({
-	label = "Selected season",
+	label = "Season filter",
+	selectedSeasonId,
+	onSeasonChange,
 	disabled = false,
 	className = "",
 	selectClassName = "",
 }: SeasonSelectorProps) {
 	const seasons = useSeasonStore((state) => state.seasons);
-	const activeSeasonId = useSeasonStore((state) => state.activeSeasonId);
-	const setActiveSeason = useSeasonStore((state) => state.setActiveSeason);
 
 	const hasSeasons = seasons.length > 0;
 	const selectedSeasonExists = seasons.some(
-		(season) => season.id === activeSeasonId
+		(season) => season.id === selectedSeasonId
 	);
 
-	const value = selectedSeasonExists ? activeSeasonId : "";
+	const value = selectedSeasonExists ? selectedSeasonId : "";
 
 	return (
 		<label className={`block shrink-0 ${className}`}>
@@ -37,7 +39,7 @@ export default function SeasonSelector({
 						return;
 					}
 
-					setActiveSeason(event.target.value);
+					onSeasonChange(event.target.value);
 				}}
 				disabled={disabled || !hasSeasons}
 				className={`min-w-40 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 ${selectClassName}`}
