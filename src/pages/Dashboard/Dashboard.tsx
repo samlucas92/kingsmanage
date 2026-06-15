@@ -1136,15 +1136,6 @@ function QuickAction({
 	);
 }
 
-function FutureCard({ description, title }: { description: string; title: string }) {
-	return (
-		<section className="rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-5">
-			<p className="text-xs font-black uppercase tracking-wide text-amber-700">Future</p>
-			<h2 className="mt-2 text-lg font-bold text-slate-900">{title}</h2>
-			<p className="mt-2 text-sm text-slate-600">{description}</p>
-		</section>
-	);
-}
 
 function EmptyState({ message }: { message: string }) {
 	return (
