@@ -86,3 +86,11 @@ export function getEventCounts(event: ClubEvent) {
 		unanswered: availabilityResponses.filter((response) => response.status === "Unanswered").length,
 	};
 }
+
+export function sortEventsAscending(firstEvent: ClubEvent, secondEvent: ClubEvent) {
+	return new Date(firstEvent.startDateTime).getTime() - new Date(secondEvent.startDateTime).getTime();
+}
+
+export function sortEventsDescending(firstEvent: ClubEvent, secondEvent: ClubEvent) {
+	return new Date(secondEvent.startDateTime).getTime() - new Date(firstEvent.startDateTime).getTime();
+}

@@ -1,11 +1,13 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
-import type { ClubPostType, CreateClubPostRequest } from "../../../types/posts";
+import type { ClubPost, ClubPostType, CreateClubPostRequest } from "../../../types/posts";
+import { getPostTypeLabel } from "../../../utils/posts";
 
 type PostFormModalProps = {
 	isOpen: boolean;
 	onClose: () => void;
-	onCreatePost: (request: CreateClubPostRequest) => Promise<void>;
+	onSavePost: (request: CreateClubPostRequest) => Promise<void>;
+	post?: ClubPost | null;
 };
 
 const postTypes: ClubPostType[] = ["General", "Announcement", "MatchInfo", "Social"];
@@ -13,14 +15,29 @@ const postTypes: ClubPostType[] = ["General", "Announcement", "MatchInfo", "Soci
 export default function PostFormModal({
 	isOpen,
 	onClose,
-	onCreatePost,
+	onSavePost,
+	post = null,
 }: PostFormModalProps) {
+	const isEditing = Boolean(post);
 	const [type, setType] = useState<ClubPostType>("General");
 	const [title, setTitle] = useState("");
 	const [body, setBody] = useState("");
 	const [isPinned, setIsPinned] = useState(false);
 	const [error, setError] = useState("");
 	const [isSaving, setIsSaving] = useState(false);
+
+	useEffect(() => {
+		if (!isOpen) {
+			return;
+		}
+
+		setType(post?.type ?? "General");
+		setTitle(post?.title ?? "");
+		setBody(post?.body ?? "");
+		setIsPinned(post?.isPinned ?? false);
+		setError("");
+		setIsSaving(false);
+	}, [isOpen, post]);
 
 	if (!isOpen) {
 		return null;
@@ -43,7 +60,7 @@ export default function PostFormModal({
 		setIsSaving(true);
 
 		try {
-			await onCreatePost({
+			await onSavePost({
 				type,
 				title: title.trim(),
 				body: body.trim(),
@@ -53,7 +70,13 @@ export default function PostFormModal({
 			resetForm();
 			onClose();
 		} catch (error) {
-			setError(error instanceof Error ? error.message : "Failed to create post.");
+			setError(
+				error instanceof Error
+					? error.message
+					: isEditing
+						? "Failed to update post."
+						: "Failed to create post."
+			);
 		} finally {
 			setIsSaving(false);
 		}
@@ -80,13 +103,13 @@ export default function PostFormModal({
 					<div className="flex items-start justify-between gap-4">
 						<div>
 							<p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
-								New post
+								{isEditing ? "Edit post" : "New post"}
 							</p>
 							<h2 className="mt-1 text-xl font-bold text-slate-900 sm:text-2xl">
-								Create club post
+								{isEditing ? "Update club post" : "Create club post"}
 							</h2>
 							<p className="mt-1 text-sm text-slate-500">
-								Create a season-agnostic update for players, coaches, and admins.
+								Posts are season-agnostic updates shown to players, coaches, and admins.
 							</p>
 						</div>
 
@@ -134,7 +157,7 @@ export default function PostFormModal({
 						</label>
 					</div>
 
-					<label className="space-y-2 block">
+					<label className="block space-y-2">
 						<span className="text-sm font-bold text-slate-700">Title</span>
 						<input
 							value={title}
@@ -144,7 +167,7 @@ export default function PostFormModal({
 						/>
 					</label>
 
-					<label className="space-y-2 block">
+					<label className="block space-y-2">
 						<span className="text-sm font-bold text-slate-700">Post content</span>
 						<textarea
 							value={body}
@@ -154,6 +177,13 @@ export default function PostFormModal({
 							placeholder="Write the update players should see."
 						/>
 					</label>
+
+					<div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+						<p className="font-bold">Players can read posts but cannot edit or delete them.</p>
+						<p className="mt-1 text-blue-600">
+							Keep posts short for now. Rich text and file attachments will come after the file storage strategy.
+						</p>
+					</div>
 
 					<div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
 						<button
@@ -169,25 +199,17 @@ export default function PostFormModal({
 							disabled={isSaving}
 							className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
 						>
-							{isSaving ? "Creating..." : "Create post"}
+							{isSaving
+								? isEditing
+									? "Saving..."
+									: "Creating..."
+								: isEditing
+									? "Save changes"
+									: "Create post"}
 						</button>
 					</div>
 				</form>
 			</div>
 		</div>
 	);
-}
-
-function getPostTypeLabel(type: ClubPostType) {
-	switch (type) {
-		case "Announcement":
-			return "Announcement";
-		case "MatchInfo":
-			return "Match info";
-		case "Social":
-			return "Social";
-		case "General":
-		default:
-			return "General";
-	}
 }

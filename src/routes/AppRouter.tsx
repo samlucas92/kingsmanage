@@ -14,6 +14,7 @@ import MatchDetail from "../pages/Matches/MatchDetails";
 import Matches from "../pages/Matches/Matches";
 import Player from "../pages/Players/Player";
 import Players from "../pages/Players/Players";
+import PostDetail from "../pages/Posts/PostDetail";
 import Seasons from "../pages/Seasons/Seasons";
 import Stats from "../pages/Stats/Stats";
 import Users from "../pages/Users/Users";
@@ -31,6 +32,7 @@ export default function AppRouter() {
 				<Route element={<AppShell />}>
 					<Route index element={<Dashboard />} />
 					<Route path="/events/:id" element={<EventDetail />} />
+					<Route path="/posts/:id" element={<PostDetail />} />
 					<Route path="/access-denied" element={<AccessDenied />} />
 
 					<Route element={<ProtectedRoute allowedRoles={[...managementRoles]} />}>
