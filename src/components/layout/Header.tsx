@@ -1,5 +1,6 @@
 import { useLocation } from "react-router-dom";
 
+import NotificationBell from "../notifications/NotificationBell";
 import ProfileSummary from "./ProfileSummary";
 
 const pageTitles: { matcher: (pathname: string) => boolean; title: string }[] = [
@@ -14,6 +15,7 @@ const pageTitles: { matcher: (pathname: string) => boolean; title: string }[] = 
 	{ matcher: (pathname) => pathname === "/historical-stats", title: "Historical Stats" },
 	{ matcher: (pathname) => pathname === "/seasons", title: "Seasons" },
 	{ matcher: (pathname) => pathname === "/users", title: "Users" },
+	{ matcher: (pathname) => pathname === "/notifications", title: "Notifications" },
 ];
 
 type HeaderProps = {
@@ -39,7 +41,10 @@ export default function Header({ onOpenMobileMenu }: HeaderProps) {
 					<h1 className="text-xl font-bold text-slate-900">{title}</h1>
 				</div>
 
-				<ProfileSummary variant="light" />
+				<div className="flex items-center gap-3">
+					<NotificationBell />
+					<ProfileSummary variant="light" />
+				</div>
 			</div>
 		</header>
 	);

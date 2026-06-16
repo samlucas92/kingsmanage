@@ -11,6 +11,7 @@ import Finance from "../pages/Finance/Finance";
 import HistoricalStats from "../pages/HistoricalStats/HistoricalStats";
 import Login from "../pages/Login/Login";
 import MatchDetail from "../pages/Matches/MatchDetails";
+import Notifications from "../pages/Notifications/Notifications";
 import Matches from "../pages/Matches/Matches";
 import Player from "../pages/Players/Player";
 import Players from "../pages/Players/Players";
@@ -33,6 +34,7 @@ export default function AppRouter() {
 					<Route index element={<Dashboard />} />
 					<Route path="/events/:id" element={<EventDetail />} />
 					<Route path="/posts/:id" element={<PostDetail />} />
+					<Route path="/notifications" element={<Notifications />} />
 					<Route path="/access-denied" element={<AccessDenied />} />
 
 					<Route element={<ProtectedRoute allowedRoles={[...managementRoles]} />}>

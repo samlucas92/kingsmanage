@@ -1,0 +1,116 @@
+import { filesApi } from "./filesApi";
+import type {
+	ClubFile,
+	ClubFileLinkedEntityType,
+	ClubFileVisibility,
+} from "../types/files";
+
+const maxUploadSizeBytes = 10 * 1024 * 1024;
+
+const allowedContentTypes = new Set([
+	"image/jpeg",
+	"image/png",
+	"image/webp",
+	"application/pdf",
+]);
+
+const extensionContentTypes: Record<string, string> = {
+	jpg: "image/jpeg",
+	jpeg: "image/jpeg",
+	png: "image/png",
+	webp: "image/webp",
+	pdf: "application/pdf",
+};
+
+export type UploadLinkedFileRequest = {
+	file: File;
+	linkedEntityType: ClubFileLinkedEntityType;
+	linkedEntityId: string;
+	visibility?: ClubFileVisibility;
+};
+
+export function getUploadFileValidationError(file: File) {
+	const contentType = getFileContentType(file);
+
+	if (!file.name.trim()) {
+		return "Choose a valid file.";
+	}
+
+	if (!allowedContentTypes.has(contentType)) {
+		return "Only JPG, PNG, WebP and PDF files are allowed.";
+	}
+
+	if (file.size <= 0) {
+		return "The selected file is empty.";
+	}
+
+	if (file.size > maxUploadSizeBytes) {
+		return "Files must be 10MB or less.";
+	}
+
+	return "";
+}
+
+export function getFileContentType(file: File) {
+	if (file.type) {
+		return file.type;
+	}
+
+	const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+
+	return extensionContentTypes[extension] ?? "application/octet-stream";
+}
+
+export function formatFileSize(sizeBytes: number) {
+	if (sizeBytes < 1024) {
+		return `${sizeBytes} B`;
+	}
+
+	if (sizeBytes < 1024 * 1024) {
+		return `${(sizeBytes / 1024).toFixed(1)} KB`;
+	}
+
+	return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export async function uploadLinkedFile({
+	file,
+	linkedEntityId,
+	linkedEntityType,
+	visibility = "AuthenticatedUsers",
+}: UploadLinkedFileRequest) {
+	const validationError = getUploadFileValidationError(file);
+
+	if (validationError) {
+		throw new Error(validationError);
+	}
+
+	const contentType = getFileContentType(file);
+	const uploadResponse = await filesApi.createUploadUrl({
+		originalFileName: file.name,
+		contentType,
+		sizeBytes: file.size,
+		linkedEntityType,
+		linkedEntityId,
+		visibility,
+	});
+
+	const uploadResult = await fetch(uploadResponse.uploadUrl, {
+		method: "PUT",
+		headers: {
+			"Content-Type": contentType,
+		},
+		body: file,
+	});
+
+	if (!uploadResult.ok) {
+		throw new Error(`File upload failed with status ${uploadResult.status}.`);
+	}
+
+	return filesApi.markUploaded(uploadResponse.file.id);
+}
+
+export async function openClubFile(file: ClubFile) {
+	const response = await filesApi.getDownloadUrl(file.id);
+	window.open(response.downloadUrl, "_blank", "noopener,noreferrer");
+}

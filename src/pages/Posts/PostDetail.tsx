@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
+import AttachmentList from "../../components/files/AttachmentList";
+import FileUploadPanel from "../../components/files/FileUploadPanel";
 import ConfirmationModal from "../../components/compositions/ConfirmationModal";
+import { filesApi } from "../../services/filesApi";
+import { openClubFile } from "../../services/fileService";
 import { useAuthStore } from "../../stores/auth";
 import { usePostStore } from "../../stores/posts";
+import type { ClubFile } from "../../types/files";
 import type { CreateClubPostRequest } from "../../types/posts";
 import { formatDisplayDateTime } from "../../utils/date";
 import { getPostTypeClass, getPostTypeLabel } from "../../utils/posts";
@@ -28,6 +33,11 @@ export default function PostDetail() {
 	const [isPostModalOpen, setIsPostModalOpen] = useState(false);
 	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 	const [isDeletingPost, setIsDeletingPost] = useState(false);
+	const [attachments, setAttachments] = useState<ClubFile[]>([]);
+	const [isLoadingAttachments, setIsLoadingAttachments] = useState(false);
+	const [attachmentsError, setAttachmentsError] = useState("");
+	const [fileToDelete, setFileToDelete] = useState<ClubFile | null>(null);
+	const [isDeletingFile, setIsDeletingFile] = useState(false);
 
 	const postFromList = useMemo(
 		() => posts.find((post) => post.id === id) ?? null,
@@ -48,8 +58,32 @@ export default function PostDetail() {
 	}, [id, loadPost]);
 
 	useEffect(() => {
+		if (!id) {
+			return;
+		}
+
+		void loadAttachments(id);
+	}, [id]);
+
+	useEffect(() => {
 		return () => clearSelectedPost();
 	}, [clearSelectedPost]);
+
+	async function loadAttachments(postId: string) {
+		setIsLoadingAttachments(true);
+		setAttachmentsError("");
+
+		try {
+			const files = await filesApi.getFilesForLinkedEntity("Post", postId);
+			setAttachments(files);
+		} catch (error) {
+			setAttachmentsError(
+				error instanceof Error ? error.message : "Failed to load attachments."
+			);
+		} finally {
+			setIsLoadingAttachments(false);
+		}
+	}
 
 	async function handleSavePost(request: CreateClubPostRequest) {
 		if (!id) {
@@ -73,6 +107,44 @@ export default function PostDetail() {
 		} finally {
 			setIsDeletingPost(false);
 		}
+	}
+
+	async function handleDownloadFile(file: ClubFile) {
+		try {
+			await openClubFile(file);
+		} catch (error) {
+			setAttachmentsError(
+				error instanceof Error ? error.message : "Failed to open attachment."
+			);
+		}
+	}
+
+	async function handleDeleteFile() {
+		if (!fileToDelete) {
+			return;
+		}
+
+		setIsDeletingFile(true);
+		setAttachmentsError("");
+
+		try {
+			await filesApi.deleteFile(fileToDelete.id);
+			setAttachments((currentFiles) =>
+				currentFiles.filter((file) => file.id !== fileToDelete.id)
+			);
+			setFileToDelete(null);
+		} catch (error) {
+			setAttachmentsError(
+				error instanceof Error ? error.message : "Failed to delete attachment."
+			);
+		} finally {
+			setIsDeletingFile(false);
+		}
+	}
+
+	function handleFileUploaded(file: ClubFile) {
+		setAttachments((currentFiles) => [file, ...currentFiles]);
+		setAttachmentsError("");
 	}
 
 	if (!id) {
@@ -179,6 +251,43 @@ export default function PostDetail() {
 				</div>
 			</article>
 
+			<section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+				<div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+					<div>
+						<h2 className="text-xl font-bold text-slate-900">Attachments</h2>
+						<p className="mt-1 text-sm text-slate-500">
+							Files attached to this post for players, coaches, and admins.
+						</p>
+					</div>
+				</div>
+
+				{attachmentsError && (
+					<div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+						{attachmentsError}
+					</div>
+				)}
+
+				{canManagePosts && (
+					<div className="mt-4">
+						<FileUploadPanel
+							linkedEntityType="Post"
+							linkedEntityId={post.id}
+							onFileUploaded={handleFileUploaded}
+						/>
+					</div>
+				)}
+
+				<div className="mt-4">
+					<AttachmentList
+						canManageFiles={canManagePosts}
+						files={attachments}
+						isLoading={isLoadingAttachments}
+						onDeleteFile={setFileToDelete}
+						onDownloadFile={(file) => void handleDownloadFile(file)}
+					/>
+				</div>
+			</section>
+
 			<PostFormModal
 				isOpen={isPostModalOpen}
 				onClose={() => setIsPostModalOpen(false)}
@@ -195,6 +304,17 @@ export default function PostDetail() {
 				variant="danger"
 				onCancel={() => setIsDeleteModalOpen(false)}
 				onConfirm={handleDeletePost}
+			/>
+
+			<ConfirmationModal
+				isOpen={Boolean(fileToDelete)}
+				title="Delete attachment"
+				message={fileToDelete ? `Delete “${fileToDelete.originalFileName}”?` : undefined}
+				confirmText="Delete attachment"
+				isBusy={isDeletingFile}
+				variant="danger"
+				onCancel={() => setFileToDelete(null)}
+				onConfirm={handleDeleteFile}
 			/>
 		</PostDetailShell>
 	);

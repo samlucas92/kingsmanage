@@ -17,7 +17,6 @@ import { usePostStore } from "../../stores/posts";
 import { useSeasonStore } from "../../stores/seasons";
 import type { ClubEventAvailabilityStatus } from "../../types/events";
 import type { ClubPost } from "../../types/posts";
-import DashboardHeader from "./components/DashboardHeader";
 import DashboardLoadingIssues from "./components/DashboardLoadingIssues";
 import DashboardTabBar from "./components/DashboardTabBar";
 import EventFormModal from "./components/EventFormModal";
@@ -82,31 +81,40 @@ export default function Dashboard() {
 		}
 	}, [activeTab, availableTabs]);
 
+	useEffect(() => {
+		if (!currentUser || !hasAppliedDefaultTab || !requestedTab) {
+			return;
+		}
+
+		if (!availableTabs.some((tab) => tab.id === requestedTab)) {
+			return;
+		}
+
+		if (activeTab !== requestedTab) {
+			setActiveTab(requestedTab);
+		}
+	}, [activeTab, availableTabs, currentUser, hasAppliedDefaultTab, requestedTab]);
+
 	const players = usePlayerStore((state) => state.players);
 	const loadPlayers = usePlayerStore((state) => state.loadPlayers);
-	const isLoadingPlayers = usePlayerStore((state) => state.isLoadingPlayers);
 	const playerLoadError = usePlayerStore((state) => state.playerLoadError);
 
 	const matches = useMatchStore((state) => state.matches);
 	const loadMatches = useMatchStore((state) => state.loadMatches);
-	const isLoadingMatches = useMatchStore((state) => state.isLoadingMatches);
 	const matchLoadError = useMatchStore((state) => state.matchLoadError);
 
 	const playerFinanceRecords = useFinanceStore((state) => state.playerFinanceRecords);
 	const loadFinance = useFinanceStore((state) => state.loadFinance);
-	const isLoadingFinance = useFinanceStore((state) => state.isLoadingFinance);
 	const financeLoadError = useFinanceStore((state) => state.financeLoadError);
 
 	const activeSeasonId = useSeasonStore((state) => state.activeSeasonId);
 	const loadSeasons = useSeasonStore((state) => state.loadSeasons);
-	const isLoadingSeasons = useSeasonStore((state) => state.isLoadingSeasons);
 	const seasonLoadError = useSeasonStore((state) => state.seasonLoadError);
 
 	const events = useEventStore((state) => state.events);
 	const loadEvents = useEventStore((state) => state.loadEvents);
 	const createEvent = useEventStore((state) => state.createEvent);
 	const setEventAvailability = useEventStore((state) => state.setAvailability);
-	const isLoadingEvents = useEventStore((state) => state.isLoadingEvents);
 	const eventsLoadError = useEventStore((state) => state.eventsLoadError);
 
 	const posts = usePostStore((state) => state.posts);
@@ -220,14 +228,14 @@ export default function Dashboard() {
 	const nextThreeMatches = upcomingMatches.slice(0, 3);
 	const latestThreeResults = completedMatches.slice(0, 3);
 
-	const isLoading =
-		isLoadingEvents ||
-		isLoadingPosts ||
-		(isManagementRole &&
-			(isLoadingSeasons ||
-				isLoadingPlayers ||
-				isLoadingMatches ||
-				(isAdmin && isLoadingFinance)));
+	const latestPost = useMemo(
+		() =>
+			[...posts].sort(
+				(first, second) =>
+					new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime()
+			)[0],
+		[posts]
+	);
 
 	const loadErrors = [
 		eventsLoadError,
@@ -237,8 +245,6 @@ export default function Dashboard() {
 		isManagementRole ? matchLoadError : "",
 		isAdmin ? financeLoadError : "",
 	].filter((error): error is string => Boolean(error));
-
-	const activeTabDefinition = availableTabs.find((tab) => tab.id === activeTab);
 
 	async function handleCreateEvent(request: Parameters<typeof createEvent>[0]) {
 		await createEvent(request);
@@ -310,23 +316,15 @@ export default function Dashboard() {
 				onTabChange={handleTabChange}
 			/>
 
-			{activeTab !== "posts" && (
-				<DashboardHeader
-					activeTabDefinition={activeTabDefinition}
-					currentRole={currentRole}
-					isLoading={isLoading}
-					loadErrors={loadErrors}
-				/>
-			)}
-
 			<DashboardLoadingIssues loadErrors={loadErrors} />
 
 			{activeTab === "overview" && (
 				currentRole === "Player" ? (
 					<PlayerOverviewTab
 						currentPlayerId={currentUser?.playerId}
+						latestPost={latestPost}
 						onSetAvailability={handleSetAvailability}
-						upcomingEvents={upcomingEvents.slice(0, 3)}
+						upcomingEvents={upcomingEvents}
 					/>
 				) : (
 					<OverviewTab

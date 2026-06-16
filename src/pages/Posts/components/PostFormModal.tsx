@@ -181,7 +181,7 @@ export default function PostFormModal({
 					<div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
 						<p className="font-bold">Players can read posts but cannot edit or delete them.</p>
 						<p className="mt-1 text-blue-600">
-							Keep posts short for now. Rich text and file attachments will come after the file storage strategy.
+							Keep posts clear and readable. Attach files from the post detail page after creating or editing the post.
 						</p>
 					</div>
 
