@@ -4,11 +4,13 @@ import { useAuthStore } from "../../stores/auth";
 
 type ProfileSummaryProps = {
 	compact?: boolean;
+	iconOnlyOnMobile?: boolean;
 	variant?: "light" | "dark";
 };
 
 export default function ProfileSummary({
 	compact = false,
+	iconOnlyOnMobile = false,
 	variant = "dark",
 }: ProfileSummaryProps) {
 	const currentUser = useAuthStore((state) => state.currentUser);
@@ -21,8 +23,8 @@ export default function ProfileSummary({
 	return (
 		<Link
 			to="/settings"
-			className={`flex items-center gap-3 rounded-lg transition ${
-				compact ? "px-2 py-1.5" : "px-2 py-2"
+			className={`flex items-center rounded-lg transition ${
+				iconOnlyOnMobile ? "gap-0 px-0 py-0 sm:gap-3 sm:px-2 sm:py-2" : `gap-3 ${compact ? "px-2 py-1.5" : "px-2 py-2"}`
 			} ${
 				isDark
 					? "text-white hover:bg-white/10"
@@ -30,11 +32,11 @@ export default function ProfileSummary({
 			}`}
 			aria-label="Open account settings"
 		>
-			<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-yellow-400 text-sm font-bold text-black">
+			<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-yellow-400 text-sm font-bold text-black sm:h-9 sm:w-9">
 				{initials}
 			</div>
 
-			<div className="min-w-0">
+			<div className={`min-w-0 ${iconOnlyOnMobile ? "hidden sm:block" : "block"}`}>
 				<div className="flex items-center gap-2">
 					<p
 						className={`truncate text-sm font-semibold ${

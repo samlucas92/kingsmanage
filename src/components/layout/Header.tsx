@@ -28,22 +28,25 @@ export default function Header({ onOpenMobileMenu }: HeaderProps) {
 
 	return (
 		<header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
-			<div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-				<div className="flex items-center gap-3">
+			<div className="flex h-16 items-center justify-between gap-2 px-3 sm:gap-4 sm:px-6 lg:px-8">
+				<div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
 					<button
 						type="button"
 						onClick={onOpenMobileMenu}
-						className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700 lg:hidden"
+						className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-slate-300 text-lg font-bold text-slate-700 lg:hidden"
+						aria-label="Open navigation menu"
 					>
 						☰
 					</button>
 
-					<h1 className="text-xl font-bold text-slate-900">{title}</h1>
+					<h1 className="min-w-0 truncate text-xl font-bold text-slate-900 sm:text-2xl">
+						{title}
+					</h1>
 				</div>
 
-				<div className="flex items-center gap-3">
+				<div className="flex shrink-0 items-center gap-2 sm:gap-3">
 					<NotificationBell />
-					<ProfileSummary variant="light" />
+					<ProfileSummary variant="light" iconOnlyOnMobile />
 				</div>
 			</div>
 		</header>
