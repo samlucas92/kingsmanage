@@ -82,7 +82,7 @@ export default function Login() {
 								type="email"
 								value={email}
 								onChange={(event) => setEmail(event.target.value)}
-								className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+								className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 sm:text-sm"
 								autoComplete="email"
 								required
 							/>
@@ -94,7 +94,7 @@ export default function Login() {
 								type="password"
 								value={password}
 								onChange={(event) => setPassword(event.target.value)}
-								className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+								className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 sm:text-sm"
 								autoComplete="current-password"
 								required
 							/>
