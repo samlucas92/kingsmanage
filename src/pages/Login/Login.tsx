@@ -1,6 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../stores/auth";
+
+const DEFAULT_VIEWPORT_CONTENT = "width=device-width, initial-scale=1.0";
+const LOCKED_VIEWPORT_CONTENT = `${DEFAULT_VIEWPORT_CONTENT}, maximum-scale=1.0`;
 
 export default function Login() {
 	const navigate = useNavigate();
@@ -14,6 +17,7 @@ export default function Login() {
 	const clearError = useAuthStore((state) => state.clearError);
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
+	const viewportRestoreTimerRef = useRef<number | null>(null);
 
 	useEffect(() => {
 		void initialise();
@@ -22,6 +26,16 @@ export default function Login() {
 	useEffect(() => {
 		clearError();
 	}, [clearError]);
+
+	useEffect(() => {
+		return () => {
+			if (viewportRestoreTimerRef.current !== null) {
+				window.clearTimeout(viewportRestoreTimerRef.current);
+			}
+
+			setViewportScaleLocked(false);
+		};
+	}, []);
 
 	const fromPath = getReturnPath(location.state);
 
@@ -32,14 +46,34 @@ export default function Login() {
 	const handleSubmit = async (event: React.SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		(event.currentTarget.ownerDocument.activeElement as HTMLElement | null)?.blur();
+		setViewportScaleLocked(true);
 
 		try {
 			await login(email, password);
+			await applyLockedViewport();
 			navigate(fromPath, { replace: true });
 		} catch {
 			// Error is handled by the auth store and displayed below.
 		}
 	}
+
+	const handleLoginFieldInteraction = () => {
+		if (viewportRestoreTimerRef.current !== null) {
+			window.clearTimeout(viewportRestoreTimerRef.current);
+			viewportRestoreTimerRef.current = null;
+		}
+
+		setViewportScaleLocked(true);
+	};
+
+	const handleLoginFieldBlur = () => {
+		const timer = window.setTimeout(() => {
+			setViewportScaleLocked(false);
+			viewportRestoreTimerRef.current = null;
+		}, 750);
+
+		viewportRestoreTimerRef.current = timer;
+	};
 
 	return (
 		<div className="flex min-h-screen bg-slate-100">
@@ -81,6 +115,9 @@ export default function Login() {
 							<span className="text-sm font-medium text-slate-700">Email</span>
 							<input
 								type="email"
+								onPointerDown={handleLoginFieldInteraction}
+								onFocus={handleLoginFieldInteraction}
+								onBlur={handleLoginFieldBlur}
 								value={email}
 								onChange={(event) => setEmail(event.target.value)}
 								className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
@@ -93,6 +130,9 @@ export default function Login() {
 							<span className="text-sm font-medium text-slate-700">Password</span>
 							<input
 								type="password"
+								onPointerDown={handleLoginFieldInteraction}
+								onFocus={handleLoginFieldInteraction}
+								onBlur={handleLoginFieldBlur}
 								value={password}
 								onChange={(event) => setPassword(event.target.value)}
 								className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
@@ -113,6 +153,24 @@ export default function Login() {
 			</div>
 		</div>
 	);
+}
+
+function setViewportScaleLocked(isLocked: boolean) {
+	const viewport = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+
+	if (viewport) {
+		viewport.content = isLocked ? LOCKED_VIEWPORT_CONTENT : DEFAULT_VIEWPORT_CONTENT;
+	}
+}
+
+function applyLockedViewport() {
+	setViewportScaleLocked(true);
+
+	return new Promise<void>((resolve) => {
+		window.requestAnimationFrame(() => {
+			window.requestAnimationFrame(() => resolve());
+		});
+	});
 }
 
 function getReturnPath(state: unknown) {
