@@ -31,6 +31,7 @@ export default function Login() {
 
 	const handleSubmit = async (event: React.SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
+		(event.currentTarget.ownerDocument.activeElement as HTMLElement | null)?.blur();
 
 		try {
 			await login(email, password);
@@ -82,7 +83,7 @@ export default function Login() {
 								type="email"
 								value={email}
 								onChange={(event) => setEmail(event.target.value)}
-								className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 sm:text-sm"
+								className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
 								autoComplete="email"
 								required
 							/>
@@ -94,7 +95,7 @@ export default function Login() {
 								type="password"
 								value={password}
 								onChange={(event) => setPassword(event.target.value)}
-								className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 sm:text-sm"
+								className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
 								autoComplete="current-password"
 								required
 							/>

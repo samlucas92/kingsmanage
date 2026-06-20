@@ -1,10 +1,8 @@
 @import "tailwindcss";
 
-/* Prevent iOS Safari from auto-zooming focused form controls below 16px. */
-@media (max-width: 767px) {
-	input,
-	select,
-	textarea {
-		font-size: 16px;
-	}
+/* Prevent mobile browsers from auto-zooming focused form controls. */
+input,
+select,
+textarea {
+	font-size: 16px !important;
 }
