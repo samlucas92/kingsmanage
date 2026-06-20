@@ -1,6 +1,6 @@
 import type { UserRole } from "../../types/auth";
 
-export type DashboardTab = "overview" | "matches" | "finance" | "events" | "posts";
+export type DashboardTab = "overview" | "matches" | "finance" | "events" | "posts" | "messages";
 
 export type DashboardTabDefinition = {
 	id: DashboardTab;
@@ -41,6 +41,12 @@ export const dashboardTabs: DashboardTabDefinition[] = [
 		description: "Club updates, reminders, and player-facing announcements.",
 		roles: ["Admin", "Coach", "Player"],
 	},
+	{
+		id: "messages",
+		label: "Messages",
+		description: "Private direct conversations with other club members.",
+		roles: ["Admin", "Coach", "Player"],
+	},
 ];
 
 export function getDashboardTabFromSearch(value: string | null): DashboardTab | null {
@@ -49,7 +55,8 @@ export function getDashboardTabFromSearch(value: string | null): DashboardTab | 
 		value === "matches" ||
 		value === "finance" ||
 		value === "events" ||
-		value === "posts"
+		value === "posts" ||
+		value === "messages"
 	) {
 		return value;
 	}

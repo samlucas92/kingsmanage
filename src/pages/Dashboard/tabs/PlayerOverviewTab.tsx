@@ -8,6 +8,8 @@ import { getPlayerAvailabilityStatus } from "../../../utils/events";
 import { getPostTypeClass, getPostTypeLabel } from "../../../utils/posts";
 import AttentionCard from "../components/AttentionCard";
 import DashboardEventCard from "../components/DashboardEventCard";
+import LatestMessagesCard from "../components/LatestMessagesCard";
+import MyFinance from "../../Finance/MyFinance";
 
 export default function PlayerOverviewTab({
 	currentPlayerId,
@@ -106,6 +108,11 @@ export default function PlayerOverviewTab({
 						<p className="text-sm text-slate-500">No posts have been published yet.</p>
 					)}
 				</AttentionCard>
+			</div>
+
+			<div className="grid gap-5 lg:grid-cols-2">
+				<LatestMessagesCard />
+				<MyFinance />
 			</div>
 
 			{nextEvent && (

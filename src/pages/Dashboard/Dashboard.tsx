@@ -12,6 +12,7 @@ import { useAuthStore } from "../../stores/auth";
 import { useEventStore } from "../../stores/events";
 import { useFinanceStore } from "../../stores/finance";
 import { useMatchStore } from "../../stores/match";
+import { useMessageStore } from "../../stores/messages";
 import { usePlayerStore } from "../../stores/players";
 import { usePostStore } from "../../stores/posts";
 import { useSeasonStore } from "../../stores/seasons";
@@ -35,6 +36,9 @@ import MatchesTab from "./tabs/MatchesTab";
 import OverviewTab from "./tabs/OverviewTab";
 import PlayerOverviewTab from "./tabs/PlayerOverviewTab";
 import PostsTab from "./tabs/PostsTab";
+import Messages from "../Messages/Messages";
+
+const MESSAGE_LIST_POLL_INTERVAL_MS = 60_000;
 
 export default function Dashboard() {
 	const currentUser = useAuthStore((state) => state.currentUser);
@@ -49,6 +53,7 @@ export default function Dashboard() {
 
 	const [searchParams, setSearchParams] = useSearchParams();
 	const requestedTab = getDashboardTabFromSearch(searchParams.get("tab"));
+	const requestedThreadId = searchParams.get("threadId");
 
 	const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
 	const [hasAppliedDefaultTab, setHasAppliedDefaultTab] = useState(false);
@@ -124,6 +129,26 @@ export default function Dashboard() {
 	const deletePost = usePostStore((state) => state.deletePost);
 	const isLoadingPosts = usePostStore((state) => state.isLoadingPosts);
 	const postsLoadError = usePostStore((state) => state.postsLoadError);
+	const loadMessageThreads = useMessageStore((state) => state.loadThreads);
+	const loadMessageUsers = useMessageStore((state) => state.loadUsers);
+	const resetMessages = useMessageStore((state) => state.reset);
+	const messagesError = useMessageStore((state) => state.error);
+
+	useEffect(() => {
+		if (!currentUser) {
+			resetMessages();
+			return;
+		}
+
+		void loadMessageThreads();
+		void loadMessageUsers();
+
+		const intervalId = window.setInterval(() => {
+			void loadMessageThreads();
+		}, MESSAGE_LIST_POLL_INTERVAL_MS);
+
+		return () => window.clearInterval(intervalId);
+	}, [currentUser, loadMessageThreads, loadMessageUsers, resetMessages]);
 
 	useEffect(() => {
 		void loadEvents();
@@ -244,6 +269,7 @@ export default function Dashboard() {
 		isManagementRole ? playerLoadError : "",
 		isManagementRole ? matchLoadError : "",
 		isAdmin ? financeLoadError : "",
+		messagesError,
 	].filter((error): error is string => Boolean(error));
 
 	async function handleCreateEvent(request: Parameters<typeof createEvent>[0]) {
@@ -386,6 +412,10 @@ export default function Dashboard() {
 					posts={posts}
 					postsLoadError={postsLoadError}
 				/>
+			)}
+
+			{activeTab === "messages" && (
+				<Messages requestedThreadId={requestedThreadId} />
 			)}
 
 			<EventFormModal

@@ -1,5 +1,5 @@
-export type NotificationType = "NewPost" | "NewEvent" | "EventUpdated";
-export type NotificationSourceType = "Post" | "Event" | "Match" | "Finance" | "System";
+export type NotificationType = "NewPost" | "NewEvent" | "EventUpdated" | "NewDirectMessage";
+export type NotificationSourceType = "Post" | "Event" | "Match" | "Message" | "Finance" | "System";
 export type NotificationStatus = "Unread" | "Read";
 
 export type ClubNotification = {

@@ -37,6 +37,7 @@ export default function AppRouter() {
 					<Route path="/notifications" element={<Notifications />} />
 					<Route path="/access-denied" element={<AccessDenied />} />
 
+
 					<Route element={<ProtectedRoute allowedRoles={[...managementRoles]} />}>
 						<Route path="/matches" element={<Matches />} />
 						<Route path="/matches/:id" element={<MatchDetail />} />

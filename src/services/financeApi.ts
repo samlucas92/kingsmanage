@@ -15,6 +15,11 @@ export const financeApi = {
 		return summaries.map(toPlayerFinanceRecord);
 	},
 
+	getMyFinance: (seasonId?: string) => {
+		const query = seasonId ? `?seasonId=${encodeURIComponent(seasonId)}` : "";
+		return apiClient.get<PlayerFinanceSummary>(`/finance/mine${query}`);
+	},
+
 	setPlayerAmountOwed: async ({
 		playerId,
 		seasonId,

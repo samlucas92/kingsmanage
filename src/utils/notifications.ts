@@ -13,6 +13,10 @@ export function getNotificationActionPath(notification: ClubNotification) {
 		return `/matches/${notification.sourceId}`;
 	}
 
+	if (notification.sourceType === "Message") {
+		return notification.actionPath || "/dashboard?tab=messages";
+	}
+
 	return notification.actionPath || "/";
 }
 
@@ -24,6 +28,8 @@ export function getNotificationTypeLabel(type: NotificationType) {
 			return "New event";
 		case "EventUpdated":
 			return "Event updated";
+		case "NewDirectMessage":
+			return "New message";
 		default:
 			return type;
 	}
@@ -37,6 +43,8 @@ export function getNotificationSourceLabel(sourceType: NotificationSourceType) {
 			return "Event";
 		case "Match":
 			return "Match";
+		case "Message":
+			return "Message";
 		case "Finance":
 			return "Finance";
 		case "System":
