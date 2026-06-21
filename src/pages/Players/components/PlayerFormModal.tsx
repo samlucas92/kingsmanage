@@ -1,5 +1,6 @@
 import Modal from "../../../components/compositions/Modal";
-import { PLAYER_POSITIONS } from "../../../constants/positions";
+import { getSportDefinition } from "../../../constants/sports";
+import { useAuthStore } from "../../../stores/auth";
 import type { PlayerFormState } from "../hooks/usePlayerForm";
 
 interface PlayerFormModalProps {
@@ -28,6 +29,8 @@ export function PlayerFormModal({
 	onUpdatePlayerForm,
 	onTogglePosition,
 }: PlayerFormModalProps) {
+	const activeClub = useAuthStore((state) => state.availableClubs.find((club) => club.isCurrent));
+	const sport = getSportDefinition(activeClub?.sportKey);
 	return (
 		<Modal
 			isOpen={isOpen}
@@ -113,22 +116,22 @@ export function PlayerFormModal({
 					</p>
 
 					<div className="flex flex-wrap gap-2">
-						{PLAYER_POSITIONS.map((position) => {
-							const selected = playerForm.positions.includes(position);
+						{sport.positions.map((position) => {
+							const selected = playerForm.positions.includes(position.key);
 
 							return (
 								<button
-									key={position}
+									key={position.key}
 									type="button"
 									disabled={isSaving}
-									onClick={() => onTogglePosition(position)}
+									onClick={() => onTogglePosition(position.key)}
 									className={`rounded-full border px-3 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${
 										selected
 											? "border-blue-700 bg-blue-700 text-white"
 											: "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
 									}`}
 								>
-									{position}
+									{position.key} · {position.label}
 								</button>
 							);
 						})}

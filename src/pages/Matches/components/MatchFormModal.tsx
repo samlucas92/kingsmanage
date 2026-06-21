@@ -1,5 +1,6 @@
 import Modal from "../../../components/compositions/Modal";
 import type { ClubTeam } from "../../../stores/match";
+import { useClubTeamStore } from "../../../stores/clubTeams";
 
 interface MatchFormModalProps {
 	isOpen: boolean;
@@ -32,6 +33,9 @@ export function MatchFormModal({
 	onDateChange,
 	onVenueChange,
 }: MatchFormModalProps) {
+	const profiles = useClubTeamStore((state) => state.profiles);
+	const selectableProfiles = profiles.filter((profile) => profile.isActive || profile.id === team);
+
 	return (
 		<Modal
 			isOpen={isOpen}
@@ -57,8 +61,9 @@ export function MatchFormModal({
 						onChange={(event) => onTeamChange(event.target.value as ClubTeam)}
 						className="w-full rounded-lg border px-3 py-2"
 					>
-						<option value="first">First Team</option>
-						<option value="second">Second Team</option>
+						{selectableProfiles.map((profile) => (
+							<option key={profile.id} value={profile.id}>{profile.displayName}</option>
+						))}
 					</select>
 				</label>
 

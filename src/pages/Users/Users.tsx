@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuthStore } from "../../stores/auth";
 import { usePlayerStore } from "../../stores/players";
 import { useUserStore } from "../../stores/users";
-import type { AuthUser, CreateUserRequest, UpdateUserRequest, UserRole } from "../../types/auth";
+import { usersApi } from "../../services/usersApi";
+import type { AuthUser, CreateUserRequest, MembershipClubOption, UpdateMembershipsRequest, UpdateUserRequest, UserRole } from "../../types/auth";
 import ResetPasswordModal from "./components/ResetPasswordModal";
 import UserFormModal from "./components/UserFormModal";
 
@@ -19,6 +20,7 @@ export default function Users() {
 	const loadUsers = useUserStore((state) => state.loadUsers);
 	const createUser = useUserStore((state) => state.createUser);
 	const updateUser = useUserStore((state) => state.updateUser);
+	const updateMemberships = useUserStore((state) => state.updateMemberships);
 	const setUserActive = useUserStore((state) => state.setUserActive);
 	const resetUserPassword = useUserStore((state) => state.resetUserPassword);
 
@@ -35,10 +37,12 @@ export default function Users() {
 	const [actionError, setActionError] = useState("");
 	const [actionMessage, setActionMessage] = useState("");
 	const [busyUserId, setBusyUserId] = useState<string | null>(null);
+	const [membershipOptions, setMembershipOptions] = useState<MembershipClubOption[]>([]);
 
 	useEffect(() => {
 		void loadUsers();
 		void loadPlayers();
+		void usersApi.getMembershipOptions().then(setMembershipOptions).catch(() => setActionError("Failed to load club membership options."));
 	}, [loadPlayers, loadUsers]);
 
 	const playersById = useMemo(() => {
@@ -118,11 +122,15 @@ export default function Users() {
 	}
 
 	async function handleCreateUser(request: CreateUserRequest) {
-		await createUser(request);
+		return await createUser(request);
 	}
 
 	async function handleUpdateUser(id: string, request: UpdateUserRequest) {
-		await updateUser(id, request);
+		return await updateUser(id, request);
+	}
+
+	async function handleUpdateMemberships(id: string, request: UpdateMembershipsRequest) {
+		return await updateMemberships(id, request);
 	}
 
 	async function handleSetUserActive(user: AuthUser, isActive: boolean) {
@@ -287,14 +295,17 @@ export default function Users() {
 				)}
 			</div>
 
-			<UserFormModal
+			{isModalOpen && <UserFormModal
+				key={selectedUser?.id ?? "new-user"}
 				isOpen={isModalOpen}
 				user={selectedUser}
 				players={players}
+				membershipOptions={membershipOptions}
 				onClose={() => setIsModalOpen(false)}
 				onCreateUser={handleCreateUser}
 				onUpdateUser={handleUpdateUser}
-			/>
+				onUpdateMemberships={handleUpdateMemberships}
+			/>}
 
 			<ResetPasswordModal
 				user={passwordResetUser}

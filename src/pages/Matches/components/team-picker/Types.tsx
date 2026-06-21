@@ -12,6 +12,7 @@ export type DropData = {
 };
 
 export type FormationPosition = {
+	key: string;
 	x: number;
 	y: number;
 	label: string;

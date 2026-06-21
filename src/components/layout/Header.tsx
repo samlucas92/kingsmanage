@@ -1,7 +1,8 @@
 import { useLocation } from "react-router-dom";
 
 import NotificationBell from "../notifications/NotificationBell";
-import ProfileSummary from "./ProfileSummary";
+import AccountMenu from "./AccountMenu";
+import ClubSwitcher from "./ClubSwitcher";
 
 const pageTitles: { matcher: (pathname: string) => boolean; title: string }[] = [
 	{ matcher: (pathname) => pathname === "/" || pathname === "/dashboard", title: "Dashboard" },
@@ -15,6 +16,8 @@ const pageTitles: { matcher: (pathname: string) => boolean; title: string }[] = 
 	{ matcher: (pathname) => pathname === "/historical-stats", title: "Historical Stats" },
 	{ matcher: (pathname) => pathname === "/seasons", title: "Seasons" },
 	{ matcher: (pathname) => pathname === "/users", title: "Users" },
+	{ matcher: (pathname) => pathname === "/organization", title: "Organization" },
+	{ matcher: (pathname) => pathname === "/settings", title: "Settings" },
 	{ matcher: (pathname) => pathname === "/notifications", title: "Notifications" },
 ];
 
@@ -45,8 +48,9 @@ export default function Header({ onOpenMobileMenu }: HeaderProps) {
 				</div>
 
 				<div className="flex shrink-0 items-center gap-2 sm:gap-3">
+					<ClubSwitcher />
 					<NotificationBell />
-					<ProfileSummary variant="light" iconOnlyOnMobile />
+					<AccountMenu />
 				</div>
 			</div>
 		</header>

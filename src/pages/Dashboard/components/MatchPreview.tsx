@@ -4,11 +4,12 @@ import { formatDisplayDateTime } from "../../../utils/date";
 import {
 	getMatchStatusLabel,
 	getMatchStatusTone,
-	getTeamLabel,
 	getVenueLabel,
 } from "../../../utils/matches";
+import { getClubTeamLabel, useClubTeamStore } from "../../../stores/clubTeams";
 
 export default function MatchPreview({ match, showResult = false }: { match: Match; showResult?: boolean }) {
+	const profiles = useClubTeamStore((state) => state.profiles);
 	return (
 		<div>
 			<div className="flex flex-wrap items-center gap-2">
@@ -18,19 +19,20 @@ export default function MatchPreview({ match, showResult = false }: { match: Mat
 			</div>
 
 			<p className="mt-2 text-sm text-slate-600">
-				{formatDisplayDateTime(match.date)} · {getVenueLabel(match.venue)} · {getTeamLabel(match.team)}
+				{formatDisplayDateTime(match.date)} · {getVenueLabel(match.venue)} · {getClubTeamLabel(profiles, match.team)}
 			</p>
 		</div>
 	);
 }
 
 export function MatchListItem({ match, showResult = false }: { match: Match; showResult?: boolean }) {
+	const profiles = useClubTeamStore((state) => state.profiles);
 	return (
 		<div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 p-4">
 			<div>
 				<p className="font-bold text-slate-900">vs {match.opponent}</p>
 				<p className="mt-1 text-sm text-slate-500">
-					{formatDisplayDateTime(match.date)} · {getVenueLabel(match.venue)} · {getTeamLabel(match.team)}
+					{formatDisplayDateTime(match.date)} · {getVenueLabel(match.venue)} · {getClubTeamLabel(profiles, match.team)}
 				</p>
 			</div>
 

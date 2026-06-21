@@ -7,6 +7,7 @@ import PanelCard from "../../components/compositions/PanelCard";
 import { useMatchStore } from "../../stores/match";
 import { useSeasonStore } from "../../stores/seasons";
 import { useStatsStore } from "../../stores/stats";
+import { getClubTeamLabel, useClubTeamStore } from "../../stores/clubTeams";
 import { getCompletedMatchesForSeason } from "../../services/statsService";
 import {
 	buildCsvText,
@@ -43,32 +44,37 @@ const columns: {
 	{ label: "Assists", key: "assists", align: "center" },
 	{ label: "Starts", key: "starts", align: "center" },
 	{ label: "Bench", key: "bench", align: "center" },
+	{ label: "Unused", key: "unusedSubstitutes", align: "center" },
 	{ label: "MOTM", key: "motm", align: "center" },
 	{ label: "Minutes", key: "minutes", align: "center" },
 	{ label: "YC", key: "yellowCards", align: "center" },
 	{ label: "RC", key: "redCards", align: "center" },
 ];
 
-function getExportColumns(selectedSeasonName: string): ExportColumn<StatsRow>[] {
+function getExportColumns(
+	selectedSeasonName: string,
+	firstTeamName: string,
+	secondTeamName: string
+): ExportColumn<StatsRow>[] {
 	return [
 		{
 			label: "Player",
 			getValue: (row) => row.name,
 		},
 		{
-			label: "First Team Apps",
+			label: `${firstTeamName} Apps`,
 			getValue: (row) => row.firstTeamApps,
 		},
 		{
-			label: "First Team Goals",
+			label: `${firstTeamName} Goals`,
 			getValue: (row) => row.firstTeamGoals,
 		},
 		{
-			label: "Second Team Apps",
+			label: `${secondTeamName} Apps`,
 			getValue: (row) => row.secondTeamApps,
 		},
 		{
-			label: "Second Team Goals",
+			label: `${secondTeamName} Goals`,
 			getValue: (row) => row.secondTeamGoals,
 		},
 		{
@@ -108,6 +114,10 @@ function getExportColumns(selectedSeasonName: string): ExportColumn<StatsRow>[] 
 			getValue: (row) => row.bench,
 		},
 		{
+			label: "Unused Substitutes",
+			getValue: (row) => row.unusedSubstitutes,
+		},
+		{
 			label: "MOTM",
 			getValue: (row) => row.motm,
 		},
@@ -127,6 +137,9 @@ function getExportColumns(selectedSeasonName: string): ExportColumn<StatsRow>[] 
 }
 
 export default function Stats() {
+	const clubTeamProfiles = useClubTeamStore((state) => state.profiles);
+	const firstTeamName = getClubTeamLabel(clubTeamProfiles, "first");
+	const secondTeamName = getClubTeamLabel(clubTeamProfiles, "second");
 	const matches = useMatchStore((state) => state.matches);
 	const loadMatches = useMatchStore((state) => state.loadMatches);
 	const seasons = useSeasonStore((state) => state.seasons);
@@ -206,14 +219,6 @@ export default function Stats() {
 		});
 	}, [filteredRows, sortKey, sortDirection]);
 
-	const totalFirstTeamApps = statsRows.reduce(
-		(total, row) => total + row.firstTeamApps,
-		0
-	);
-	const totalSecondTeamApps = statsRows.reduce(
-		(total, row) => total + row.secondTeamApps,
-		0
-	);
 	const totalSeasonApps = statsRows.reduce(
 		(total, row) => total + row.seasonApps,
 		0
@@ -260,7 +265,7 @@ export default function Stats() {
 	}
 
 	function handleCopyTable() {
-		const exportColumns = getExportColumns(selectedSeasonName);
+		const exportColumns = getExportColumns(selectedSeasonName, firstTeamName, secondTeamName);
 		const tableText = buildSeparatedTableText({
 			rows: sortedRows,
 			columns: exportColumns,
@@ -280,7 +285,7 @@ export default function Stats() {
 	}
 
 	function handleExportCsv() {
-		const exportColumns = getExportColumns(selectedSeasonName);
+		const exportColumns = getExportColumns(selectedSeasonName, firstTeamName, secondTeamName);
 		const csvText = buildCsvText({
 			rows: sortedRows,
 			columns: exportColumns,
@@ -337,8 +342,15 @@ export default function Stats() {
 			</PanelCard>
 
 			<div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
-				<MetricCard label="First Team Apps" value={totalFirstTeamApps} />
-				<MetricCard label="Second Team Apps" value={totalSecondTeamApps} />
+				{clubTeamProfiles.map((profile) => (
+					<MetricCard
+						key={profile.id}
+						label={`${profile.displayName} Apps`}
+						value={statsRows.reduce((total, row) => total + (row.teamStats ?? [])
+							.filter((teamStats) => teamStats.teamId === profile.id)
+							.reduce((teamTotal, teamStats) => teamTotal + teamStats.appearances, 0), 0)}
+					/>
+				))}
 				<MetricCard
 					label={`${selectedSeasonName} Apps`}
 					value={totalSeasonApps}
@@ -415,8 +427,8 @@ export default function Stats() {
 					<thead>
 						<tr className="border-b border-slate-200">
 							<th className="sticky left-0 top-0 z-40 w-[180px] min-w-[180px] max-w-[180px] bg-slate-50 p-2 shadow-[1px_0_0_0_rgba(226,232,240,1)]" />
-							<GroupHeader label="First team" />
-							<GroupHeader label="Second team" />
+							<GroupHeader label={firstTeamName} />
+							<GroupHeader label={secondTeamName} />
 							<GroupHeader label={selectedSeasonName} />
 							<GroupHeader label="Pre 25/26" />
 							<GroupHeader label="Career" />
@@ -484,6 +496,7 @@ export default function Stats() {
 								<td className="p-3 text-center">{row.assists}</td>
 								<td className="p-3 text-center">{row.starts}</td>
 								<td className="p-3 text-center">{row.bench}</td>
+								<td className="p-3 text-center">{row.unusedSubstitutes}</td>
 								<td className="p-3 text-center">{row.motm}</td>
 								<td className="p-3 text-center">{row.minutes}</td>
 								<td className="p-3 text-center">{row.yellowCards}</td>

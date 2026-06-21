@@ -22,6 +22,7 @@ const emptyMatchNotes: MatchNotes = {
 function createEmptyPlayerStat(playerId: string): MatchPlayerStat {
 	return {
 		playerId,
+		appearanceType: "unspecified",
 		goals: 0,
 		assists: 0,
 		yellowCards: 0,

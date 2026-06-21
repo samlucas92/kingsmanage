@@ -6,8 +6,10 @@ import {
 import { useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { usePlayerStore } from "../../../../stores/players";
 import { useMatchStore } from "../../../../stores/match";
+import { useAuthStore } from "../../../../stores/auth";
+import { getSportDefinition } from "../../../../constants/sports";
+import { resolveLineupPosition } from "../../../../utils/lineupPosition";
 import type { LineupFormation, SelectedPlayer } from "../../../../stores/match";
-import { formations } from "./Formations";
 import { isPositionCompatible } from "./PositionCompatibility";
 import type { DragData, DropData, OpenPlayerMenu } from "./Types";
 
@@ -55,6 +57,10 @@ export function useTeamPicker(matchId: string) {
 	const [openMenu, setOpenMenu] = useState<OpenPlayerMenu | null>(null);
 
 	const players = usePlayerStore((state) => state.players);
+	const availableClubs = useAuthStore((state) => state.availableClubs);
+	const activeClub = availableClubs.find((club) => club.isCurrent);
+	const sportDefinition = getSportDefinition(activeClub?.sportKey);
+	const sportFormations = Object.fromEntries(sportDefinition.formations.map((formation) => [formation.key, formation.slots]));
 
 	const match = useMatchStore((state) =>
 		state.matches.find((match) => match.id === matchId)
@@ -141,8 +147,13 @@ export function useTeamPicker(matchId: string) {
 	}
 
 	const currentMatch = match;
-	const selectedFormation = currentMatch.selectedFormation;
+	const selectedFormation = sportFormations[currentMatch.selectedFormation]
+		? currentMatch.selectedFormation
+		: sportDefinition.formations[0].key;
 	const isLineupLocked = currentMatch.isLineupLocked;
+	function resolvePitchPosition(player: SelectedPlayer) {
+		return resolveLineupPosition(player, sportFormations[selectedFormation]);
+	}
 
 	const allActivePlayers = players.filter((player) => player.isActive);
 
@@ -283,7 +294,7 @@ export function useTeamPicker(matchId: string) {
 		pitchPosition: PitchPosition,
 		playerId: string
 	): FormationCandidate | null {
-		const formation = formations[selectedFormation];
+		const formation = sportFormations[selectedFormation];
 		const occupiedIndexes = new Set<number>();
 
 		for (const pitchPlayer of pitchPlayers) {
@@ -297,7 +308,7 @@ export function useTeamPicker(matchId: string) {
 			}
 
 			const occupiedIndex = formation.findIndex((position) => {
-				const distance = getDistance(position, pitchPlayer);
+				const distance = getDistance(position, resolvePitchPosition(pitchPlayer));
 
 				return distance <= 4;
 			});
@@ -350,7 +361,7 @@ export function useTeamPicker(matchId: string) {
 
 		return {
 			playerId: targetPlayer.playerId,
-			distance: getDistance(pitchPosition, targetPlayer),
+			distance: getDistance(pitchPosition, resolvePitchPosition(targetPlayer)),
 		};
 	}
 
@@ -365,7 +376,7 @@ export function useTeamPicker(matchId: string) {
 				continue;
 			}
 
-			const distance = getDistance(pitchPosition, pitchPlayer);
+			const distance = getDistance(pitchPosition, resolvePitchPosition(pitchPlayer));
 
 			if (
 				distance <= PITCH_PLAYER_TARGET_RADIUS &&
@@ -473,6 +484,7 @@ export function useTeamPicker(matchId: string) {
 							x: 0,
 							y: 0,
 							area: "bench" as const,
+							positionKey: undefined,
 							positionIndex: undefined,
 						}
 					: selectedPlayer
@@ -487,6 +499,7 @@ export function useTeamPicker(matchId: string) {
 				y: 0,
 				area: "bench" as const,
 				positionIndex: undefined,
+				positionKey: undefined,
 			},
 		];
 	}
@@ -503,7 +516,7 @@ export function useTeamPicker(matchId: string) {
 	function movePlayerToPitchInList(
 		selectedPlayers: SelectedPlayer[],
 		playerId: string,
-		position: Pick<SelectedPlayer, "x" | "y" | "positionIndex">
+		position: Pick<SelectedPlayer, "x" | "y" | "positionIndex" | "positionKey">
 	) {
 		const alreadySelected = selectedPlayers.some(
 			(selectedPlayer) => selectedPlayer.playerId === playerId
@@ -514,10 +527,11 @@ export function useTeamPicker(matchId: string) {
 				selectedPlayer.playerId === playerId
 					? {
 							...selectedPlayer,
-							x: position.x,
-							y: position.y,
+							x: position.positionKey ? undefined : position.x,
+							y: position.positionKey ? undefined : position.y,
 							area: "pitch" as const,
 							positionIndex: position.positionIndex,
+							positionKey: position.positionKey,
 						}
 					: selectedPlayer
 			);
@@ -527,10 +541,11 @@ export function useTeamPicker(matchId: string) {
 			...selectedPlayers,
 			{
 				playerId,
-				x: position.x,
-				y: position.y,
+				x: position.positionKey ? undefined : position.x,
+				y: position.positionKey ? undefined : position.y,
 				area: "pitch" as const,
 				positionIndex: position.positionIndex,
+				positionKey: position.positionKey,
 			},
 		];
 	}
@@ -548,16 +563,16 @@ export function useTeamPicker(matchId: string) {
 		}
 
 		const targetPitchPosition = {
-			x: targetPlayer.x,
-			y: targetPlayer.y,
+			...resolvePitchPosition(targetPlayer),
 			positionIndex: targetPlayer.positionIndex,
+			positionKey: targetPlayer.positionKey,
 		};
 
 		if (draggedPlayer?.area === "pitch") {
 			const draggedPitchPosition = {
-				x: draggedPlayer.x,
-				y: draggedPlayer.y,
+				...resolvePitchPosition(draggedPlayer),
 				positionIndex: draggedPlayer.positionIndex,
+				positionKey: draggedPlayer.positionKey,
 			};
 
 			const updatedSelectedPlayers = currentMatch.selectedPlayers.map(
@@ -715,7 +730,7 @@ export function useTeamPicker(matchId: string) {
 			return;
 		}
 
-		const position = formations[selectedFormation][positionIndex];
+		const position = sportFormations[selectedFormation][positionIndex];
 
 		const occupiedByOtherPlayer = pitchPlayers.some(
 			(pitchPlayer) =>
@@ -729,9 +744,8 @@ export function useTeamPicker(matchId: string) {
 
 		replaceOrAddSelectedPlayer({
 			playerId,
-			x: position.x,
-			y: position.y,
 			area: "pitch",
+			positionKey: position.key,
 			positionIndex,
 		});
 
@@ -745,9 +759,8 @@ export function useTeamPicker(matchId: string) {
 
 		replaceOrAddSelectedPlayer({
 			playerId,
-			x: 0,
-			y: 0,
 			area: "bench",
+			positionKey: undefined,
 			positionIndex: undefined,
 		});
 
@@ -770,7 +783,7 @@ export function useTeamPicker(matchId: string) {
 
 		setLineupFormation(matchId, formationName);
 
-		const formation = formations[formationName];
+		const formation = sportFormations[formationName];
 
 		const pitchSelectedPlayers = currentMatch.selectedPlayers.filter(
 			(selectedPlayer) => selectedPlayer.area === "pitch"
@@ -782,6 +795,7 @@ export function useTeamPicker(matchId: string) {
 					return {
 						...selectedPlayer,
 						positionIndex: undefined,
+						positionKey: undefined,
 					};
 				}
 
@@ -795,16 +809,16 @@ export function useTeamPicker(matchId: string) {
 					return {
 						...selectedPlayer,
 						area: "bench" as const,
-						x: 0,
-						y: 0,
 						positionIndex: undefined,
+						positionKey: undefined,
 					};
 				}
 
 				return {
 					...selectedPlayer,
-					x: formationPosition.x,
-					y: formationPosition.y,
+					x: undefined,
+					y: undefined,
+					positionKey: formationPosition.key,
 					positionIndex: pitchPlayerIndex,
 				};
 			}
@@ -1041,6 +1055,8 @@ export function useTeamPicker(matchId: string) {
 		hoveredSwapTargetPlayerId,
 		openMenu,
 		selectedFormation,
+		sportDefinition,
+		formations: sportFormations,
 		isLineupLocked,
 		availablePlayers,
 		pitchPlayers,

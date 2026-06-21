@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { authApi } from "../services/authApi";
 import { clearStoredAuthToken, getStoredAuthToken, setStoredAuthToken } from "../services/apiClient";
-import type { AuthUser } from "../types/auth";
+import type { AuthUser, ClubAccess } from "../types/auth";
 
 type AuthState = {
 	currentUser: AuthUser | null;
@@ -10,9 +10,12 @@ type AuthState = {
 	isInitialised: boolean;
 	isLoading: boolean;
 	error: string | null;
+	availableClubs: ClubAccess[];
+	isSwitchingClub: boolean;
 	initialise: () => Promise<void>;
 	login: (email: string, password: string) => Promise<void>;
 	changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+	switchClub: (clubId: string) => Promise<void>;
 	logout: () => void;
 	clearError: () => void;
 };
@@ -24,6 +27,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 	isInitialised: false,
 	isLoading: false,
 	error: null,
+	availableClubs: [],
+	isSwitchingClub: false,
 	initialise: async () => {
 		if (get().isInitialised) {
 			return;
@@ -45,7 +50,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 		set({ isLoading: true, error: null });
 
 		try {
-			const currentUser = await authApi.getCurrentUser();
+			const [currentUser, availableClubs] = await Promise.all([
+				authApi.getCurrentUser(),
+				authApi.getAvailableClubs(),
+			]);
 
 			set({
 				currentUser,
@@ -53,6 +61,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 				isAuthenticated: true,
 				isInitialised: true,
 				isLoading: false,
+				availableClubs,
 			});
 		} catch (error) {
 			clearStoredAuthToken();
@@ -63,6 +72,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 				isAuthenticated: false,
 				isInitialised: true,
 				isLoading: false,
+				availableClubs: [],
 				error: error instanceof Error ? error.message : "Your session has expired.",
 			});
 		}
@@ -73,6 +83,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 		try {
 			const response = await authApi.login({ email, password });
 			setStoredAuthToken(response.token);
+			const availableClubs = await authApi.getAvailableClubs();
 
 			set({
 				currentUser: response.user,
@@ -80,6 +91,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 				isAuthenticated: true,
 				isInitialised: true,
 				isLoading: false,
+				availableClubs,
 			});
 		} catch (error) {
 			clearStoredAuthToken();
@@ -89,6 +101,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 				token: null,
 				isAuthenticated: false,
 				isLoading: false,
+				availableClubs: [],
 				error: error instanceof Error ? error.message : "Login failed.",
 			});
 
@@ -97,6 +110,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 	},
 	changePassword: async (currentPassword: string, newPassword: string) => {
 		await authApi.changePassword({ currentPassword, newPassword });
+	},
+	switchClub: async (clubId: string) => {
+		const currentClub = get().availableClubs.find((club) => club.isCurrent);
+		if (currentClub?.id === clubId || get().isSwitchingClub) return;
+
+		set({ isSwitchingClub: true, error: null });
+		try {
+			const response = await authApi.switchClub(clubId);
+			setStoredAuthToken(response.token);
+			set({ token: response.token, currentUser: response.user });
+			window.location.reload();
+		} catch (error) {
+			set({
+				isSwitchingClub: false,
+				error: error instanceof Error ? error.message : "Could not switch club.",
+			});
+			throw error;
+		}
 	},
 	logout: () => {
 		clearStoredAuthToken();
@@ -108,6 +139,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 			isInitialised: true,
 			isLoading: false,
 			error: null,
+			availableClubs: [],
+			isSwitchingClub: false,
 		});
 	},
 	clearError: () => set({ error: null }),

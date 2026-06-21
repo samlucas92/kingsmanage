@@ -140,11 +140,13 @@ export default function Matches() {
 			);
 		});
 
-		return {
-			all: visibleStatusMatches.length,
-			first: visibleStatusMatches.filter((match) => match.team === "first").length,
-			second: visibleStatusMatches.filter((match) => match.team === "second").length,
-		};
+		return visibleStatusMatches.reduce<Record<string, number>>(
+			(counts, match) => ({
+				...counts,
+				[match.team]: (counts[match.team] ?? 0) + 1,
+			}),
+			{ all: visibleStatusMatches.length }
+		);
 	}, [selectedSeasonMatches, matchFilter]);
 
 	const filteredMatches = useMemo(() => {

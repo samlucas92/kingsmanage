@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 
 import { useAuthStore } from "../../stores/auth";
+import ClubSwitcher from "./ClubSwitcher";
 import ProfileSummary from "./ProfileSummary";
 
 type NavigationRole = "Admin" | "Coach" | "Player";
@@ -10,6 +11,7 @@ type NavigationItem = {
 	to: string;
 	end?: boolean;
 	roles: NavigationRole[];
+	tenantRoles?: string[];
 };
 
 const navigationItems: NavigationItem[] = [
@@ -53,6 +55,18 @@ const navigationItems: NavigationItem[] = [
 		label: "Users",
 		to: "/users",
 		roles: ["Admin"],
+		tenantRoles: ["OrganizationAdmin"],
+	},
+	{
+		label: "Club Teams",
+		to: "/club-teams",
+		roles: ["Admin"],
+	},
+	{
+		label: "Organization",
+		to: "/organization",
+		roles: ["Admin"],
+		tenantRoles: ["OrganizationAdmin"],
 	},
 ];
 
@@ -116,7 +130,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 			return false;
 		}
 
-		return item.roles.includes(role);
+		return item.roles.includes(role) && (!item.tenantRoles || (currentUser?.tenantRole && item.tenantRoles.includes(currentUser.tenantRole)));
 	});
 
 	const handleSignOut = () => {
@@ -127,7 +141,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col">
-			<nav className="flex-1 space-y-1 px-3 py-4">
+			<nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
 				{visibleNavigationItems.map((item) => (
 					<SidebarItem
 						key={item.to}
@@ -139,7 +153,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 				))}
 			</nav>
 
-			<div className="space-y-3 border-t border-white/10 p-3">
+			<div className="shrink-0 space-y-3 border-t border-white/10 p-3 lg:hidden">
+				<div className="lg:hidden">
+					<ClubSwitcher variant="dark" />
+				</div>
 				<ProfileSummary variant="dark" />
 
 				<button

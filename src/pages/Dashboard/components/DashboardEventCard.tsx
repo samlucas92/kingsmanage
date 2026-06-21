@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 
 import { useAuthStore } from "../../../stores/auth";
+import { getClubTeamLabel, useClubTeamStore } from "../../../stores/clubTeams";
 import type { ClubEvent, ClubEventAvailabilityStatus } from "../../../types/events";
 import { getEventCounts, getPlayerAvailabilityStatus } from "../../../utils/events";
 
@@ -16,6 +17,7 @@ export default function DashboardEventCard({
 	onSetAvailability,
 }: DashboardEventCardProps) {
 	const currentUser = useAuthStore((state) => state.currentUser);
+	const teamProfiles = useClubTeamStore((state) => state.profiles);
 	const isManagementRole = currentUser?.role === "Admin" || currentUser?.role === "Coach";
 	const linkedMatches = getLinkedMatchActions(event);
 	const dateSummary = getEventDateSummary(event.startDateTime);
@@ -35,7 +37,7 @@ export default function DashboardEventCard({
 					<div className="min-w-0 flex-1">
 						<div className="flex flex-wrap gap-2">
 							<Pill label={event.type} />
-							<Pill label={getTeamScopeLabel(event.teamScope)} />
+							<Pill label={event.teamScope === "Both" ? "Both Teams" : getClubTeamLabel(teamProfiles, event.teamScope)} />
 							{linkedMatches.length > 0 && <Pill label="Linked match" />}
 						</div>
 
@@ -62,7 +64,7 @@ export default function DashboardEventCard({
 										to={`/matches/${matchLink.matchId}`}
 										className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100"
 									>
-										Open {getEventTeamLabel(matchLink.team)} match
+										Open {getClubTeamLabel(teamProfiles, matchLink.team)} match
 									</Link>
 								))}
 							</div>
@@ -167,26 +169,6 @@ function getLinkedMatchActions(event: ClubEvent) {
 			team: matchLink.team,
 			matchId: matchLink.matchId as string,
 		}));
-}
-
-function getTeamScopeLabel(teamScope: string) {
-	if (teamScope === "First") {
-		return "First Team";
-	}
-
-	if (teamScope === "Second") {
-		return "Second Team";
-	}
-
-	return "Both Teams";
-}
-
-function getEventTeamLabel(team: string) {
-	if (team === "First") {
-		return "First Team";
-	}
-
-	return "Second Team";
 }
 
 type EventDateSummary = {

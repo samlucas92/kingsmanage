@@ -19,10 +19,18 @@ export type PlayerStatsRecord = {
 	assists: number;
 	starts: number;
 	bench: number;
+	unusedSubstitutes: number;
 	motm: number;
 	minutes: number;
 	yellowCards: number;
 	redCards: number;
+	teamStats: Array<{
+		teamId: string;
+		appearances: number;
+		goals: number;
+		assists: number;
+		minutes: number;
+	}>;
 };
 
 export type HistoricalStatsInput = {

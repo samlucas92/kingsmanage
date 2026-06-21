@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { useMatchStore } from "../../../stores/match";
 import type {
 	MatchNotes,
-	MatchPlayerStatField,
-	MatchPlayerStatValue,
+	MatchPlayerStat,
 } from "../../../stores/match";
 import { usePlayerStore } from "../../../stores/players";
 
@@ -34,8 +33,8 @@ export function useMatchDetail(matchId?: string) {
 		(state) => state.toggleLineupLocked
 	);
 	const updateMatchNotes = useMatchStore((state) => state.updateMatchNotes);
-	const updateMatchPlayerStat = useMatchStore(
-		(state) => state.updateMatchPlayerStat
+	const updateMatchPlayerStats = useMatchStore(
+		(state) => state.updateMatchPlayerStats
 	);
 
 	const [showResultModal, setShowResultModal] = useState(false);
@@ -191,17 +190,12 @@ export function useMatchDetail(matchId?: string) {
 		setNotesSaved(true);
 	}
 
-	function handleUpdateMatchPlayerStat(
-		playerId: string,
-		field: MatchPlayerStatField,
-		value: MatchPlayerStatValue
-	) {
+	async function handleSaveMatchPlayerStats(playerStats: MatchPlayerStat[]) {
 		if (!currentMatch) {
 			return;
 		}
 
-		const nextValue = typeof value === "number" ? Math.max(0, value) : value;
-		void updateMatchPlayerStat(currentMatch.id, playerId, field, nextValue);
+		await updateMatchPlayerStats(currentMatch.id, playerStats);
 	}
 
 	return {
@@ -238,6 +232,6 @@ export function useMatchDetail(matchId?: string) {
 		updateNoteDraft,
 		handleSaveNotes,
 		getPlayerName,
-		handleUpdateMatchPlayerStat,
+		handleSaveMatchPlayerStats,
 	};
 }

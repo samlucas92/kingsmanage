@@ -5,6 +5,7 @@ import ConfirmationModal from "../../components/compositions/ConfirmationModal";
 import { useAuthStore } from "../../stores/auth";
 import { useEventStore } from "../../stores/events";
 import { useMatchStore } from "../../stores/match";
+import { getClubTeamLabel, useClubTeamStore } from "../../stores/clubTeams";
 import { downloadClubEventCalendarFile } from "../../utils/calendar";
 import { usePlayerStore, type Player } from "../../stores/players";
 import type { ClubEvent, ClubEventAvailabilityStatus } from "../../types/events";
@@ -27,6 +28,7 @@ export default function EventDetail() {
 	const setPlayerAvailability = useEventStore((state) => state.setPlayerAvailability);
 	const clearSelectedEvent = useEventStore((state) => state.clearSelectedEvent);
 	const loadMatches = useMatchStore((state) => state.loadMatches);
+	const teamProfiles = useClubTeamStore((state) => state.profiles);
 
 	const players = usePlayerStore((state) => state.players);
 	const loadPlayers = usePlayerStore((state) => state.loadPlayers);
@@ -163,7 +165,7 @@ export default function EventDetail() {
 					<div>
 						<div className="flex flex-wrap gap-2">
 							<EventPill label={selectedEvent.type} />
-							<EventPill label={getTeamScopeLabel(selectedEvent.teamScope)} />
+							<EventPill label={selectedEvent.teamScope === "Both" ? "Both Teams" : getClubTeamLabel(teamProfiles, selectedEvent.teamScope)} />
 							{linkedMatches.length > 0 && <EventPill label="Linked match" />}
 						</div>
 
@@ -397,6 +399,8 @@ function EventManagementActions({
 	linkedMatches: LinkedMatchAction[];
 	onDeleteEvent: () => void;
 }) {
+	const teamProfiles = useClubTeamStore((state) => state.profiles);
+
 	return (
 		<div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
 			<p className="text-sm font-bold text-slate-900">Admin actions</p>
@@ -409,7 +413,7 @@ function EventManagementActions({
 							to={`/matches/${matchLink.matchId}`}
 							className="flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50"
 						>
-							<span>{getEventTeamLabel(matchLink.team)} match</span>
+							<span>{getClubTeamLabel(teamProfiles, matchLink.team)} match</span>
 							<span>Open</span>
 						</Link>
 					))}
@@ -635,26 +639,6 @@ function getLinkedMatchActions(event: ClubEvent): LinkedMatchAction[] {
 			team: matchLink.team,
 			matchId: matchLink.matchId as string,
 		}));
-}
-
-function getTeamScopeLabel(teamScope: string) {
-	if (teamScope === "First") {
-		return "First Team";
-	}
-
-	if (teamScope === "Second") {
-		return "Second Team";
-	}
-
-	return "Both Teams";
-}
-
-function getEventTeamLabel(team: string) {
-	if (team === "First") {
-		return "First Team";
-	}
-
-	return "Second Team";
 }
 
 function getDeleteEventConfirmationMessage(linkedMatchCount: number) {

@@ -11,6 +11,7 @@ import type {
 	PostponementAudit,
 	SelectedPlayer,
 } from "../stores/match";
+import { FIRST_TEAM_ID, SECOND_TEAM_ID, normaliseLegacyTeamId } from "../stores/clubTeams";
 
 type MatchVenue = Match["venue"];
 
@@ -36,15 +37,26 @@ type ApiLineupFormation =
 	| "FourThreeThree"
 	| "ThreeFiveTwo"
 	| "FourTwoThreeOne";
+type ApiMatchAppearanceType =
+	| "Unspecified"
+	| "Started"
+	| "SubstituteUsed"
+	| "UnusedSubstitute";
+type ApiMatchPlayerStat = Omit<MatchPlayerStat, "appearanceType"> & {
+	appearanceType: ApiMatchAppearanceType;
+};
 
 type ApiMatch = Omit<
 	Match,
-	"team" | "venue" | "state" | "selectedFormation" | "isDetailLoaded"
+	"team" | "venue" | "state" | "selectedFormation" | "playerStats" | "isDetailLoaded"
 > & {
 	team: ApiClubTeam;
+	teamId?: string | null;
 	venue: ApiMatchVenue;
 	state: ApiMatchState;
 	selectedFormation: ApiLineupFormation;
+	formationKey?: string;
+	playerStats?: ApiMatchPlayerStat[];
 };
 
 type ApiMatchViewModel = Omit<
@@ -60,6 +72,7 @@ type ApiMatchViewModel = Omit<
 	| "isDetailLoaded"
 > & {
 	team: ApiClubTeam;
+	teamId: string;
 	venue: ApiMatchVenue;
 	state: ApiMatchState;
 };
@@ -71,13 +84,15 @@ type ApiPlayerMatchViewModel = Omit<
 	"team" | "venue" | "state" | "playerStat"
 > & {
 	team: ApiClubTeam;
+	teamId: string;
 	venue: ApiMatchVenue;
 	state: ApiMatchState;
-	playerStat?: MatchPlayerStat | null;
+	playerStat?: ApiMatchPlayerStat | null;
 };
 
 type ApiMatchFixtureInput = Omit<MatchFixtureInput, "team" | "venue"> & {
 	team: ApiClubTeam;
+	teamId: string;
 	venue: ApiMatchVenue;
 	state: ApiMatchState;
 	isCompleted: boolean;
@@ -86,7 +101,7 @@ type ApiMatchFixtureInput = Omit<MatchFixtureInput, "team" | "venue"> & {
 	notes: MatchNotes;
 	postponements: PostponementAudit[];
 	selectedPlayers: SelectedPlayer[];
-	playerStats: MatchPlayerStat[];
+	playerStats: ApiMatchPlayerStat[];
 };
 
 type PostponeMatchInput = {
@@ -102,22 +117,16 @@ const emptyMatchNotes: MatchNotes = {
 };
 
 function toApiClubTeam(team: ClubTeam): ApiClubTeam {
-	switch (team) {
-		case "second":
-			return "Second";
-		case "first":
-		default:
-			return "First";
-	}
+	return normaliseLegacyTeamId(team) === SECOND_TEAM_ID ? "Second" : "First";
 }
 
 function fromApiClubTeam(team: ApiClubTeam): ClubTeam {
 	switch (team) {
 		case "Second":
-			return "second";
+			return SECOND_TEAM_ID;
 		case "First":
 		default:
-			return "first";
+			return FIRST_TEAM_ID;
 	}
 }
 
@@ -201,18 +210,46 @@ function fromApiFormation(formation: ApiLineupFormation): LineupFormation {
 	}
 }
 
+function fromApiPlayerStat(stat: ApiMatchPlayerStat): MatchPlayerStat {
+	return {
+		...stat,
+		appearanceType:
+			stat.appearanceType === "Started"
+				? "started"
+				: stat.appearanceType === "SubstituteUsed"
+					? "substituteUsed"
+					: stat.appearanceType === "UnusedSubstitute"
+						? "unusedSubstitute"
+						: "unspecified",
+	};
+}
+
+function toApiPlayerStat(stat: MatchPlayerStat): ApiMatchPlayerStat {
+	return {
+		...stat,
+		appearanceType:
+			stat.appearanceType === "started"
+				? "Started"
+				: stat.appearanceType === "substituteUsed"
+					? "SubstituteUsed"
+					: stat.appearanceType === "unusedSubstitute"
+						? "UnusedSubstitute"
+						: "Unspecified",
+	};
+}
+
 function fromApiMatch(match: ApiMatch): Match {
 	return {
 		...match,
-		team: fromApiClubTeam(match.team),
+		team: match.teamId ?? fromApiClubTeam(match.team),
 		venue: fromApiVenue(match.venue),
 		state: fromApiState(match.state),
-		selectedFormation: fromApiFormation(match.selectedFormation),
+		selectedFormation: match.formationKey || fromApiFormation(match.selectedFormation),
 		result: match.result ?? undefined,
 		notes: match.notes ?? emptyMatchNotes,
 		postponements: match.postponements ?? [],
 		selectedPlayers: match.selectedPlayers ?? [],
-		playerStats: match.playerStats ?? [],
+		playerStats: (match.playerStats ?? []).map(fromApiPlayerStat),
 		isDetailLoaded: true,
 	};
 }
@@ -220,7 +257,7 @@ function fromApiMatch(match: ApiMatch): Match {
 function fromApiMatchViewModel(match: ApiMatchViewModel): Match {
 	return {
 		...match,
-		team: fromApiClubTeam(match.team),
+		team: match.teamId ?? fromApiClubTeam(match.team),
 		venue: fromApiVenue(match.venue),
 		state: fromApiState(match.state),
 		selectedFormation: "4-3-3",
@@ -237,27 +274,29 @@ function fromApiMatchViewModel(match: ApiMatchViewModel): Match {
 function fromApiPlayerMatchViewModel(match: ApiPlayerMatchViewModel): PlayerMatchRecord {
 	return {
 		...match,
-		team: fromApiClubTeam(match.team),
+		team: match.teamId ?? fromApiClubTeam(match.team),
 		venue: fromApiVenue(match.venue),
 		state: fromApiState(match.state),
 		result: match.result ?? undefined,
-		playerStat: match.playerStat ?? undefined,
+		playerStat: match.playerStat ? fromApiPlayerStat(match.playerStat) : undefined,
 	};
 }
 
 function toApiMatch(match: Match): ApiMatch {
 	const { isDetailLoaded, ...matchToSave } = match;
+	void isDetailLoaded;
 
 	return {
 		...matchToSave,
 		team: toApiClubTeam(match.team),
+		teamId: normaliseLegacyTeamId(match.team),
 		venue: toApiVenue(match.venue),
 		state: toApiState(match.state),
 		selectedFormation: toApiFormation(match.selectedFormation),
 		notes: match.notes ?? emptyMatchNotes,
 		postponements: match.postponements ?? [],
 		selectedPlayers: match.selectedPlayers ?? [],
-		playerStats: match.playerStats ?? [],
+		playerStats: (match.playerStats ?? []).map(toApiPlayerStat),
 	};
 }
 
@@ -265,6 +304,7 @@ function toApiMatchFixture(match: MatchFixtureInput): ApiMatchFixtureInput {
 	return {
 		...match,
 		team: toApiClubTeam(match.team),
+		teamId: normaliseLegacyTeamId(match.team),
 		venue: toApiVenue(match.venue),
 		state: "Upcoming",
 		isCompleted: false,
@@ -355,10 +395,9 @@ export const matchApi = {
 		id: string,
 		formation: LineupFormation
 	) => {
-		const apiFormation = toApiFormation(formation);
 		const updatedMatch = await apiClient.put<ApiMatch>(
-			`/matches/${id}/formation?formation=${encodeURIComponent(apiFormation)}`,
-			undefined
+			`/matches/${id}/formation-key`,
+			{ formationKey: formation }
 		);
 		return fromApiMatch(updatedMatch);
 	},
@@ -385,7 +424,7 @@ export const matchApi = {
 	) => {
 		const updatedMatch = await apiClient.put<ApiMatch>(
 			`/matches/${id}/player-stats`,
-			playerStats
+			playerStats.map(toApiPlayerStat)
 		);
 		return fromApiMatch(updatedMatch);
 	},

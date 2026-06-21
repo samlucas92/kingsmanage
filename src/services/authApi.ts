@@ -1,4 +1,4 @@
-import type { AuthUser, CreateUserRequest, LoginRequest, LoginResponse, UpdateUserRequest } from "../types/auth";
+import type { AuthUser, ClubAccess, CreateUserRequest, LoginRequest, LoginResponse, UpdateUserRequest } from "../types/auth";
 import { apiClient } from "./apiClient";
 
 export type ChangePasswordRequest = {
@@ -12,6 +12,9 @@ export const authApi = {
 			authenticated: false,
 		}),
 	getCurrentUser: () => apiClient.get<AuthUser>("/auth/me"),
+	getAvailableClubs: () => apiClient.get<ClubAccess[]>("/club-access"),
+	switchClub: (clubId: string) =>
+		apiClient.post<LoginResponse>("/club-access/switch", { clubId }),
 	changePassword: (request: ChangePasswordRequest) =>
 		apiClient.post<void>("/auth/change-password", request),
 };

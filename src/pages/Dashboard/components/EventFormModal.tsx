@@ -2,6 +2,12 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { useMatchStore, type ClubTeam, type Match } from "../../../stores/match";
 import { useSeasonStore } from "../../../stores/seasons";
+import {
+	FIRST_TEAM_ID,
+	SECOND_TEAM_ID,
+	getClubTeamLabel,
+	useClubTeamStore,
+} from "../../../stores/clubTeams";
 import type {
 	ClubEventTeamScope,
 	ClubEventType,
@@ -44,6 +50,12 @@ export default function EventFormModal({
 	const matches = useMatchStore((state) => state.matches);
 	const loadMatches = useMatchStore((state) => state.loadMatches);
 	const isLoadingMatches = useMatchStore((state) => state.isLoadingMatches);
+	const teamProfiles = useClubTeamStore((state) => state.profiles);
+	const activeTeamProfiles = teamProfiles.filter((profile) =>
+		profile.isActive && (profile.id === FIRST_TEAM_ID || profile.id === SECOND_TEAM_ID)
+	);
+	const firstTeamLabel = getClubTeamLabel(teamProfiles, FIRST_TEAM_ID);
+	const secondTeamLabel = getClubTeamLabel(teamProfiles, SECOND_TEAM_ID);
 
 	const [type, setType] = useState<ClubEventType>("Training");
 	const [teamScope, setTeamScope] = useState<ClubEventTeamScope>("First");
@@ -66,12 +78,12 @@ export default function EventFormModal({
 	);
 
 	const firstTeamMatches = useMemo(
-		() => getAvailableMatchesForTeam(matches, "first"),
+		() => getAvailableMatchesForTeam(matches, FIRST_TEAM_ID),
 		[matches]
 	);
 
 	const secondTeamMatches = useMemo(
-		() => getAvailableMatchesForTeam(matches, "second"),
+		() => getAvailableMatchesForTeam(matches, SECOND_TEAM_ID),
 		[matches]
 	);
 
@@ -82,6 +94,14 @@ export default function EventFormModal({
 
 		void loadMatches(activeSeasonId || undefined);
 	}, [activeSeasonId, isOpen, loadMatches, matchMode, type]);
+
+	useEffect(() => {
+		if (!isOpen || type !== "Match" || activeTeamProfiles.length === 0) return;
+		const currentTeams = getTeamsForScope(teamScope);
+		const activeTeams = activeTeamProfiles.map((profile) => profile.id === FIRST_TEAM_ID ? "First" : "Second");
+		if (currentTeams.every((team) => activeTeams.includes(team))) return;
+		setTeamScope(activeTeams[0]);
+	}, [activeTeamProfiles, isOpen, teamScope, type]);
 
 	if (!isOpen) {
 		return null;
@@ -112,12 +132,12 @@ export default function EventFormModal({
 
 		if (type === "Match" && matchMode === "link") {
 			if (teamsInScope.includes("First") && !firstMatchId) {
-				setError("Choose the existing first team match to link.");
+				setError(`Choose the existing ${firstTeamLabel} match to link.`);
 				return;
 			}
 
 			if (teamsInScope.includes("Second") && !secondMatchId) {
-				setError("Choose the existing second team match to link.");
+				setError(`Choose the existing ${secondTeamLabel} match to link.`);
 				return;
 			}
 
@@ -143,12 +163,12 @@ export default function EventFormModal({
 			}
 
 			if (teamsInScope.includes("First") && !firstMatchDetails.opponent.trim()) {
-				setError("Enter the first team opponent.");
+				setError(`Enter the ${firstTeamLabel} opponent.`);
 				return;
 			}
 
 			if (teamsInScope.includes("Second") && !secondMatchDetails.opponent.trim()) {
-				setError("Enter the second team opponent.");
+				setError(`Enter the ${secondTeamLabel} opponent.`);
 				return;
 			}
 
@@ -297,9 +317,10 @@ export default function EventFormModal({
 									onChange={(event) => handleTeamScopeChange(event.target.value as ClubEventTeamScope)}
 									className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
 								>
-									<option value="First">First Team</option>
-									<option value="Second">Second Team</option>
-									<option value="Both">Both Teams</option>
+									{activeTeamProfiles.map((profile) => (
+										<option key={profile.id} value={profile.id === FIRST_TEAM_ID ? "First" : "Second"}>{profile.displayName}</option>
+									))}
+									{activeTeamProfiles.length > 1 && <option value="Both">Both Teams</option>}
 								</select>
 							</label>
 						)}
@@ -394,7 +415,7 @@ export default function EventFormModal({
 
 									{teamsInScope.includes("First") && (
 										<ExistingMatchSelect
-											label="First team existing match"
+											label={`${firstTeamLabel} existing match`}
 											matches={firstTeamMatches}
 											value={firstMatchId}
 											onChange={setFirstMatchId}
@@ -403,7 +424,7 @@ export default function EventFormModal({
 
 									{teamsInScope.includes("Second") && (
 										<ExistingMatchSelect
-											label="Second team existing match"
+											label={`${secondTeamLabel} existing match`}
 											matches={secondTeamMatches}
 											value={secondMatchId}
 											onChange={setSecondMatchId}
@@ -417,7 +438,7 @@ export default function EventFormModal({
 									{teamsInScope.includes("First") && (
 										<MatchDetailsFields
 											details={firstMatchDetails}
-											label="First Team match details"
+											label={`${firstTeamLabel} match details`}
 											onChange={setFirstMatchDetails}
 										/>
 									)}
@@ -425,7 +446,7 @@ export default function EventFormModal({
 									{teamsInScope.includes("Second") && (
 										<MatchDetailsFields
 											details={secondMatchDetails}
-											label="Second Team match details"
+											label={`${secondTeamLabel} match details`}
 											onChange={setSecondMatchDetails}
 										/>
 									)}

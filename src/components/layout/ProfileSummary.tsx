@@ -47,12 +47,12 @@ export default function ProfileSummary({
 					</p>
 
 					<span
-						className={`text-xs ${
+						className={`shrink-0 ${
 							isDark ? "text-blue-100" : "text-slate-400"
 						}`}
 						aria-hidden="true"
 					>
-						⚙
+						<SettingsOutlineIcon />
 					</span>
 				</div>
 
@@ -65,6 +65,15 @@ export default function ProfileSummary({
 				</p>
 			</div>
 		</Link>
+	);
+}
+
+function SettingsOutlineIcon() {
+	return (
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+			<path strokeLinecap="round" strokeLinejoin="round" d="M9.6 3.2 10 5a7.4 7.4 0 0 1 4 0l.4-1.8 2.2 1.3-1.3 1.3a7.3 7.3 0 0 1 2 3.5l1.8-.5v2.6l-1.8-.5a7.3 7.3 0 0 1-2 3.5l1.3 1.3-2.2 1.3-.4-1.8a7.4 7.4 0 0 1-4 0L9.6 17l-2.2-1.3 1.3-1.3a7.3 7.3 0 0 1-2-3.5l-1.8.5V8.8l1.8.5a7.3 7.3 0 0 1 2-3.5L7.4 4.5 9.6 3.2Z" />
+			<circle cx="12" cy="10.1" r="2.4" />
+		</svg>
 	);
 }
 

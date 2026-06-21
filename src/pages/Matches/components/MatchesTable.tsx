@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import type { ClubTeam, Match, MatchState } from "../../../stores/match";
+import type { Match, MatchState } from "../../../stores/match";
+import { getClubTeamLabel, useClubTeamStore } from "../../../stores/clubTeams";
 import { formatDisplayDate, formatDisplayTime } from "../../../utils/date";
 import EmptyState from "../../../components/compositions/EmptyState";
 import DataTable from "../../../components/compositions/DataTable";
@@ -18,6 +19,7 @@ export function MatchesTable({
 	onPostponeMatch,
 	onRestoreMatch,
 }: MatchesTableProps) {
+	const profiles = useClubTeamStore((state) => state.profiles);
 	if (matches.length === 0) {
 		return (
 			<div className="overflow-hidden rounded-xl bg-white shadow">
@@ -77,8 +79,8 @@ export function MatchesTable({
 
 								<td className="p-3">
 									<StatusBadge
-										label={getTeamLabel(match.team)}
-										tone={match.team === "first" ? "info" : "warning"}
+										label={getClubTeamLabel(profiles, match.team)}
+										tone="info"
 									/>
 								</td>
 
@@ -132,6 +134,7 @@ function MatchCard({
 	onPostponeMatch: (match: Match) => void;
 	onRestoreMatch: (matchId: string) => void;
 }) {
+	const profiles = useClubTeamStore((state) => state.profiles);
 	return (
 		<div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
 			<div className="flex items-start justify-between gap-3">
@@ -158,8 +161,8 @@ function MatchCard({
 
 			<div className="mt-3 flex flex-wrap gap-2">
 				<StatusBadge
-					label={getTeamLabel(match.team)}
-					tone={match.team === "first" ? "info" : "warning"}
+					label={getClubTeamLabel(profiles, match.team)}
+					tone="info"
 				/>
 
 				<StatusBadge
@@ -252,10 +255,6 @@ function MatchActions({
 			</Link>
 		</>
 	);
-}
-
-function getTeamLabel(team: ClubTeam) {
-	return team === "first" ? "First Team" : "Second Team";
 }
 
 function getResultLabel(match: Match) {

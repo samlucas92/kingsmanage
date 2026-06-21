@@ -1,7 +1,5 @@
 import { useState } from "react";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
-import type { LineupFormation } from "../../../stores/match";
-import { formations } from "./team-picker/Formations";
 import { DragOverlayPlayer } from "./team-picker/PlayerCards";
 import { FloatingPlayerAssignMenu } from "./team-picker/FloatingPlayerAssignMenu";
 import { TeamPitch } from "./team-picker/TeamPitch";
@@ -45,7 +43,7 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 		);
 	}
 
-	const selectedFormation = formations[teamPicker.selectedFormation];
+	const selectedFormation = teamPicker.formations[teamPicker.selectedFormation];
 
 	const activePlayerName = teamPicker.activeDragData
 		? teamPicker.getPlayerName(teamPicker.activeDragData.playerId)
@@ -214,7 +212,7 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 					<div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 						<div className="min-w-0">
 							<h3 className="text-sm font-semibold text-slate-900">
-								Starting XI
+								Starting {teamPicker.sportDefinition.playersPerSide}
 							</h3>
 
 							<p className="text-xs text-slate-500">
@@ -225,26 +223,24 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 						</div>
 
 						<div className="flex min-w-0 flex-wrap items-center gap-2">
-							{(
-								["4-4-2", "4-3-3", "3-5-2", "4-2-3-1"] as LineupFormation[]
-							).map((formationName) => (
+							{teamPicker.sportDefinition.formations.map((formation) => (
 								<button
-									key={formationName}
+									key={formation.key}
 									type="button"
-									onClick={() => teamPicker.applyFormation(formationName)}
+									onClick={() => teamPicker.applyFormation(formation.key)}
 									disabled={teamPicker.isLineupLocked}
 									className={`rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-sm disabled:cursor-not-allowed disabled:opacity-50 ${
-										teamPicker.selectedFormation === formationName
+										teamPicker.selectedFormation === formation.key
 											? "border-blue-700 bg-blue-700 text-white"
 											: "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
 									}`}
 								>
-									{formationName}
+									{formation.name}
 								</button>
 							))}
 
 							<span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-								{teamPicker.pitchPlayers.length}/11
+								{teamPicker.pitchPlayers.length}/{teamPicker.sportDefinition.playersPerSide}
 							</span>
 						</div>
 					</div>
@@ -260,6 +256,7 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 								pitchRef={teamPicker.pitchRef}
 								isOverPitch={teamPicker.isOverPitch}
 								formation={selectedFormation}
+								surface={teamPicker.sportDefinition.surface}
 								hoveredFormationIndex={teamPicker.hoveredFormationIndex}
 								hoveredSwapTargetPlayerId={teamPicker.hoveredSwapTargetPlayerId}
 								pitchPlayers={teamPicker.pitchPlayers}
@@ -551,8 +548,8 @@ function MobileSelectedPlayerActionSheet({
 	pitchPlayers: {
 		playerId: string;
 		positionIndex?: number;
-		x: number;
-		y: number;
+		x?: number;
+		y?: number;
 		area?: string;
 	}[];
 	getPlayerPositions: (playerId: string) => string[];

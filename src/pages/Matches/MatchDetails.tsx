@@ -98,7 +98,7 @@ export default function MatchDetail() {
 				playerStats={currentMatch.playerStats ?? []}
 				isCompleted={currentMatch.isCompleted}
 				getPlayerName={matchDetail.getPlayerName}
-				onUpdatePlayerStat={matchDetail.handleUpdateMatchPlayerStat}
+				onSavePlayerStats={matchDetail.handleSaveMatchPlayerStats}
 			/>
 
 			<MatchNotesCard

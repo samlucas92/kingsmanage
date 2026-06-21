@@ -1,10 +1,27 @@
 export type UserRole = "Admin" | "Coach" | "Player";
+export type TenantRole = "OrganizationAdmin" | "ClubAdmin" | "TeamManager" | "Coach" | "Player";
+
+export type UserMembership = {
+	organizationId?: string;
+	clubId: string | null;
+	teamId: string | null;
+	role: TenantRole;
+};
+
+export type MembershipClubOption = {
+	id: string;
+	name: string;
+	teams: { id: string; name: string }[];
+};
 
 export type AuthUser = {
 	id: string;
 	email: string;
 	role: UserRole;
 	playerId?: string | null;
+	defaultClubId?: string | null;
+	tenantRole?: TenantRole | null;
+	memberships: UserMembership[];
 	isActive: boolean;
 	createdAt?: string;
 	updatedAt?: string | null;
@@ -22,6 +39,13 @@ export type LoginResponse = {
 	user: AuthUser;
 };
 
+export type ClubAccess = {
+	id: string;
+	name: string;
+	sportKey: string;
+	isCurrent: boolean;
+};
+
 export type CreateUserRequest = {
 	email: string;
 	password: string;
@@ -36,6 +60,11 @@ export type UpdateUserRequest = {
 	playerId?: string | null;
 	isActive: boolean;
 	password?: string | null;
+};
+
+export type UpdateMembershipsRequest = {
+	defaultClubId: string | null;
+	memberships: UserMembership[];
 };
 
 export type ChangePasswordRequest = {

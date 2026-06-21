@@ -1,4 +1,5 @@
-import { PLAYER_POSITIONS } from "../../../constants/positions";
+import { getSportDefinition } from "../../../constants/sports";
+import { useAuthStore } from "../../../stores/auth";
 
 interface PlayersFiltersProps {
 	searchTerm: string;
@@ -17,6 +18,8 @@ export function PlayersFilters({
 	onPositionFilterChange,
 	onIncludeInactiveChange,
 }: PlayersFiltersProps) {
+	const activeClub = useAuthStore((state) => state.availableClubs.find((club) => club.isCurrent));
+	const positions = getSportDefinition(activeClub?.sportKey).positions;
 	return (
 		<div className="flex flex-wrap items-center gap-4 rounded-xl bg-white p-4 shadow">
 			<input
@@ -33,9 +36,9 @@ export function PlayersFilters({
 			>
 				<option value="all">All positions</option>
 
-				{PLAYER_POSITIONS.map((position) => (
-					<option key={position} value={position}>
-						{position}
+				{positions.map((position) => (
+					<option key={position.key} value={position.key}>
+						{position.key} · {position.label}
 					</option>
 				))}
 			</select>

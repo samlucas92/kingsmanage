@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ClubTeam, Match, MatchFixtureInput } from "../../../stores/match";
+import { FIRST_TEAM_ID } from "../../../stores/clubTeams";
 import { formatDateForInput } from "../../../utils/date";
 
 type UseMatchFormParams = {
@@ -16,7 +17,7 @@ export function useMatchForm({
 }: UseMatchFormParams) {
 	const [isMatchModalOpen, setIsMatchModalOpen] = useState(false);
 	const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
-	const [team, setTeam] = useState<ClubTeam>("first");
+	const [team, setTeam] = useState<ClubTeam>(FIRST_TEAM_ID);
 	const [opponent, setOpponent] = useState("");
 	const [date, setDate] = useState("");
 	const [venue, setVenue] = useState<"home" | "away">("home");
@@ -27,7 +28,7 @@ export function useMatchForm({
 
 	function resetForm() {
 		setEditingMatchId(null);
-		setTeam("first");
+		setTeam(FIRST_TEAM_ID);
 		setOpponent("");
 		setDate("");
 		setVenue("home");

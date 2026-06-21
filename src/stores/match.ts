@@ -3,7 +3,7 @@ import { matchApi } from "../services/matchApi";
 import { useSeasonStore } from "./seasons";
 
 export type MatchState = "upcoming" | "won" | "lost" | "draw" | "postponed";
-export type LineupFormation = "4-4-2" | "4-3-3" | "3-5-2" | "4-2-3-1";
+export type LineupFormation = string;
 
 export type PostponementAudit = {
 	id: string;
@@ -27,14 +27,16 @@ export type MatchNotes = {
 
 export type SelectedPlayer = {
 	playerId: string;
-	x: number;
-	y: number;
+	x?: number;
+	y?: number;
 	area: "pitch" | "bench";
+	positionKey?: string;
 	positionIndex?: number;
 };
 
 export type MatchPlayerStat = {
 	playerId: string;
+	appearanceType?: MatchAppearanceType;
 	goals: number;
 	assists: number;
 	yellowCards: number;
@@ -43,6 +45,12 @@ export type MatchPlayerStat = {
 	isMOTM: boolean;
 	note: string;
 };
+
+export type MatchAppearanceType =
+	| "unspecified"
+	| "started"
+	| "substituteUsed"
+	| "unusedSubstitute";
 
 export type MatchPlayerStatField =
 	| "goals"
@@ -54,7 +62,7 @@ export type MatchPlayerStatField =
 	| "note";
 
 export type MatchPlayerStatValue = number | boolean | string;
-export type ClubTeam = "first" | "second";
+export type ClubTeam = string;
 
 export type Match = {
 	id: string;
@@ -129,11 +137,9 @@ type MatchStore = {
 		matchId: string,
 		notes: MatchNotes
 	) => Promise<void>;
-	updateMatchPlayerStat: (
+	updateMatchPlayerStats: (
 		matchId: string,
-		playerId: string,
-		field: MatchPlayerStatField,
-		value: MatchPlayerStatValue
+		playerStats: MatchPlayerStat[]
 	) => Promise<void>;
 };
 
@@ -158,19 +164,6 @@ function normaliseMatchStore(matches: Match[]) {
 	return matches.map(normaliseMatch);
 }
 
-function createEmptyPlayerStat(playerId: string): MatchPlayerStat {
-	return {
-		playerId,
-		goals: 0,
-		assists: 0,
-		yellowCards: 0,
-		redCards: 0,
-		minutes: 0,
-		isMOTM: false,
-		note: "",
-	};
-}
-
 function replaceMatch(matches: Match[], updatedMatch: Match) {
 	const normalisedMatch = normaliseMatch(updatedMatch);
 	const exists = matches.some((match) => match.id === normalisedMatch.id);
@@ -181,34 +174,6 @@ function replaceMatch(matches: Match[], updatedMatch: Match) {
 
 	return matches.map((match) =>
 		match.id === normalisedMatch.id ? normalisedMatch : match
-	);
-}
-
-function getUpdatedPlayerStats(
-	currentStats: MatchPlayerStat[],
-	playerId: string,
-	field: MatchPlayerStatField,
-	value: MatchPlayerStatValue
-) {
-	const existingStat = currentStats.find((stat) => stat.playerId === playerId);
-
-	if (!existingStat) {
-		return [
-			...currentStats,
-			{
-				...createEmptyPlayerStat(playerId),
-				[field]: value,
-			},
-		];
-	}
-
-	return currentStats.map((stat) =>
-		stat.playerId === playerId
-			? {
-				...stat,
-				[field]: value,
-			}
-			: stat
 	);
 }
 
@@ -476,20 +441,7 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
 		}));
 	},
 
-	updateMatchPlayerStat: async (matchId, playerId, field, value) => {
-		const currentMatch = get().matches.find((match) => match.id === matchId);
-
-		if (!currentMatch) {
-			return;
-		}
-
-		const playerStats = getUpdatedPlayerStats(
-			currentMatch.playerStats ?? [],
-			playerId,
-			field,
-			value
-		);
-
+	updateMatchPlayerStats: async (matchId, playerStats) => {
 		const savedMatch = await matchApi.updatePlayerStats(
 			matchId,
 			playerStats

@@ -1,6 +1,5 @@
 import { create } from "zustand";
 
-import { seedSeasons } from "../data/seedSeasons";
 import { seasonApi, type SeasonSetupInput } from "../services/seasonApi";
 
 export type Season = {
@@ -57,7 +56,7 @@ function getActiveSeasonId(seasons: Season[]) {
 }
 
 export const useSeasonStore = create<SeasonStore>()((set, get) => ({
-	seasons: seedSeasons,
+	seasons: [],
 	activeSeasonId: "",
 	isLoadingSeasons: false,
 	hasLoadedSeasons: false,
@@ -79,12 +78,10 @@ export const useSeasonStore = create<SeasonStore>()((set, get) => ({
 
 		try {
 			const seasons = normaliseApiSeasons(await seasonApi.getSeasons());
-			const fallbackSeasons = normaliseApiSeasons(seedSeasons);
-			const nextSeasons = seasons.length > 0 ? seasons : fallbackSeasons;
 
 			set({
-				seasons: nextSeasons,
-				activeSeasonId: getActiveSeasonId(nextSeasons),
+				seasons,
+				activeSeasonId: getActiveSeasonId(seasons),
 				isLoadingSeasons: false,
 				hasLoadedSeasons: true,
 			});
