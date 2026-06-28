@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getInitials, getThreadDisplayName } from "../../services/messageService";
 import { useAuthStore } from "../../stores/auth";
 import { useMessageStore } from "../../stores/messages";
+import { useRealtimeStore } from "../../stores/realtime";
 import { formatDisplayDateTime } from "../../utils/date";
 import MessageThread from "./MessageThread";
 
@@ -24,6 +25,7 @@ export default function Messages({ requestedThreadId }: { requestedThreadId?: st
 	const [isStartingConversation, setIsStartingConversation] = useState(false);
 	const [search, setSearch] = useState("");
 	const [isStarting, setIsStarting] = useState(false);
+	const realtimeStatus = useRealtimeStore((state) => state.status);
 
 	useEffect(() => {
 		void loadThreads();
@@ -37,6 +39,10 @@ export default function Messages({ requestedThreadId }: { requestedThreadId?: st
 	}, [openThread, requestedThreadId, selectedThread?.id]);
 
 	useEffect(() => {
+		if (realtimeStatus === "connected") {
+			return;
+		}
+
 		const intervalId = window.setInterval(() => {
 			void loadThreads();
 			if (selectedThread) {
@@ -45,7 +51,7 @@ export default function Messages({ requestedThreadId }: { requestedThreadId?: st
 		}, THREAD_POLL_INTERVAL_MS);
 
 		return () => window.clearInterval(intervalId);
-	}, [loadThreads, openThread, selectedThread]);
+	}, [loadThreads, openThread, realtimeStatus, selectedThread]);
 
 	const availableUsers = useMemo(() => {
 		const value = search.trim().toLowerCase();

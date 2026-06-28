@@ -4,6 +4,7 @@ import NotificationBell from "../notifications/NotificationBell";
 import AccountMenu from "./AccountMenu";
 import ClubSwitcher from "./ClubSwitcher";
 import { useAuthStore } from "../../stores/auth";
+import RealtimeStatus from "../realtime/RealtimeStatus";
 
 const pageTitles: { matcher: (pathname: string) => boolean; title: string }[] = [
 	{ matcher: (pathname) => pathname === "/" || pathname === "/dashboard", title: "Dashboard" },
@@ -51,6 +52,7 @@ export default function Header({ onOpenMobileMenu }: HeaderProps) {
 				</div>
 
 				<div className="flex shrink-0 items-center gap-2 sm:gap-3">
+					<RealtimeStatus />
 					<ClubSwitcher />
 					<NotificationBell />
 					<AccountMenu />

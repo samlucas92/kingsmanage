@@ -6,6 +6,11 @@ if (!API_BASE_URL) {
 
 const AUTH_TOKEN_STORAGE_KEY = "kingsmanage.authToken";
 
+export function getRealtimeHubUrl() {
+	const apiRoot = API_BASE_URL.replace(/\/api\/?$/, "").replace(/\/$/, "");
+	return `${apiRoot}/hubs/club`;
+}
+
 type RequestOptions = {
 	method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 	body?: unknown;

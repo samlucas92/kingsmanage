@@ -13,6 +13,7 @@ import { useEventStore } from "../../stores/events";
 import { useFinanceStore } from "../../stores/finance";
 import { useMatchStore } from "../../stores/match";
 import { useMessageStore } from "../../stores/messages";
+import { useRealtimeStore } from "../../stores/realtime";
 import { usePlayerStore } from "../../stores/players";
 import { usePostStore } from "../../stores/posts";
 import { useSeasonStore } from "../../stores/seasons";
@@ -133,6 +134,7 @@ export default function Dashboard() {
 	const loadMessageUsers = useMessageStore((state) => state.loadUsers);
 	const resetMessages = useMessageStore((state) => state.reset);
 	const messagesError = useMessageStore((state) => state.error);
+	const realtimeStatus = useRealtimeStore((state) => state.status);
 
 	useEffect(() => {
 		if (!currentUser) {
@@ -143,12 +145,16 @@ export default function Dashboard() {
 		void loadMessageThreads();
 		void loadMessageUsers();
 
+		if (realtimeStatus === "connected") {
+			return;
+		}
+
 		const intervalId = window.setInterval(() => {
 			void loadMessageThreads();
 		}, MESSAGE_LIST_POLL_INTERVAL_MS);
 
 		return () => window.clearInterval(intervalId);
-	}, [currentUser, loadMessageThreads, loadMessageUsers, resetMessages]);
+	}, [currentUser, loadMessageThreads, loadMessageUsers, realtimeStatus, resetMessages]);
 
 	useEffect(() => {
 		void loadEvents();

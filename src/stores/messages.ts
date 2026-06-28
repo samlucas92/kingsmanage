@@ -23,6 +23,8 @@ type MessagesState = {
 	startDirectThread: (userId: string) => Promise<MessageThread>;
 	sendMessage: (body: string) => Promise<void>;
 	deleteMessage: (messageId: string) => Promise<void>;
+	receiveMessage: (message: DirectMessage) => void;
+	receiveMessageDeleted: (messageId: string, deletedAt?: string | null) => void;
 	clearSelectedThread: () => void;
 	clearError: () => void;
 	reset: () => void;
@@ -114,7 +116,15 @@ export const useMessageStore = create<MessagesState>((set, get) => ({
 		set({ isSending: true });
 		try {
 			const message = await messagesApi.sendMessage(threadId, body);
-			set((state) => ({ messages: [...state.messages, message], isSending: false, error: "" }));
+			set((state) => ({
+				messages: state.messages.some(
+					(existingMessage) => existingMessage.id === message.id
+				)
+					? state.messages
+					: [...state.messages, message],
+				isSending: false,
+				error: "",
+			}));
 			await get().loadThreads();
 		} catch (error) {
 			set({
@@ -139,6 +149,32 @@ export const useMessageStore = create<MessagesState>((set, get) => ({
 			set({ error: getErrorMessage(error, "Failed to delete message.") });
 		}
 	},
+
+	receiveMessage: (message) =>
+		set((state) => {
+			if (
+				state.selectedThread?.id !== message.threadId ||
+				state.messages.some((existingMessage) => existingMessage.id === message.id)
+			) {
+				return state;
+			}
+
+			return { messages: [...state.messages, message] };
+		}),
+
+	receiveMessageDeleted: (messageId, deletedAt) =>
+		set((state) => ({
+			messages: state.messages.map((message) =>
+				message.id === messageId
+					? {
+							...message,
+							body: "",
+							status: "Deleted",
+							deletedAt: deletedAt ?? new Date().toISOString(),
+						}
+					: message
+			),
+		})),
 
 	clearSelectedThread: () => set({ selectedThread: null, messages: [] }),
 	clearError: () => set({ error: "" }),

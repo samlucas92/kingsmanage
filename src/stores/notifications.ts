@@ -14,6 +14,8 @@ type NotificationsState = {
 	loadUnreadCount: () => Promise<void>;
 	markRead: (id: string) => Promise<ClubNotification | null>;
 	markAllRead: () => Promise<void>;
+	receiveNotification: (notification: ClubNotification) => void;
+	refreshNotifications: () => Promise<void>;
 	reset: () => void;
 	clearError: () => void;
 };
@@ -166,6 +168,28 @@ export const useNotificationStore = create<NotificationsState>((set, get) => ({
 						? error.message
 						: "Failed to mark notifications as read.",
 			});
+		}
+	},
+
+	receiveNotification: (notification) =>
+		set((state) => {
+			const alreadyExists = state.notifications.some(
+				(existingNotification) => existingNotification.id === notification.id
+			);
+
+			return {
+				notifications: replaceNotification(state.notifications, notification),
+				unreadCount:
+					!alreadyExists && !notification.isRead
+						? state.unreadCount + 1
+						: state.unreadCount,
+			};
+		}),
+
+	refreshNotifications: async () => {
+		await get().loadUnreadCount();
+		if (get().hasLoadedNotifications) {
+			await get().loadNotifications(true);
 		}
 	},
 

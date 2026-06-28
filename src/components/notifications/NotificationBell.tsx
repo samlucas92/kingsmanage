@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { useAuthStore } from "../../stores/auth";
 import { useNotificationStore } from "../../stores/notifications";
+import { useRealtimeStore } from "../../stores/realtime";
 import type { ClubNotification } from "../../types/notifications";
 import { formatDisplayDateTime } from "../../utils/date";
 import { getNotificationActionPath } from "../../utils/notifications";
@@ -25,6 +26,7 @@ export default function NotificationBell() {
 	const markRead = useNotificationStore((state) => state.markRead);
 	const markAllRead = useNotificationStore((state) => state.markAllRead);
 	const resetNotifications = useNotificationStore((state) => state.reset);
+	const realtimeStatus = useRealtimeStore((state) => state.status);
 
 	useEffect(() => {
 		if (!currentUser) {
@@ -34,12 +36,19 @@ export default function NotificationBell() {
 
 		void loadUnreadCount();
 
-		const intervalId = window.setInterval(() => {
-			void loadUnreadCount();
-		}, POLL_INTERVAL_MS);
+		const intervalId =
+			realtimeStatus === "connected"
+				? null
+				: window.setInterval(() => {
+						void loadUnreadCount();
+					}, POLL_INTERVAL_MS);
 
-		return () => window.clearInterval(intervalId);
-	}, [currentUser, loadUnreadCount, resetNotifications]);
+		return () => {
+			if (intervalId !== null) {
+				window.clearInterval(intervalId);
+			}
+		};
+	}, [currentUser, loadUnreadCount, realtimeStatus, resetNotifications]);
 
 	useEffect(() => {
 		if (!isOpen || !currentUser) {
