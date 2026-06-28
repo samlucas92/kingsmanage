@@ -10,7 +10,7 @@ export default function DashboardTabBar({
 	tabs: DashboardTabDefinition[];
 }) {
 	return (
-		<div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+		<div className="surface-card p-1.5">
 			<div className="flex gap-2 overflow-x-auto">
 				{tabs.map((tab) => {
 					const isActive = activeTab === tab.id;
@@ -20,10 +20,10 @@ export default function DashboardTabBar({
 							key={tab.id}
 							type="button"
 							onClick={() => onTabChange(tab.id)}
-							className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
+							className={`flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
 								isActive
-									? "bg-blue-700 text-white shadow-sm"
-									: "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+									? "bg-yepset-700 text-white shadow-[0_6px_16px_rgba(23,105,95,.18)]"
+									: "text-slate-600 hover:bg-yepset-50 hover:text-yepset-800"
 							}`}
 							aria-current={isActive ? "page" : undefined}
 						>

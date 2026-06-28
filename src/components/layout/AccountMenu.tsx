@@ -43,11 +43,11 @@ export default function AccountMenu() {
 			<button
 				type="button"
 				onClick={() => setIsOpen((current) => !current)}
-				className="flex items-center gap-3 rounded-lg p-1 text-left transition hover:bg-slate-100 sm:py-1 sm:pl-1 sm:pr-2"
+				className="flex items-center gap-3 rounded-xl p-1 text-left transition hover:bg-yepset-50 sm:py-1 sm:pl-1 sm:pr-2"
 				aria-label="Open profile menu"
 				aria-expanded={isOpen}
 			>
-				<span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-yellow-400 text-sm font-bold text-black sm:h-9 sm:w-9">
+				<span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-yepset-100 text-sm font-black text-yepset-800 ring-1 ring-yepset-200 sm:h-9 sm:w-9">
 					{getInitials(email)}
 				</span>
 				<span className="hidden min-w-0 sm:block">
@@ -60,7 +60,7 @@ export default function AccountMenu() {
 			</button>
 
 			{isOpen && (
-				<div className="absolute right-0 z-30 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl">
+				<div className="absolute right-0 z-30 mt-2 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white py-1.5 shadow-[0_20px_60px_rgba(15,42,40,.16)]">
 					<div className="border-b border-slate-100 px-4 py-3 sm:hidden">
 						<p className="text-sm font-bold text-slate-900">{role}</p>
 						<p className="truncate text-xs text-slate-500">{email}</p>
@@ -68,7 +68,7 @@ export default function AccountMenu() {
 					<Link
 						to="/settings"
 						onClick={() => setIsOpen(false)}
-						className="flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+						className="flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-yepset-50 hover:text-yepset-800"
 					>
 						<SettingsOutlineIcon />
 						Settings

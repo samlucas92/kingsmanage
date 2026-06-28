@@ -88,7 +88,7 @@ export default function NotificationBell() {
 			<button
 				type="button"
 				onClick={() => setIsOpen((currentValue) => !currentValue)}
-				className="relative grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-blue-200 hover:text-blue-900"
+				className="relative grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-yepset-200 hover:bg-yepset-50 hover:text-yepset-800"
 				aria-label="Notifications"
 			>
 				<BellOutlineIcon />

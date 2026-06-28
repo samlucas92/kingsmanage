@@ -3,6 +3,13 @@ import { authApi } from "../services/authApi";
 import { clearStoredAuthToken, getStoredAuthToken, setStoredAuthToken } from "../services/apiClient";
 import type { AuthUser, ClubAccess } from "../types/auth";
 
+const AUTH_SESSION_STORAGE_KEY = "yepset.authSession";
+
+type CachedAuthSession = {
+	currentUser: AuthUser;
+	availableClubs: ClubAccess[];
+};
+
 type AuthState = {
 	currentUser: AuthUser | null;
 	token: string | null;
@@ -63,8 +70,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 				isLoading: false,
 				availableClubs,
 			});
+			cacheAuthSession(currentUser, availableClubs);
 		} catch (error) {
+			const cachedSession = readCachedAuthSession();
+			if (!navigator.onLine && cachedSession) {
+				set({
+					currentUser: cachedSession.currentUser,
+					token,
+					isAuthenticated: true,
+					isInitialised: true,
+					isLoading: false,
+					availableClubs: cachedSession.availableClubs,
+					error: null,
+				});
+				return;
+			}
+
 			clearStoredAuthToken();
+			clearCachedAuthSession();
 
 			set({
 				currentUser: null,
@@ -93,8 +116,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 				isLoading: false,
 				availableClubs,
 			});
+			cacheAuthSession(response.user, availableClubs);
 		} catch (error) {
 			clearStoredAuthToken();
+			clearCachedAuthSession();
 
 			set({
 				currentUser: null,
@@ -119,7 +144,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 		try {
 			const response = await authApi.switchClub(clubId);
 			setStoredAuthToken(response.token);
-			set({ token: response.token, currentUser: response.user });
+			const availableClubs = get().availableClubs.map((club) => ({
+				...club,
+				isCurrent: club.id === clubId,
+			}));
+			cacheAuthSession(response.user, availableClubs);
+			set({ token: response.token, currentUser: response.user, availableClubs });
 			window.location.reload();
 		} catch (error) {
 			set({
@@ -131,6 +161,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 	},
 	logout: () => {
 		clearStoredAuthToken();
+		clearCachedAuthSession();
 
 		set({
 			currentUser: null,
@@ -149,3 +180,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 window.addEventListener("kingsmanage:unauthorised", () => {
 	useAuthStore.getState().logout();
 });
+
+function cacheAuthSession(currentUser: AuthUser, availableClubs: ClubAccess[]) {
+	localStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify({ currentUser, availableClubs }));
+}
+
+function readCachedAuthSession(): CachedAuthSession | null {
+	try {
+		const value = localStorage.getItem(AUTH_SESSION_STORAGE_KEY);
+		return value ? JSON.parse(value) as CachedAuthSession : null;
+	} catch {
+		return null;
+	}
+}
+
+function clearCachedAuthSession() {
+	localStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
+}

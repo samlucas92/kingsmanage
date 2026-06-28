@@ -64,21 +64,21 @@ export default function Organization() {
 
 	return (
 		<div className="mx-auto max-w-6xl space-y-6">
-			<div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-				<div><p className="text-sm font-semibold uppercase tracking-wider text-blue-700">Administration</p><h1 className="mt-1 text-3xl font-bold">Organization and clubs</h1></div>
-				<button onClick={() => { setEditingClub(null); setIsCreating(true); }} className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800">Add club</button>
+			<div className="surface-card flex flex-col gap-3 p-6 sm:flex-row sm:items-end sm:justify-between">
+				<div><p className="text-xs font-black uppercase tracking-[.14em] text-yepset-600">Administration</p><h1 className="mt-2 text-3xl font-black tracking-[-.03em]">Organization and clubs</h1></div>
+				<button onClick={() => { setEditingClub(null); setIsCreating(true); }} className="btn-primary">Add club</button>
 			</div>
 
 			{error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</div>}
 
 			{organization && (
-				<form onSubmit={saveOrganization} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+				<form onSubmit={saveOrganization} className="surface-card p-5">
 					<h2 className="text-lg font-bold">Organization details</h2>
 					<div className="mt-4 grid gap-4 sm:grid-cols-2">
 						<Field label="Name" value={organization.name} onChange={(name) => setOrganization({ ...organization, name })} />
 						<Field label="Slug" value={organization.slug} onChange={(slug) => setOrganization({ ...organization, slug: slugify(slug) })} />
 					</div>
-					<div className="mt-4 flex justify-end"><button className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Save organization</button></div>
+					<div className="mt-4 flex justify-end"><button className="btn-primary">Save organization</button></div>
 				</form>
 			)}
 
@@ -86,9 +86,9 @@ export default function Organization() {
 				<div><h2 className="text-xl font-bold">Clubs</h2><p className="text-sm text-slate-500">Each club has its own sport, teams and operational data.</p></div>
 				<div className="grid gap-4 md:grid-cols-2">
 					{clubs.map((club) => (
-						<article key={club.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+						<article key={club.id} className="surface-card p-5 transition hover:border-yepset-200">
 							<div className="flex items-start justify-between gap-3"><div><h3 className="font-bold text-slate-900">{club.name}</h3><p className="mt-1 text-sm text-slate-500">{labelSport(club.sportKey)} · {club.slug}</p></div><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${club.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>{club.isActive ? "Active" : "Archived"}</span></div>
-							<div className="mt-5 flex gap-2"><button onClick={() => { setEditingClub(club); setIsCreating(false); }} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold">Edit</button><button onClick={() => void toggleClub(club)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold">{club.isActive ? "Archive" : "Restore"}</button></div>
+							<div className="mt-5 flex gap-2"><button onClick={() => { setEditingClub(club); setIsCreating(false); }} className="btn-secondary">Edit</button><button onClick={() => void toggleClub(club)} className="btn-secondary">{club.isActive ? "Archive" : "Restore"}</button></div>
 						</article>
 					))}
 				</div>
@@ -104,11 +104,11 @@ function ClubModal({ club, onClose, onSave }: { club: SportsClub | null; onClose
 	const [slug, setSlug] = useState(club?.slug ?? "");
 	const [sportKey, setSportKey] = useState(club?.sportKey ?? "football");
 	const [saving, setSaving] = useState(false);
-	return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4"><form onSubmit={(event) => { event.preventDefault(); setSaving(true); void onSave({ name: name.trim(), slug: slugify(slug), sportKey }).finally(() => setSaving(false)); }} className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-5 shadow-xl"><div className="flex justify-between"><div><h2 className="text-xl font-bold">{club ? "Edit club" : "Add club"}</h2><p className="text-sm text-slate-500">Configure the club’s identity and sport.</p></div><button type="button" onClick={onClose}>✕</button></div><Field label="Name" value={name} onChange={(value) => { setName(value); if (!club) setSlug(slugify(value)); }} /><Field label="Slug" value={slug} onChange={(value) => setSlug(slugify(value))} /><label className="block text-sm font-semibold text-slate-700">Sport<select value={sportKey} onChange={(event) => setSportKey(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">{sports.map((sport) => <option key={sport} value={sport}>{labelSport(sport)}</option>)}</select></label><div className="flex justify-end gap-2 border-t pt-4"><button type="button" onClick={onClose} className="rounded-xl border px-4 py-2 text-sm font-semibold">Cancel</button><button disabled={saving || !name.trim() || !slug} className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Saving..." : "Save club"}</button></div></form></div>;
+	return <div className="fixed inset-0 z-50 grid place-items-center bg-yepset-950/55 p-4 backdrop-blur-sm"><form onSubmit={(event) => { event.preventDefault(); setSaving(true); void onSave({ name: name.trim(), slug: slugify(slug), sportKey }).finally(() => setSaving(false)); }} className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-5 shadow-2xl"><div className="flex justify-between"><div><h2 className="text-xl font-bold">{club ? "Edit club" : "Add club"}</h2><p className="text-sm text-slate-500">Configure the club’s identity and sport.</p></div><button type="button" onClick={onClose}>✕</button></div><Field label="Name" value={name} onChange={(value) => { setName(value); if (!club) setSlug(slugify(value)); }} /><Field label="Slug" value={slug} onChange={(value) => setSlug(slugify(value))} /><label className="block text-sm font-semibold text-slate-700">Sport<select value={sportKey} onChange={(event) => setSportKey(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">{sports.map((sport) => <option key={sport} value={sport}>{labelSport(sport)}</option>)}</select></label><div className="flex justify-end gap-2 border-t pt-4"><button type="button" onClick={onClose} className="btn-secondary">Cancel</button><button disabled={saving || !name.trim() || !slug} className="btn-primary disabled:opacity-50">{saving ? "Saving..." : "Save club"}</button></div></form></div>;
 }
 
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-	return <label className="block text-sm font-semibold text-slate-700">{label}<input value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100" /></label>;
+	return <label className="block text-sm font-semibold text-slate-700">{label}<input value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-yepset-500 focus:ring-2 focus:ring-yepset-100" /></label>;
 }
 
 function slugify(value: string) { return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }

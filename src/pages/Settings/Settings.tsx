@@ -51,18 +51,18 @@ export default function Settings() {
 
 	return (
 		<div className="space-y-6">
-			<div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-				<p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
+			<div className="surface-card p-6">
+				<p className="text-xs font-black uppercase tracking-[.14em] text-yepset-600">
 					Account
 				</p>
 				<h1 className="mt-2 text-3xl font-bold text-slate-900">Settings</h1>
 				<p className="mt-2 max-w-3xl text-sm text-slate-600">
-					Manage your signed-in KingsManage account.
+					Manage your signed-in Yepset account.
 				</p>
 			</div>
 
 			<div className="grid gap-6 xl:grid-cols-[1fr_1.4fr]">
-				<section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+				<section className="surface-card p-6">
 					<h2 className="text-lg font-bold text-slate-900">Profile</h2>
 					<p className="mt-1 text-sm text-slate-500">
 						Your account details are managed by an admin.

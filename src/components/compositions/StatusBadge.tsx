@@ -43,7 +43,7 @@ function getToneClass(tone: StatusBadgeTone) {
 	}
 
 	if (tone === "info") {
-		return "bg-blue-100 text-blue-800";
+		return "bg-yepset-100 text-yepset-800";
 	}
 
 	if (tone === "neutral") {

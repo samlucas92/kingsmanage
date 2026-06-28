@@ -1,8 +1,119 @@
 @import "tailwindcss";
 
+@theme {
+	--color-yepset-50: #effcf8;
+	--color-yepset-100: #d7f7ed;
+	--color-yepset-200: #b2eddd;
+	--color-yepset-300: #7bdcc6;
+	--color-yepset-400: #43c3aa;
+	--color-yepset-500: #23a58f;
+	--color-yepset-600: #178475;
+	--color-yepset-700: #17695f;
+	--color-yepset-800: #17534d;
+	--color-yepset-900: #16443f;
+	--color-yepset-950: #082a28;
+	--color-kick-300: #d9f99d;
+	--color-kick-400: #bef264;
+	--color-kick-500: #a3e635;
+	--color-canvas: #f3f6f5;
+}
+
+:root {
+	font-family: "Avenir Next", "Segoe UI", Inter, ui-sans-serif, system-ui, sans-serif;
+	color: #172321;
+	background: #f3f6f5;
+	font-synthesis: none;
+	text-rendering: optimizeLegibility;
+}
+
+html {
+	background: #f3f6f5;
+}
+
+body {
+	margin: 0;
+	min-width: 320px;
+	min-height: 100vh;
+	background:
+		radial-gradient(circle at 80% -10%, rgb(178 237 221 / 35%), transparent 30rem),
+		#f3f6f5;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+	-webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+	outline: 3px solid rgb(67 195 170 / 35%);
+	outline-offset: 2px;
+}
+
+.surface-card {
+	border: 1px solid rgb(203 213 225 / 75%);
+	border-radius: 1rem;
+	background: rgb(255 255 255 / 94%);
+	box-shadow: 0 1px 2px rgb(15 23 42 / 4%), 0 12px 32px rgb(15 42 40 / 5%);
+}
+
+.btn-primary {
+	display: inline-flex;
+	min-height: 2.75rem;
+	align-items: center;
+	justify-content: center;
+	border-radius: .75rem;
+	background: #17695f;
+	padding: .625rem 1rem;
+	font-size: .875rem;
+	font-weight: 700;
+	color: white;
+	transition: background-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.btn-primary:hover {
+	background: #17534d;
+	box-shadow: 0 8px 20px rgb(23 105 95 / 18%);
+	transform: translateY(-1px);
+}
+
+.btn-secondary {
+	display: inline-flex;
+	min-height: 2.75rem;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid #cbd5e1;
+	border-radius: .75rem;
+	background: white;
+	padding: .625rem 1rem;
+	font-size: .875rem;
+	font-weight: 700;
+	color: #334155;
+	transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.btn-secondary:hover {
+	border-color: #7bdcc6;
+	background: #effcf8;
+}
+
 /* Prevent mobile browsers from auto-zooming focused form controls. */
 input,
 select,
 textarea {
 	font-size: 16px !important;
+}
+
+@media (min-width: 640px) {
+	input,
+	select,
+	textarea {
+		font-size: 14px !important;
+	}
 }

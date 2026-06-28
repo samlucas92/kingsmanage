@@ -19,10 +19,10 @@ export default function ClubSwitcher({ variant = "light" }: ClubSwitcherProps) {
 				value={currentClub.id}
 				disabled={isSwitching}
 				onChange={(event) => void switchClub(event.target.value)}
-				className={`h-10 w-full cursor-pointer appearance-none truncate rounded-lg py-2 pl-3 pr-8 text-sm font-semibold outline-none transition disabled:cursor-wait disabled:opacity-60 ${
+				className={`h-11 w-full cursor-pointer appearance-none truncate rounded-xl py-2 pl-3 pr-8 text-sm font-bold outline-none transition disabled:cursor-wait disabled:opacity-60 ${
 					variant === "dark"
-						? "border border-white/20 bg-blue-900 text-white focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/20"
-						: "border border-slate-300 bg-white text-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+						? "border border-white/15 bg-white/8 text-white focus:border-kick-300 focus:ring-2 focus:ring-kick-300/20"
+						: "border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-yepset-200 focus:border-yepset-400 focus:ring-2 focus:ring-yepset-100"
 				}`}
 			>
 				{clubs.map((club) => (

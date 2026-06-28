@@ -22,23 +22,23 @@ export default function Modal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-        <h2 className="text-xl font-bold text-blue-900">{title}</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-yepset-950/55 p-4 backdrop-blur-sm">
+      <div className="max-h-[calc(100vh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-white/60 bg-white p-5 shadow-[0_24px_80px_rgba(8,42,40,.24)] sm:p-6">
+        <h2 className="text-xl font-black tracking-[-.02em] text-slate-950">{title}</h2>
 
         {message && <p className="mt-2 text-gray-600">{message}</p>}
 
         {children && <div className="mt-4">{children}</div>}
 
         <div className="mt-6 flex justify-end gap-3">
-          <button onClick={onClose} className="rounded-lg border px-4 py-2">
+          <button onClick={onClose} className="btn-secondary">
             {cancelText}
           </button>
 
           {onConfirm && (
             <button
               onClick={onConfirm}
-              className="rounded-lg bg-blue-900 px-4 py-2 text-white"
+              className="btn-primary"
             >
               {confirmText}
             </button>

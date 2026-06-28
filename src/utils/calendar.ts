@@ -1,6 +1,6 @@
 import type { ClubEvent } from "../types/events";
 
-const CALENDAR_PRODUCT_ID = "-//KingsManage//Events//EN";
+const CALENDAR_PRODUCT_ID = "-//Yepset//Events//EN";
 const DEFAULT_EVENT_DURATION_MINUTES = 90;
 
 export function downloadClubEventCalendarFile(event: ClubEvent) {
@@ -139,8 +139,8 @@ function getSafeFilename(value: string) {
 
 function getEventTypeDescription(event: ClubEvent) {
 	if (event.type === "Match") {
-		return "Created from KingsManage match event.";
+		return "Created from Yepset match event.";
 	}
 
-	return "Created from KingsManage event.";
+	return "Created from Yepset event.";
 }

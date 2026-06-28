@@ -32,7 +32,7 @@ export default function ProfileSummary({
 			}`}
 			aria-label="Open account settings"
 		>
-			<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-yellow-400 text-sm font-bold text-black sm:h-9 sm:w-9">
+			<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-kick-400 text-sm font-black text-yepset-950 sm:h-9 sm:w-9">
 				{initials}
 			</div>
 
@@ -61,7 +61,7 @@ export default function ProfileSummary({
 						isDark ? "text-blue-100" : "text-slate-500"
 					}`}
 				>
-					{compact ? "Kingsbridge Colts" : email}
+					{compact ? "Yepset" : email}
 				</p>
 			</div>
 		</Link>

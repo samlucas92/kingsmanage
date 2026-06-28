@@ -15,8 +15,8 @@ export default function ClubTeams() {
 
 	return (
 		<div className="space-y-6">
-			<header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-				<p className="text-sm font-semibold uppercase tracking-wide text-blue-700">Club setup</p>
+			<header className="surface-card p-6">
+				<p className="text-xs font-black uppercase tracking-[.14em] text-yepset-600">Club setup</p>
 				<h1 className="mt-2 text-3xl font-bold text-slate-900">Club teams</h1>
 				<p className="mt-2 max-w-3xl text-sm text-slate-600">
 					Create every team your club manages, including senior, youth, ladies and girls teams. Inactive teams remain attached to historical records.
@@ -46,8 +46,6 @@ function TeamProfileForm({ profile, onSave, onDelete }: {
 	const [draft, setDraft] = useState(profile);
 	const [isSaving, setIsSaving] = useState(false);
 	const [message, setMessage] = useState("");
-
-	useEffect(() => setDraft(profile), [profile]);
 
 	async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -83,7 +81,7 @@ function TeamProfileForm({ profile, onSave, onDelete }: {
 	}
 
 	return (
-		<form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+		<form onSubmit={handleSubmit} className="surface-card p-6">
 			<div className="flex items-start justify-between gap-4">
 				<div>
 					<p className="text-xs font-bold uppercase tracking-wide text-slate-500">Club team</p>
@@ -110,7 +108,7 @@ function TeamProfileForm({ profile, onSave, onDelete }: {
 			<div className="mt-5 flex flex-wrap items-center justify-between gap-3">
 				<button type="button" disabled={isSaving} onClick={() => void handleDelete()} className="rounded-xl border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60">Delete team</button>
 				<p className={`text-sm ${message === "Team saved." ? "text-green-700" : "text-red-700"}`}>{message}</p>
-				<button type="submit" disabled={isSaving} className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-60">{isSaving ? "Saving..." : "Save team"}</button>
+				<button type="submit" disabled={isSaving} className="btn-primary disabled:opacity-60">{isSaving ? "Saving..." : "Save team"}</button>
 			</div>
 		</form>
 	);
@@ -152,8 +150,8 @@ function CreateTeamForm({ onCreate, nextSortOrder }: {
 	}
 
 	return (
-		<form onSubmit={handleSubmit} className="rounded-2xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
-			<h2 className="text-lg font-bold text-blue-950">Add a team</h2>
+		<form onSubmit={handleSubmit} className="rounded-2xl border border-yepset-200 bg-yepset-50 p-6 shadow-sm">
+			<h2 className="text-lg font-bold text-yepset-950">Add a team</h2>
 			<div className="mt-4 grid gap-4 sm:grid-cols-2">
 				<label className="text-sm font-semibold text-slate-700">Display name
 					<input value={displayName} maxLength={50} onChange={(event) => setDisplayName(event.target.value)} placeholder="e.g. Under 18s" className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2" />
@@ -164,7 +162,7 @@ function CreateTeamForm({ onCreate, nextSortOrder }: {
 			</div>
 			<div className="mt-4 flex items-center justify-between gap-3">
 				<p className={`text-sm ${message === "Team created." ? "text-green-700" : "text-red-700"}`}>{message}</p>
-				<button type="submit" disabled={isSaving} className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-60">{isSaving ? "Creating..." : "Create team"}</button>
+				<button type="submit" disabled={isSaving} className="btn-primary disabled:opacity-60">{isSaving ? "Creating..." : "Create team"}</button>
 			</div>
 		</form>
 	);

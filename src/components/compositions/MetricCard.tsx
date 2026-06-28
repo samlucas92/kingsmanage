@@ -28,13 +28,13 @@ export default function MetricCard({
 }: MetricCardProps) {
 	const content = (
 		<div
-			className={`min-w-0 rounded-xl bg-white shadow ${
+			className={`surface-card min-w-0 ${
 				size === "compact" ? "p-4" : "p-5"
-			} ${to ? "transition hover:-translate-y-0.5 hover:shadow-md" : ""} ${className}`}
+			} ${to ? "transition hover:-translate-y-0.5 hover:border-yepset-200 hover:shadow-[0_16px_40px_rgba(15,42,40,.09)]" : ""} ${className}`}
 		>
 			<div className="flex min-w-0 items-start justify-between gap-3">
 				<div className="min-w-0">
-					<p className="truncate text-sm font-medium text-gray-500">
+					<p className="truncate text-xs font-bold uppercase tracking-[.08em] text-slate-500">
 						{label}
 					</p>
 
@@ -82,5 +82,5 @@ function getValueToneClass(tone: MetricCardTone) {
 		return "text-red-700";
 	}
 
-	return "text-blue-900";
+	return "text-yepset-800";
 }

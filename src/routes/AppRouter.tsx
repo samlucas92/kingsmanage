@@ -74,7 +74,7 @@ function AppShell() {
 	useEffect(() => { void loadClubTeams(); }, [loadClubTeams]);
 
 	return (
-		<div className="min-h-screen bg-slate-100 text-slate-900">
+		<div className="min-h-screen text-slate-900">
 			<Sidebar
 				isMobileMenuOpen={isMobileMenuOpen}
 				onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
@@ -83,7 +83,7 @@ function AppShell() {
 			<div className="lg:pl-64">
 				<Header onOpenMobileMenu={() => setIsMobileMenuOpen(true)} />
 
-				<main className="px-4 py-4 sm:px-6 lg:px-8">
+				<main className="mx-auto w-full max-w-[1600px] px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
 					<Outlet />
 				</main>
 			</div>

@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../stores/auth";
 import ClubSwitcher from "./ClubSwitcher";
 import ProfileSummary from "./ProfileSummary";
+import BrandMark from "./BrandMark";
 
 type NavigationRole = "Admin" | "Coach" | "Player";
 
@@ -83,18 +84,16 @@ export default function Sidebar({
 		<>
 			{isMobileMenuOpen && (
 				<div className="fixed inset-0 z-40 lg:hidden">
-					<div className="fixed inset-0 bg-slate-900/40" onClick={onCloseMobileMenu} />
-					<div className="fixed inset-y-0 left-0 flex w-72 flex-col bg-blue-950 text-white shadow-xl">
-						<div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
-							<div>
-								<p className="text-xs uppercase tracking-[0.25em] text-yellow-300">Kingsbridge</p>
-								<p className="text-lg font-bold">KingsManage</p>
-							</div>
+					<div className="fixed inset-0 bg-yepset-950/55 backdrop-blur-sm" onClick={onCloseMobileMenu} />
+					<div className="fixed inset-y-0 left-0 flex w-[min(19rem,88vw)] flex-col bg-yepset-950 text-white shadow-2xl">
+						<div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+							<BrandMark inverse />
 
 							<button
 								type="button"
 								onClick={onCloseMobileMenu}
-								className="rounded-lg px-3 py-2 text-sm font-semibold text-white hover:bg-white/10"
+								className="grid h-10 w-10 place-items-center rounded-xl text-lg font-semibold text-white/75 transition hover:bg-white/10 hover:text-white"
+								aria-label="Close navigation menu"
 							>
 								✕
 							</button>
@@ -105,10 +104,9 @@ export default function Sidebar({
 				</div>
 			)}
 
-			<aside className="fixed inset-y-0 left-0 hidden w-64 flex-col bg-blue-950 text-white lg:flex">
-				<div className="border-b border-white/10 px-5 py-5">
-					<p className="text-xs uppercase tracking-[0.25em] text-yellow-300">Kingsbridge</p>
-					<p className="text-xl font-bold">KingsManage</p>
+			<aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col bg-yepset-950 text-white shadow-[10px_0_40px_rgba(8,42,40,.08)] lg:flex">
+				<div className="border-b border-white/10 px-5 py-[18px]">
+					<BrandMark inverse />
 				</div>
 
 				<SidebarContent />
@@ -141,7 +139,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col">
-			<nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
+			<nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-5" aria-label="Primary navigation">
 				{visibleNavigationItems.map((item) => (
 					<SidebarItem
 						key={item.to}
@@ -162,7 +160,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 				<button
 					type="button"
 					onClick={handleSignOut}
-					className="w-full rounded-lg border border-white/15 px-4 py-2 text-left text-sm font-semibold text-white transition hover:bg-white/10"
+					className="w-full rounded-xl border border-white/15 px-4 py-2.5 text-left text-sm font-semibold text-white transition hover:border-white/25 hover:bg-white/10"
 				>
 					Sign out
 				</button>
@@ -188,12 +186,40 @@ function SidebarItem({
 			end={end}
 			onClick={onClick}
 			className={({ isActive }) =>
-				`block rounded-lg px-4 py-2 text-sm font-semibold transition ${
-					isActive ? "bg-yellow-400 text-black" : "text-white hover:bg-blue-800"
+				`group flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition ${
+					isActive
+						? "bg-kick-400 text-yepset-950 shadow-[0_8px_20px_rgba(190,242,100,.12)]"
+						: "text-yepset-100 hover:bg-white/8 hover:text-white"
 				}`
 			}
 		>
-			{label}
+			<NavigationIcon path={to} />
+			<span>{label}</span>
 		</NavLink>
+	);
+}
+
+function NavigationIcon({ path }: { path: string }) {
+	const iconPath =
+		path === "/"
+			? "M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-9.5Z"
+			: path === "/matches"
+				? "M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"
+				: path === "/players" || path === "/users"
+					? "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m7-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 10v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
+					: path === "/finance"
+						? "M4 19V9m5 10V5m5 14v-7m5 7V3"
+						: path === "/stats" || path === "/historical-stats"
+							? "m4 17 5-5 4 4 7-9M15 7h5v5"
+							: path === "/seasons"
+								? "M5 4h14v16H5zM8 2v4m8-4v4M5 9h14"
+								: path === "/club-teams"
+									? "M12 3 3 8l9 5 9-5-9-5Zm-7 9 7 4 7-4m-14 4 7 4 7-4"
+									: "M4 21V8l8-5 8 5v13M9 21v-7h6v7";
+
+	return (
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px] shrink-0 opacity-80 transition group-hover:opacity-100" aria-hidden="true">
+			<path d={iconPath} />
+		</svg>
 	);
 }

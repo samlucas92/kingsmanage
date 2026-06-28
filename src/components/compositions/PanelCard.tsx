@@ -21,10 +21,10 @@ export default function PanelCard({
 }: PanelCardProps) {
 	return (
 		<section
-			className={`rounded-xl p-5 shadow ${
+			className={`rounded-2xl p-5 sm:p-6 ${
 				tone === "info"
-					? "border border-blue-100 bg-blue-50 shadow-sm"
-					: "bg-white"
+					? "border border-yepset-100 bg-yepset-50 shadow-sm"
+					: "surface-card"
 			} ${className}`}
 		>
 			{(title || description || action) && (
@@ -33,7 +33,7 @@ export default function PanelCard({
 						{title && (
 							<h2
 								className={`text-lg font-bold ${
-									tone === "info" ? "text-blue-950" : "text-blue-900"
+									tone === "info" ? "text-yepset-950" : "text-slate-950"
 								}`}
 							>
 								{title}
@@ -43,7 +43,7 @@ export default function PanelCard({
 						{description && (
 							<p
 								className={`mt-1 text-sm ${
-									tone === "info" ? "text-blue-800" : "text-slate-500"
+									tone === "info" ? "text-yepset-700" : "text-slate-500"
 								}`}
 							>
 								{description}
