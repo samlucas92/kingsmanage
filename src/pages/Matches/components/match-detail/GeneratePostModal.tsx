@@ -8,10 +8,10 @@ import type {
 	CreateClubPostRequest,
 	SaveClubPostTemplateRequest,
 } from "../../../../types/posts";
-import { applyPostTemplate, buildTemplateValues } from "../../../../utils/postTemplate";
+import { applyPostTemplate, buildGeneratedRichPostBody, buildTemplateValues } from "../../../../utils/postTemplate";
 import RichTextEditor from "../../../../components/rich-text/RichTextEditor";
 import RichTextContent from "../../../../components/rich-text/RichTextContent";
-import { ensureRichTextWithLink, isRichTextEmpty } from "../../../../utils/richText";
+import { isRichTextEmpty } from "../../../../utils/richText";
 
 const defaultTemplate: SaveClubPostTemplateRequest = {
 	name: "Matchday squad",
@@ -62,11 +62,7 @@ export function GeneratePostModal({
 				setSelectedId(items[0].id);
 				const generated = applyPostTemplate(items[0], values);
 				setTitle(generated.title);
-				setBody(ensureRichTextWithLink(
-					generated.body,
-					values.location,
-					values.locationUrl
-				));
+				setBody(buildGeneratedRichPostBody(generated.body, values));
 				setEditorRevision((revision) => revision + 1);
 			} else {
 				setDraft(defaultTemplate);
@@ -87,11 +83,7 @@ export function GeneratePostModal({
 			generatedValues
 		);
 		setTitle(generated.title);
-		setBody(ensureRichTextWithLink(
-			generated.body,
-			generatedValues.location,
-			generatedValues.locationUrl
-		));
+		setBody(buildGeneratedRichPostBody(generated.body, generatedValues));
 		setEditorRevision((revision) => revision + 1);
 	}
 
@@ -203,7 +195,7 @@ export function GeneratePostModal({
 						<button type="button" disabled={!selectedTemplate} onClick={() => generate()} className="w-full rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white disabled:opacity-40">
 							Shuffle squad again
 						</button>
-						<p className="text-xs leading-5 text-slate-500">Available: {"{{team}}, {{opponent}}, {{date}}, {{venue}}, {{location}}, {{locationUrl}}, {{competition}}, {{squad}}, {{directions}}"}</p>
+						<p className="text-xs leading-5 text-slate-500">Available: {"{{team}}, {{opponent}}, {{date}}, {{venue}}, {{location}}, {{locationUrl}}, {{competition}}, {{squad}}, {{directions}}, {{directionsUrl}}"}</p>
 					</aside>
 
 					<section className="space-y-4">

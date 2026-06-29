@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Match } from "../stores/match";
-import { applyPostTemplate, buildTemplateValues, shuffleNames } from "./postTemplate";
+import { applyPostTemplate, buildGeneratedRichPostBody, buildTemplateValues, shuffleNames } from "./postTemplate";
 
 describe("post templates", () => {
 	it("shuffles a squad without dropping names", () => {
@@ -53,7 +53,13 @@ describe("post templates", () => {
 		expect(generated.body).toContain("Bob");
 		expect(generated.body).toContain("League");
 		expect(generated.body).toContain("The Rec");
-		expect(generated.body).toContain("google.com/maps");
+		expect(generated.body).toContain("Directions");
+		expect(values.directionsUrl).toContain("google.com/maps");
 		expect(generated.body).not.toMatch(/starter|bench/i);
+
+		const richBody = buildGeneratedRichPostBody(generated.body, values);
+		expect(richBody.match(/"type":"link"/g)).toHaveLength(2);
+		expect(richBody).toContain('"text":"The Rec"');
+		expect(richBody).toContain('"text":"Directions"');
 	});
 });

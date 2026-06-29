@@ -2,6 +2,7 @@ import type { Match } from "../stores/match";
 import type { Player } from "../stores/players";
 import type { ClubPostTemplate } from "../types/posts";
 import { formatDisplayDateTime } from "./date";
+import { ensureRichTextWithLink } from "./richText";
 
 export type PostTemplateValues = {
 	team: string;
@@ -12,6 +13,7 @@ export type PostTemplateValues = {
 	locationUrl: string;
 	squad: string;
 	directions: string;
+	directionsUrl: string;
 	competition: string;
 };
 
@@ -46,7 +48,8 @@ export function buildTemplateValues(
 		location: location || "Venue to be confirmed",
 		locationUrl: mapsUrl,
 		squad: shuffleNames(names, random).map((name) => `• ${name}`).join("\n"),
-		directions: mapsUrl ? `Directions: ${mapsUrl}` : "Directions to follow",
+		directions: mapsUrl ? "Directions" : "Directions to follow",
+		directionsUrl: mapsUrl,
 		competition: match.competition?.trim() || "Fixture",
 	};
 }
@@ -61,4 +64,21 @@ export function applyPostTemplate(template: ClubPostTemplate, values: PostTempla
 		title: replace(template.titleTemplate),
 		body: replace(template.bodyTemplate),
 	};
+}
+
+export function buildGeneratedRichPostBody(
+	body: string,
+	values: PostTemplateValues
+) {
+	const withLocationLink = ensureRichTextWithLink(
+		body,
+		values.location,
+		values.locationUrl
+	);
+
+	return ensureRichTextWithLink(
+		withLocationLink,
+		values.directions,
+		values.directionsUrl
+	);
 }
