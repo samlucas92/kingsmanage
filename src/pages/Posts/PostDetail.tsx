@@ -13,6 +13,7 @@ import type { CreateClubPostRequest } from "../../types/posts";
 import { formatDisplayDateTime } from "../../utils/date";
 import { getPostTypeClass, getPostTypeLabel } from "../../utils/posts";
 import PostFormModal from "./components/PostFormModal";
+import RichTextContent from "../../components/rich-text/RichTextContent";
 
 export default function PostDetail() {
 	const { id } = useParams<{ id: string }>();
@@ -245,9 +246,7 @@ export default function PostDetail() {
 				</div>
 
 				<div className="px-5 py-6 sm:px-6">
-					<p className="whitespace-pre-line text-base leading-8 text-slate-700">
-						{post.body}
-					</p>
+					<RichTextContent value={post.body} className="text-base leading-8 text-slate-700" />
 				</div>
 			</article>
 

@@ -9,6 +9,7 @@ interface TeamSelectionCardProps {
 	totalSelectedCount: number;
 	isLineupLocked: boolean;
 	onSaveTeamClick: () => void;
+	onGeneratePostClick: () => void;
 }
 
 export function TeamSelectionCard({
@@ -18,6 +19,7 @@ export function TeamSelectionCard({
 	totalSelectedCount,
 	isLineupLocked,
 	onSaveTeamClick,
+	onGeneratePostClick,
 }: TeamSelectionCardProps) {
 	return (
 		<PanelCard>
@@ -36,18 +38,25 @@ export function TeamSelectionCard({
 					</div>
 				</div>
 
-				<button
-					type="button"
-					onClick={onSaveTeamClick}
-					disabled={!isLineupLocked && totalSelectedCount === 0}
-					className={`w-full rounded-xl px-5 py-3 text-sm font-semibold shadow-sm disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto ${
+				<div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+					{isLineupLocked && totalSelectedCount > 0 && (
+						<button type="button" onClick={onGeneratePostClick} className="rounded-xl border border-blue-200 px-5 py-3 text-sm font-bold text-blue-800 hover:bg-blue-50">
+							Generate post
+						</button>
+					)}
+					<button
+						type="button"
+						onClick={onSaveTeamClick}
+						disabled={!isLineupLocked && totalSelectedCount === 0}
+						className={`w-full rounded-xl px-5 py-3 text-sm font-semibold shadow-sm disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto ${
 						isLineupLocked
 							? "bg-slate-900 text-white hover:bg-slate-800"
 							: "bg-blue-700 text-white hover:bg-blue-800"
-					}`}
-				>
-					{isLineupLocked ? "Edit Team" : "Save Team"}
-				</button>
+						}`}
+					>
+						{isLineupLocked ? "Edit Team" : "Save Team"}
+					</button>
+				</div>
 			</div>
 
 			{!isLineupLocked && starterCount > 0 && starterCount < 11 && (

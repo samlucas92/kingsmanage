@@ -20,3 +20,18 @@ export type CreateClubPostRequest = {
 };
 
 export type UpdateClubPostRequest = CreateClubPostRequest;
+
+export type ClubPostTemplate = {
+	id: string;
+	name: string;
+	titleTemplate: string;
+	bodyTemplate: string;
+	isPinned: boolean;
+	createdAt: string;
+	updatedAt: string;
+};
+
+export type SaveClubPostTemplateRequest = Omit<
+	ClubPostTemplate,
+	"id" | "createdAt" | "updatedAt"
+>;

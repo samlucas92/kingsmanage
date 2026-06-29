@@ -11,6 +11,7 @@ export type ClubTeamProfile = {
 	shortName: string;
 	isActive: boolean;
 	sortOrder: number;
+	competitions: string[];
 	createdAt?: string;
 	updatedAt?: string;
 };
@@ -19,8 +20,8 @@ export const FIRST_TEAM_ID = "11111111-1111-1111-1111-111111111101";
 export const SECOND_TEAM_ID = "22222222-2222-2222-2222-222222222202";
 
 export const defaultClubTeamProfiles: ClubTeamProfile[] = [
-	{ id: FIRST_TEAM_ID, displayName: "First Team", shortName: "First", isActive: true, sortOrder: 0 },
-	{ id: SECOND_TEAM_ID, displayName: "Second Team", shortName: "Second", isActive: true, sortOrder: 1 },
+	{ id: FIRST_TEAM_ID, displayName: "First Team", shortName: "First", isActive: true, sortOrder: 0, competitions: [] },
+	{ id: SECOND_TEAM_ID, displayName: "Second Team", shortName: "Second", isActive: true, sortOrder: 1, competitions: [] },
 ];
 
 type ClubTeamStore = {

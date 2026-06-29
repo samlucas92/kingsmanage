@@ -21,6 +21,8 @@ export function useMatchForm({
 	const [opponent, setOpponent] = useState("");
 	const [date, setDate] = useState("");
 	const [venue, setVenue] = useState<"home" | "away">("home");
+	const [location, setLocation] = useState("");
+	const [competition, setCompetition] = useState("");
 	const [formError, setFormError] = useState("");
 	const [isSavingMatch, setIsSavingMatch] = useState(false);
 
@@ -32,6 +34,8 @@ export function useMatchForm({
 		setOpponent("");
 		setDate("");
 		setVenue("home");
+		setLocation("");
+		setCompetition("");
 		setFormError("");
 		setIsSavingMatch(false);
 	}
@@ -51,6 +55,8 @@ export function useMatchForm({
 		setOpponent(match.opponent);
 		setDate(formatDateForInput(match.date));
 		setVenue(match.venue);
+		setLocation(match.location ?? "");
+		setCompetition(match.competition ?? "");
 		setFormError("");
 		setIsSavingMatch(false);
 		setIsMatchModalOpen(true);
@@ -85,6 +91,16 @@ export function useMatchForm({
 		setFormError("");
 	}
 
+	function updateLocation(value: string) {
+		setLocation(value);
+		setFormError("");
+	}
+
+	function updateCompetition(value: string) {
+		setCompetition(value);
+		setFormError("");
+	}
+
 	function validateMatchForm() {
 		if (!opponent.trim()) {
 			return "Opponent is required.";
@@ -92,6 +108,14 @@ export function useMatchForm({
 
 		if (!date) {
 			return "Date and time are required.";
+		}
+
+		if (!competition.trim()) {
+			return "Competition is required.";
+		}
+
+		if (!location.trim()) {
+			return "Location is required.";
 		}
 
 		return "";
@@ -114,6 +138,8 @@ export function useMatchForm({
 			opponent: opponent.trim(),
 			date,
 			venue,
+			location: location.trim(),
+			competition: competition.trim(),
 		};
 
 		try {
@@ -147,6 +173,8 @@ export function useMatchForm({
 		opponent,
 		date,
 		venue,
+		location,
+		competition,
 		formError,
 		openAddMatchModal,
 		openEditMatchModal,
@@ -155,6 +183,8 @@ export function useMatchForm({
 		updateOpponent,
 		updateDate,
 		updateVenue,
+		updateLocation,
+		updateCompetition,
 		handleConfirmMatch,
 	};
 }

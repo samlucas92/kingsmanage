@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import LinkButton from "../../components/compositions/LinkButton";
 import NotFoundCard from "../../components/compositions/NotFoundCard";
@@ -11,10 +12,23 @@ import { IncompleteLineupModal } from "./components/match-detail/IncompleteLineu
 import { MatchHeaderCard } from "./components/match-detail/MatchHeaderCard";
 import { MatchStatsCard } from "./components/match-detail/MatchStatsCard";
 import { useMatchDetail } from "./hooks/useMatchDetails";
+import { GeneratePostModal } from "./components/match-detail/GeneratePostModal";
+import { usePlayerStore } from "../../stores/players";
+import { getClubTeamLabel, useClubTeamStore } from "../../stores/clubTeams";
+import { usePostStore } from "../../stores/posts";
 
 export default function MatchDetail() {
 	const { id } = useParams();
 	const matchDetail = useMatchDetail(id);
+	const [showGeneratePost, setShowGeneratePost] = useState(false);
+	const players = usePlayerStore((state) => state.players);
+	const teamProfiles = useClubTeamStore((state) => state.profiles);
+	const loadTeamProfiles = useClubTeamStore((state) => state.loadProfiles);
+	const createPost = usePostStore((state) => state.createPost);
+
+	useEffect(() => {
+		void loadTeamProfiles();
+	}, [loadTeamProfiles]);
 
 	if (matchDetail.isLoadingMatches && !matchDetail.match) {
 		return (
@@ -70,6 +84,8 @@ export default function MatchDetail() {
 				opponent={currentMatch.opponent}
 				date={currentMatch.date}
 				venue={currentMatch.venue}
+				location={currentMatch.location}
+				competition={currentMatch.competition}
 				state={currentMatch.state}
 				isCompleted={currentMatch.isCompleted}
 				onPostponeClick={() => matchDetail.setShowPostponeModal(true)}
@@ -91,6 +107,7 @@ export default function MatchDetail() {
 				totalSelectedCount={matchDetail.totalSelectedCount}
 				isLineupLocked={currentMatch.isLineupLocked}
 				onSaveTeamClick={matchDetail.handleSaveTeamClick}
+				onGeneratePostClick={() => setShowGeneratePost(true)}
 			/>
 
 			<MatchStatsCard
@@ -136,6 +153,17 @@ export default function MatchDetail() {
 				starterCount={matchDetail.starterCount}
 				onClose={() => matchDetail.setShowIncompleteLineupModal(false)}
 				onConfirm={matchDetail.handleConfirmIncompleteLineup}
+			/>
+
+			<GeneratePostModal
+				isOpen={showGeneratePost}
+				match={currentMatch}
+				players={players}
+				teamName={getClubTeamLabel(teamProfiles, currentMatch.team)}
+				onClose={() => setShowGeneratePost(false)}
+				onPublish={async (request) => {
+					await createPost(request);
+				}}
 			/>
 		</div>
 	);

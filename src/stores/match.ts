@@ -92,6 +92,8 @@ export type MatchFixtureInput = {
 	opponent: string;
 	date: string;
 	venue: "home" | "away";
+	location: string;
+	competition: string;
 };
 
 type MatchStore = {
@@ -286,6 +288,8 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
 			opponent: updatedFixture.opponent,
 			date: updatedFixture.date,
 			venue: updatedFixture.venue,
+			location: updatedFixture.location,
+			competition: updatedFixture.competition,
 		};
 
 		const savedMatch = await matchApi.updateMatch(matchId, updatedMatch);

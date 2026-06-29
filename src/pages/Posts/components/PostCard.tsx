@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import type { ClubPost } from "../../../types/posts";
 import { formatDisplayDateTime } from "../../../utils/date";
 import { getPostTypeClass, getPostTypeLabel } from "../../../utils/posts";
+import { richTextToPlainText } from "../../../utils/richText";
 
 export default function PostCard({
 	canManagePosts,
@@ -49,7 +50,7 @@ export default function PostCard({
 							overflow: "hidden",
 						}}
 					>
-						{post.body}
+						{richTextToPlainText(post.body)}
 					</p>
 
 					<div className="mt-3 flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-400">

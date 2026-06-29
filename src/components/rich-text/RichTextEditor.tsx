@@ -1,0 +1,246 @@
+import { useCallback, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { createEditor, Editor, Element as SlateElement, Range, Transforms, type BaseRange } from "slate";
+import { withHistory } from "slate-history";
+import { Editable, Slate, useSlate, withReact, type RenderElementProps, type RenderLeafProps } from "slate-react";
+
+import { deserializeRichText, serializeRichText } from "../../utils/richText";
+
+type Props = {
+	value: string;
+	onChange: (value: string) => void;
+	placeholder?: string;
+	compact?: boolean;
+	onSubmit?: () => void;
+};
+
+export default function RichTextEditor({ value, onChange, placeholder, compact = false, onSubmit }: Props) {
+	const editor = useMemo(() => {
+		const currentEditor = withHistory(withReact(createEditor()));
+		const isInline = currentEditor.isInline;
+		currentEditor.isInline = (element) =>
+			element.type === "link" || isInline(element);
+		return currentEditor;
+	}, []);
+	const initialValue = useMemo(() => deserializeRichText(value), [value]);
+	const renderElement = useCallback((props: RenderElementProps) => <Element {...props} />, []);
+	const renderLeaf = useCallback((props: RenderLeafProps) => <Leaf {...props} />, []);
+
+	function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+		if (onSubmit && event.key === "Enter" && !event.shiftKey) {
+			event.preventDefault();
+			onSubmit();
+		}
+	}
+
+	return (
+		<div className="overflow-hidden rounded-xl border border-slate-300 bg-white focus-within:border-yepset-600 focus-within:ring-2 focus-within:ring-yepset-100">
+			<Slate editor={editor} initialValue={initialValue} onChange={(nodes) => onChange(serializeRichText(nodes))}>
+				<Toolbar />
+				<Editable
+					renderElement={renderElement}
+					renderLeaf={renderLeaf}
+					placeholder={placeholder}
+					onKeyDown={handleKeyDown}
+					className={`${compact ? "max-h-32 min-h-11" : "min-h-44"} overflow-y-auto px-3 py-2 text-sm leading-6 outline-none`}
+				/>
+			</Slate>
+		</div>
+	);
+}
+
+function Toolbar() {
+	const editor = useSlate();
+	const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+	const [linkText, setLinkText] = useState("");
+	const [linkUrl, setLinkUrl] = useState("");
+	const [linkError, setLinkError] = useState("");
+	const savedSelection = useRef<BaseRange | null>(null);
+
+	function openLinkModal() {
+		savedSelection.current = editor.selection;
+		setLinkText(editor.selection ? Editor.string(editor, editor.selection) : "");
+		setLinkUrl("");
+		setLinkError("");
+		setIsLinkModalOpen(true);
+	}
+
+	function insertLink() {
+		const text = linkText.trim() || linkUrl.trim();
+		const enteredUrl = linkUrl.trim();
+		if (!text || !enteredUrl) {
+			setLinkError("Enter link text and a URL.");
+			return;
+		}
+		const url = /^https?:\/\//i.test(enteredUrl) ? enteredUrl : `https://${enteredUrl}`;
+		if (savedSelection.current) {
+			Transforms.select(editor, savedSelection.current);
+			if (!Range.isCollapsed(savedSelection.current)) {
+				Transforms.delete(editor);
+			}
+		} else {
+			Transforms.select(editor, Editor.end(editor, []));
+		}
+		Transforms.insertNodes(editor, {
+			type: "link",
+			url,
+			children: [{ text }],
+		});
+		setIsLinkModalOpen(false);
+	}
+
+	return (
+		<>
+			<div className="flex flex-wrap gap-1 border-b border-slate-200 bg-slate-50 p-2">
+				<MarkButton editor={editor} format="bold" label="Bold" icon={<BoldIcon />} />
+				<MarkButton editor={editor} format="italic" label="Italic" icon={<ItalicIcon />} />
+				<MarkButton editor={editor} format="underline" label="Underline" icon={<UnderlineIcon />} />
+				<HeadingSelect editor={editor} />
+				<BlockButton editor={editor} format="bulleted-list" label="Bulleted list" icon={<BulletedListIcon />} />
+				<BlockButton editor={editor} format="numbered-list" label="Numbered list" icon={<NumberedListIcon />} />
+				<button type="button" onMouseDown={(event) => {
+					event.preventDefault();
+					openLinkModal();
+				}} className={toolbarButtonClass(false)} aria-label="Insert link" title="Insert link"><LinkIcon /></button>
+			</div>
+			{isLinkModalOpen && (
+				<div className="fixed inset-0 z-[70] grid place-items-center bg-slate-950/45 p-4">
+					<div role="dialog" aria-modal="true" aria-labelledby="link-dialog-title" className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+						<div className="flex items-start justify-between gap-4">
+							<div>
+								<p className="text-xs font-black uppercase tracking-wide text-yepset-600">Rich text</p>
+								<h2 id="link-dialog-title" className="mt-1 text-xl font-black text-slate-950">Insert link</h2>
+							</div>
+							<button type="button" onClick={() => setIsLinkModalOpen(false)} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-600">Close</button>
+						</div>
+						<div className="mt-5 space-y-4">
+							<label className="block text-sm font-bold text-slate-700">Link text
+								<input autoFocus value={linkText} onChange={(event) => setLinkText(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal outline-none focus:border-yepset-600 focus:ring-2 focus:ring-yepset-100" />
+							</label>
+							<label className="block text-sm font-bold text-slate-700">URL
+								<input value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} placeholder="https://example.com" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal outline-none focus:border-yepset-600 focus:ring-2 focus:ring-yepset-100" />
+							</label>
+							{linkError && <p className="rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">{linkError}</p>}
+						</div>
+						<div className="mt-5 flex justify-end gap-2">
+							<button type="button" onClick={() => setIsLinkModalOpen(false)} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700">Cancel</button>
+							<button type="button" onClick={insertLink} className="rounded-xl bg-yepset-700 px-4 py-2 text-sm font-bold text-white hover:bg-yepset-800">Insert link</button>
+						</div>
+					</div>
+				</div>
+			)}
+		</>
+	);
+}
+
+function MarkButton({ editor, format, label, icon }: { editor: Editor; format: "bold" | "italic" | "underline"; label: string; icon: React.ReactNode }) {
+	const active = Boolean(Editor.marks(editor)?.[format]);
+	return <button type="button" onMouseDown={(event) => {
+		event.preventDefault();
+		if (Editor.marks(editor)?.[format]) Editor.removeMark(editor, format);
+		else Editor.addMark(editor, format, true);
+	}} className={toolbarButtonClass(active)} aria-label={label} title={label}>{icon}</button>;
+}
+
+function BlockButton({ editor, format, label, icon }: { editor: Editor; format: "bulleted-list" | "numbered-list"; label: string; icon: React.ReactNode }) {
+	const active = isBlockActive(editor, format);
+	return <button type="button" onMouseDown={(event) => {
+		event.preventDefault();
+		toggleList(editor, format);
+	}} className={toolbarButtonClass(active)} aria-label={label} title={label}>{icon}</button>;
+}
+
+function HeadingSelect({ editor }: { editor: Editor }) {
+	const value = getHeadingType(editor);
+	return (
+		<select
+			value={value}
+			onChange={(event) => setHeading(editor, event.target.value as HeadingType)}
+			className="h-8 rounded-md border border-yepset-200 bg-white px-2 text-xs font-bold text-yepset-800 outline-none"
+			aria-label="Text style"
+			title="Text style"
+		>
+			<option value="paragraph">Paragraph</option>
+			<option value="heading-one">Heading 1</option>
+			<option value="heading-two">Heading 2</option>
+			<option value="heading-three">Heading 3</option>
+		</select>
+	);
+}
+
+type HeadingType = "paragraph" | "heading-one" | "heading-two" | "heading-three";
+
+function setHeading(editor: Editor, format: HeadingType) {
+	Transforms.unwrapNodes(editor, {
+		match: (node) => SlateElement.isElement(node) && ["bulleted-list", "numbered-list"].includes(node.type),
+		split: true,
+	});
+	Transforms.setNodes(editor, { type: format }, {
+		match: (node) => SlateElement.isElement(node) && Editor.isBlock(editor, node),
+	});
+}
+
+function toggleList(editor: Editor, format: "bulleted-list" | "numbered-list") {
+	const active = isBlockActive(editor, format);
+	Transforms.unwrapNodes(editor, {
+		match: (node) => SlateElement.isElement(node) && ["bulleted-list", "numbered-list"].includes(node.type),
+		split: true,
+	});
+	Transforms.setNodes(editor, { type: active ? "paragraph" : "list-item" });
+	if (!active) {
+		Transforms.wrapNodes(editor, { type: format, children: [] });
+	}
+}
+
+function isBlockActive(editor: Editor, format: string) {
+	const [match] = Editor.nodes(editor, {
+		match: (node) => SlateElement.isElement(node) && node.type === format,
+	});
+	return Boolean(match);
+}
+
+function getHeadingType(editor: Editor): HeadingType {
+	for (const format of ["heading-one", "heading-two", "heading-three"] as const) {
+		if (isBlockActive(editor, format)) return format;
+	}
+	return "paragraph";
+}
+
+function toolbarButtonClass(active: boolean) {
+	return `grid h-8 w-8 place-items-center rounded-md transition ${
+		active
+			? "bg-yepset-700 text-white"
+			: "text-yepset-800 hover:bg-yepset-100"
+	}`;
+}
+
+function Icon({ children }: { children: React.ReactNode }) {
+	return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{children}</svg>;
+}
+
+function BoldIcon() { return <Icon><path d="M7 5h6a4 4 0 0 1 0 8H7z" /><path d="M7 13h7a4 4 0 0 1 0 8H7z" /></Icon>; }
+function ItalicIcon() { return <Icon><path d="M10 5h8M6 19h8M14 5 10 19" /></Icon>; }
+function UnderlineIcon() { return <Icon><path d="M6 4v7a6 6 0 0 0 12 0V4M5 21h14" /></Icon>; }
+function BulletedListIcon() { return <Icon><path d="M9 6h11M9 12h11M9 18h11" /><path d="M4 6h.01M4 12h.01M4 18h.01" /></Icon>; }
+function NumberedListIcon() { return <Icon><path d="M10 6h10M10 12h10M10 18h10M4 4h1v4M4 11h2l-2 3h2M4 17h2v3H4" /></Icon>; }
+function LinkIcon() { return <Icon><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2" /></Icon>; }
+
+function Element({ attributes, children, element }: RenderElementProps) {
+	switch (element.type) {
+		case "heading-one": return <h1 {...attributes} className="text-2xl font-black">{children}</h1>;
+		case "heading-two": return <h2 {...attributes} className="text-lg font-bold">{children}</h2>;
+		case "heading-three": return <h3 {...attributes} className="text-base font-bold">{children}</h3>;
+		case "bulleted-list": return <ul {...attributes} className="list-disc pl-6">{children}</ul>;
+		case "numbered-list": return <ol {...attributes} className="list-decimal pl-6">{children}</ol>;
+		case "list-item": return <li {...attributes}>{children}</li>;
+		case "link": return <a {...attributes} href={element.url} className="text-yepset-700 underline">{children}</a>;
+		default: return <p {...attributes}>{children}</p>;
+	}
+}
+
+function Leaf({ attributes, children, leaf }: RenderLeafProps) {
+	let content = children;
+	if (leaf.bold) content = <strong>{content}</strong>;
+	if (leaf.italic) content = <em>{content}</em>;
+	if (leaf.underline) content = <u>{content}</u>;
+	return <span {...attributes}>{content}</span>;
+}

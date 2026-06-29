@@ -29,7 +29,12 @@ export default function ClubTeams() {
 
 			<div className="grid gap-6 xl:grid-cols-2">
 				{profiles.map((profile) => (
-					<TeamProfileForm key={profile.id} profile={profile} onSave={updateProfile} onDelete={deleteProfile} />
+					<TeamProfileForm
+						key={`${profile.id}:${profile.updatedAt ?? ""}:${(profile.competitions ?? []).join("|")}`}
+						profile={profile}
+						onSave={updateProfile}
+						onDelete={deleteProfile}
+					/>
 				))}
 			</div>
 
@@ -105,6 +110,21 @@ function TeamProfileForm({ profile, onSave, onDelete }: {
 				</label>
 			</div>
 
+			<label className="mt-5 block text-sm font-semibold text-slate-700">
+				Competitions
+				<span className="ml-2 font-normal text-slate-500">One per line</span>
+				<textarea
+					value={(draft.competitions ?? []).join("\n")}
+					onChange={(event) => setDraft({
+						...draft,
+						competitions: event.target.value.split("\n"),
+					})}
+					rows={5}
+					placeholder={"Swansea Senior League\nOpen Cup"}
+					className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+				/>
+			</label>
+
 			<div className="mt-5 flex flex-wrap items-center justify-between gap-3">
 				<button type="button" disabled={isSaving} onClick={() => void handleDelete()} className="rounded-xl border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60">Delete team</button>
 				<p className={`text-sm ${message === "Team saved." ? "text-green-700" : "text-red-700"}`}>{message}</p>
@@ -138,6 +158,7 @@ function CreateTeamForm({ onCreate, nextSortOrder }: {
 				shortName: shortName.trim(),
 				isActive: true,
 				sortOrder: nextSortOrder,
+				competitions: [],
 			});
 			setDisplayName("");
 			setShortName("");

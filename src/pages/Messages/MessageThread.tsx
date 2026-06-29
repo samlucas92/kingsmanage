@@ -4,6 +4,9 @@ import { getInitials, getThreadDisplayName } from "../../services/messageService
 import { useAuthStore } from "../../stores/auth";
 import { useMessageStore } from "../../stores/messages";
 import { formatDisplayDateTime } from "../../utils/date";
+import RichTextEditor from "../../components/rich-text/RichTextEditor";
+import RichTextContent from "../../components/rich-text/RichTextContent";
+import { isRichTextEmpty } from "../../utils/richText";
 
 export default function MessageThread({ onBack }: { onBack: () => void }) {
 	const currentUser = useAuthStore((state) => state.currentUser);
@@ -15,6 +18,7 @@ export default function MessageThread({ onBack }: { onBack: () => void }) {
 	const sendMessage = useMessageStore((state) => state.sendMessage);
 	const deleteMessage = useMessageStore((state) => state.deleteMessage);
 	const [body, setBody] = useState("");
+	const [composerRevision, setComposerRevision] = useState(0);
 	const endRef = useRef<HTMLDivElement | null>(null);
 
 	useEffect(() => {
@@ -31,19 +35,23 @@ export default function MessageThread({ onBack }: { onBack: () => void }) {
 
 	const displayName = getThreadDisplayName(thread, currentUser.id, users);
 
-	async function handleSubmit(event: FormEvent) {
-		event.preventDefault();
-		const trimmedBody = body.trim();
-		if (!trimmedBody || isSending) {
+	async function submitMessage() {
+		if (isRichTextEmpty(body) || isSending) {
 			return;
 		}
 
 		try {
-			await sendMessage(trimmedBody);
+			await sendMessage(body);
 			setBody("");
+			setComposerRevision((revision) => revision + 1);
 		} catch {
 			// The store exposes the API error above the messenger panel.
 		}
+	}
+
+	function handleSubmit(event: FormEvent) {
+		event.preventDefault();
+		void submitMessage();
 	}
 
 	return (
@@ -90,7 +98,7 @@ export default function MessageThread({ onBack }: { onBack: () => void }) {
 								<div className={`rounded-2xl px-4 py-2.5 text-sm leading-6 ${
 									isMine ? "rounded-br-md bg-blue-700 text-white" : "rounded-bl-md border border-slate-200 bg-white text-slate-800"
 								}`}>
-									{isDeleted ? <span className="italic opacity-70">Message deleted</span> : message.body}
+									{isDeleted ? <span className="italic opacity-70">Message deleted</span> : <RichTextContent value={message.body} inverted={isMine} />}
 								</div>
 								<div className={`mt-1 flex items-center gap-2 px-1 text-[11px] text-slate-400 ${isMine ? "justify-end" : "justify-start"}`}>
 									<span>{formatDisplayDateTime(message.createdAt)}</span>
@@ -110,23 +118,12 @@ export default function MessageThread({ onBack }: { onBack: () => void }) {
 
 		<form onSubmit={handleSubmit} className="border-t border-slate-200 bg-white p-3 sm:p-4">
 			<div className="flex items-end gap-2">
-				<textarea
-					value={body}
-					onChange={(event) => setBody(event.target.value)}
-					onKeyDown={(event) => {
-						if (event.key === "Enter" && !event.shiftKey) {
-							event.preventDefault();
-							event.currentTarget.form?.requestSubmit();
-						}
-					}}
-					maxLength={4000}
-					rows={1}
-					placeholder={`Message ${displayName}`}
-					className="max-h-32 min-h-11 flex-1 resize-y rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-				/>
+				<div className="min-w-0 flex-1">
+					<RichTextEditor key={composerRevision} value={body} onChange={setBody} onSubmit={() => void submitMessage()} compact placeholder={`Message ${displayName}`} />
+				</div>
 				<button
 					type="submit"
-					disabled={!body.trim() || isSending}
+					disabled={isRichTextEmpty(body) || isSending}
 					className="h-11 rounded-xl bg-blue-700 px-5 text-sm font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					{isSending ? "Sending..." : "Send"}

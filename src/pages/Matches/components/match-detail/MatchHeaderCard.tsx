@@ -7,6 +7,8 @@ interface MatchHeaderCardProps {
 	opponent: string;
 	date: string;
 	venue: "home" | "away";
+	location?: string;
+	competition?: string;
 	state: MatchState;
 	isCompleted: boolean;
 	onPostponeClick: () => void;
@@ -16,6 +18,8 @@ export function MatchHeaderCard({
 	opponent,
 	date,
 	venue,
+	location,
+	competition,
 	state,
 	isCompleted,
 	onPostponeClick,
@@ -36,6 +40,11 @@ export function MatchHeaderCard({
 						{formatDisplayDateTime(date)} ·{" "}
 						<span className="capitalize">{venue}</span>
 					</p>
+					{(competition || location) && (
+						<p className="mt-1 text-sm font-medium text-slate-600">
+							{[competition, location].filter(Boolean).join(" · ")}
+						</p>
+					)}
 
 					<div className="mt-3 flex flex-wrap items-center gap-2">
 						<StatusBadge label={getStateLabel(state)} tone={getStateTone(state)} />

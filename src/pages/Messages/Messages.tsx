@@ -5,6 +5,7 @@ import { useAuthStore } from "../../stores/auth";
 import { useMessageStore } from "../../stores/messages";
 import { useRealtimeStore } from "../../stores/realtime";
 import { formatDisplayDateTime } from "../../utils/date";
+import { richTextToPlainText } from "../../utils/richText";
 import MessageThread from "./MessageThread";
 
 const THREAD_POLL_INTERVAL_MS = 20_000;
@@ -147,7 +148,7 @@ export default function Messages({ requestedThreadId }: { requestedThreadId?: st
 										{summary.lastMessage && <span className="shrink-0 text-[10px] text-slate-400">{formatDisplayDateTime(summary.lastMessage.createdAt)}</span>}
 									</div>
 									<div className="mt-1 flex items-center gap-2">
-										<p className="min-w-0 flex-1 truncate text-xs text-slate-500">{summary.lastMessage?.status === "Deleted" ? "Message deleted" : summary.lastMessage?.body || "No messages yet"}</p>
+										<p className="min-w-0 flex-1 truncate text-xs text-slate-500">{summary.lastMessage?.status === "Deleted" ? "Message deleted" : summary.lastMessage?.body ? richTextToPlainText(summary.lastMessage.body) : "No messages yet"}</p>
 										{summary.unreadCount > 0 && <span className="min-w-5 rounded-full bg-blue-700 px-1.5 py-0.5 text-center text-[10px] font-black text-white">{summary.unreadCount}</span>}
 									</div>
 								</div>

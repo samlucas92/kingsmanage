@@ -9,6 +9,8 @@ interface MatchFormModalProps {
 	opponent: string;
 	date: string;
 	venue: "home" | "away";
+	location: string;
+	competition: string;
 	error: string;
 	onClose: () => void;
 	onConfirm: () => void;
@@ -16,6 +18,8 @@ interface MatchFormModalProps {
 	onOpponentChange: (value: string) => void;
 	onDateChange: (value: string) => void;
 	onVenueChange: (value: "home" | "away") => void;
+	onLocationChange: (value: string) => void;
+	onCompetitionChange: (value: string) => void;
 }
 
 export function MatchFormModal({
@@ -25,6 +29,8 @@ export function MatchFormModal({
 	opponent,
 	date,
 	venue,
+	location,
+	competition,
 	error,
 	onClose,
 	onConfirm,
@@ -32,9 +38,13 @@ export function MatchFormModal({
 	onOpponentChange,
 	onDateChange,
 	onVenueChange,
+	onLocationChange,
+	onCompetitionChange,
 }: MatchFormModalProps) {
 	const profiles = useClubTeamStore((state) => state.profiles);
 	const selectableProfiles = profiles.filter((profile) => profile.isActive || profile.id === team);
+	const selectedProfile = profiles.find((profile) => profile.id === team);
+	const competitionOptions = selectedProfile?.competitions ?? [];
 
 	return (
 		<Modal
@@ -58,13 +68,44 @@ export function MatchFormModal({
 
 					<select
 						value={team}
-						onChange={(event) => onTeamChange(event.target.value as ClubTeam)}
+						onChange={(event) => {
+							onTeamChange(event.target.value as ClubTeam);
+							onCompetitionChange("");
+						}}
 						className="w-full rounded-lg border px-3 py-2"
 					>
 						{selectableProfiles.map((profile) => (
 							<option key={profile.id} value={profile.id}>{profile.displayName}</option>
 						))}
 					</select>
+				</label>
+
+				<label className="block space-y-1">
+					<span className="text-sm font-semibold text-slate-700">Competition</span>
+					<select
+						value={competition}
+						onChange={(event) => onCompetitionChange(event.target.value)}
+						className="w-full rounded-lg border px-3 py-2"
+						disabled={competitionOptions.length === 0}
+					>
+						<option value="">
+							{competitionOptions.length === 0
+								? "Set up competitions for this team first"
+								: "Select competition"}
+						</option>
+						{competition &&
+							!competitionOptions.includes(competition) && (
+								<option value={competition}>{competition}</option>
+							)}
+						{competitionOptions.map((option) => (
+							<option key={option} value={option}>{option}</option>
+						))}
+					</select>
+					{competitionOptions.length === 0 && (
+						<span className="text-xs text-amber-700">
+							Add competitions from Club Teams before creating this fixture.
+						</span>
+					)}
 				</label>
 
 				<label className="block space-y-1">
@@ -108,6 +149,19 @@ export function MatchFormModal({
 						<option value="home">Home</option>
 						<option value="away">Away</option>
 					</select>
+				</label>
+
+				<label className="block space-y-1">
+					<span className="text-sm font-semibold text-slate-700">Location</span>
+					<input
+						value={location}
+						onChange={(event) => onLocationChange(event.target.value)}
+						className="w-full rounded-lg border px-3 py-2"
+						placeholder="e.g. The Rec, Kingsbridge SA4 6RP"
+					/>
+					<span className="text-xs text-slate-500">
+						Enter the venue name or address used for directions in matchday posts.
+					</span>
 				</label>
 
 				{isEditing && (

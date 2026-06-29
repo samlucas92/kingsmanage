@@ -2,6 +2,8 @@ import { useEffect, useState, type FormEvent } from "react";
 
 import type { ClubPost, ClubPostType, CreateClubPostRequest } from "../../../types/posts";
 import { getPostTypeLabel } from "../../../utils/posts";
+import RichTextEditor from "../../../components/rich-text/RichTextEditor";
+import { isRichTextEmpty } from "../../../utils/richText";
 
 type PostFormModalProps = {
 	isOpen: boolean;
@@ -52,7 +54,7 @@ export default function PostFormModal({
 			return;
 		}
 
-		if (!body.trim()) {
+		if (isRichTextEmpty(body)) {
 			setError("Enter some post content.");
 			return;
 		}
@@ -63,7 +65,7 @@ export default function PostFormModal({
 			await onSavePost({
 				type,
 				title: title.trim(),
-				body: body.trim(),
+				body,
 				isPinned,
 			});
 
@@ -167,16 +169,14 @@ export default function PostFormModal({
 						/>
 					</label>
 
-					<label className="block space-y-2">
+					<div className="block space-y-2">
 						<span className="text-sm font-bold text-slate-700">Post content</span>
-						<textarea
+						<RichTextEditor
 							value={body}
-							onChange={(event) => setBody(event.target.value)}
-							rows={7}
-							className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+							onChange={setBody}
 							placeholder="Write the update players should see."
 						/>
-					</label>
+					</div>
 
 					<div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
 						<p className="font-bold">Players can read posts but cannot edit or delete them.</p>

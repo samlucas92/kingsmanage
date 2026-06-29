@@ -4,6 +4,7 @@ import { getThreadDisplayName } from "../../../services/messageService";
 import { useAuthStore } from "../../../stores/auth";
 import { useMessageStore } from "../../../stores/messages";
 import { formatDisplayDateTime } from "../../../utils/date";
+import { richTextToPlainText } from "../../../utils/richText";
 import AttentionCard from "./AttentionCard";
 
 export default function LatestMessagesCard() {
@@ -23,7 +24,7 @@ export default function LatestMessagesCard() {
 						<p className="truncate font-bold text-slate-900">{getThreadDisplayName(latest.thread, currentUser.id, users)}</p>
 						{latest.unreadCount > 0 && <span className="rounded-full bg-blue-700 px-2 py-0.5 text-xs font-black text-white">{latest.unreadCount}</span>}
 					</div>
-					<p className="mt-2 truncate text-sm text-slate-600">{latest.lastMessage?.status === "Deleted" ? "Message deleted" : latest.lastMessage?.body || "No messages yet"}</p>
+					<p className="mt-2 truncate text-sm text-slate-600">{latest.lastMessage?.status === "Deleted" ? "Message deleted" : latest.lastMessage?.body ? richTextToPlainText(latest.lastMessage.body) : "No messages yet"}</p>
 					{latest.lastMessage && <p className="mt-2 text-xs font-semibold text-slate-400">{formatDisplayDateTime(latest.lastMessage.createdAt)}</p>}
 				</Link>
 			) : (

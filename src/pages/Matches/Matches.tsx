@@ -11,6 +11,7 @@ import { getMatchFilterFromState } from "./components/MatchFilters";
 import { PostponeMatchModal } from "./components/match-detail/PostponeMatchModal";
 import { useMatchForm } from "./hooks/useMatchForm";
 import { formatDateForInput } from "../../utils/date";
+import { useClubTeamStore } from "../../stores/clubTeams";
 
 export default function Matches() {
 	const matches = useMatchStore((state) => state.matches);
@@ -30,6 +31,7 @@ export default function Matches() {
 	const isLoadingSeasons = useSeasonStore((state) => state.isLoadingSeasons);
 	const seasonLoadError = useSeasonStore((state) => state.seasonLoadError);
 	const loadSeasons = useSeasonStore((state) => state.loadSeasons);
+	const loadTeamProfiles = useClubTeamStore((state) => state.loadProfiles);
 
 	const [selectedSeasonId, setSelectedSeasonId] = useState("");
 	const [matchFilter, setMatchFilter] = useState<MatchFilter>("all");
@@ -41,7 +43,8 @@ export default function Matches() {
 
 	useEffect(() => {
 		void loadSeasons();
-	}, [loadSeasons]);
+		void loadTeamProfiles();
+	}, [loadSeasons, loadTeamProfiles]);
 
 	useEffect(() => {
 		if (selectedSeasonId && seasons.some((season) => season.id === selectedSeasonId)) {
@@ -336,6 +339,8 @@ export default function Matches() {
 				opponent={matchForm.opponent}
 				date={matchForm.date}
 				venue={matchForm.venue}
+				location={matchForm.location}
+				competition={matchForm.competition}
 				error={matchForm.formError}
 				onClose={matchForm.closeMatchModal}
 				onConfirm={matchForm.handleConfirmMatch}
@@ -343,6 +348,8 @@ export default function Matches() {
 				onOpponentChange={matchForm.updateOpponent}
 				onDateChange={matchForm.updateDate}
 				onVenueChange={matchForm.updateVenue}
+				onLocationChange={matchForm.updateLocation}
+				onCompetitionChange={matchForm.updateCompetition}
 			/>
 
 			<PostponeMatchModal
