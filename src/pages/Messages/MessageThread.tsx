@@ -55,7 +55,7 @@ export default function MessageThread({ onBack }: { onBack: () => void }) {
 	}
 
 	return (
-		<div className="flex h-[68vh] min-h-[32rem] flex-col bg-white">
+		<div className="flex h-[calc(100dvh-9rem)] min-h-0 flex-col bg-white lg:h-[68vh] lg:min-h-[32rem]">
 		<header className="flex items-center gap-3 border-b border-slate-200 px-4 py-3 sm:px-5">
 			<button
 				type="button"
@@ -66,7 +66,7 @@ export default function MessageThread({ onBack }: { onBack: () => void }) {
 				<ArrowLeftIcon />
 			</button>
 
-			<div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-blue-100 text-sm font-black text-blue-800">
+			<div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-yepset-100 text-sm font-black text-yepset-800">
 				{getInitials(displayName)}
 			</div>
 			<div className="min-w-0">
@@ -75,7 +75,7 @@ export default function MessageThread({ onBack }: { onBack: () => void }) {
 			</div>
 		</header>
 
-		<div className="flex-1 overflow-y-auto bg-slate-50 px-4 py-5 sm:px-6">
+		<div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 px-4 py-4 sm:px-6 sm:py-5">
 			{isLoading && messages.length === 0 && (
 				<p className="text-center text-sm text-slate-500">Loading messages...</p>
 			)}
@@ -96,7 +96,7 @@ export default function MessageThread({ onBack }: { onBack: () => void }) {
 						<div key={message.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
 							<div className={`group max-w-[85%] sm:max-w-[72%] ${isMine ? "items-end" : "items-start"}`}>
 								<div className={`rounded-2xl px-4 py-2.5 text-sm leading-6 ${
-									isMine ? "rounded-br-md bg-blue-700 text-white" : "rounded-bl-md border border-slate-200 bg-white text-slate-800"
+									isMine ? "rounded-br-md bg-yepset-700 text-white" : "rounded-bl-md border border-slate-200 bg-white text-slate-800"
 								}`}>
 									{isDeleted ? <span className="italic opacity-70">Message deleted</span> : <RichTextContent value={message.body} inverted={isMine} />}
 								</div>
@@ -116,15 +116,24 @@ export default function MessageThread({ onBack }: { onBack: () => void }) {
 			</div>
 		</div>
 
-		<form onSubmit={handleSubmit} className="border-t border-slate-200 bg-white p-3 sm:p-4">
-			<div className="flex items-end gap-2">
-				<div className="min-w-0 flex-1">
-					<RichTextEditor key={composerRevision} value={body} onChange={setBody} onSubmit={() => void submitMessage()} compact placeholder={`Message ${displayName}`} />
-				</div>
+		<form onSubmit={handleSubmit} className="shrink-0 border-t border-slate-200 bg-white p-2.5 sm:p-4">
+			<RichTextEditor
+				key={composerRevision}
+				value={body}
+				onChange={setBody}
+				onSubmit={() => void submitMessage()}
+				compact
+				placeholder={`Message ${displayName}`}
+			/>
+
+			<div className="mt-2 flex items-center justify-between gap-3">
+				<p className="min-w-0 truncate text-[10px] font-semibold text-slate-400">
+					Enter to send · Shift + Enter for a new line
+				</p>
 				<button
 					type="submit"
 					disabled={isRichTextEmpty(body) || isSending}
-					className="h-11 rounded-xl bg-blue-700 px-5 text-sm font-bold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+					className="min-h-11 min-w-24 shrink-0 rounded-xl bg-yepset-700 px-5 text-sm font-bold text-white hover:bg-yepset-800 disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					{isSending ? "Sending..." : "Send"}
 				</button>

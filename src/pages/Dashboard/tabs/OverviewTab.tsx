@@ -5,16 +5,19 @@ import { formatCurrency } from "../../../utils/format";
 import AttentionCard from "../components/AttentionCard";
 import MatchPreview from "../components/MatchPreview";
 import LatestMessagesCard from "../components/LatestMessagesCard";
+import MobileManagerOverview from "../components/MobileManagerOverview";
 
 export default function OverviewTab({
 	activePlayersCount,
 	financeOutstanding,
 	financePaidPercentage,
+	availability,
 	inactivePlayersCount,
 	isAdmin,
 	latestCompletedMatch,
 	nextMatch,
 	playersOwingCount,
+	recentMatches,
 	unlockedUpcomingMatchesCount,
 	upcomingEventsCount,
 	upcomingMatchesCount,
@@ -23,18 +26,33 @@ export default function OverviewTab({
 	completedMatchesCount: number;
 	financeOutstanding: number;
 	financePaidPercentage: number;
+	availability: {
+		available: number;
+		declined: number;
+		unanswered: number;
+	};
 	inactivePlayersCount: number;
 	isAdmin: boolean;
 	latestCompletedMatch?: Match;
 	nextMatch?: Match;
 	playersOwingCount: number;
+	recentMatches: Match[];
 	postponedMatchesCount: number;
 	unlockedUpcomingMatchesCount: number;
 	upcomingEventsCount: number;
 	upcomingMatchesCount: number;
 }) {
 	return (
-		<div className="space-y-6">
+		<>
+			<MobileManagerOverview
+				availability={availability}
+				financeOutstanding={financeOutstanding}
+				isAdmin={isAdmin}
+				nextMatch={nextMatch}
+				recentMatches={recentMatches}
+			/>
+
+		<div className="hidden space-y-6 lg:block">
 			<div className={`grid gap-5 ${isAdmin ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
 				<MetricCard
 					label="Active players"
@@ -140,5 +158,6 @@ export default function OverviewTab({
 				</div>
 			</section>
 		</div>
+		</>
 	);
 }

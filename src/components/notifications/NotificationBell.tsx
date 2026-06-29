@@ -11,7 +11,11 @@ import { getNotificationActionPath } from "../../utils/notifications";
 const POLL_INTERVAL_MS = 60_000;
 const PREVIEW_LIMIT = 5;
 
-export default function NotificationBell() {
+export default function NotificationBell({
+	variant = "default",
+}: {
+	variant?: "default" | "inverse";
+}) {
 	const navigate = useNavigate();
 	const containerRef = useRef<HTMLDivElement | null>(null);
 	const [isOpen, setIsOpen] = useState(false);
@@ -97,12 +101,20 @@ export default function NotificationBell() {
 			<button
 				type="button"
 				onClick={() => setIsOpen((currentValue) => !currentValue)}
-				className="relative grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-yepset-200 hover:bg-yepset-50 hover:text-yepset-800"
+				className={`relative grid h-11 w-11 place-items-center rounded-xl transition ${
+					variant === "inverse"
+						? "text-white hover:bg-white/10"
+						: "border border-slate-200 bg-white text-slate-600 shadow-sm hover:border-yepset-200 hover:bg-yepset-50 hover:text-yepset-800"
+				}`}
 				aria-label="Notifications"
 			>
 				<BellOutlineIcon />
 				{unreadCount > 0 && (
-					<span className="absolute -right-2 -top-2 min-w-5 rounded-full bg-red-600 px-1.5 py-0.5 text-center text-xs font-bold text-white">
+					<span
+						className={`absolute grid min-w-4 place-items-center rounded-full bg-red-600 px-1 text-center text-[10px] font-black leading-4 text-white ${
+							variant === "inverse" ? "right-0 top-0" : "-right-2 -top-2"
+						}`}
+					>
 						{unreadCount > 99 ? "99+" : unreadCount}
 					</span>
 				)}

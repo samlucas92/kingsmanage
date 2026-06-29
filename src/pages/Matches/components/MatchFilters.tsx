@@ -57,7 +57,48 @@ export function MatchFilters({
 	];
 
 	return (
-		<PanelCard contentClassName="space-y-4">
+		<>
+			<div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:hidden">
+				<div className="grid grid-cols-4 border-b border-slate-200">
+					{filterOptions.map((option) => {
+						const isActive = option.value === activeFilter;
+
+						return (
+							<button
+								key={option.value}
+								type="button"
+								onClick={() => onFilterChange(option.value)}
+								className={`relative min-h-12 px-1 text-[11px] font-black ${
+									isActive ? "text-yepset-800" : "text-slate-500"
+								}`}
+							>
+								{option.label}
+								<span className="ml-1 text-[9px] text-slate-400">
+									{counts[option.value]}
+								</span>
+								{isActive && <span className="absolute inset-x-2 bottom-0 h-0.5 bg-kick-500" />}
+							</button>
+						);
+					})}
+				</div>
+
+				<label className="flex items-center justify-between gap-3 px-3 py-2.5 text-xs font-bold text-slate-500">
+					<span>Team</span>
+					<select
+						value={activeTeamFilter}
+						onChange={(event) => onTeamFilterChange(event.target.value as MatchTeamFilter)}
+						className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-bold text-slate-800"
+					>
+						{teamFilterOptions.map((option) => (
+							<option key={option.value} value={option.value}>
+								{option.label} ({teamCounts[option.value] ?? 0})
+							</option>
+						))}
+					</select>
+				</label>
+			</div>
+
+		<PanelCard className="hidden lg:block" contentClassName="space-y-4">
 			<div>
 				<p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
 					Status
@@ -96,6 +137,7 @@ export function MatchFilters({
 				</div>
 			</div>
 		</PanelCard>
+		</>
 	);
 }
 

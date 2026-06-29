@@ -29,7 +29,7 @@ import {
 	type DashboardTab,
 } from "./dashboardConfig";
 import { startOfToday } from "../../utils/date";
-import { sortEventsAscending, sortEventsDescending } from "../../utils/events";
+import { getEventCounts, sortEventsAscending, sortEventsDescending } from "../../utils/events";
 import { sortMatchesAscending, sortMatchesDescending } from "../../utils/matches";
 import EventsTab from "./tabs/EventsTab";
 import FinanceTab from "./tabs/FinanceTab";
@@ -56,50 +56,23 @@ export default function Dashboard() {
 	const requestedTab = getDashboardTabFromSearch(searchParams.get("tab"));
 	const requestedThreadId = searchParams.get("threadId");
 
-	const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
-	const [hasAppliedDefaultTab, setHasAppliedDefaultTab] = useState(false);
 	const [isEventModalOpen, setIsEventModalOpen] = useState(false);
 	const [isPostModalOpen, setIsPostModalOpen] = useState(false);
 	const [postToEdit, setPostToEdit] = useState<ClubPost | null>(null);
 	const [postToDelete, setPostToDelete] = useState<ClubPost | null>(null);
 	const [isDeletingPost, setIsDeletingPost] = useState(false);
 
-	useEffect(() => {
-		if (!currentUser || hasAppliedDefaultTab) {
-			return;
+	const activeTab = useMemo<DashboardTab>(() => {
+		if (requestedTab && availableTabs.some((tab) => tab.id === requestedTab)) {
+			return requestedTab;
 		}
 
-		const defaultTab =
-			requestedTab && availableTabs.some((tab) => tab.id === requestedTab)
-				? requestedTab
-				: "overview";
-
-		if (availableTabs.some((tab) => tab.id === defaultTab)) {
-			setActiveTab(defaultTab);
+		if (availableTabs.some((tab) => tab.id === "overview")) {
+			return "overview";
 		}
 
-		setHasAppliedDefaultTab(true);
-	}, [availableTabs, currentUser, hasAppliedDefaultTab, requestedTab]);
-
-	useEffect(() => {
-		if (!availableTabs.some((tab) => tab.id === activeTab)) {
-			setActiveTab(availableTabs[0]?.id ?? "overview");
-		}
-	}, [activeTab, availableTabs]);
-
-	useEffect(() => {
-		if (!currentUser || !hasAppliedDefaultTab || !requestedTab) {
-			return;
-		}
-
-		if (!availableTabs.some((tab) => tab.id === requestedTab)) {
-			return;
-		}
-
-		if (activeTab !== requestedTab) {
-			setActiveTab(requestedTab);
-		}
-	}, [activeTab, availableTabs, currentUser, hasAppliedDefaultTab, requestedTab]);
+		return availableTabs[0]?.id ?? "overview";
+	}, [availableTabs, requestedTab]);
 
 	const players = usePlayerStore((state) => state.players);
 	const loadPlayers = usePlayerStore((state) => state.loadPlayers);
@@ -258,6 +231,26 @@ export default function Dashboard() {
 	const latestCompletedMatch = completedMatches[0];
 	const nextThreeMatches = upcomingMatches.slice(0, 3);
 	const latestThreeResults = completedMatches.slice(0, 3);
+	const nextMatchEvent = nextMatch
+		? events.find(
+				(event) =>
+					event.id === nextMatch.clubEventId ||
+					event.matchLinks?.some((link) => link.matchId === nextMatch.id)
+			)
+		: undefined;
+	const nextMatchResponseCounts = nextMatchEvent
+		? getEventCounts(nextMatchEvent)
+		: { available: 0, declined: 0, unanswered: 0, seen: 0 };
+	const nextMatchAvailability = {
+		available: nextMatchResponseCounts.available,
+		declined: nextMatchResponseCounts.declined,
+		unanswered: Math.max(
+			activePlayers.length -
+				nextMatchResponseCounts.available -
+				nextMatchResponseCounts.declined,
+			0
+		),
+	};
 
 	const latestPost = useMemo(
 		() =>
@@ -336,7 +329,6 @@ export default function Dashboard() {
 	}
 
 	function handleTabChange(tab: DashboardTab) {
-		setActiveTab(tab);
 		setSearchParams(tab === "overview" ? {} : { tab });
 	}
 
@@ -361,6 +353,7 @@ export default function Dashboard() {
 				) : (
 					<OverviewTab
 						activePlayersCount={activePlayers.length}
+						availability={nextMatchAvailability}
 						completedMatchesCount={completedMatches.length}
 						financeOutstanding={isAdmin ? financeSummary.totalOutstanding : 0}
 						financePaidPercentage={isAdmin ? financeSummary.paidPercentage : 0}
@@ -370,6 +363,7 @@ export default function Dashboard() {
 						nextMatch={nextMatch}
 						playersOwingCount={isAdmin ? financeSummary.playersOwingCount : 0}
 						postponedMatchesCount={postponedMatches.length}
+						recentMatches={latestThreeResults}
 						unlockedUpcomingMatchesCount={unlockedUpcomingMatches.length}
 						upcomingEventsCount={upcomingEvents.length}
 						upcomingMatchesCount={upcomingMatches.length}

@@ -1,8 +1,9 @@
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import NotificationBell from "../notifications/NotificationBell";
 import AccountMenu from "./AccountMenu";
 import ClubSwitcher from "./ClubSwitcher";
+import BrandMark from "./BrandMark";
 import { useAuthStore } from "../../stores/auth";
 import RealtimeStatus from "../realtime/RealtimeStatus";
 
@@ -23,28 +24,40 @@ const pageTitles: { matcher: (pathname: string) => boolean; title: string }[] = 
 	{ matcher: (pathname) => pathname === "/notifications", title: "Notifications" },
 ];
 
-type HeaderProps = {
-	onOpenMobileMenu: () => void;
-};
-
-export default function Header({ onOpenMobileMenu }: HeaderProps) {
+export default function Header() {
 	const location = useLocation();
-	const title = getPageTitle(location.pathname);
+	const navigate = useNavigate();
+	const title = getPageTitle(location.pathname, location.search);
 	const activeClub = useAuthStore((state) => state.availableClubs.find((club) => club.isCurrent));
+	const isDetailPage =
+		/^\/(matches|players|events|posts)\/[^/]+$/.test(location.pathname);
 
 	return (
-		<header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/88 backdrop-blur-xl">
-			<div className="flex h-[76px] items-center justify-between gap-2 px-3 sm:gap-4 sm:px-6 lg:px-8">
-				<div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+		<header className="sticky top-0 z-20 bg-yepset-700 text-white shadow-sm lg:border-b lg:border-slate-200/80 lg:bg-white/88 lg:text-slate-900 lg:backdrop-blur-xl">
+			<div className="relative flex h-16 items-center justify-between px-4 lg:hidden">
+				{isDetailPage ? (
 					<button
 						type="button"
-						onClick={onOpenMobileMenu}
-						className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-lg font-bold text-yepset-800 shadow-sm transition hover:border-yepset-200 hover:bg-yepset-50 lg:hidden"
-						aria-label="Open navigation menu"
+						onClick={() => navigate(-1)}
+						className="grid h-10 w-10 place-items-center rounded-xl text-2xl text-white hover:bg-white/10"
+						aria-label="Go back"
 					>
-						☰
+						‹
 					</button>
+				) : (
+					<BrandMark compact inverse />
+				)}
 
+				<div className="pointer-events-none absolute inset-x-16 text-center">
+					<h1 className="truncate text-base font-black tracking-[-.02em]">{title}</h1>
+					{activeClub && <p className="truncate text-[10px] font-semibold text-yepset-100">{activeClub.name}</p>}
+				</div>
+
+				<NotificationBell variant="inverse" />
+			</div>
+
+			<div className="hidden h-[76px] items-center justify-between gap-4 px-8 lg:flex">
+				<div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
 					<div className="min-w-0">
 						<h1 className="truncate text-xl font-black tracking-[-.025em] text-slate-950 sm:text-2xl">{title}</h1>
 						{activeClub && <p className="hidden truncate text-xs font-semibold text-slate-500 sm:block">{activeClub.name}</p>}
@@ -62,6 +75,14 @@ export default function Header({ onOpenMobileMenu }: HeaderProps) {
 	);
 }
 
-function getPageTitle(pathname: string) {
+function getPageTitle(pathname: string, search: string) {
+	if (pathname === "/") {
+		const tabTitle = new URLSearchParams(search).get("tab");
+
+		if (tabTitle) {
+			return tabTitle.charAt(0).toUpperCase() + tabTitle.slice(1);
+		}
+	}
+
 	return pageTitles.find((item) => item.matcher(pathname))?.title ?? "Yepset";
 }

@@ -458,9 +458,9 @@ export default function Finance() {
 				: "Add Adjustment";
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-3 lg:space-y-6">
 			<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-				<div>
+				<div className="hidden lg:block">
 					<h1 className="text-3xl font-bold text-blue-950">Finance</h1>
 					<p className="mt-1 max-w-3xl text-sm text-slate-600">
 						Track who has paid, who owes money, and total outstanding club
@@ -505,6 +505,7 @@ export default function Finance() {
 			)}
 
 			<PanelCard
+				className="hidden lg:block"
 				title={selectedSeason?.name ?? "No season selected"}
 				description="Amounts owed, payments, and adjustments are filtered by this season."
 			>
@@ -549,7 +550,7 @@ export default function Finance() {
 				</div>
 			</PanelCard>
 
-			<PanelCard title="Top outstanding">
+			<PanelCard className="hidden lg:block" title="Top outstanding">
 				{topOutstandingRows.length === 0 ? (
 					<p className="text-sm text-slate-500">
 						No outstanding balances for the current filter.
@@ -572,7 +573,7 @@ export default function Finance() {
 				title="Finance records"
 				description="Use filters to focus on money owed, paid players, unpaid players, or players with no charge."
 				action={
-					<div className="flex flex-wrap gap-2">
+					<div className="hidden flex-wrap gap-2 lg:flex">
 						{copyStatus && (
 							<span className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-600">
 								{copyStatus}

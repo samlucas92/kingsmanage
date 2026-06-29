@@ -34,7 +34,7 @@ export default function Matches() {
 	const loadTeamProfiles = useClubTeamStore((state) => state.loadProfiles);
 
 	const [selectedSeasonId, setSelectedSeasonId] = useState("");
-	const [matchFilter, setMatchFilter] = useState<MatchFilter>("all");
+	const [matchFilter, setMatchFilter] = useState<MatchFilter>("upcoming");
 	const [teamFilter, setTeamFilter] = useState<MatchTeamFilter>("all");
 	const [matchToPostpone, setMatchToPostpone] = useState<Match | null>(null);
 	const [postponedDate, setPostponedDate] = useState("");
@@ -226,9 +226,9 @@ export default function Matches() {
 			selectedSeasonMatches.length === 0);
 
 	return (
-		<div className="space-y-6">
-			<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-				<div>
+		<div className="space-y-3 lg:space-y-6">
+			<div className="flex justify-end lg:items-start lg:justify-between">
+				<div className="hidden lg:block">
 					<h1 className="text-2xl font-bold text-slate-900">Matches</h1>
 					<p className="mt-1 text-sm text-slate-600">
 						Manage fixtures, results and matchday squads.
@@ -239,15 +239,15 @@ export default function Matches() {
 					type="button"
 					onClick={matchForm.openAddMatchModal}
 					disabled={!selectedSeasonId}
-					className="rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+					className="rounded-xl bg-yepset-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-yepset-800 disabled:cursor-not-allowed disabled:bg-slate-300"
 				>
-					Add Match
+					+ Add match
 				</button>
 			</div>
 
-			<section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+			<section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:p-4">
 				<div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-					<div>
+					<div className="hidden lg:block">
 						<p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
 							Season filter
 						</p>
@@ -263,6 +263,8 @@ export default function Matches() {
 						label="Filter season"
 						selectedSeasonId={selectedSeasonId}
 						onSeasonChange={setSelectedSeasonId}
+						className="w-full lg:w-auto"
+						selectClassName="w-full lg:w-auto"
 					/>
 				</div>
 			</section>

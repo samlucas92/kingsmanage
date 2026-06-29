@@ -80,7 +80,7 @@ export default function Messages({ requestedThreadId }: { requestedThreadId?: st
 		)}
 
 		<div className="grid lg:grid-cols-[21rem_minmax(0,1fr)]">
-			<aside className={`${selectedThread ? "hidden lg:block" : "block"} h-[68vh] min-h-[32rem] border-r border-slate-200 bg-white`}>
+			<aside className={`${selectedThread ? "hidden lg:block" : "block"} h-[calc(100dvh-9rem)] min-h-0 border-r border-slate-200 bg-white lg:h-[68vh] lg:min-h-[32rem]`}>
 				<div className="border-b border-slate-200 p-4">
 					<div className="flex items-center justify-between gap-3">
 						<div>
@@ -90,21 +90,21 @@ export default function Messages({ requestedThreadId }: { requestedThreadId?: st
 						<button
 							type="button"
 							onClick={() => setIsStartingConversation((value) => !value)}
-							className="rounded-xl bg-blue-700 px-3 py-2 text-sm font-bold text-white hover:bg-blue-800"
+							className="rounded-xl bg-yepset-700 px-3 py-2 text-sm font-bold text-white hover:bg-yepset-800"
 						>
 							New
 						</button>
 					</div>
 
 					{isStartingConversation && (
-						<div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-3">
-							<label className="text-xs font-bold uppercase tracking-wide text-blue-900" htmlFor="message-user-search">Start a conversation</label>
+						<div className="mt-4 rounded-xl border border-yepset-100 bg-yepset-50 p-3">
+							<label className="text-xs font-bold uppercase tracking-wide text-yepset-900" htmlFor="message-user-search">Start a conversation</label>
 							<input
 								id="message-user-search"
 								value={search}
 								onChange={(event) => setSearch(event.target.value)}
 								placeholder="Search by email"
-								className="mt-2 w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
+								className="mt-2 w-full rounded-lg border border-yepset-200 bg-white px-3 py-2 text-sm outline-none focus:border-yepset-500"
 							/>
 							<div className="mt-2 max-h-40 overflow-y-auto">
 								{availableUsers.map((user) => (
@@ -139,7 +139,7 @@ export default function Messages({ requestedThreadId }: { requestedThreadId?: st
 								key={summary.thread.id}
 								type="button"
 								onClick={() => void openThread(summary.thread.id)}
-								className={`flex w-full gap-3 border-b border-slate-100 px-4 py-4 text-left transition ${isSelected ? "bg-blue-50" : "hover:bg-slate-50"}`}
+								className={`flex w-full gap-3 border-b border-slate-100 px-4 py-4 text-left transition ${isSelected ? "bg-yepset-50" : "hover:bg-slate-50"}`}
 							>
 								<div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-slate-200 text-sm font-black text-slate-700">{getInitials(displayName)}</div>
 								<div className="min-w-0 flex-1">
@@ -149,7 +149,7 @@ export default function Messages({ requestedThreadId }: { requestedThreadId?: st
 									</div>
 									<div className="mt-1 flex items-center gap-2">
 										<p className="min-w-0 flex-1 truncate text-xs text-slate-500">{summary.lastMessage?.status === "Deleted" ? "Message deleted" : summary.lastMessage?.body ? richTextToPlainText(summary.lastMessage.body) : "No messages yet"}</p>
-										{summary.unreadCount > 0 && <span className="min-w-5 rounded-full bg-blue-700 px-1.5 py-0.5 text-center text-[10px] font-black text-white">{summary.unreadCount}</span>}
+										{summary.unreadCount > 0 && <span className="min-w-5 rounded-full bg-yepset-700 px-1.5 py-0.5 text-center text-[10px] font-black text-white">{summary.unreadCount}</span>}
 									</div>
 								</div>
 							</button>

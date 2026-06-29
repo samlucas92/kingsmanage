@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 
 import Header from "../components/layout/Header";
+import MobileBottomNavigation from "../components/layout/MobileBottomNavigation";
 import Sidebar from "../components/layout/Sidebar";
 import ProtectedRoute from "../components/routing/ProtectedRoute";
 import AccessDenied from "../pages/AccessDenied/AccessDenied";
@@ -74,19 +75,24 @@ function AppShell() {
 	useEffect(() => { void loadClubTeams(); }, [loadClubTeams]);
 
 	return (
-		<div className="min-h-screen text-slate-900">
+		<div className="min-h-screen overflow-x-hidden text-slate-900">
 			<Sidebar
 				isMobileMenuOpen={isMobileMenuOpen}
 				onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
 			/>
 
 			<div className="lg:pl-64">
-				<Header onOpenMobileMenu={() => setIsMobileMenuOpen(true)} />
+				<Header />
 
-				<main className="mx-auto w-full max-w-[1600px] px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+				<main className="mx-auto w-full min-w-0 max-w-[1600px] px-3 py-3 pb-24 sm:px-6 sm:py-6 sm:pb-24 lg:px-8 lg:pb-6">
 					<Outlet />
 				</main>
 			</div>
+
+			<MobileBottomNavigation
+				isMoreOpen={isMobileMenuOpen}
+				onOpenMore={() => setIsMobileMenuOpen(true)}
+			/>
 		</div>
 	);
 }

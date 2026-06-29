@@ -10,7 +10,7 @@ export default function DashboardTabBar({
 	tabs: DashboardTabDefinition[];
 }) {
 	return (
-		<div className="surface-card p-1.5">
+		<div className="surface-card hidden p-1.5 lg:block">
 			<div className="flex gap-2 overflow-x-auto">
 				{tabs.map((tab) => {
 					const isActive = activeTab === tab.id;

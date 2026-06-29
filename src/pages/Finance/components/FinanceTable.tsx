@@ -57,7 +57,7 @@ export default function FinanceTable({
 
 	return (
 		<>
-			<div className="space-y-3 lg:hidden">
+			<div className="-mx-5 divide-y divide-slate-100 border-y border-slate-100 lg:hidden">
 				{rows.map((row) => (
 					<FinanceMobileCard
 						key={row.player.id}
@@ -109,7 +109,6 @@ function FinanceMobileCard({
 	amountOwed,
 	totalPaid,
 	balance,
-	status,
 	activeSeasonId,
 	onSetOwed,
 	onAddPayment,
@@ -123,34 +122,29 @@ function FinanceMobileCard({
 	onRemovePayment: FinanceTableProps["onRemovePayment"];
 }) {
 	const [showTransactions, setShowTransactions] = useState(false);
-	const statusBadge = getFinanceStatusBadge(status);
 	const transactions = useDisplayTransactions(record);
-	const totalAdjustments = getTotalAdjustments(record);
 
 	return (
-		<div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-			<div className="flex items-start justify-between gap-3">
-				<div>
-					<h3 className="font-semibold text-blue-950">{player.name}</h3>
-					<p className="text-sm text-slate-500">
-						#{player.number} · {player.isActive ? "Active" : "Inactive"}
+		<div className="px-4 py-3">
+			<div className="flex items-center gap-3">
+				<div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-yepset-100 text-xs font-black text-yepset-900">
+					{getInitials(player.name)}
+				</div>
+
+				<div className="min-w-0 flex-1">
+					<h3 className="truncate text-sm font-black text-slate-950">{player.name}</h3>
+					<p className="mt-0.5 text-[10px] font-semibold text-slate-500">
+						Owed: {formatCurrency(amountOwed)} · Paid: {formatCurrency(totalPaid)}
 					</p>
 				</div>
-				<StatusBadge label={statusBadge.label} tone={statusBadge.tone} />
-			</div>
 
-			<div className="mt-4 grid grid-cols-2 gap-3">
-				<FinanceAmountBlock label="Owed" value={amountOwed} />
-				<FinanceAmountBlock label="Paid" value={totalPaid} tone="success" />
-				<FinanceAmountBlock label="Adjustments" value={totalAdjustments} />
-				<FinanceAmountBlock
-					label="Outstanding"
-					value={balance}
-					tone={balance > 0 ? "danger" : "success"}
-				/>
-			</div>
+				<div className="shrink-0 text-right">
+					<p className="text-[9px] font-bold text-slate-400">Balance</p>
+					<p className={`text-xs font-black ${balance > 0 ? "text-red-700" : "text-yepset-700"}`}>
+						{formatCurrency(balance)}
+					</p>
+				</div>
 
-			<div className="mt-4 flex justify-end">
 				<FinanceActionsMenu
 					transactionsCount={transactions.length}
 					showTransactions={showTransactions}
@@ -175,32 +169,13 @@ function FinanceMobileCard({
 	);
 }
 
-function FinanceAmountBlock({
-	label,
-	value,
-	tone = "default",
-}: {
-	label: string;
-	value: number;
-	tone?: "default" | "success" | "danger";
-}) {
-	const valueClassName =
-		tone === "success"
-			? "text-green-700"
-			: tone === "danger"
-				? "text-red-700"
-				: "text-blue-950";
-
-	return (
-		<div className="rounded-lg bg-slate-50 p-3">
-			<p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-				{label}
-			</p>
-			<p className={`mt-1 text-lg font-bold ${valueClassName}`}>
-				{formatCurrency(value)}
-			</p>
-		</div>
-	);
+function getInitials(name: string) {
+	return name
+		.split(/\s+/)
+		.filter(Boolean)
+		.slice(0, 2)
+		.map((part) => part[0]?.toUpperCase())
+		.join("");
 }
 
 function FinanceRow({

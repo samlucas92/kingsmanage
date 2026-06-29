@@ -35,20 +35,21 @@ export default function RichTextEditor({ value, onChange, placeholder, compact =
 	return (
 		<div className="overflow-hidden rounded-xl border border-slate-300 bg-white focus-within:border-yepset-600 focus-within:ring-2 focus-within:ring-yepset-100">
 			<Slate editor={editor} initialValue={initialValue} onChange={(nodes) => onChange(serializeRichText(nodes))}>
-				<Toolbar />
+				<Toolbar compact={compact} />
 				<Editable
 					renderElement={renderElement}
 					renderLeaf={renderLeaf}
 					placeholder={placeholder}
 					onKeyDown={handleKeyDown}
-					className={`${compact ? "max-h-32 min-h-11" : "min-h-44"} overflow-y-auto px-3 py-2 text-sm leading-6 outline-none`}
+					style={compact ? { minHeight: "5rem" } : undefined}
+					className={`${compact ? "max-h-40 min-h-20" : "min-h-44"} overflow-y-auto px-3 py-2.5 text-sm leading-6 outline-none`}
 				/>
 			</Slate>
 		</div>
 	);
 }
 
-function Toolbar() {
+function Toolbar({ compact = false }: { compact?: boolean }) {
 	const editor = useSlate();
 	const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
 	const [linkText, setLinkText] = useState("");
@@ -90,13 +91,13 @@ function Toolbar() {
 
 	return (
 		<>
-			<div className="flex flex-wrap gap-1 border-b border-slate-200 bg-slate-50 p-2">
+			<div className="flex items-center gap-1 overflow-x-auto border-b border-slate-200 bg-slate-50 p-2">
 				<MarkButton editor={editor} format="bold" label="Bold" icon={<BoldIcon />} />
 				<MarkButton editor={editor} format="italic" label="Italic" icon={<ItalicIcon />} />
 				<MarkButton editor={editor} format="underline" label="Underline" icon={<UnderlineIcon />} />
-				<HeadingSelect editor={editor} />
-				<BlockButton editor={editor} format="bulleted-list" label="Bulleted list" icon={<BulletedListIcon />} />
-				<BlockButton editor={editor} format="numbered-list" label="Numbered list" icon={<NumberedListIcon />} />
+				<HeadingSelect editor={editor} compact={compact} />
+				{!compact && <BlockButton editor={editor} format="bulleted-list" label="Bulleted list" icon={<BulletedListIcon />} />}
+				{!compact && <BlockButton editor={editor} format="numbered-list" label="Numbered list" icon={<NumberedListIcon />} />}
 				<button type="button" onMouseDown={(event) => {
 					event.preventDefault();
 					openLinkModal();
@@ -149,13 +150,21 @@ function BlockButton({ editor, format, label, icon }: { editor: Editor; format: 
 	}} className={toolbarButtonClass(active)} aria-label={label} title={label}>{icon}</button>;
 }
 
-function HeadingSelect({ editor }: { editor: Editor }) {
+function HeadingSelect({
+	editor,
+	compact = false,
+}: {
+	editor: Editor;
+	compact?: boolean;
+}) {
 	const value = getHeadingType(editor);
 	return (
 		<select
 			value={value}
 			onChange={(event) => setHeading(editor, event.target.value as HeadingType)}
-			className="h-8 rounded-md border border-yepset-200 bg-white px-2 text-xs font-bold text-yepset-800 outline-none"
+			className={`h-8 shrink-0 rounded-md border border-yepset-200 bg-white px-2 text-xs font-bold text-yepset-800 outline-none ${
+				compact ? "w-28" : ""
+			}`}
 			aria-label="Text style"
 			title="Text style"
 		>

@@ -34,8 +34,8 @@ export function MatchesTable({
 	}
 
 	return (
-		<div className="overflow-hidden rounded-xl bg-white shadow">
-			<div className="space-y-3 p-3 md:hidden">
+		<div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+			<div className="divide-y divide-slate-100 md:hidden">
 				{matches.map((match) => (
 					<MatchCard
 						key={match.id}
@@ -136,55 +136,61 @@ function MatchCard({
 }) {
 	const profiles = useClubTeamStore((state) => state.profiles);
 	return (
-		<div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-			<div className="flex items-start justify-between gap-3">
-				<div className="min-w-0">
-					<p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-						{formatDisplayDate(match.date)} · {formatDisplayTime(match.date)}
-					</p>
+		<div className="relative flex min-h-[94px] items-center gap-3 px-3 py-3">
+			<div className="flex w-12 shrink-0 flex-col items-center border-r border-slate-100 pr-3 text-center">
+				<span className="text-[9px] font-black uppercase text-slate-500">
+					{new Date(match.date).toLocaleDateString("en-GB", { month: "short" })}
+				</span>
+				<strong className="text-2xl leading-7 text-slate-950">
+					{new Date(match.date).toLocaleDateString("en-GB", { day: "2-digit" })}
+				</strong>
+				<span className="text-[9px] font-bold text-slate-500">
+					{formatDisplayTime(match.date)}
+				</span>
+			</div>
 
-					<h2 className="mt-1 truncate text-lg font-bold text-blue-900">
+			<Link to={`/matches/${match.id}`} className="min-w-0 flex-1">
+				<div className="flex items-center gap-2">
+					<h2 className="truncate text-sm font-black text-slate-950">
 						vs {match.opponent}
 					</h2>
-
-					<p className="mt-1 text-sm capitalize text-slate-500">
-						{match.venue}
-					</p>
+					{match.result && (
+						<span className="rounded-md bg-yepset-50 px-1.5 py-0.5 text-[10px] font-black text-yepset-800">
+							{getResultLabel(match)}
+						</span>
+					)}
 				</div>
+				<p className="mt-1 truncate text-[11px] font-semibold text-slate-500">
+					{match.venue === "home" ? "Home" : "Away"}
+					{match.location ? ` · ${match.location}` : ""}
+				</p>
+				<p className="mt-1.5 text-[10px] font-bold text-yepset-700">
+					{getClubTeamLabel(profiles, match.team)} · {match.isLineupLocked ? "Lineup saved" : "Lineup to pick"}
+				</p>
+			</Link>
 
-				<div className="shrink-0 text-right">
-					<p className="text-lg font-bold text-slate-900">
-						{getResultLabel(match)}
-					</p>
+			<Link
+				to={`/matches/${match.id}`}
+				className="grid h-9 w-7 shrink-0 place-items-center text-xl text-yepset-700"
+				aria-label={`View match against ${match.opponent}`}
+			>
+				›
+			</Link>
+
+			<details className="group relative shrink-0">
+				<summary className="grid h-9 w-7 cursor-pointer list-none place-items-center text-lg font-black text-slate-500">
+					⋮
+				</summary>
+				<div className="absolute right-0 z-10 mt-1 grid min-w-32 gap-1 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+					<MatchActions
+						match={match}
+						onEditMatch={onEditMatch}
+						onPostponeMatch={onPostponeMatch}
+						onRestoreMatch={onRestoreMatch}
+						isMobile
+					/>
 				</div>
-			</div>
-
-			<div className="mt-3 flex flex-wrap gap-2">
-				<StatusBadge
-					label={getClubTeamLabel(profiles, match.team)}
-					tone="info"
-				/>
-
-				<StatusBadge
-					label={getStateLabel(match.state)}
-					tone={getStateTone(match.state)}
-				/>
-
-				<StatusBadge
-					label={match.isLineupLocked ? "Lineup saved" : "Lineup not saved"}
-					tone={match.isLineupLocked ? "info" : "neutral"}
-				/>
-			</div>
-
-			<div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
-				<MatchActions
-					match={match}
-					onEditMatch={onEditMatch}
-					onPostponeMatch={onPostponeMatch}
-					onRestoreMatch={onRestoreMatch}
-					isMobile
-				/>
-			</div>
+			</details>
 		</div>
 	);
 }
