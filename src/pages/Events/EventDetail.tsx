@@ -150,17 +150,17 @@ export default function EventDetail() {
 	}
 
 	return (
-		<div className="space-y-6">
-			<div>
+		<div className="space-y-3 lg:space-y-6">
+			<div className="hidden lg:block">
 				<Link
 					to="/"
-					className="text-sm font-semibold text-blue-700 hover:text-blue-900"
+					className="text-sm font-semibold text-yepset-700 hover:text-yepset-900"
 				>
 					Back to dashboard
 				</Link>
 			</div>
 
-			<section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+			<section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
 				<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 					<div>
 						<div className="flex flex-wrap gap-2">
@@ -169,7 +169,7 @@ export default function EventDetail() {
 							{linkedMatches.length > 0 && <EventPill label="Linked match" />}
 						</div>
 
-						<h1 className="mt-3 text-3xl font-bold text-slate-900">
+						<h1 className="mt-3 text-2xl font-black text-slate-950 sm:text-3xl">
 							{selectedEvent.title}
 						</h1>
 
@@ -223,7 +223,7 @@ export default function EventDetail() {
 				</div>
 			</section>
 
-			<section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+			<section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
 				<h2 className="text-lg font-bold text-slate-900">Availability</h2>
 				<p className="mt-1 text-sm text-slate-500">
 					{isManagementRole
@@ -322,18 +322,18 @@ function ResponseChasingFilters({
 	];
 
 	return (
-		<div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4">
+		<div className="mt-5 rounded-2xl border border-yepset-100 bg-yepset-50 p-4">
 			<div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
 				<div>
-					<p className="text-sm font-black uppercase tracking-wide text-blue-700">
+					<p className="text-sm font-black uppercase tracking-wide text-yepset-700">
 						Response chasing
 					</p>
-					<p className="mt-1 text-sm font-semibold text-blue-950">
+					<p className="mt-1 text-sm font-semibold text-yepset-950">
 						Filter the availability list by who needs a nudge.
 					</p>
 				</div>
 
-				<p className="text-xs font-semibold text-blue-700">
+				<p className="text-xs font-semibold text-yepset-700">
 					{counts.unanswered} unanswered · {counts.unseen} unseen
 				</p>
 			</div>
@@ -346,13 +346,13 @@ function ResponseChasingFilters({
 						onClick={() => onFilterChange(filter.id)}
 						className={`rounded-xl border px-4 py-3 text-left transition ${
 							selectedFilter === filter.id
-								? "border-blue-700 bg-white shadow-sm"
-								: "border-blue-100 bg-blue-100/40 hover:bg-white"
+								? "border-yepset-700 bg-white shadow-sm"
+								: "border-yepset-100 bg-yepset-100/40 hover:bg-white"
 						}`}
 					>
 						<div className="flex items-center justify-between gap-3">
 							<span className="text-sm font-bold text-slate-900">{filter.label}</span>
-							<span className="rounded-full bg-white px-2.5 py-1 text-xs font-black text-blue-700">
+							<span className="rounded-full bg-white px-2.5 py-1 text-xs font-black text-yepset-700">
 								{filter.count}
 							</span>
 						</div>

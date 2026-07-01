@@ -65,8 +65,8 @@ export default function MatchDetail() {
 	const currentMatch = matchDetail.match;
 
 	return (
-		<div className="space-y-6">
-			<LinkButton to="/matches">← Back to matches</LinkButton>
+		<div className="space-y-3 lg:space-y-6">
+			<LinkButton to="/matches" className="hidden lg:inline-flex">← Back to matches</LinkButton>
 
 			{matchDetail.playerLoadError && (
 				<div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800 shadow-sm">

@@ -21,18 +21,18 @@ export function PlayersFilters({
 	const activeClub = useAuthStore((state) => state.availableClubs.find((club) => club.isCurrent));
 	const positions = getSportDefinition(activeClub?.sportKey).positions;
 	return (
-		<div className="flex flex-wrap items-center gap-4 rounded-xl bg-white p-4 shadow">
+		<div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:p-4">
 			<input
 				value={searchTerm}
 				onChange={(event) => onSearchTermChange(event.target.value)}
 				placeholder="Search players..."
-				className="min-w-64 rounded-lg border px-3 py-2"
+				className="w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 outline-none focus:border-yepset-500"
 			/>
 
 			<select
 				value={positionFilter}
 				onChange={(event) => onPositionFilterChange(event.target.value)}
-				className="rounded-lg border px-3 py-2"
+				className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-semibold text-slate-700 sm:w-auto"
 			>
 				<option value="all">All positions</option>
 
@@ -43,7 +43,7 @@ export function PlayersFilters({
 				))}
 			</select>
 
-			<label className="flex items-center gap-2 text-sm">
+			<label className="flex min-h-11 items-center gap-2 rounded-xl bg-slate-50 px-3 text-sm font-semibold text-slate-600">
 				<input
 					type="checkbox"
 					checked={includeInactive}

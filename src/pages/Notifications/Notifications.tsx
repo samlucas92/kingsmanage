@@ -58,7 +58,7 @@ export default function Notifications() {
 						<button
 							type="button"
 							onClick={handleMarkAllRead}
-							className="rounded-lg bg-blue-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-800"
+							className="rounded-xl bg-yepset-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-yepset-800"
 						>
 							Mark all read
 						</button>
@@ -111,13 +111,13 @@ export default function Notifications() {
 								type="button"
 								onClick={() => void handleOpenNotification(notification)}
 								className={`block w-full px-4 py-4 text-left transition hover:bg-slate-50 ${
-									notification.isRead ? "bg-white" : "bg-blue-50"
+									notification.isRead ? "bg-white" : "bg-yepset-50"
 								}`}
 							>
 								<div className="flex gap-3">
 									<span
 										className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${
-											notification.isRead ? "bg-slate-300" : "bg-blue-600"
+											notification.isRead ? "bg-slate-300" : "bg-yepset-600"
 										}`}
 									/>
 
@@ -166,8 +166,8 @@ function FilterButton({
 			onClick={onClick}
 			className={`rounded-lg border px-3 py-2 text-sm font-bold transition ${
 				isActive
-					? "border-blue-900 bg-blue-900 text-white"
-					: "border-slate-200 bg-white text-slate-700 hover:border-blue-200 hover:text-blue-900"
+					? "border-yepset-700 bg-yepset-700 text-white"
+					: "border-slate-200 bg-white text-slate-700 hover:border-yepset-200 hover:text-yepset-900"
 			}`}
 		>
 			{label}

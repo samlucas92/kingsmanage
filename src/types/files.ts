@@ -9,6 +9,8 @@ export type ClubFile = {
 	originalFileName: string;
 	storedFileName: string;
 	storageKey: string;
+	storedObjectId?: string | null;
+	contentHash?: string;
 	contentType: string;
 	sizeBytes: number;
 	visibility: ClubFileVisibility;
@@ -28,6 +30,7 @@ export type CreateFileUploadUrlRequest = {
 	originalFileName: string;
 	contentType: string;
 	sizeBytes: number;
+	contentHash?: string;
 	linkedEntityType: ClubFileLinkedEntityType;
 	linkedEntityId: string;
 	visibility: ClubFileVisibility;
@@ -37,6 +40,8 @@ export type FileUploadUrlResponse = {
 	file: ClubFile;
 	uploadUrl: string;
 	expiresAtUtc: string;
+	uploadRequired?: boolean;
+	reusedStoredObject?: boolean;
 };
 
 export type FileDownloadUrlResponse = {

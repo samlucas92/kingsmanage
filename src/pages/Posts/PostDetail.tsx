@@ -212,7 +212,7 @@ export default function PostDetail() {
 								<span>{formatDisplayDateTime(post.createdAt)}</span>
 							</div>
 
-							<h1 className="mt-3 text-3xl font-bold text-slate-950">
+							<h1 className="mt-3 text-2xl font-black text-slate-950 sm:text-3xl">
 								{post.title}
 							</h1>
 
@@ -228,7 +228,7 @@ export default function PostDetail() {
 								<button
 									type="button"
 									onClick={() => setIsPostModalOpen(true)}
-									className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800"
+									className="rounded-xl bg-yepset-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-yepset-800"
 								>
 									Edit post
 								</button>
@@ -321,10 +321,10 @@ export default function PostDetail() {
 
 function PostDetailShell({ children }: { children: ReactNode }) {
 	return (
-		<div className="space-y-6">
+		<div className="space-y-3 lg:space-y-6">
 			<Link
 				to="/?tab=posts"
-				className="inline-flex rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+				className="hidden rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 lg:inline-flex"
 			>
 				Back to posts
 			</Link>

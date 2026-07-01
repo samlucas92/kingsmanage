@@ -19,14 +19,14 @@ export default function EventsTab({
 	upcomingEvents: ClubEvent[];
 }) {
 	return (
-		<div className="space-y-6">
+		<div className="space-y-3 lg:space-y-6">
 			<PanelCard
 				action={
 					canManageEvents ? (
 						<button
 							type="button"
 							onClick={onCreateEvent}
-							className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800"
+							className="rounded-xl bg-yepset-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-yepset-800"
 						>
 							Create event
 						</button>

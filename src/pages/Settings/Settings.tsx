@@ -50,8 +50,8 @@ export default function Settings() {
 	}
 
 	return (
-		<div className="space-y-6">
-			<div className="surface-card p-6">
+		<div className="space-y-3 lg:space-y-6">
+			<div className="surface-card hidden p-6 lg:block">
 				<p className="text-xs font-black uppercase tracking-[.14em] text-yepset-600">
 					Account
 				</p>
@@ -61,8 +61,8 @@ export default function Settings() {
 				</p>
 			</div>
 
-			<div className="grid gap-6 xl:grid-cols-[1fr_1.4fr]">
-				<section className="surface-card p-6">
+			<div className="grid gap-3 lg:gap-6 xl:grid-cols-[1fr_1.4fr]">
+				<section className="surface-card p-4 sm:p-6">
 					<h2 className="text-lg font-bold text-slate-900">Profile</h2>
 					<p className="mt-1 text-sm text-slate-500">
 						Your account details are managed by an admin.
@@ -82,7 +82,7 @@ export default function Settings() {
 					</div>
 				</section>
 
-				<section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+				<section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
 					<h2 className="text-lg font-bold text-slate-900">Change password</h2>
 					<p className="mt-1 text-sm text-slate-500">
 						Update your password using your current password.
@@ -107,7 +107,7 @@ export default function Settings() {
 								type="password"
 								value={currentPassword}
 								onChange={(event) => setCurrentPassword(event.target.value)}
-								className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+								className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-yepset-600 focus:ring-2 focus:ring-yepset-100"
 								autoComplete="current-password"
 								required
 							/>
@@ -119,7 +119,7 @@ export default function Settings() {
 								type="password"
 								value={newPassword}
 								onChange={(event) => setNewPassword(event.target.value)}
-								className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+								className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-yepset-600 focus:ring-2 focus:ring-yepset-100"
 								autoComplete="new-password"
 								required
 							/>
@@ -131,7 +131,7 @@ export default function Settings() {
 								type="password"
 								value={confirmPassword}
 								onChange={(event) => setConfirmPassword(event.target.value)}
-								className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+								className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-yepset-600 focus:ring-2 focus:ring-yepset-100"
 								autoComplete="new-password"
 								required
 							/>
@@ -141,7 +141,7 @@ export default function Settings() {
 							<button
 								type="submit"
 								disabled={isSaving}
-								className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+								className="w-full rounded-xl bg-yepset-700 px-4 py-3 text-sm font-bold text-white hover:bg-yepset-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
 							>
 								{isSaving ? "Saving..." : "Change password"}
 							</button>
@@ -150,7 +150,7 @@ export default function Settings() {
 				</section>
 			</div>
 
-			<section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+			<section className="hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:block">
 				<h2 className="text-lg font-bold text-slate-900">Future account options</h2>
 				<p className="mt-1 text-sm text-slate-500">
 					Forgot password from the login page should be added later once the email/reset-token flow is designed.

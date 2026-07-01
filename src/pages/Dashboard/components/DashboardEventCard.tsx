@@ -43,7 +43,7 @@ export default function DashboardEventCard({
 
 						<Link
 							to={`/events/${event.id}`}
-							className="mt-2 block text-lg font-bold text-slate-900 hover:text-blue-700"
+							className="mt-2 block text-lg font-bold text-slate-900 hover:text-yepset-700"
 						>
 							{event.title}
 						</Link>
@@ -62,7 +62,7 @@ export default function DashboardEventCard({
 									<Link
 										key={`${matchLink.team}-${matchLink.matchId}`}
 										to={`/matches/${matchLink.matchId}`}
-										className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100"
+										className="rounded-lg border border-yepset-200 bg-yepset-50 px-3 py-1.5 text-xs font-bold text-yepset-700 hover:bg-yepset-100"
 									>
 										Open {getClubTeamLabel(teamProfiles, matchLink.team)} match
 									</Link>
@@ -110,9 +110,9 @@ export default function DashboardEventCard({
 
 function EventDateBadge({ summary }: { summary: EventDateSummary }) {
 	return (
-		<div className="flex shrink-0 items-center justify-between gap-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-blue-900 lg:w-32 lg:flex-col lg:items-start lg:gap-1">
+		<div className="flex shrink-0 items-center justify-between gap-4 rounded-xl border border-yepset-100 bg-yepset-50 px-4 py-3 text-yepset-900 lg:w-32 lg:flex-col lg:items-start lg:gap-1">
 			<div>
-				<p className="text-xs font-black uppercase tracking-wide text-blue-700">
+				<p className="text-xs font-black uppercase tracking-wide text-yepset-700">
 					{summary.relativeLabel}
 				</p>
 
@@ -124,7 +124,7 @@ function EventDateBadge({ summary }: { summary: EventDateSummary }) {
 
 			<div className="text-right lg:text-left">
 				<p className="text-sm font-bold">{summary.weekdayLabel}</p>
-				<p className="text-sm font-semibold text-blue-700">{summary.timeLabel}</p>
+				<p className="text-sm font-semibold text-yepset-700">{summary.timeLabel}</p>
 			</div>
 		</div>
 	);
@@ -153,7 +153,7 @@ function AvailabilityButton({
 			onClick={onClick}
 			className={`rounded-lg px-2.5 py-1 text-xs font-bold ${
 				isSelected
-					? "bg-blue-700 text-white"
+					? "bg-yepset-700 text-white"
 					: "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
 			}`}
 		>

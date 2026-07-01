@@ -86,14 +86,24 @@ export async function uploadLinkedFile({
 	}
 
 	const contentType = getFileContentType(file);
+	const contentHash = await calculateFileHash(file);
 	const uploadResponse = await filesApi.createUploadUrl({
 		originalFileName: file.name,
 		contentType,
 		sizeBytes: file.size,
+		contentHash,
 		linkedEntityType,
 		linkedEntityId,
 		visibility,
 	});
+
+	if (uploadResponse.uploadRequired === false) {
+		return uploadResponse.file;
+	}
+
+	if (!uploadResponse.uploadUrl) {
+		throw new Error("The file upload URL was not provided.");
+	}
 
 	const uploadResult = await fetch(uploadResponse.uploadUrl, {
 		method: "PUT",
@@ -108,6 +118,19 @@ export async function uploadLinkedFile({
 	}
 
 	return filesApi.markUploaded(uploadResponse.file.id);
+}
+
+export async function calculateFileHash(file: Blob) {
+	if (!globalThis.crypto?.subtle) {
+		return "";
+	}
+
+	const bytes = await file.arrayBuffer();
+	const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
+
+	return Array.from(new Uint8Array(digest))
+		.map((value) => value.toString(16).padStart(2, "0"))
+		.join("");
 }
 
 export async function openClubFile(file: ClubFile) {

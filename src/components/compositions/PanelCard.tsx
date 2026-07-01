@@ -21,7 +21,7 @@ export default function PanelCard({
 }: PanelCardProps) {
 	return (
 		<section
-			className={`rounded-2xl p-5 sm:p-6 ${
+			className={`rounded-2xl p-4 sm:p-6 ${
 				tone === "info"
 					? "border border-yepset-100 bg-yepset-50 shadow-sm"
 					: "surface-card"

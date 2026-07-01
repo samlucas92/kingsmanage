@@ -32,7 +32,7 @@ export function MatchHeaderCard({
 						Match detail
 					</p>
 
-					<h1 className="mt-1 truncate text-2xl font-bold text-blue-900 sm:text-3xl">
+					<h1 className="mt-1 truncate text-2xl font-black text-slate-950 sm:text-3xl">
 						vs {opponent}
 					</h1>
 
@@ -62,7 +62,7 @@ export function MatchHeaderCard({
 					<button
 						type="button"
 						onClick={onPostponeClick}
-						className="w-full rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-50 sm:w-auto"
+						className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold hover:bg-slate-50 sm:w-auto"
 					>
 						Postpone
 					</button>

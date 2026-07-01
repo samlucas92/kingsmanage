@@ -27,7 +27,7 @@ export default function PostsTab({
 					<button
 						type="button"
 						onClick={onCreatePost}
-						className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800"
+						className="rounded-xl bg-yepset-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-yepset-800"
 					>
 						Create post
 					</button>
@@ -43,7 +43,7 @@ export default function PostsTab({
 			)}
 
 			{isLoadingPosts && (
-				<div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700">
+				<div className="rounded-xl border border-yepset-100 bg-yepset-50 px-4 py-3 text-sm font-semibold text-yepset-700">
 					Loading posts...
 				</div>
 			)}

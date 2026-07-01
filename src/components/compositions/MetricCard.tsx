@@ -29,7 +29,7 @@ export default function MetricCard({
 	const content = (
 		<div
 			className={`surface-card min-w-0 ${
-				size === "compact" ? "p-4" : "p-5"
+				size === "compact" ? "p-3 sm:p-4" : "p-4 sm:p-5"
 			} ${to ? "transition hover:-translate-y-0.5 hover:border-yepset-200 hover:shadow-[0_16px_40px_rgba(15,42,40,.09)]" : ""} ${className}`}
 		>
 			<div className="flex min-w-0 items-start justify-between gap-3">
@@ -40,7 +40,7 @@ export default function MetricCard({
 
 					<p
 						className={`mt-2 font-bold ${
-							size === "compact" ? "text-2xl" : "text-3xl"
+							size === "compact" ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"
 						} ${getValueToneClass(tone)}`}
 					>
 						{value}

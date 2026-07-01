@@ -25,7 +25,7 @@ export function TeamSelectionCard({
 		<PanelCard>
 			<div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 				<div className="min-w-0">
-					<h2 className="text-lg font-bold text-blue-900">Team Selection</h2>
+					<h2 className="text-lg font-bold text-slate-950">Team Selection</h2>
 
 					<div className="mt-2 flex flex-wrap gap-2">
 						<StatusBadge label={`Starters: ${starterCount}/11`} tone="neutral" />
@@ -40,7 +40,7 @@ export function TeamSelectionCard({
 
 				<div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
 					{isLineupLocked && totalSelectedCount > 0 && (
-						<button type="button" onClick={onGeneratePostClick} className="rounded-xl border border-blue-200 px-5 py-3 text-sm font-bold text-blue-800 hover:bg-blue-50">
+						<button type="button" onClick={onGeneratePostClick} className="rounded-xl border border-yepset-200 px-5 py-3 text-sm font-bold text-yepset-800 hover:bg-yepset-50">
 							Generate post
 						</button>
 					)}
@@ -51,7 +51,7 @@ export function TeamSelectionCard({
 						className={`w-full rounded-xl px-5 py-3 text-sm font-semibold shadow-sm disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto ${
 						isLineupLocked
 							? "bg-slate-900 text-white hover:bg-slate-800"
-							: "bg-blue-700 text-white hover:bg-blue-800"
+							: "bg-yepset-700 text-white hover:bg-yepset-800"
 						}`}
 					>
 						{isLineupLocked ? "Edit Team" : "Save Team"}
@@ -66,7 +66,7 @@ export function TeamSelectionCard({
 				</p>
 			)}
 
-			<div className="mt-6 min-w-0 rounded-xl border border-dashed border-gray-300 bg-green-50 p-3 text-gray-500 sm:p-4">
+			<div className="mt-4 min-w-0 rounded-xl border border-dashed border-yepset-200 bg-yepset-50 p-2 text-slate-500 sm:mt-6 sm:p-4">
 				<TeamPicker matchId={matchId} />
 			</div>
 		</PanelCard>

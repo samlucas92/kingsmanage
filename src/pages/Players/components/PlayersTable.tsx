@@ -29,8 +29,8 @@ export function PlayersTable({
 	}
 
 	return (
-		<div className="overflow-hidden rounded-xl bg-white shadow">
-			<div className="space-y-3 p-3 md:hidden">
+		<div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+			<div className="divide-y divide-slate-100 md:hidden">
 				{players.map((player) => (
 					<PlayerMobileCard
 						key={player.id}
@@ -131,87 +131,61 @@ function PlayerMobileCard({
 	onTogglePlayerActive: (playerId: string) => void;
 }) {
 	return (
-		<div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-			<div className="flex items-start justify-between gap-3">
-				<div className="min-w-0">
-					<p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-						#{player.number}
-					</p>
+		<div className="flex items-center gap-3 px-3 py-3">
+			<LinkButton to={`/players/${player.id}`} variant="plain" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-yepset-100 text-sm font-black text-yepset-900">
+				{getInitials(player.name)}
+			</LinkButton>
 
-					<LinkButton to={`/players/${player.id}`} variant="plain">
-						<span className="mt-1 block truncate text-lg font-bold text-blue-900">
-							{player.name}
-						</span>
-					</LinkButton>
+			<LinkButton to={`/players/${player.id}`} variant="plain" className="min-w-0 flex-1">
+				<span className="block truncate text-sm font-black text-slate-950">
+					{player.name}
+				</span>
+				<span className="mt-1 block truncate text-[11px] font-semibold text-slate-500">
+					#{player.number} · {player.positions.length > 0 ? player.positions.join(", ") : "No positions"}
+				</span>
+				<span className="mt-1 block text-[10px] font-bold text-yepset-700">
+					{player.appearances} appearances · {player.isActive ? "Active" : "Inactive"}
+				</span>
+			</LinkButton>
+
+			<LinkButton
+				to={`/players/${player.id}`}
+				variant="plain"
+				className="grid h-9 w-7 shrink-0 place-items-center text-xl text-yepset-700"
+			>
+				›
+			</LinkButton>
+
+			<details className="group relative shrink-0">
+				<summary className="grid h-9 w-7 cursor-pointer list-none place-items-center text-lg font-black text-slate-500">
+					⋮
+				</summary>
+				<div className="absolute right-0 z-10 mt-1 grid min-w-36 gap-1 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+					<button
+						type="button"
+						onClick={() => onEditPlayer(player)}
+						className="rounded-lg px-3 py-2 text-left text-sm font-bold text-slate-700 hover:bg-slate-50"
+					>
+						Edit player
+					</button>
+					<button
+						type="button"
+						onClick={() => onTogglePlayerActive(player.id)}
+						className="rounded-lg px-3 py-2 text-left text-sm font-bold text-slate-700 hover:bg-slate-50"
+					>
+						{player.isActive ? "Deactivate" : "Activate"}
+					</button>
 				</div>
-
-				<StatusBadge
-					label={player.isActive ? "Active" : "Inactive"}
-					tone={player.isActive ? "success" : "neutral"}
-				/>
-			</div>
-
-			<div className="mt-4 grid grid-cols-2 gap-2">
-				<div className="rounded-xl bg-slate-50 p-3 text-center">
-					<p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
-						Apps
-					</p>
-
-					<p className="mt-1 text-lg font-black text-slate-900">
-						{player.appearances}
-					</p>
-				</div>
-
-				<div className="rounded-xl bg-slate-50 p-3 text-center">
-					<p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
-						Positions
-					</p>
-
-					<p className="mt-1 text-lg font-black text-slate-900">
-						{player.positions.length}
-					</p>
-				</div>
-			</div>
-
-			<div className="mt-4 flex flex-wrap gap-2">
-				{player.positions.length === 0 ? (
-					<StatusBadge label="No positions" tone="neutral" />
-				) : (
-					player.positions.map((position) => (
-						<StatusBadge key={position} label={position} tone="info" />
-					))
-				)}
-			</div>
-
-			<div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
-				<LinkButton
-					to={`/players/${player.id}`}
-					variant="plain"
-					className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 text-center text-sm font-semibold text-blue-900 hover:bg-blue-100"
-				>
-					View
-				</LinkButton>
-
-				<button
-					type="button"
-					onClick={() => onEditPlayer(player)}
-					className="rounded-xl border border-slate-200 px-3 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-				>
-					Edit
-				</button>
-
-				<button
-					type="button"
-					onClick={() => onTogglePlayerActive(player.id)}
-					className={`rounded-xl border px-3 py-3 text-sm font-semibold ${
-						player.isActive
-							? "border-red-200 bg-red-50 text-red-800 hover:bg-red-100"
-							: "border-green-200 bg-green-50 text-green-800 hover:bg-green-100"
-					}`}
-				>
-					{player.isActive ? "Deactivate" : "Activate"}
-				</button>
-			</div>
+			</details>
 		</div>
 	);
+}
+
+function getInitials(name: string) {
+	return name
+		.split(/\s+/)
+		.filter(Boolean)
+		.slice(0, 2)
+		.map((part) => part[0]?.toUpperCase())
+		.join("");
 }

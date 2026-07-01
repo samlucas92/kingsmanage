@@ -281,8 +281,8 @@ export default function PlayerProfile() {
 	}
 
 	return (
-		<div className="space-y-6">
-			<LinkButton to="/players">← Back to players</LinkButton>
+		<div className="space-y-3 lg:space-y-6">
+			<LinkButton to="/players" className="hidden lg:inline-flex">← Back to players</LinkButton>
 
 			{playerLoadError && (
 				<div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -323,13 +323,17 @@ export default function PlayerProfile() {
 				</div>
 			)}
 
-			<div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+			<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
 				<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-					<div>
+					<div className="flex min-w-0 items-center gap-3">
+						<div className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-yepset-100 text-lg font-black text-yepset-900">
+							{player.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("")}
+						</div>
+						<div className="min-w-0">
 						<p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
 							Player Profile
 						</p>
-						<h1 className="text-2xl font-bold text-slate-900">
+						<h1 className="truncate text-xl font-black text-slate-950 sm:text-2xl">
 							{player.name}
 						</h1>
 						<div className="mt-3 flex flex-wrap items-center gap-2">
@@ -343,26 +347,27 @@ export default function PlayerProfile() {
 							{player.positions.map((position) => (
 								<span
 									key={position}
-									className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800"
+									className="rounded-full bg-yepset-50 px-3 py-1 text-xs font-semibold text-yepset-800"
 								>
 									{position}
 								</span>
 							))}
 						</div>
+						</div>
 					</div>
 
-					<div className="flex flex-wrap gap-2">
+					<div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
 						<button
 							type="button"
 							onClick={() => playerForm.openEditPlayerModal(player)}
-							className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-50"
+							className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold hover:bg-slate-50"
 						>
 							Edit
 						</button>
 						<button
 							type="button"
 							onClick={() => void togglePlayerActive(player.id)}
-							className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-50"
+							className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold hover:bg-slate-50"
 						>
 							{player.isActive ? "Deactivate" : "Activate"}
 						</button>
@@ -370,7 +375,7 @@ export default function PlayerProfile() {
 				</div>
 			</div>
 
-			<div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+			<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
 				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 					<div>
 						<p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -388,13 +393,13 @@ export default function PlayerProfile() {
 				</div>
 			</div>
 
-			<div className="grid gap-4 sm:grid-cols-3">
+			<div className="grid grid-cols-3 gap-2 sm:gap-4">
 				<MetricCard label="Career Apps" value={careerApps} />
 				<MetricCard label="Season Apps" value={seasonApps} />
 				<MetricCard label="Season Goals" value={seasonGoals} />
 			</div>
 
-			<div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+			<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
 				<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 					<div>
 						<h2 className="text-lg font-bold text-slate-900">
@@ -407,7 +412,7 @@ export default function PlayerProfile() {
 					<StatusBadge label={financeStatus.label} tone={financeStatus.tone} />
 				</div>
 
-				<div className="mt-4 grid gap-3 sm:grid-cols-4">
+				<div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
 					<MetricCard
 						label="Charged"
 						value={formatCurrency(financeAmountOwed)}
@@ -496,7 +501,7 @@ export default function PlayerProfile() {
 				</div>
 			</div>
 
-			<div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+			<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
 				<h2 className="text-lg font-bold text-slate-900">
 					Recent Season Appearances
 				</h2>

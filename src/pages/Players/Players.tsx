@@ -83,9 +83,9 @@ export default function Players() {
 		hasLoadedPlayers && players.length > 0 && filteredPlayers.length === 0;
 
 	return (
-		<div className="space-y-6">
-			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-				<div>
+		<div className="space-y-3 lg:space-y-6">
+			<div className="flex justify-end sm:items-center lg:justify-between">
+				<div className="hidden lg:block">
 					<h1 className="text-2xl font-bold text-slate-900">Players</h1>
 					<p className="text-sm text-slate-500">
 						Manage squad members and active status.
@@ -96,9 +96,9 @@ export default function Players() {
 					type="button"
 					onClick={playerForm.openAddPlayerModal}
 					disabled={isInitialLoading}
-					className="rounded-lg bg-blue-900 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+					className="rounded-xl bg-yepset-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-yepset-800 disabled:cursor-not-allowed disabled:bg-slate-300"
 				>
-					Add Player
+					+ Add player
 				</button>
 			</div>
 
