@@ -1,8 +1,15 @@
-export type ClubFileLinkedEntityType = "Post" | "Event" | "Player" | "ClubDocument";
+export type ClubFileLinkedEntityType =
+	| "Post"
+	| "Event"
+	| "Player"
+	| "ClubDocument"
+	| "ClubLogo"
+	| "PostTemplate"
+	| "RichTextDraft";
 
 export type ClubFileVisibility = "AuthenticatedUsers" | "AdminAndCoach";
 
-export type ClubFileStatus = "PendingUpload" | "Uploaded" | "Deleted";
+export type ClubFileStatus = "PendingUpload" | "Uploaded" | "Quarantined" | "Deleted";
 
 export type ClubFile = {
 	id: string;
@@ -22,6 +29,8 @@ export type ClubFile = {
 	createdAt: string;
 	updatedAt: string;
 	uploadedAt?: string | null;
+	quarantinedAt?: string | null;
+	quarantineReason?: string;
 	deletedAt?: string | null;
 	deletedByUserId?: string | null;
 };
@@ -42,10 +51,36 @@ export type FileUploadUrlResponse = {
 	expiresAtUtc: string;
 	uploadRequired?: boolean;
 	reusedStoredObject?: boolean;
+	storageWarning?: string;
 };
 
 export type FileDownloadUrlResponse = {
 	file: ClubFile;
 	downloadUrl: string;
 	expiresAtUtc: string;
+};
+
+export type FileStorageUsage = {
+	organizationId: string;
+	usedBytes: number;
+	quotaBytes: number;
+	remainingBytes: number;
+	usedPercent: number;
+	isNearLimit: boolean;
+	isAtLimit: boolean;
+	storedObjectCount: number;
+	pendingObjectCount: number;
+	orphanedObjectCount: number;
+};
+
+export type FileLifecycleAudit = {
+	id: string;
+	organizationId: string;
+	clubId?: string | null;
+	fileId?: string | null;
+	storedObjectId?: string | null;
+	userId?: string | null;
+	eventType: string;
+	detail: string;
+	createdAt: string;
 };

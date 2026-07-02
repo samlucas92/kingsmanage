@@ -47,6 +47,8 @@ export function GeneratePostModal({
 	const [isBusy, setIsBusy] = useState(false);
 	const [error, setError] = useState("");
 	const [editorRevision, setEditorRevision] = useState(0);
+	const [templateDraftId, setTemplateDraftId] = useState(() => crypto.randomUUID());
+	const [postDraftId] = useState(() => crypto.randomUUID());
 	const selectedTemplate = templates.find((template) => template.id === selectedId);
 	const values = useMemo(
 		() => buildTemplateValues(match, players, teamName),
@@ -178,6 +180,7 @@ export function GeneratePostModal({
 							<button type="button" onClick={() => {
 								setSelectedId("");
 								setDraft(defaultTemplate);
+								setTemplateDraftId(crypto.randomUUID());
 								setIsEditingTemplate(true);
 							}} className="rounded-lg border px-3 py-2 text-xs font-bold">New</button>
 							<button type="button" disabled={!selectedTemplate} onClick={() => {
@@ -204,7 +207,15 @@ export function GeneratePostModal({
 							<div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50 p-4">
 								<input value={draft.name} onChange={(event) => setDraft({...draft, name: event.target.value})} placeholder="Template name" className="w-full rounded-lg border p-2" />
 								<input value={draft.titleTemplate} onChange={(event) => setDraft({...draft, titleTemplate: event.target.value})} placeholder="Title template" className="w-full rounded-lg border p-2" />
-								<textarea value={draft.bodyTemplate} onChange={(event) => setDraft({...draft, bodyTemplate: event.target.value})} rows={9} className="w-full rounded-lg border p-2" />
+								<RichTextEditor
+									value={draft.bodyTemplate}
+									onChange={(bodyTemplate) => setDraft({ ...draft, bodyTemplate })}
+									placeholder="Template content"
+									imageOwner={{
+										linkedEntityType: "RichTextDraft",
+										linkedEntityId: templateDraftId,
+									}}
+								/>
 								<label className="flex gap-2 text-sm font-semibold"><input type="checkbox" checked={draft.isPinned} onChange={(event) => setDraft({...draft, isPinned: event.target.checked})} /> Pin generated posts</label>
 								<div className="flex gap-2">
 									<button type="button" disabled={isBusy} onClick={() => void saveTemplate()} className="rounded-lg bg-blue-700 px-3 py-2 text-sm font-bold text-white">Save template</button>
@@ -216,7 +227,16 @@ export function GeneratePostModal({
 								<label className="block text-sm font-bold">Post title<input value={title} onChange={(event) => setTitle(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 p-3 font-normal" /></label>
 								<div className="block text-sm font-bold">Post content
 									<div className="mt-2 font-normal">
-										<RichTextEditor key={editorRevision} value={body} onChange={setBody} placeholder="Matchday details" />
+										<RichTextEditor
+											key={editorRevision}
+											value={body}
+											onChange={setBody}
+											placeholder="Matchday details"
+											imageOwner={{
+												linkedEntityType: "RichTextDraft",
+												linkedEntityId: postDraftId,
+											}}
+										/>
 									</div>
 								</div>
 								<div className="rounded-xl border border-slate-200 bg-slate-50 p-4">

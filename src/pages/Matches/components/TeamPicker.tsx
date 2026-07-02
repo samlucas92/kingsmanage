@@ -6,6 +6,7 @@ import { TeamPitch } from "./team-picker/TeamPitch";
 import { TeamBench } from "./team-picker/TeamBench";
 import { AvailablePlayersPanel } from "./team-picker/AvailablePlayersPanel";
 import { getPositionFitLabel } from "./team-picker/PositionCompatibility";
+import { snapPitchOverlayToPointer } from "./team-picker/dragOverlay";
 import type { FormationPosition } from "./team-picker/Types";
 import { useTeamPicker } from "./team-picker/useTeamPicker";
 
@@ -52,6 +53,9 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 	const activePlayerInitials = activePlayerName
 		? teamPicker.getPlayerInitials(activePlayerName)
 		: "";
+	const activePlayerNumber = teamPicker.activeDragData
+		? teamPicker.getPlayerNumber(teamPicker.activeDragData.playerId)
+		: undefined;
 
 	const activePitchPlayer = teamPicker.activeDragData
 		? teamPicker.pitchPlayers.find(
@@ -223,21 +227,38 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 						</div>
 
 						<div className="flex min-w-0 flex-wrap items-center gap-2">
-							{teamPicker.sportDefinition.formations.map((formation) => (
-								<button
-									key={formation.key}
-									type="button"
-									onClick={() => teamPicker.applyFormation(formation.key)}
+							<label className="sm:hidden">
+								<span className="sr-only">Formation</span>
+								<select
+									value={teamPicker.selectedFormation}
+									onChange={(event) => teamPicker.applyFormation(event.target.value)}
 									disabled={teamPicker.isLineupLocked}
-									className={`rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-sm disabled:cursor-not-allowed disabled:opacity-50 ${
-										teamPicker.selectedFormation === formation.key
-											? "border-blue-700 bg-blue-700 text-white"
-											: "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-									}`}
+									className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-800 shadow-sm disabled:opacity-50"
 								>
-									{formation.name}
-								</button>
-							))}
+									{teamPicker.sportDefinition.formations.map((formation) => (
+										<option key={formation.key} value={formation.key}>
+											{formation.name}
+										</option>
+									))}
+								</select>
+							</label>
+							<div className="hidden flex-wrap items-center gap-2 sm:flex">
+								{teamPicker.sportDefinition.formations.map((formation) => (
+									<button
+										key={formation.key}
+										type="button"
+										onClick={() => teamPicker.applyFormation(formation.key)}
+										disabled={teamPicker.isLineupLocked}
+										className={`rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-sm disabled:cursor-not-allowed disabled:opacity-50 ${
+											teamPicker.selectedFormation === formation.key
+												? "border-blue-700 bg-blue-700 text-white"
+												: "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+										}`}
+									>
+										{formation.name}
+									</button>
+								))}
+							</div>
 
 							<span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
 								{teamPicker.pitchPlayers.length}/{teamPicker.sportDefinition.playersPerSide}
@@ -264,6 +285,7 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 								openMenuPlayerId={teamPicker.openMenu?.playerId}
 								getPositionOccupant={teamPicker.getPositionOccupant}
 								getPlayerName={teamPicker.getPlayerName}
+								getPlayerNumber={teamPicker.getPlayerNumber}
 								getPlayerPositions={teamPicker.getPlayerPositions}
 								getPlayerInitials={teamPicker.getPlayerInitials}
 								onOpenPlayerMenu={teamPicker.openPlayerMenu}
@@ -363,11 +385,19 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 				</>
 			)}
 
-			<DragOverlay dropAnimation={null}>
+			<DragOverlay
+				dropAnimation={null}
+				modifiers={
+					activeOverlayVariant === "pitch"
+						? [snapPitchOverlayToPointer]
+						: undefined
+				}
+			>
 				{teamPicker.activeDragData ? (
 					<DragOverlayPlayer
 						name={activePlayerName}
 						initials={activePlayerInitials}
+						number={activePlayerNumber}
 						variant={activeOverlayVariant}
 					/>
 				) : null}

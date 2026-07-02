@@ -27,6 +27,7 @@ export default function PostFormModal({
 	const [isPinned, setIsPinned] = useState(false);
 	const [error, setError] = useState("");
 	const [isSaving, setIsSaving] = useState(false);
+	const [draftId, setDraftId] = useState(() => crypto.randomUUID());
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -39,6 +40,7 @@ export default function PostFormModal({
 		setIsPinned(post?.isPinned ?? false);
 		setError("");
 		setIsSaving(false);
+		if (!post) setDraftId(crypto.randomUUID());
 	}, [isOpen, post]);
 
 	if (!isOpen) {
@@ -175,6 +177,10 @@ export default function PostFormModal({
 							value={body}
 							onChange={setBody}
 							placeholder="Write the update players should see."
+							imageOwner={{
+								linkedEntityType: "RichTextDraft",
+								linkedEntityId: draftId,
+							}}
 						/>
 					</div>
 

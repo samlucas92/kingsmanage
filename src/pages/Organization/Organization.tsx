@@ -2,6 +2,9 @@ import { useEffect, useState, type FormEvent } from "react";
 import { organizationApi } from "../../services/organizationApi";
 import type { Organization as OrganizationModel, SportsClub } from "../../types/organization";
 import { sportDefinitions } from "../../constants/sports";
+import { getManagedImageValidationError, uploadLinkedFile } from "../../services/fileService";
+import { filesApi } from "../../services/filesApi";
+import ManagedFileImage from "../../components/files/ManagedFileImage";
 
 const sports = Object.keys(sportDefinitions);
 
@@ -60,6 +63,36 @@ export default function Organization() {
 		}
 	}
 
+	async function changeClubLogo(club: SportsClub, file: File) {
+		const validationError = await getManagedImageValidationError(file, "club-logo");
+		if (validationError) {
+			setError(validationError);
+			return;
+		}
+		try {
+			const uploaded = await uploadLinkedFile({
+				file,
+				linkedEntityType: "ClubLogo",
+				linkedEntityId: club.id,
+			});
+			const updated = await filesApi.assignClubLogo(uploaded.id);
+			setClubs((current) => current.map((item) => item.id === updated.id ? updated : item));
+			setError("");
+		} catch (saveError) {
+			setError(saveError instanceof Error ? saveError.message : "Failed to update club logo.");
+		}
+	}
+
+	async function removeClubLogo(club: SportsClub) {
+		try {
+			const updated = await filesApi.removeClubLogo(club.id);
+			setClubs((current) => current.map((item) => item.id === updated.id ? updated : item));
+			setError("");
+		} catch (saveError) {
+			setError(saveError instanceof Error ? saveError.message : "Failed to remove club logo.");
+		}
+	}
+
 	if (isLoading) return <p className="text-sm text-slate-500">Loading organization...</p>;
 
 	return (
@@ -87,8 +120,8 @@ export default function Organization() {
 				<div className="grid gap-4 md:grid-cols-2">
 					{clubs.map((club) => (
 						<article key={club.id} className="surface-card p-5 transition hover:border-yepset-200">
-							<div className="flex items-start justify-between gap-3"><div><h3 className="font-bold text-slate-900">{club.name}</h3><p className="mt-1 text-sm text-slate-500">{labelSport(club.sportKey)} · {club.slug}</p></div><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${club.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>{club.isActive ? "Active" : "Archived"}</span></div>
-							<div className="mt-5 flex gap-2"><button onClick={() => { setEditingClub(club); setIsCreating(false); }} className="btn-secondary">Edit</button><button onClick={() => void toggleClub(club)} className="btn-secondary">{club.isActive ? "Archive" : "Restore"}</button></div>
+							<div className="flex items-start justify-between gap-3"><div className="flex items-center gap-3">{club.logoFileId ? <ManagedFileImage fileId={club.logoFileId} alt={`${club.name} logo`} className="h-16 w-16 rounded-xl object-contain" /> : <div className="grid h-16 w-16 place-items-center rounded-xl bg-yepset-100 text-xl font-black text-yepset-700">{club.name.charAt(0)}</div>}<div><h3 className="font-bold text-slate-900">{club.name}</h3><p className="mt-1 text-sm text-slate-500">{labelSport(club.sportKey)} · {club.slug}</p></div></div><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${club.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>{club.isActive ? "Active" : "Archived"}</span></div>
+							<div className="mt-5 flex flex-wrap gap-2"><button onClick={() => { setEditingClub(club); setIsCreating(false); }} className="btn-secondary">Edit</button><label className="btn-secondary cursor-pointer">Change logo<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void changeClubLogo(club, file); event.target.value = ""; }} /></label>{club.logoFileId && <button onClick={() => void removeClubLogo(club)} className="btn-secondary text-red-700">Remove logo</button>}<button onClick={() => void toggleClub(club)} className="btn-secondary">{club.isActive ? "Archive" : "Restore"}</button></div>
 						</article>
 					))}
 				</div>

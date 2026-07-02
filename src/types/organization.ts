@@ -13,6 +13,7 @@ export type SportsClub = {
 	name: string;
 	slug: string;
 	sportKey: string;
+	logoFileId?: string | null;
 	isActive: boolean;
 	createdAt: string;
 	updatedAt: string;

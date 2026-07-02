@@ -42,6 +42,19 @@ describe("rich text compatibility", () => {
 		expect(isRichText(ensureRichText("Generated post"))).toBe(true);
 	});
 
+	it("treats an accessible embedded image as content", () => {
+		const value = serializeRichText([
+			{
+				type: "image",
+				fileId: "file-1",
+				alt: "Team celebration",
+				children: [{ text: "" }],
+			},
+		]);
+
+		expect(isRichTextEmpty(value)).toBe(false);
+	});
+
 	it("turns a generated location name into a structured link", () => {
 		const value = ensureRichTextWithLink(
 			"Location: The Rec",

@@ -3,6 +3,7 @@ import type { Descendant } from "slate";
 import type { RichTextElement, RichTextLeaf } from "../../types/slate";
 import { deserializeRichText, isRichText } from "../../utils/richText";
 import PostBody from "../posts/PostBody";
+import ManagedFileImage from "../files/ManagedFileImage";
 
 export default function RichTextContent({ value, className = "", inverted = false }: { value: string; className?: string; inverted?: boolean }) {
 	if (!isRichText(value)) {
@@ -29,6 +30,10 @@ function NodeView({ node, inverted }: { node: Descendant; inverted: boolean }) {
 				? <a href={safeUrl} target="_blank" rel="noreferrer" className={`font-semibold underline ${inverted ? "text-white" : "text-blue-700"}`}>{children}</a>
 				: <span>{children}</span>;
 		}
+		case "image":
+			return element.fileId
+				? <figure><ManagedFileImage fileId={element.fileId} alt={element.alt ?? ""} className="max-h-[32rem] w-full rounded-xl object-contain" /></figure>
+				: null;
 		default: return <p>{children}</p>;
 	}
 }

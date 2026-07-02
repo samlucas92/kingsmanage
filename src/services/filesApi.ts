@@ -4,8 +4,11 @@ import type {
 	ClubFileLinkedEntityType,
 	CreateFileUploadUrlRequest,
 	FileDownloadUrlResponse,
+	FileLifecycleAudit,
+	FileStorageUsage,
 	FileUploadUrlResponse,
 } from "../types/files";
+import type { SportsClub } from "../types/organization";
 
 export const filesApi = {
 	getFilesForLinkedEntity: (
@@ -23,6 +26,18 @@ export const filesApi = {
 
 	getDownloadUrl: (id: string) =>
 		apiClient.get<FileDownloadUrlResponse>(`/files/${id}/download-url`),
+
+	getStorageUsage: () =>
+		apiClient.get<FileStorageUsage>("/files/storage-usage"),
+
+	getAudit: (limit = 100) =>
+		apiClient.get<FileLifecycleAudit[]>(`/files/audit?limit=${limit}`),
+
+	assignClubLogo: (fileId: string) =>
+		apiClient.post<SportsClub>(`/files/${fileId}/assign-club-logo`, {}),
+
+	removeClubLogo: (clubId: string) =>
+		apiClient.delete<SportsClub>(`/files/club-logo/${clubId}`),
 
 	deleteFile: (id: string) => apiClient.delete<void>(`/files/${id}`),
 };

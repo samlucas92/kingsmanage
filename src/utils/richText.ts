@@ -82,7 +82,12 @@ function replaceTextWithLink(
 
 export function richTextToPlainText(value: string) {
 	const nodes = deserializeRichText(value);
-	return nodes.map((node) => Node.string(node)).join("\n").trim();
+	return nodes.map((node) => {
+		if (!Text.isText(node) && node.type === "image") {
+			return node.alt?.trim() || "Image";
+		}
+		return Node.string(node);
+	}).join("\n").trim();
 }
 
 export function isRichText(value: string) {

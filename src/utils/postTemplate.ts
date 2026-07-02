@@ -55,10 +55,29 @@ export function buildTemplateValues(
 }
 
 export function applyPostTemplate(template: ClubPostTemplate, values: PostTemplateValues) {
-	const replace = (source: string) =>
+	const replaceText = (source: string) =>
 		source.replace(/\{\{(\w+)\}\}/g, (placeholder, key: keyof PostTemplateValues) =>
 			key in values ? values[key] : placeholder
 		);
+	const replace = (source: string) => {
+		if (!source.startsWith("yepset-richtext:v1:")) return replaceText(source);
+		try {
+			const nodes = JSON.parse(source.slice("yepset-richtext:v1:".length));
+			const visit = (value: unknown): unknown => {
+				if (typeof value === "string") return replaceText(value);
+				if (Array.isArray(value)) return value.map(visit);
+				if (value && typeof value === "object") {
+					return Object.fromEntries(
+						Object.entries(value).map(([key, child]) => [key, visit(child)])
+					);
+				}
+				return value;
+			};
+			return `yepset-richtext:v1:${JSON.stringify(visit(nodes))}`;
+		} catch {
+			return replaceText(source);
+		}
+	};
 
 	return {
 		title: replace(template.titleTemplate),

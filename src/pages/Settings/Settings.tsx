@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useAuthStore } from "../../stores/auth";
+import { filesApi } from "../../services/filesApi";
+import { formatFileSize } from "../../services/fileService";
+import type { FileStorageUsage } from "../../types/files";
 
 export default function Settings() {
 	const currentUser = useAuthStore((state) => state.currentUser);
@@ -12,6 +15,35 @@ export default function Settings() {
 	const [error, setError] = useState("");
 	const [successMessage, setSuccessMessage] = useState("");
 	const [isSaving, setIsSaving] = useState(false);
+	const [storageUsage, setStorageUsage] = useState<FileStorageUsage | null>(null);
+	const [storageError, setStorageError] = useState("");
+	const isAdmin = currentUser?.role === "Admin";
+
+	useEffect(() => {
+		if (!isAdmin) {
+			return;
+		}
+
+		let isMounted = true;
+		filesApi
+			.getStorageUsage()
+			.then((usage) => {
+				if (isMounted) {
+					setStorageUsage(usage);
+				}
+			})
+			.catch((error) => {
+				if (isMounted) {
+					setStorageError(
+						error instanceof Error ? error.message : "Unable to load storage usage."
+					);
+				}
+			});
+
+		return () => {
+			isMounted = false;
+		};
+	}, [isAdmin]);
 
 	async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -149,6 +181,70 @@ export default function Settings() {
 					</form>
 				</section>
 			</div>
+
+			{isAdmin && (
+				<section className="surface-card p-4 sm:p-6">
+					<div className="flex flex-wrap items-start justify-between gap-3">
+						<div>
+							<h2 className="text-lg font-bold text-slate-900">File storage</h2>
+							<p className="mt-1 text-sm text-slate-500">
+								Organization storage includes uploaded, pending and retained orphaned files.
+							</p>
+						</div>
+						{storageUsage?.isNearLimit && (
+							<span className={`rounded-full px-3 py-1 text-xs font-bold ${
+								storageUsage.isAtLimit
+									? "bg-red-100 text-red-700"
+									: "bg-amber-100 text-amber-800"
+							}`}>
+								{storageUsage.isAtLimit ? "Storage full" : "Approaching limit"}
+							</span>
+						)}
+					</div>
+
+					{storageError && (
+						<p className="mt-4 text-sm font-semibold text-red-700">{storageError}</p>
+					)}
+
+					{storageUsage && (
+						<div className="mt-5 space-y-4">
+							<div>
+								<div className="flex justify-between gap-3 text-sm font-semibold text-slate-700">
+									<span>{formatFileSize(storageUsage.usedBytes)} used</span>
+									<span>{formatFileSize(storageUsage.quotaBytes)} allowance</span>
+								</div>
+								<div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-100">
+									<div
+										className={`h-full rounded-full ${
+											storageUsage.isAtLimit
+												? "bg-red-500"
+												: storageUsage.isNearLimit
+													? "bg-amber-500"
+													: "bg-yepset-600"
+										}`}
+										style={{ width: `${Math.min(100, storageUsage.usedPercent)}%` }}
+									/>
+								</div>
+							</div>
+
+							<div className="grid gap-3 sm:grid-cols-3">
+								<ProfileRow
+									label="Stored objects"
+									value={String(storageUsage.storedObjectCount)}
+								/>
+								<ProfileRow
+									label="Pending or quarantined"
+									value={String(storageUsage.pendingObjectCount)}
+								/>
+								<ProfileRow
+									label="Awaiting cleanup"
+									value={String(storageUsage.orphanedObjectCount)}
+								/>
+							</div>
+						</div>
+					)}
+				</section>
+			)}
 
 			<section className="hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:block">
 				<h2 className="text-lg font-bold text-slate-900">Future account options</h2>

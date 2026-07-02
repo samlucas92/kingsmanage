@@ -18,6 +18,7 @@ interface TeamPitchProps {
 	openMenuPlayerId?: string;
 	getPositionOccupant: (positionIndex: number) => SelectedPlayer | undefined;
 	getPlayerName: (playerId: string) => string;
+	getPlayerNumber: (playerId: string) => number | undefined;
 	getPlayerPositions: (playerId: string) => string[];
 	getPlayerInitials: (name: string) => string;
 	onOpenPlayerMenu: (
@@ -39,6 +40,7 @@ export function TeamPitch({
 	openMenuPlayerId,
 	getPositionOccupant,
 	getPlayerName,
+	getPlayerNumber,
 	getPlayerPositions,
 	getPlayerInitials,
 	onOpenPlayerMenu,
@@ -51,7 +53,7 @@ export function TeamPitch({
 	return (
 		<div
 			ref={pitchRef}
-			className={`relative h-[520px] w-full min-w-0 overflow-hidden rounded-xl border-4 shadow-sm transition sm:h-[560px] xl:h-[580px] ${surface === "netball-court" ? "bg-blue-700" : surface === "cricket-field" ? "bg-green-600" : "bg-green-700"} ${
+			className={`relative h-[480px] w-full min-w-0 overflow-hidden rounded-xl border-4 shadow-sm transition sm:h-[560px] xl:h-[580px] ${surface === "netball-court" ? "bg-blue-700" : surface === "cricket-field" ? "bg-green-600" : "bg-green-700"} ${
 				isOverPitch
 					? hasAvailablePosition || hoveredSwapTargetPlayerId
 						? "border-yellow-300"
@@ -71,18 +73,20 @@ export function TeamPitch({
 				const isHovered = hoveredFormationIndex === index;
 				const occupant = getPositionOccupant(index);
 
+				if (occupant) {
+					return null;
+				}
+
 				return (
 					<button
 						key={`${position.label}-${position.x}-${position.y}-${index}`}
 						type="button"
-						disabled={isLineupLocked || Boolean(occupant)}
+						disabled={isLineupLocked}
 						onClick={() => onOpenMobilePositionSelector?.(index)}
-						className={`absolute z-10 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border text-[10px] font-bold transition sm:h-11 sm:w-11 sm:text-[11px] ${
+						className={`absolute z-10 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center text-[10px] font-black transition sm:h-13 sm:w-13 sm:text-[11px] ${
 							isHovered
-								? "scale-110 border-yellow-300 bg-yellow-300 text-slate-900"
-								: occupant
-									? "pointer-events-none border-white/60 bg-white/20 text-white/80"
-									: "border-white/70 bg-white/10 text-white hover:scale-105 hover:border-yellow-300 hover:bg-yellow-300 hover:text-slate-900 disabled:pointer-events-none"
+								? "scale-110 text-yellow-300"
+								: "text-white/85 hover:scale-105 hover:text-yellow-300 disabled:pointer-events-none"
 						}`}
 						style={{
 							left: `${position.x}%`,
@@ -90,7 +94,11 @@ export function TeamPitch({
 						}}
 						aria-label={`Select player for ${position.label}`}
 					>
-						{occupant ? position.label : "+"}
+						<ShirtMarker
+							label="+"
+							subLabel={position.label}
+							filled={isHovered}
+						/>
 					</button>
 				);
 			})}
@@ -115,6 +123,7 @@ export function TeamPitch({
 						playerId={selectedPlayer.playerId}
 						name={playerName}
 						initials={getPlayerInitials(playerName)}
+						number={getPlayerNumber(selectedPlayer.playerId)}
 						x={displayPosition.x}
 						y={displayPosition.y}
 						disabled={isLineupLocked}
@@ -145,4 +154,36 @@ function SurfaceMarkings({ surface }: { surface: SportSurface }) {
 		return <><div className="absolute inset-4 border-2 border-white/80" />{[22, 50, 78].map((top) => <div key={top} className="absolute inset-x-4 border-t-2 border-white/70" style={{ top: `${top}%` }} />)}</>;
 	}
 	return <><div className="absolute inset-4 rounded-lg border-2 border-white/80" /><div className="absolute inset-x-4 top-1/2 border-t-2 border-white/80" /><div className="absolute left-1/2 top-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/80" /><div className="absolute bottom-4 left-1/2 h-32 w-56 -translate-x-1/2 border-2 border-b-0 border-white/80" /></>;
+}
+
+function ShirtMarker({
+	label,
+	subLabel,
+	filled = false,
+}: {
+	label: string;
+	subLabel?: string;
+	filled?: boolean;
+}) {
+	return (
+		<span className="relative block h-full w-full drop-shadow-md" aria-hidden="true">
+			<svg viewBox="0 0 64 64" className="absolute inset-0 h-full w-full">
+				<path
+					d="M20 6 27 2h10l7 4 15 8-8 15-7-4v35H20V25l-7 4-8-15Z"
+					fill={filled ? "currentColor" : "rgba(255,255,255,.14)"}
+					stroke="currentColor"
+					strokeWidth="2.5"
+					strokeLinejoin="round"
+				/>
+			</svg>
+			<span className={`absolute inset-x-0 top-[22%] text-center leading-none ${filled ? "text-slate-950" : "text-white"}`}>
+				{label}
+			</span>
+			{subLabel && label === "+" && (
+				<span className="absolute inset-x-0 bottom-[12%] text-center text-[7px] leading-none text-white/90">
+					{subLabel}
+				</span>
+			)}
+		</span>
+	);
 }

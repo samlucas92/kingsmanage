@@ -1,9 +1,17 @@
 import { useCallback, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { createEditor, Editor, Element as SlateElement, Range, Transforms, type BaseRange } from "slate";
 import { withHistory } from "slate-history";
-import { Editable, Slate, useSlate, withReact, type RenderElementProps, type RenderLeafProps } from "slate-react";
+import { Editable, ReactEditor, Slate, useFocused, useSelected, useSlate, useSlateStatic, withReact, type RenderElementProps, type RenderLeafProps } from "slate-react";
 
 import { deserializeRichText, serializeRichText } from "../../utils/richText";
+import { getManagedImageValidationError, uploadLinkedFile } from "../../services/fileService";
+import type { ClubFileLinkedEntityType } from "../../types/files";
+import ManagedFileImage from "../files/ManagedFileImage";
+
+export type RichTextImageOwner = {
+	linkedEntityType: ClubFileLinkedEntityType;
+	linkedEntityId: string;
+};
 
 type Props = {
 	value: string;
@@ -11,18 +19,25 @@ type Props = {
 	placeholder?: string;
 	compact?: boolean;
 	onSubmit?: () => void;
+	imageOwner?: RichTextImageOwner;
 };
 
-export default function RichTextEditor({ value, onChange, placeholder, compact = false, onSubmit }: Props) {
+export default function RichTextEditor({ value, onChange, placeholder, compact = false, onSubmit, imageOwner }: Props) {
 	const editor = useMemo(() => {
 		const currentEditor = withHistory(withReact(createEditor()));
 		const isInline = currentEditor.isInline;
 		currentEditor.isInline = (element) =>
 			element.type === "link" || isInline(element);
+		const isVoid = currentEditor.isVoid;
+		currentEditor.isVoid = (element) =>
+			element.type === "image" || isVoid(element);
 		return currentEditor;
 	}, []);
 	const initialValue = useMemo(() => deserializeRichText(value), [value]);
-	const renderElement = useCallback((props: RenderElementProps) => <Element {...props} />, []);
+	const renderElement = useCallback(
+		(props: RenderElementProps) => <Element {...props} imageOwner={imageOwner} />,
+		[imageOwner]
+	);
 	const renderLeaf = useCallback((props: RenderLeafProps) => <Leaf {...props} />, []);
 
 	function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -35,7 +50,7 @@ export default function RichTextEditor({ value, onChange, placeholder, compact =
 	return (
 		<div className="overflow-hidden rounded-xl border border-slate-300 bg-white focus-within:border-yepset-600 focus-within:ring-2 focus-within:ring-yepset-100">
 			<Slate editor={editor} initialValue={initialValue} onChange={(nodes) => onChange(serializeRichText(nodes))}>
-				<Toolbar compact={compact} />
+				<Toolbar compact={compact} imageOwner={imageOwner} />
 				<Editable
 					renderElement={renderElement}
 					renderLeaf={renderLeaf}
@@ -49,12 +64,17 @@ export default function RichTextEditor({ value, onChange, placeholder, compact =
 	);
 }
 
-function Toolbar({ compact = false }: { compact?: boolean }) {
+function Toolbar({ compact = false, imageOwner }: { compact?: boolean; imageOwner?: RichTextImageOwner }) {
 	const editor = useSlate();
 	const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
 	const [linkText, setLinkText] = useState("");
 	const [linkUrl, setLinkUrl] = useState("");
 	const [linkError, setLinkError] = useState("");
+	const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+	const [imageFile, setImageFile] = useState<File | null>(null);
+	const [imageAlt, setImageAlt] = useState("");
+	const [imageError, setImageError] = useState("");
+	const [isUploadingImage, setIsUploadingImage] = useState(false);
 	const savedSelection = useRef<BaseRange | null>(null);
 
 	function openLinkModal() {
@@ -89,6 +109,48 @@ function Toolbar({ compact = false }: { compact?: boolean }) {
 		setIsLinkModalOpen(false);
 	}
 
+	async function insertImage() {
+		if (!imageOwner || !imageFile) {
+			setImageError("Choose an image.");
+			return;
+		}
+		if (!imageAlt.trim()) {
+			setImageError("Describe the image for people using screen readers.");
+			return;
+		}
+
+		setIsUploadingImage(true);
+		setImageError("");
+		try {
+			const validationError = await getManagedImageValidationError(imageFile, "editor");
+			if (validationError) {
+				setImageError(validationError);
+				return;
+			}
+			const uploaded = await uploadLinkedFile({
+				file: imageFile,
+				linkedEntityType: imageOwner.linkedEntityType,
+				linkedEntityId: imageOwner.linkedEntityId,
+			});
+			Transforms.insertNodes(editor, [
+				{
+					type: "image",
+					fileId: uploaded.id,
+					alt: imageAlt.trim(),
+					children: [{ text: "" }],
+				},
+				{ type: "paragraph", children: [{ text: "" }] },
+			]);
+			setIsImageModalOpen(false);
+			setImageFile(null);
+			setImageAlt("");
+		} catch (reason) {
+			setImageError(reason instanceof Error ? reason.message : "Could not upload image.");
+		} finally {
+			setIsUploadingImage(false);
+		}
+	}
+
 	return (
 		<>
 			<div className="flex items-center gap-1 overflow-x-auto border-b border-slate-200 bg-slate-50 p-2">
@@ -102,6 +164,13 @@ function Toolbar({ compact = false }: { compact?: boolean }) {
 					event.preventDefault();
 					openLinkModal();
 				}} className={toolbarButtonClass(false)} aria-label="Insert link" title="Insert link"><LinkIcon /></button>
+				{imageOwner && !compact && (
+					<button type="button" onMouseDown={(event) => {
+						event.preventDefault();
+						setImageError("");
+						setIsImageModalOpen(true);
+					}} className={toolbarButtonClass(false)} aria-label="Insert image" title="Insert image"><ImageIcon /></button>
+				)}
 			</div>
 			{isLinkModalOpen && (
 				<div className="fixed inset-0 z-[70] grid place-items-center bg-slate-950/45 p-4">
@@ -125,6 +194,26 @@ function Toolbar({ compact = false }: { compact?: boolean }) {
 						<div className="mt-5 flex justify-end gap-2">
 							<button type="button" onClick={() => setIsLinkModalOpen(false)} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700">Cancel</button>
 							<button type="button" onClick={insertLink} className="rounded-xl bg-yepset-700 px-4 py-2 text-sm font-bold text-white hover:bg-yepset-800">Insert link</button>
+						</div>
+					</div>
+				</div>
+			)}
+			{isImageModalOpen && (
+				<div className="fixed inset-0 z-[70] grid place-items-center bg-slate-950/45 p-4">
+					<div role="dialog" aria-modal="true" aria-labelledby="image-dialog-title" className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+						<h2 id="image-dialog-title" className="text-xl font-black text-slate-950">Insert image</h2>
+						<div className="mt-5 space-y-4">
+							<label className="block text-sm font-bold text-slate-700">Image
+								<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setImageFile(event.target.files?.[0] ?? null)} className="mt-1 block w-full text-sm font-normal" />
+							</label>
+							<label className="block text-sm font-bold text-slate-700">Image description
+								<input value={imageAlt} onChange={(event) => setImageAlt(event.target.value)} placeholder="Players celebrating after the match" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal outline-none focus:border-yepset-600 focus:ring-2 focus:ring-yepset-100" />
+							</label>
+							{imageError && <p className="rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">{imageError}</p>}
+						</div>
+						<div className="mt-5 flex justify-end gap-2">
+							<button type="button" onClick={() => setIsImageModalOpen(false)} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700">Cancel</button>
+							<button type="button" disabled={isUploadingImage} onClick={() => void insertImage()} className="rounded-xl bg-yepset-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">{isUploadingImage ? "Uploading..." : "Insert image"}</button>
 						</div>
 					</div>
 				</div>
@@ -232,8 +321,9 @@ function UnderlineIcon() { return <Icon><path d="M6 4v7a6 6 0 0 0 12 0V4M5 21h14
 function BulletedListIcon() { return <Icon><path d="M9 6h11M9 12h11M9 18h11" /><path d="M4 6h.01M4 12h.01M4 18h.01" /></Icon>; }
 function NumberedListIcon() { return <Icon><path d="M10 6h10M10 12h10M10 18h10M4 4h1v4M4 11h2l-2 3h2M4 17h2v3H4" /></Icon>; }
 function LinkIcon() { return <Icon><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2" /></Icon>; }
+function ImageIcon() { return <Icon><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="8.5" cy="9" r="1.5" /><path d="m21 15-5-5L5 20" /></Icon>; }
 
-function Element({ attributes, children, element }: RenderElementProps) {
+function Element({ attributes, children, element, imageOwner }: RenderElementProps & { imageOwner?: RichTextImageOwner }) {
 	switch (element.type) {
 		case "heading-one": return <h1 {...attributes} className="text-2xl font-black">{children}</h1>;
 		case "heading-two": return <h2 {...attributes} className="text-lg font-bold">{children}</h2>;
@@ -242,8 +332,69 @@ function Element({ attributes, children, element }: RenderElementProps) {
 		case "numbered-list": return <ol {...attributes} className="list-decimal pl-6">{children}</ol>;
 		case "list-item": return <li {...attributes}>{children}</li>;
 		case "link": return <a {...attributes} href={element.url} className="text-yepset-700 underline">{children}</a>;
+		case "image": return <ImageElement attributes={attributes} element={element} imageOwner={imageOwner}>{children}</ImageElement>;
 		default: return <p {...attributes}>{children}</p>;
 	}
+}
+
+function ImageElement({ attributes, children, element, imageOwner }: RenderElementProps & { imageOwner?: RichTextImageOwner }) {
+	const editor = useSlateStatic();
+	const selected = useSelected();
+	const focused = useFocused();
+	const [error, setError] = useState("");
+	const [isReplacing, setIsReplacing] = useState(false);
+
+	async function remove() {
+		if (!element.fileId) return;
+		Transforms.removeNodes(editor, { at: ReactEditor.findPath(editor, element) });
+	}
+
+	async function replace(file: File) {
+		if (!imageOwner || !element.fileId) return;
+		setIsReplacing(true);
+		setError("");
+		try {
+			const validationError = await getManagedImageValidationError(file, "editor");
+			if (validationError) {
+				setError(validationError);
+				return;
+			}
+			const uploaded = await uploadLinkedFile({
+				file,
+				linkedEntityType: imageOwner.linkedEntityType,
+				linkedEntityId: imageOwner.linkedEntityId,
+			});
+			Transforms.setNodes(
+				editor,
+				{ fileId: uploaded.id, alt: element.alt || file.name },
+				{ at: ReactEditor.findPath(editor, element) }
+			);
+		} catch (reason) {
+			setError(reason instanceof Error ? reason.message : "Could not replace image.");
+		} finally {
+			setIsReplacing(false);
+		}
+	}
+
+	return (
+		<figure {...attributes} className={`my-3 rounded-xl border p-2 ${selected && focused ? "border-yepset-500 ring-2 ring-yepset-100" : "border-slate-200"}`}>
+			{children}
+			<div contentEditable={false}>
+				{element.fileId && <ManagedFileImage fileId={element.fileId} alt={element.alt ?? ""} className="max-h-96 w-full rounded-lg object-contain" />}
+				<input
+					value={element.alt ?? ""}
+					onChange={(event) => Transforms.setNodes(editor, { alt: event.target.value }, { at: ReactEditor.findPath(editor, element) })}
+					aria-label="Image description"
+					className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600"
+				/>
+				<div className="mt-2 flex flex-wrap gap-2">
+					{imageOwner && <label className="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700">Replace<input type="file" accept="image/jpeg,image/png,image/webp" disabled={isReplacing} onChange={(event) => { const file = event.target.files?.[0]; if (file) void replace(file); }} className="sr-only" /></label>}
+					<button type="button" onClick={() => void remove()} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-700">Remove</button>
+				</div>
+				{error && <p className="mt-2 text-xs font-semibold text-red-700">{error}</p>}
+			</div>
+		</figure>
+	);
 }
 
 function Leaf({ attributes, children, leaf }: RenderLeafProps) {

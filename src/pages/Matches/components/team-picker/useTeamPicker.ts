@@ -88,6 +88,11 @@ export function useTeamPicker(matchId: string) {
 		return player?.positions ?? [];
 	}
 
+	function getPlayerNumber(playerId: string) {
+		const player = players.find((player) => player.id === playerId);
+		return player?.number;
+	}
+
 	function isPlayerRecommendedForPosition(
 		playerId: string,
 		positionLabel: string
@@ -1063,6 +1068,7 @@ export function useTeamPicker(matchId: string) {
 		benchPlayers,
 		openMenuPlayerIsSelected,
 		getPlayerName,
+		getPlayerNumber,
 		getPlayerPositions,
 		isPlayerRecommendedForPosition,
 		getPlayerInitials,

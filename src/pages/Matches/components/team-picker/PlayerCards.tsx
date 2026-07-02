@@ -105,6 +105,7 @@ interface SelectedPitchPlayerProps {
 	playerId: string;
 	name: string;
 	initials: string;
+	number?: number;
 	x: number;
 	y: number;
 	disabled: boolean;
@@ -119,6 +120,7 @@ export function SelectedPitchPlayer({
 	playerId,
 	name,
 	initials,
+	number,
 	x,
 	y,
 	disabled,
@@ -184,31 +186,47 @@ export function SelectedPitchPlayer({
 			ref={setNodeRef}
 			style={style}
 			title={title}
-			className={`absolute z-20 flex h-12 w-12 items-center justify-center rounded-full border-2 text-xs font-bold shadow-lg transition sm:h-13 sm:w-13 ${
+			className={`absolute z-20 flex h-[4.25rem] w-16 items-start justify-center text-xs font-bold transition sm:h-[4.5rem] sm:w-[4.5rem] ${
 				isSwapTarget
-					? "scale-110 border-yellow-300 bg-yellow-300 text-slate-900 ring-4 ring-yellow-200"
+					? "scale-110 text-yellow-300"
 					: isMenuOpen
-						? "border-yellow-300 bg-yellow-300 text-slate-900"
+						? "text-yellow-300"
 						: isOutOfPosition
-							? "border-amber-300 bg-amber-500 text-white"
-							: "border-white bg-blue-700 text-white"
+							? "text-amber-400"
+							: "text-blue-700"
 			} ${disabled ? "opacity-90" : ""} ${isDragging ? "opacity-20" : ""}`}
+			data-testid="pitch-player-shirt"
 		>
 			<button
 				type="button"
 				{...(!disabled ? listeners : {})}
 				{...(!disabled ? attributes : {})}
 				onClick={disabled ? undefined : onOpenMenu}
-				className={`flex h-full w-full items-center justify-center rounded-full ${
+				className={`relative flex h-[3.25rem] w-[3.25rem] items-center justify-center drop-shadow-lg ${
 					disabled ? "cursor-default" : "cursor-grab xl:cursor-grab"
 				}`}
 				aria-label={`Open actions for ${name}`}
 			>
-				{isSwapTarget ? "↔" : initials}
+				<svg viewBox="0 0 64 64" className="absolute inset-0 h-full w-full" aria-hidden="true">
+					<path
+						d="M20 6 27 2h10l7 4 15 8-8 15-7-4v35H20V25l-7 4-8-15Z"
+						fill="currentColor"
+						stroke="white"
+						strokeWidth="2.5"
+						strokeLinejoin="round"
+					/>
+				</svg>
+				<span className={`relative z-10 font-black ${isMenuOpen || isSwapTarget ? "text-slate-950" : "text-white"}`}>
+					{isSwapTarget ? "↔" : number || initials}
+				</span>
 			</button>
 
+			<span className="pointer-events-none absolute inset-x-0 top-[3rem] truncate rounded-md bg-slate-950/80 px-1.5 py-0.5 text-center text-[9px] font-bold leading-4 text-white shadow">
+				{name}
+			</span>
+
 			{isOutOfPosition && !isSwapTarget && (
-				<span className="pointer-events-none absolute -bottom-1 -left-1 flex h-5 w-5 items-center justify-center rounded-full border border-white bg-amber-100 text-[10px] font-bold text-amber-800 shadow">
+				<span className="pointer-events-none absolute left-0 top-0 flex h-5 w-5 items-center justify-center rounded-full border border-white bg-amber-100 text-[10px] font-bold text-amber-800 shadow">
 					!
 				</span>
 			)}
@@ -217,7 +235,7 @@ export function SelectedPitchPlayer({
 				<button
 					type="button"
 					onClick={onOpenMenu}
-					className="absolute -right-1 -top-1 hidden h-5 w-5 items-center justify-center rounded-full border border-white bg-white text-xs font-bold text-slate-600 shadow hover:text-blue-700 xl:flex"
+					className="absolute right-0 top-0 hidden h-5 w-5 items-center justify-center rounded-full border border-white bg-white text-xs font-bold text-slate-600 shadow hover:text-blue-700 xl:flex"
 					aria-label={`Open menu for ${name}`}
 				>
 					⋯
@@ -337,12 +355,14 @@ export function BenchPlayer({
 interface DragOverlayPlayerProps {
 	name: string;
 	initials: string;
+	number?: number;
 	variant: "available" | "pitch" | "bench";
 }
 
 export function DragOverlayPlayer({
 	name,
 	initials,
+	number,
 	variant,
 }: DragOverlayPlayerProps) {
 	const label =
@@ -351,6 +371,33 @@ export function DragOverlayPlayer({
 			: variant === "bench"
 				? "Bench player"
 				: "Available player";
+
+	if (variant === "pitch") {
+		return (
+			<div
+				className="pointer-events-none relative flex h-[4.5rem] w-[4.5rem] items-start justify-center text-blue-700 drop-shadow-2xl"
+				data-testid="drag-overlay-shirt"
+			>
+				<div className="relative h-[3.4rem] w-[3.4rem]">
+					<svg viewBox="0 0 64 64" className="absolute inset-0 h-full w-full" aria-hidden="true">
+						<path
+							d="M20 6 27 2h10l7 4 15 8-8 15-7-4v35H20V25l-7 4-8-15Z"
+							fill="currentColor"
+							stroke="white"
+							strokeWidth="2.5"
+							strokeLinejoin="round"
+						/>
+					</svg>
+					<span className="absolute inset-x-0 top-[30%] text-center text-xs font-black text-white">
+						{number || initials || "?"}
+					</span>
+				</div>
+				<span className="absolute inset-x-0 top-[3.1rem] truncate rounded-md bg-slate-950/85 px-1.5 py-0.5 text-center text-[9px] font-bold leading-4 text-white shadow-xl">
+					{name}
+				</span>
+			</div>
+		);
+	}
 
 	return (
 		<div className="pointer-events-none flex items-center gap-2">
