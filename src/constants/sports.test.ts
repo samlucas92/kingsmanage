@@ -1,16 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { getSportDefinition, sportDefinitions } from "./sports";
+import {
+	getClubSportDefinition,
+	getSportDefinition,
+	sportDefinitions,
+} from "./sports";
 
 describe("sport definitions", () => {
 	it("contains the initial supported sports", () => {
 		expect(Object.keys(sportDefinitions)).toEqual(
-			expect.arrayContaining(["football", "rugby-union", "cricket", "hockey", "netball"])
+			expect.arrayContaining(["football", "rugby-union", "rugby-league", "cricket", "hockey", "netball"])
 		);
 	});
 
 	it.each([
 		["football", 11],
 		["rugby-union", 15],
+		["rugby-league", 13],
 		["cricket", 11],
 		["hockey", 11],
 		["netball", 7],
@@ -53,5 +58,28 @@ describe("sport definitions", () => {
 		expect(sportDefinitions.football.formations.map((formation) => formation.key)).toEqual([
 			"4-4-2", "4-3-3", "3-5-2", "4-2-3-1",
 		]);
+	});
+
+	it("adds club formations without allowing them to replace built-in layouts", () => {
+		const customFormation = {
+			key: "narrow-diamond",
+			name: "Narrow diamond",
+			slots: sportDefinitions.football.formations[0].slots,
+		};
+		const duplicateBuiltIn = {
+			...customFormation,
+			key: "4-4-2",
+			name: "Replacement",
+		};
+
+		const sport = getClubSportDefinition("football", [
+			customFormation,
+			duplicateBuiltIn,
+		]);
+
+		expect(sport.formations.at(-1)?.key).toBe("narrow-diamond");
+		expect(
+			sport.formations.find((formation) => formation.key === "4-4-2")?.name
+		).toBe("4-4-2");
 	});
 });

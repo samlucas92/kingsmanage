@@ -1,3 +1,5 @@
+import type { SportFormation } from "../constants/sports";
+
 export type UserRole = "Admin" | "Coach" | "Player";
 export type TenantRole = "OrganizationAdmin" | "ClubAdmin" | "TeamManager" | "Coach" | "Player";
 
@@ -43,6 +45,7 @@ export type ClubAccess = {
 	id: string;
 	name: string;
 	sportKey: string;
+	customFormations: SportFormation[];
 	isCurrent: boolean;
 };
 

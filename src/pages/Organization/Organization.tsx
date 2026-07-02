@@ -5,6 +5,8 @@ import { sportDefinitions } from "../../constants/sports";
 import { getManagedImageValidationError, uploadLinkedFile } from "../../services/fileService";
 import { filesApi } from "../../services/filesApi";
 import ManagedFileImage from "../../components/files/ManagedFileImage";
+import { FormationManagerModal } from "./FormationManagerModal";
+import { useAuthStore } from "../../stores/auth";
 
 const sports = Object.keys(sportDefinitions);
 
@@ -12,6 +14,7 @@ export default function Organization() {
 	const [organization, setOrganization] = useState<OrganizationModel | null>(null);
 	const [clubs, setClubs] = useState<SportsClub[]>([]);
 	const [editingClub, setEditingClub] = useState<SportsClub | null>(null);
+	const [formationClub, setFormationClub] = useState<SportsClub | null>(null);
 	const [isCreating, setIsCreating] = useState(false);
 	const [error, setError] = useState("");
 	const [isLoading, setIsLoading] = useState(true);
@@ -40,8 +43,16 @@ export default function Organization() {
 	async function saveClub(values: Pick<SportsClub, "name" | "slug" | "sportKey">) {
 		try {
 			if (editingClub) {
-				const updated = await organizationApi.updateClub({ ...editingClub, ...values });
+				const updated = await organizationApi.updateClub({
+					...editingClub,
+					...values,
+					customFormations:
+						editingClub.sportKey === values.sportKey
+							? editingClub.customFormations
+							: [],
+				});
 				setClubs((current) => current.map((club) => club.id === updated.id ? updated : club));
+				updateClubAccess(updated);
 			} else {
 				const created = await organizationApi.createClub(values);
 				setClubs((current) => [...current, created].sort((a, b) => a.name.localeCompare(b.name)));
@@ -60,6 +71,31 @@ export default function Organization() {
 			setClubs((current) => current.map((item) => item.id === updated.id ? updated : item));
 		} catch (saveError) {
 			setError(saveError instanceof Error ? saveError.message : "Failed to update club.");
+		}
+	}
+
+	async function saveClubFormations(
+		club: SportsClub,
+		customFormations: SportsClub["customFormations"]
+	) {
+		try {
+			const updated = await organizationApi.updateClub({
+				...club,
+				customFormations,
+			});
+			setClubs((current) =>
+				current.map((item) => (item.id === updated.id ? updated : item))
+			);
+			updateClubAccess(updated);
+			setFormationClub(null);
+			setError("");
+		} catch (saveError) {
+			setError(
+				saveError instanceof Error
+					? saveError.message
+					: "Failed to save formations."
+			);
+			throw saveError;
 		}
 	}
 
@@ -121,23 +157,24 @@ export default function Organization() {
 					{clubs.map((club) => (
 						<article key={club.id} className="surface-card p-5 transition hover:border-yepset-200">
 							<div className="flex items-start justify-between gap-3"><div className="flex items-center gap-3">{club.logoFileId ? <ManagedFileImage fileId={club.logoFileId} alt={`${club.name} logo`} className="h-16 w-16 rounded-xl object-contain" /> : <div className="grid h-16 w-16 place-items-center rounded-xl bg-yepset-100 text-xl font-black text-yepset-700">{club.name.charAt(0)}</div>}<div><h3 className="font-bold text-slate-900">{club.name}</h3><p className="mt-1 text-sm text-slate-500">{labelSport(club.sportKey)} · {club.slug}</p></div></div><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${club.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>{club.isActive ? "Active" : "Archived"}</span></div>
-							<div className="mt-5 flex flex-wrap gap-2"><button onClick={() => { setEditingClub(club); setIsCreating(false); }} className="btn-secondary">Edit</button><label className="btn-secondary cursor-pointer">Change logo<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void changeClubLogo(club, file); event.target.value = ""; }} /></label>{club.logoFileId && <button onClick={() => void removeClubLogo(club)} className="btn-secondary text-red-700">Remove logo</button>}<button onClick={() => void toggleClub(club)} className="btn-secondary">{club.isActive ? "Archive" : "Restore"}</button></div>
+							<div className="mt-5 flex flex-wrap gap-2"><button onClick={() => setFormationClub(club)} className="btn-secondary w-full justify-center sm:w-auto">Manage formations</button><button onClick={() => { setEditingClub(club); setIsCreating(false); }} className="btn-secondary">Edit</button><label className="btn-secondary cursor-pointer">Change logo<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void changeClubLogo(club, file); event.target.value = ""; }} /></label>{club.logoFileId && <button onClick={() => void removeClubLogo(club)} className="btn-secondary text-red-700">Remove logo</button>}<button onClick={() => void toggleClub(club)} className="btn-secondary">{club.isActive ? "Archive" : "Restore"}</button></div>
 						</article>
 					))}
 				</div>
 			</section>
 
-			{(isCreating || editingClub) && <ClubModal club={editingClub} onClose={() => { setEditingClub(null); setIsCreating(false); }} onSave={saveClub} />}
+			{(isCreating || editingClub) && <ClubModal club={editingClub} onClose={() => { setEditingClub(null); setIsCreating(false); }} onManageFormations={editingClub ? () => { setFormationClub(editingClub); setEditingClub(null); } : undefined} onSave={saveClub} />}
+			{formationClub && <FormationManagerModal club={formationClub} onClose={() => setFormationClub(null)} onSave={(formations) => saveClubFormations(formationClub, formations)} />}
 		</div>
 	);
 }
 
-function ClubModal({ club, onClose, onSave }: { club: SportsClub | null; onClose: () => void; onSave: (values: Pick<SportsClub, "name" | "slug" | "sportKey">) => Promise<void> }) {
+function ClubModal({ club, onClose, onManageFormations, onSave }: { club: SportsClub | null; onClose: () => void; onManageFormations?: () => void; onSave: (values: Pick<SportsClub, "name" | "slug" | "sportKey">) => Promise<void> }) {
 	const [name, setName] = useState(club?.name ?? "");
 	const [slug, setSlug] = useState(club?.slug ?? "");
 	const [sportKey, setSportKey] = useState(club?.sportKey ?? "football");
 	const [saving, setSaving] = useState(false);
-	return <div className="fixed inset-0 z-50 grid place-items-center bg-yepset-950/55 p-4 backdrop-blur-sm"><form onSubmit={(event) => { event.preventDefault(); setSaving(true); void onSave({ name: name.trim(), slug: slugify(slug), sportKey }).finally(() => setSaving(false)); }} className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-5 shadow-2xl"><div className="flex justify-between"><div><h2 className="text-xl font-bold">{club ? "Edit club" : "Add club"}</h2><p className="text-sm text-slate-500">Configure the club’s identity and sport.</p></div><button type="button" onClick={onClose}>✕</button></div><Field label="Name" value={name} onChange={(value) => { setName(value); if (!club) setSlug(slugify(value)); }} /><Field label="Slug" value={slug} onChange={(value) => setSlug(slugify(value))} /><label className="block text-sm font-semibold text-slate-700">Sport<select value={sportKey} onChange={(event) => setSportKey(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">{sports.map((sport) => <option key={sport} value={sport}>{labelSport(sport)}</option>)}</select></label><div className="flex justify-end gap-2 border-t pt-4"><button type="button" onClick={onClose} className="btn-secondary">Cancel</button><button disabled={saving || !name.trim() || !slug} className="btn-primary disabled:opacity-50">{saving ? "Saving..." : "Save club"}</button></div></form></div>;
+	return <div className="fixed inset-0 z-50 grid place-items-center bg-yepset-950/55 p-4 backdrop-blur-sm"><form onSubmit={(event) => { event.preventDefault(); setSaving(true); void onSave({ name: name.trim(), slug: slugify(slug), sportKey }).finally(() => setSaving(false)); }} className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-5 shadow-2xl"><div className="flex justify-between"><div><h2 className="text-xl font-bold">{club ? "Edit club" : "Add club"}</h2><p className="text-sm text-slate-500">Configure the club’s identity and sport.</p></div><button type="button" onClick={onClose}>✕</button></div><Field label="Name" value={name} onChange={(value) => { setName(value); if (!club) setSlug(slugify(value)); }} /><Field label="Slug" value={slug} onChange={(value) => setSlug(slugify(value))} /><label className="block text-sm font-semibold text-slate-700">Sport<select value={sportKey} onChange={(event) => setSportKey(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">{sports.map((sport) => <option key={sport} value={sport}>{labelSport(sport)}</option>)}</select></label>{onManageFormations && <button type="button" onClick={onManageFormations} className="btn-secondary w-full justify-center">Manage formations</button>}<div className="flex flex-wrap justify-end gap-2 border-t pt-4"><button type="button" onClick={onClose} className="btn-secondary">Cancel</button><button disabled={saving || !name.trim() || !slug} className="btn-primary disabled:opacity-50">{saving ? "Saving..." : "Save club"}</button></div></form></div>;
 }
 
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
@@ -146,3 +183,18 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
 
 function slugify(value: string) { return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
 function labelSport(value: string) { return value.split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" "); }
+
+function updateClubAccess(club: SportsClub) {
+	useAuthStore.setState((state) => ({
+		availableClubs: state.availableClubs.map((item) =>
+			item.id === club.id
+				? {
+						...item,
+						name: club.name,
+						sportKey: club.sportKey,
+						customFormations: club.customFormations,
+					}
+				: item
+		),
+	}));
+}

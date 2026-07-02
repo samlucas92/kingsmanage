@@ -14,6 +14,7 @@ import {
 	getPlayerAvailabilityStatus,
 	hasPlayerSeenEvent,
 } from "../../utils/events";
+import { EventAvailabilityGroup } from "./EventAvailabilityGroup";
 
 export default function EventDetail() {
 	const { id } = useParams<{ id: string }>();
@@ -24,7 +25,6 @@ export default function EventDetail() {
 	const selectedEventLoadError = useEventStore((state) => state.selectedEventLoadError);
 	const loadEvent = useEventStore((state) => state.loadEvent);
 	const deleteEvent = useEventStore((state) => state.deleteEvent);
-	const setAvailability = useEventStore((state) => state.setAvailability);
 	const setPlayerAvailability = useEventStore((state) => state.setPlayerAvailability);
 	const clearSelectedEvent = useEventStore((state) => state.clearSelectedEvent);
 	const loadMatches = useMatchStore((state) => state.loadMatches);
@@ -92,14 +92,6 @@ export default function EventDetail() {
 	const linkedMatches = getLinkedMatchActions(selectedEvent);
 	const dateSummary = getEventDateSummary(selectedEvent.startDateTime);
 
-	async function handleOwnAvailabilityChange(status: ClubEventAvailabilityStatus) {
-		if (!selectedEvent) {
-			return;
-		}
-
-		await setAvailability(selectedEvent.id, status);
-	}
-
 	async function handlePlayerAvailabilityChange(
 		playerId: string,
 		status: ClubEventAvailabilityStatus
@@ -108,14 +100,8 @@ export default function EventDetail() {
 			return;
 		}
 
-		if (isManagementRole) {
-			await setPlayerAvailability(selectedEvent.id, playerId, status);
-			return;
-		}
-
-		if (playerId === linkedPlayerId && status !== "Unanswered") {
-			await setAvailability(selectedEvent.id, status);
-		}
+		if (!isManagementRole) return;
+		await setPlayerAvailability(selectedEvent.id, playerId, status);
 	}
 
 	function openDeleteEventModal() {
@@ -204,19 +190,11 @@ export default function EventDetail() {
 							<div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
 								<p className="text-sm font-bold text-slate-900">Your availability</p>
 								<p className="mt-1 text-sm text-slate-500">Current: {currentPlayerStatus}</p>
-
-								<div className="mt-3 flex flex-wrap gap-2">
-									<AvailabilityButton
-										isSelected={currentPlayerStatus === "Available"}
-										label="Available"
-										onClick={() => void handleOwnAvailabilityChange("Available")}
-									/>
-									<AvailabilityButton
-										isSelected={currentPlayerStatus === "Declined"}
-										label="Declined"
-										onClick={() => void handleOwnAvailabilityChange("Declined")}
-									/>
-								</div>
+								{!isManagementRole && (
+									<p className="mt-2 text-xs font-semibold text-slate-400">
+										Availability is read-only on the event page.
+									</p>
+								)}
 							</div>
 						)}
 					</div>
@@ -228,7 +206,7 @@ export default function EventDetail() {
 				<p className="mt-1 text-sm text-slate-500">
 					{isManagementRole
 						? "Update player availability and check who has seen the event."
-						: "View player responses. You can only update your own availability."}
+						: "View player responses. Availability is read-only on this page."}
 				</p>
 
 				{isManagementRole && (
@@ -253,9 +231,8 @@ export default function EventDetail() {
 
 				<div className="mt-5 space-y-5">
 					{visibleAvailabilityGroups.map((group) => (
-						<PlayerGroup
+						<EventAvailabilityGroup
 							key={group.status}
-							currentPlayerId={linkedPlayerId}
 							event={selectedEvent}
 							isManagementRole={isManagementRole}
 							label={group.label}
@@ -435,119 +412,6 @@ function EventManagementActions({
 				{isDeletingEvent ? "Deleting event..." : "Delete event"}
 			</button>
 		</div>
-	);
-}
-
-function PlayerGroup({
-	currentPlayerId,
-	event,
-	isManagementRole,
-	label,
-	onAvailabilityChange,
-	players,
-}: {
-	currentPlayerId: string;
-	event: ClubEvent;
-	isManagementRole: boolean;
-	label: string;
-	onAvailabilityChange: (
-		playerId: string,
-		status: ClubEventAvailabilityStatus
-	) => Promise<void>;
-	players: Player[];
-}) {
-	return (
-		<section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-			<div className="flex items-center justify-between gap-3">
-				<h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">
-					{label}
-				</h3>
-
-				<span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-500">
-					{players.length}
-				</span>
-			</div>
-
-			<div className="mt-3 space-y-2">
-				{players.map((player) => {
-					const status = getPlayerAvailabilityStatus(event, player.id);
-					const hasSeen = hasPlayerSeenEvent(event, player.id);
-					const canUpdatePlayer = isManagementRole || player.id === currentPlayerId;
-
-					return (
-						<div
-							key={player.id}
-							className="rounded-xl border border-slate-200 bg-white px-4 py-3"
-						>
-							<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-								<div className="min-w-0">
-									<div className="flex flex-wrap items-center gap-2">
-										<p className="truncate text-sm font-bold text-slate-900">{player.name}</p>
-										{hasSeen && (
-											<span className="text-xs font-semibold text-slate-400">Seen</span>
-										)}
-									</div>
-
-									<p className="mt-0.5 text-xs text-slate-500">{status}</p>
-								</div>
-
-								{canUpdatePlayer && (
-									<div className="flex flex-wrap gap-2">
-										<AvailabilityButton
-											isSelected={status === "Available"}
-											label="Available"
-											onClick={() => void onAvailabilityChange(player.id, "Available")}
-										/>
-										<AvailabilityButton
-											isSelected={status === "Declined"}
-											label="Declined"
-											onClick={() => void onAvailabilityChange(player.id, "Declined")}
-										/>
-										{isManagementRole && (
-											<AvailabilityButton
-												isSelected={status === "Unanswered"}
-												label="Unanswered"
-												onClick={() => void onAvailabilityChange(player.id, "Unanswered")}
-											/>
-										)}
-									</div>
-								)}
-							</div>
-						</div>
-					);
-				})}
-
-				{players.length === 0 && (
-					<p className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
-						No players in this group.
-					</p>
-				)}
-			</div>
-		</section>
-	);
-}
-
-function AvailabilityButton({
-	isSelected,
-	label,
-	onClick,
-}: {
-	isSelected: boolean;
-	label: string;
-	onClick: () => void;
-}) {
-	return (
-		<button
-			type="button"
-			onClick={onClick}
-			className={`rounded-xl px-3 py-2 text-xs font-bold ${
-				isSelected
-					? "bg-blue-700 text-white"
-					: "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-			}`}
-		>
-			{label}
-		</button>
 	);
 }
 

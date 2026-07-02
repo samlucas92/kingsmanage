@@ -1,3 +1,5 @@
+import type { SportFormation } from "../constants/sports";
+
 export type Organization = {
 	id: string;
 	name: string;
@@ -13,6 +15,7 @@ export type SportsClub = {
 	name: string;
 	slug: string;
 	sportKey: string;
+	customFormations: SportFormation[];
 	logoFileId?: string | null;
 	isActive: boolean;
 	createdAt: string;

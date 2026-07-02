@@ -7,7 +7,7 @@ import { useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { usePlayerStore } from "../../../../stores/players";
 import { useMatchStore } from "../../../../stores/match";
 import { useAuthStore } from "../../../../stores/auth";
-import { getSportDefinition } from "../../../../constants/sports";
+import { getClubSportDefinition } from "../../../../constants/sports";
 import { resolveLineupPosition } from "../../../../utils/lineupPosition";
 import type { LineupFormation, SelectedPlayer } from "../../../../stores/match";
 import { isPositionCompatible } from "./PositionCompatibility";
@@ -59,8 +59,16 @@ export function useTeamPicker(matchId: string) {
 	const players = usePlayerStore((state) => state.players);
 	const availableClubs = useAuthStore((state) => state.availableClubs);
 	const activeClub = availableClubs.find((club) => club.isCurrent);
-	const sportDefinition = getSportDefinition(activeClub?.sportKey);
-	const sportFormations = Object.fromEntries(sportDefinition.formations.map((formation) => [formation.key, formation.slots]));
+	const sportDefinition = getClubSportDefinition(
+		activeClub?.sportKey,
+		activeClub?.customFormations
+	);
+	const sportFormations = Object.fromEntries(
+		sportDefinition.formations.map((formation) => [
+			formation.key,
+			formation.slots,
+		])
+	);
 
 	const match = useMatchStore((state) =>
 		state.matches.find((match) => match.id === matchId)

@@ -143,7 +143,7 @@ export function TeamPitch({
 	);
 }
 
-function SurfaceMarkings({ surface }: { surface: SportSurface }) {
+export function SurfaceMarkings({ surface }: { surface: SportSurface }) {
 	if (surface === "cricket-field") {
 		return <><div className="absolute inset-5 rounded-[50%] border-2 border-white/70" /><div className="absolute left-1/2 top-1/2 h-48 w-12 -translate-x-1/2 -translate-y-1/2 border-2 border-amber-100/80 bg-amber-200/40" /></>;
 	}
