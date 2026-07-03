@@ -14,6 +14,7 @@ type NavigationItem = {
 	roles: NavigationRole[];
 	tenantRoles?: string[];
 	mobileOnly?: boolean;
+	platformOnly?: boolean;
 };
 
 const navigationItems: NavigationItem[] = [
@@ -65,10 +66,16 @@ const navigationItems: NavigationItem[] = [
 		roles: ["Admin"],
 	},
 	{
+		label: "Organizations",
+		to: "/platform/organizations",
+		roles: ["Admin"],
+		platformOnly: true,
+	},
+	{
 		label: "Organization",
 		to: "/organization",
 		roles: ["Admin"],
-		tenantRoles: ["OrganizationAdmin"],
+		tenantRoles: ["OrganizationAdmin", "ClubAdmin"],
 	},
 	{
 		label: "Events",
@@ -147,7 +154,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 			return false;
 		}
 
-		return item.roles.includes(role) && (!item.tenantRoles || (currentUser?.tenantRole && item.tenantRoles.includes(currentUser.tenantRole)));
+		return item.roles.includes(role) &&
+			(!item.platformOnly || currentUser?.isPlatformAdmin) &&
+			(!item.tenantRoles || (currentUser?.tenantRole && item.tenantRoles.includes(currentUser.tenantRole)));
 	});
 
 	const handleSignOut = () => {

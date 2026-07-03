@@ -23,6 +23,7 @@ import Settings from "../pages/Settings/Settings";
 import Users from "../pages/Users/Users";
 import ClubTeams from "../pages/ClubTeams/ClubTeams";
 import Organization from "../pages/Organization/Organization";
+import PlatformOrganizations from "../pages/PlatformOrganizations/PlatformOrganizations";
 import { useClubTeamStore } from "../stores/clubTeams";
 
 const managementRoles = ["Admin", "Coach"] as const;
@@ -56,9 +57,16 @@ export default function AppRouter() {
 					<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} />}>
 						<Route path="/finance" element={<Finance />} />
 						<Route path="/seasons" element={<Seasons />} />
-						<Route path="/users" element={<Users />} />
 						<Route path="/club-teams" element={<ClubTeams />} />
+					</Route>
+					<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} allowedTenantRoles={["OrganizationAdmin"]} />}>
+						<Route path="/users" element={<Users />} />
+					</Route>
+					<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} allowedTenantRoles={["OrganizationAdmin", "ClubAdmin"]} />}>
 						<Route path="/organization" element={<Organization />} />
+					</Route>
+					<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} requirePlatformAdmin />}>
+						<Route path="/platform/organizations" element={<PlatformOrganizations />} />
 					</Route>
 				</Route>
 			</Route>

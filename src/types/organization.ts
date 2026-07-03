@@ -21,3 +21,41 @@ export type SportsClub = {
 	createdAt: string;
 	updatedAt: string;
 };
+
+export type OrganizationFinanceSummary = {
+	charged: number;
+	paid: number;
+	adjustments: number;
+	outstanding: number;
+};
+
+export type OrganizationClubSummary = {
+	clubId: string;
+	clubName: string;
+	isActive: boolean;
+	teamCount: number;
+	userCount: number;
+	playerCount: number;
+	outstandingFinance: number;
+	attention: string[];
+};
+
+export type OrganizationUpcomingItem = {
+	id: string;
+	clubId: string;
+	clubName: string;
+	title: string;
+	startsAt: string;
+	location: string;
+};
+
+export type OrganizationDashboard = {
+	clubCount: number;
+	teamCount: number;
+	userCount: number;
+	playerCount: number;
+	finance: OrganizationFinanceSummary;
+	clubs: OrganizationClubSummary[];
+	upcomingFixtures: OrganizationUpcomingItem[];
+	upcomingEvents: OrganizationUpcomingItem[];
+};

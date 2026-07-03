@@ -21,9 +21,9 @@ function NodeView({ node, inverted }: { node: Descendant; inverted: boolean }) {
 		case "heading-one": return <h1 className="text-2xl font-black">{children}</h1>;
 		case "heading-two": return <h2 className="text-lg font-bold">{children}</h2>;
 		case "heading-three": return <h3 className="text-base font-bold">{children}</h3>;
-		case "bulleted-list": return <ul className="list-disc space-y-1 pl-6">{children}</ul>;
-		case "numbered-list": return <ol className="list-decimal space-y-1 pl-6">{children}</ol>;
-		case "list-item": return <li>{children}</li>;
+		case "bulleted-list": return <ul className="my-1 list-disc space-y-1 pl-6">{children}</ul>;
+		case "numbered-list": return <ol className="my-1 list-decimal space-y-1 pl-6">{children}</ol>;
+		case "list-item": return <li className="pl-1">{children}</li>;
 		case "link": {
 			const safeUrl = element.url && /^https?:\/\//i.test(element.url) ? element.url : undefined;
 			return safeUrl

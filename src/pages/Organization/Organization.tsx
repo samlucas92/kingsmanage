@@ -7,10 +7,15 @@ import { filesApi } from "../../services/filesApi";
 import ManagedFileImage from "../../components/files/ManagedFileImage";
 import { FormationManagerModal } from "./FormationManagerModal";
 import { useAuthStore } from "../../stores/auth";
+import { OrganizationDashboardPanel } from "./OrganizationDashboardPanel";
 
 const sports = Object.keys(sportDefinitions);
 
 export default function Organization() {
+	const currentUser = useAuthStore((state) => state.currentUser);
+	const canManageOrganization =
+		currentUser?.isPlatformAdmin ||
+		currentUser?.tenantRole === "OrganizationAdmin";
 	const [organization, setOrganization] = useState<OrganizationModel | null>(null);
 	const [clubs, setClubs] = useState<SportsClub[]>([]);
 	const [editingClub, setEditingClub] = useState<SportsClub | null>(null);
@@ -135,12 +140,12 @@ export default function Organization() {
 		<div className="mx-auto max-w-6xl space-y-6">
 			<div className="surface-card flex flex-col gap-3 p-6 sm:flex-row sm:items-end sm:justify-between">
 				<div><p className="text-xs font-black uppercase tracking-[.14em] text-yepset-600">Administration</p><h1 className="mt-2 text-3xl font-black tracking-[-.03em]">Organization and clubs</h1></div>
-				<button onClick={() => { setEditingClub(null); setIsCreating(true); }} className="btn-primary">Add club</button>
+				{canManageOrganization && <button onClick={() => { setEditingClub(null); setIsCreating(true); }} className="btn-primary">Add club</button>}
 			</div>
 
 			{error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</div>}
 
-			{organization && (
+			{organization && canManageOrganization && (
 				<form onSubmit={saveOrganization} className="surface-card p-5">
 					<h2 className="text-lg font-bold">Organization details</h2>
 					<div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -151,13 +156,15 @@ export default function Organization() {
 				</form>
 			)}
 
+			{canManageOrganization && <OrganizationDashboardPanel clubs={clubs} />}
+
 			<section className="space-y-3">
 				<div><h2 className="text-xl font-bold">Clubs</h2><p className="text-sm text-slate-500">Each club has its own sport, teams and operational data.</p></div>
 				<div className="grid gap-4 md:grid-cols-2">
 					{clubs.map((club) => (
 						<article key={club.id} className="surface-card p-5 transition hover:border-yepset-200">
 							<div className="flex items-start justify-between gap-3"><div className="flex items-center gap-3">{club.logoFileId ? <ManagedFileImage fileId={club.logoFileId} alt={`${club.name} logo`} className="h-16 w-16 rounded-xl object-contain" /> : <div className="grid h-16 w-16 place-items-center rounded-xl bg-yepset-100 text-xl font-black text-yepset-700">{club.name.charAt(0)}</div>}<div><h3 className="font-bold text-slate-900">{club.name}</h3><p className="mt-1 text-sm text-slate-500">{labelSport(club.sportKey)} · {club.slug}</p></div></div><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${club.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>{club.isActive ? "Active" : "Archived"}</span></div>
-							<div className="mt-5 flex flex-wrap gap-2"><button onClick={() => setFormationClub(club)} className="btn-secondary w-full justify-center sm:w-auto">Manage formations</button><button onClick={() => { setEditingClub(club); setIsCreating(false); }} className="btn-secondary">Edit</button><label className="btn-secondary cursor-pointer">Change logo<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void changeClubLogo(club, file); event.target.value = ""; }} /></label>{club.logoFileId && <button onClick={() => void removeClubLogo(club)} className="btn-secondary text-red-700">Remove logo</button>}<button onClick={() => void toggleClub(club)} className="btn-secondary">{club.isActive ? "Archive" : "Restore"}</button></div>
+							<div className="mt-5 flex flex-wrap gap-2"><button onClick={() => setFormationClub(club)} className="btn-secondary w-full justify-center sm:w-auto">Manage formations</button><button onClick={() => { setEditingClub(club); setIsCreating(false); }} className="btn-secondary">Edit</button><label className="btn-secondary cursor-pointer">Change logo<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void changeClubLogo(club, file); event.target.value = ""; }} /></label>{club.logoFileId && <button onClick={() => void removeClubLogo(club)} className="btn-secondary text-red-700">Remove logo</button>}{canManageOrganization && <button onClick={() => void toggleClub(club)} className="btn-secondary">{club.isActive ? "Archive" : "Restore"}</button>}</div>
 						</article>
 					))}
 				</div>

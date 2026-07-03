@@ -20,6 +20,7 @@ const pageTitles: { matcher: (pathname: string) => boolean; title: string }[] = 
 	{ matcher: (pathname) => pathname === "/seasons", title: "Seasons" },
 	{ matcher: (pathname) => pathname === "/users", title: "Users" },
 	{ matcher: (pathname) => pathname === "/organization", title: "Organization" },
+	{ matcher: (pathname) => pathname === "/platform/organizations", title: "Organizations" },
 	{ matcher: (pathname) => pathname === "/settings", title: "Settings" },
 	{ matcher: (pathname) => pathname === "/notifications", title: "Notifications" },
 ];

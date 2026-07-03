@@ -23,6 +23,7 @@ export type AuthUser = {
 	playerId?: string | null;
 	defaultClubId?: string | null;
 	tenantRole?: TenantRole | null;
+	isPlatformAdmin: boolean;
 	memberships: UserMembership[];
 	isActive: boolean;
 	createdAt?: string;

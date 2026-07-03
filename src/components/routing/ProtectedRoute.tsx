@@ -1,14 +1,21 @@
 import { useEffect } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuthStore } from "../../stores/auth";
+import type { TenantRole } from "../../types/auth";
 
 export type ProtectedRole = "Admin" | "Coach" | "Player";
 
 type ProtectedRouteProps = {
 	allowedRoles?: ProtectedRole[];
+	allowedTenantRoles?: TenantRole[];
+	requirePlatformAdmin?: boolean;
 };
 
-export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
+export default function ProtectedRoute({
+	allowedRoles,
+	allowedTenantRoles,
+	requirePlatformAdmin = false,
+}: ProtectedRouteProps) {
 	const location = useLocation();
 	const currentUser = useAuthStore((state) => state.currentUser);
 	const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -31,6 +38,22 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
 	}
 
 	if (allowedRoles && !allowedRoles.includes(currentUser.role as ProtectedRole)) {
+		return <Navigate to="/access-denied" replace />;
+	}
+
+	if (
+		requirePlatformAdmin &&
+		!currentUser.isPlatformAdmin
+	) {
+		return <Navigate to="/access-denied" replace />;
+	}
+
+	if (
+		allowedTenantRoles &&
+		!currentUser.isPlatformAdmin &&
+		(!currentUser.tenantRole ||
+			!allowedTenantRoles.includes(currentUser.tenantRole))
+	) {
 		return <Navigate to="/access-denied" replace />;
 	}
 

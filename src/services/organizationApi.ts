@@ -1,5 +1,9 @@
 import { apiClient } from "./apiClient";
-import type { Organization, SportsClub } from "../types/organization";
+import type {
+	Organization,
+	OrganizationDashboard,
+	SportsClub,
+} from "../types/organization";
 
 export const organizationApi = {
 	get: () => apiClient.get<Organization>("/organization"),
@@ -11,4 +15,23 @@ export const organizationApi = {
 		apiClient.put<SportsClub>(`/organization/clubs/${club.id}`, club),
 	setClubActive: (id: string, isActive: boolean) =>
 		apiClient.patch<SportsClub>(`/organization/clubs/${id}/active`, { isActive }),
+	getDashboard: (clubId?: string) =>
+		apiClient.get<OrganizationDashboard>(
+			`/organization/dashboard${clubId ? `?clubId=${encodeURIComponent(clubId)}` : ""}`
+		),
+	getPlatformOrganizations: () =>
+		apiClient.get<Organization[]>("/platform/organizations"),
+	createPlatformOrganization: (
+		organization: Pick<Organization, "name" | "slug">
+	) => apiClient.post<Organization>("/platform/organizations", organization),
+	updatePlatformOrganization: (organization: Organization) =>
+		apiClient.put<Organization>(
+			`/platform/organizations/${organization.id}`,
+			organization
+		),
+	setPlatformOrganizationActive: (id: string, isActive: boolean) =>
+		apiClient.patch<Organization>(
+			`/platform/organizations/${id}/active`,
+			{ isActive }
+		),
 };
