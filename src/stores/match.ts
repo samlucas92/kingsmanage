@@ -109,6 +109,7 @@ type MatchStore = {
 		matchId: string,
 		match: MatchFixtureInput
 	) => Promise<void>;
+	deleteMatch: (matchId: string) => Promise<void>;
 	postponeMatch: (
 		matchId: string,
 		newDate: string,
@@ -296,6 +297,13 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
 
 		set((state) => ({
 			matches: replaceMatch(state.matches, savedMatch),
+		}));
+	},
+
+	deleteMatch: async (matchId) => {
+		await matchApi.deleteMatch(matchId);
+		set((state) => ({
+			matches: state.matches.filter((match) => match.id !== matchId),
 		}));
 	},
 

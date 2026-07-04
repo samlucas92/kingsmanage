@@ -15,11 +15,27 @@ export type SportsClub = {
 	name: string;
 	slug: string;
 	sportKey: string;
+	primaryColor: string;
+	secondaryColor: string;
+	contactEmail: string;
+	contactPhone: string;
+	websiteUrl: string;
+	venues: ClubVenue[];
+	setupStep: number;
+	setupCompletedAt?: string | null;
 	customFormations: SportFormation[];
 	logoFileId?: string | null;
 	isActive: boolean;
 	createdAt: string;
 	updatedAt: string;
+};
+
+export type ClubVenue = {
+	id: string;
+	name: string;
+	address: string;
+	mapUrl: string;
+	isDefault: boolean;
 };
 
 export type OrganizationFinanceSummary = {

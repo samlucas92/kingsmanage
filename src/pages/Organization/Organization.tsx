@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { organizationApi } from "../../services/organizationApi";
 import type { Organization as OrganizationModel, SportsClub } from "../../types/organization";
 import { sportDefinitions } from "../../constants/sports";
@@ -8,6 +9,7 @@ import ManagedFileImage from "../../components/files/ManagedFileImage";
 import { FormationManagerModal } from "./FormationManagerModal";
 import { useAuthStore } from "../../stores/auth";
 import { OrganizationDashboardPanel } from "./OrganizationDashboardPanel";
+import OrganizationAdminNav from "../../components/organization/OrganizationAdminNav";
 
 const sports = Object.keys(sportDefinitions);
 
@@ -138,6 +140,7 @@ export default function Organization() {
 
 	return (
 		<div className="mx-auto max-w-6xl space-y-6">
+			<OrganizationAdminNav />
 			<div className="surface-card flex flex-col gap-3 p-6 sm:flex-row sm:items-end sm:justify-between">
 				<div><p className="text-xs font-black uppercase tracking-[.14em] text-yepset-600">Administration</p><h1 className="mt-2 text-3xl font-black tracking-[-.03em]">Organization and clubs</h1></div>
 				{canManageOrganization && <button onClick={() => { setEditingClub(null); setIsCreating(true); }} className="btn-primary">Add club</button>}
@@ -164,7 +167,7 @@ export default function Organization() {
 					{clubs.map((club) => (
 						<article key={club.id} className="surface-card p-5 transition hover:border-yepset-200">
 							<div className="flex items-start justify-between gap-3"><div className="flex items-center gap-3">{club.logoFileId ? <ManagedFileImage fileId={club.logoFileId} alt={`${club.name} logo`} className="h-16 w-16 rounded-xl object-contain" /> : <div className="grid h-16 w-16 place-items-center rounded-xl bg-yepset-100 text-xl font-black text-yepset-700">{club.name.charAt(0)}</div>}<div><h3 className="font-bold text-slate-900">{club.name}</h3><p className="mt-1 text-sm text-slate-500">{labelSport(club.sportKey)} · {club.slug}</p></div></div><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${club.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>{club.isActive ? "Active" : "Archived"}</span></div>
-							<div className="mt-5 flex flex-wrap gap-2"><button onClick={() => setFormationClub(club)} className="btn-secondary w-full justify-center sm:w-auto">Manage formations</button><button onClick={() => { setEditingClub(club); setIsCreating(false); }} className="btn-secondary">Edit</button><label className="btn-secondary cursor-pointer">Change logo<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void changeClubLogo(club, file); event.target.value = ""; }} /></label>{club.logoFileId && <button onClick={() => void removeClubLogo(club)} className="btn-secondary text-red-700">Remove logo</button>}{canManageOrganization && <button onClick={() => void toggleClub(club)} className="btn-secondary">{club.isActive ? "Archive" : "Restore"}</button>}</div>
+							<div className="mt-5 flex flex-wrap gap-2">{useAuthStore.getState().availableClubs.some((item) => item.id === club.id && item.isCurrent) && <Link to="/club-setup" className="btn-primary">Guided setup</Link>}<button onClick={() => setFormationClub(club)} className="btn-secondary w-full justify-center sm:w-auto">Manage formations</button><button onClick={() => { setEditingClub(club); setIsCreating(false); }} className="btn-secondary">Edit</button><label className="btn-secondary cursor-pointer">Change logo<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void changeClubLogo(club, file); event.target.value = ""; }} /></label>{club.logoFileId && <button onClick={() => void removeClubLogo(club)} className="btn-secondary text-red-700">Remove logo</button>}{canManageOrganization && <button onClick={() => void toggleClub(club)} className="btn-secondary">{club.isActive ? "Archive" : "Restore"}</button>}</div>
 						</article>
 					))}
 				</div>

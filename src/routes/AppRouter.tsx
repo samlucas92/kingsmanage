@@ -24,6 +24,9 @@ import Users from "../pages/Users/Users";
 import ClubTeams from "../pages/ClubTeams/ClubTeams";
 import Organization from "../pages/Organization/Organization";
 import PlatformOrganizations from "../pages/PlatformOrganizations/PlatformOrganizations";
+import ClubSetup from "../pages/ClubSetup/ClubSetup";
+import Billing from "../pages/Billing/Billing";
+import { ClubSetupReminder } from "../pages/ClubSetup/ClubSetupReminder";
 import { useClubTeamStore } from "../stores/clubTeams";
 
 const managementRoles = ["Admin", "Coach"] as const;
@@ -61,9 +64,11 @@ export default function AppRouter() {
 					</Route>
 					<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} allowedTenantRoles={["OrganizationAdmin"]} />}>
 						<Route path="/users" element={<Users />} />
+						<Route path="/billing" element={<Billing />} />
 					</Route>
 					<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} allowedTenantRoles={["OrganizationAdmin", "ClubAdmin"]} />}>
 						<Route path="/organization" element={<Organization />} />
+						<Route path="/club-setup" element={<ClubSetup />} />
 					</Route>
 					<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} requirePlatformAdmin />}>
 						<Route path="/platform/organizations" element={<PlatformOrganizations />} />
@@ -93,6 +98,7 @@ function AppShell() {
 				<Header />
 
 				<main className="mx-auto w-full min-w-0 max-w-[1600px] px-3 py-3 pb-24 sm:px-6 sm:py-6 sm:pb-24 lg:px-8 lg:pb-6">
+					<ClubSetupReminder />
 					<Outlet />
 				</main>
 			</div>

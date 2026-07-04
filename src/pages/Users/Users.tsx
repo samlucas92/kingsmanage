@@ -4,6 +4,7 @@ import { usePlayerStore } from "../../stores/players";
 import { useUserStore } from "../../stores/users";
 import { usersApi } from "../../services/usersApi";
 import type { AuthUser, CreateUserRequest, MembershipClubOption, UpdateMembershipsRequest, UpdateUserRequest, UserRole } from "../../types/auth";
+import OrganizationAdminNav from "../../components/organization/OrganizationAdminNav";
 import ResetPasswordModal from "./components/ResetPasswordModal";
 import UserFormModal from "./components/UserFormModal";
 
@@ -165,6 +166,7 @@ export default function Users() {
 
 	return (
 		<div className="space-y-6">
+			<OrganizationAdminNav />
 			<div className="surface-card flex flex-col justify-between gap-4 p-6 lg:flex-row lg:items-center">
 				<div>
 					<p className="text-xs font-black uppercase tracking-[.14em] text-yepset-600">

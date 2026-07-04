@@ -9,7 +9,7 @@ export const organizationApi = {
 	get: () => apiClient.get<Organization>("/organization"),
 	update: (organization: Organization) => apiClient.put<Organization>("/organization", organization),
 	getClubs: () => apiClient.get<SportsClub[]>("/organization/clubs"),
-	createClub: (club: Pick<SportsClub, "name" | "slug" | "sportKey"> & Partial<Pick<SportsClub, "customFormations">>) =>
+	createClub: (club: Pick<SportsClub, "name" | "slug" | "sportKey"> & Partial<SportsClub>) =>
 		apiClient.post<SportsClub>("/organization/clubs", club),
 	updateClub: (club: SportsClub) =>
 		apiClient.put<SportsClub>(`/organization/clubs/${club.id}`, club),
@@ -34,4 +34,6 @@ export const organizationApi = {
 			`/platform/organizations/${id}/active`,
 			{ isActive }
 		),
+	deletePlatformOrganization: (id: string) =>
+		apiClient.delete(`/platform/organizations/${id}`),
 };

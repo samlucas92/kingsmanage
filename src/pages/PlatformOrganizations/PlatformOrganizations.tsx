@@ -1,11 +1,16 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { organizationApi } from "../../services/organizationApi";
 import type { Organization } from "../../types/organization";
+import { PlatformBillingModal } from "./PlatformBillingModal";
+import ConfirmationModal from "../../components/compositions/ConfirmationModal";
 
 export default function PlatformOrganizations() {
 	const [organizations, setOrganizations] = useState<Organization[]>([]);
 	const [editing, setEditing] = useState<Organization | null>(null);
 	const [isCreating, setIsCreating] = useState(false);
+	const [billingOrganization, setBillingOrganization] = useState<Organization | null>(null);
+	const [deletingOrganization, setDeletingOrganization] = useState<Organization | null>(null);
+	const [isDeleting, setIsDeleting] = useState(false);
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(true);
 
@@ -64,6 +69,28 @@ export default function PlatformOrganizations() {
 					? reason.message
 					: "Failed to update organization."
 			);
+		}
+	}
+
+	async function deleteOrganization() {
+		if (!deletingOrganization) return;
+		setIsDeleting(true);
+		setError("");
+		try {
+			await organizationApi.deletePlatformOrganization(deletingOrganization.id);
+			setOrganizations((current) =>
+				current.filter((item) => item.id !== deletingOrganization.id)
+			);
+			setDeletingOrganization(null);
+		} catch (reason) {
+			setError(
+				reason instanceof Error
+					? reason.message
+					: "Failed to delete organization."
+			);
+			setDeletingOrganization(null);
+		} finally {
+			setIsDeleting(false);
 		}
 	}
 
@@ -138,11 +165,27 @@ export default function PlatformOrganizations() {
 							</button>
 							<button
 								type="button"
+								onClick={() => setBillingOrganization(organization)}
+								className="btn-secondary"
+							>
+								Billing
+							</button>
+							<button
+								type="button"
 								onClick={() => void toggleActive(organization)}
 								className="btn-secondary"
 							>
 								{organization.isActive ? "Archive" : "Restore"}
 							</button>
+							{!organization.isActive && (
+								<button
+									type="button"
+									onClick={() => setDeletingOrganization(organization)}
+									className="btn-secondary text-red-700"
+								>
+									Delete
+								</button>
+							)}
 						</div>
 					</article>
 				))}
@@ -158,6 +201,22 @@ export default function PlatformOrganizations() {
 					onSave={save}
 				/>
 			)}
+			{billingOrganization && (
+				<PlatformBillingModal
+					organization={billingOrganization}
+					onClose={() => setBillingOrganization(null)}
+				/>
+			)}
+			<ConfirmationModal
+				isOpen={Boolean(deletingOrganization)}
+				title="Permanently delete organization?"
+				message="Deletion is only allowed when the organization has no clubs. Organizations containing club data must remain archived."
+				confirmText="Delete organization"
+				variant="danger"
+				isBusy={isDeleting}
+				onCancel={() => setDeletingOrganization(null)}
+				onConfirm={deleteOrganization}
+			/>
 		</div>
 	);
 }

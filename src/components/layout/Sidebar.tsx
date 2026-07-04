@@ -55,17 +55,6 @@ const navigationItems: NavigationItem[] = [
 		roles: ["Admin"],
 	},
 	{
-		label: "Users",
-		to: "/users",
-		roles: ["Admin"],
-		tenantRoles: ["OrganizationAdmin"],
-	},
-	{
-		label: "Club Teams",
-		to: "/club-teams",
-		roles: ["Admin"],
-	},
-	{
 		label: "Organizations",
 		to: "/platform/organizations",
 		roles: ["Admin"],

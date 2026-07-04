@@ -36,6 +36,7 @@ export function useMatchDetail(matchId?: string) {
 	const updateMatchPlayerStats = useMatchStore(
 		(state) => state.updateMatchPlayerStats
 	);
+	const deleteMatch = useMatchStore((state) => state.deleteMatch);
 
 	const [showResultModal, setShowResultModal] = useState(false);
 	const [homeGoals, setHomeGoals] = useState(0);
@@ -43,8 +44,11 @@ export function useMatchDetail(matchId?: string) {
 	const [showPostponeModal, setShowPostponeModal] = useState(false);
 	const [newDate, setNewDate] = useState("");
 	const [showIncompleteLineupModal, setShowIncompleteLineupModal] = useState(false);
-	const [noteDraft, setNoteDraft] = useState(emptyMatchNotes);
-	const [notesSaved, setNotesSaved] = useState(false);
+	const [noteState, setNoteState] = useState({
+		matchId: "",
+		draft: emptyMatchNotes,
+		saved: false,
+	});
 
 	useEffect(() => {
 		void loadPlayers();
@@ -58,26 +62,23 @@ export function useMatchDetail(matchId?: string) {
 		void loadMatch(matchId);
 	}, [loadMatch, matchId]);
 
-	useEffect(() => {
-		if (!match) {
-			return;
-		}
-
-		setNoteDraft({
-			availability: match.notes?.availability ?? "",
-			tactical: match.notes?.tactical ?? "",
-			injuries: match.notes?.injuries ?? "",
-			general: match.notes?.general ?? "",
-		});
-		setNotesSaved(false);
-	}, [match?.id]);
-
 	function getPlayerName(playerId: string) {
 		const player = players.find((player) => player.id === playerId);
 		return player?.name ?? "Unknown player";
 	}
 
 	const currentMatch = match;
+	const noteDraft =
+		noteState.matchId === currentMatch?.id
+			? noteState.draft
+			: {
+					availability: currentMatch?.notes?.availability ?? "",
+					tactical: currentMatch?.notes?.tactical ?? "",
+					injuries: currentMatch?.notes?.injuries ?? "",
+					general: currentMatch?.notes?.general ?? "",
+				};
+	const notesSaved =
+		noteState.matchId === currentMatch?.id && noteState.saved;
 	const starterCount =
 		currentMatch?.selectedPlayers.filter(
 			(selectedPlayer) => selectedPlayer.area === "pitch"
@@ -174,11 +175,14 @@ export function useMatchDetail(matchId?: string) {
 	}
 
 	function updateNoteDraft(field: keyof MatchNotes, value: string) {
-		setNoteDraft((currentNotes) => ({
-			...currentNotes,
-			[field]: value,
-		}));
-		setNotesSaved(false);
+		setNoteState({
+			matchId: currentMatch?.id ?? "",
+			draft: {
+				...noteDraft,
+				[field]: value,
+			},
+			saved: false,
+		});
 	}
 
 	function handleSaveNotes() {
@@ -187,7 +191,11 @@ export function useMatchDetail(matchId?: string) {
 		}
 
 		void updateMatchNotes(currentMatch.id, noteDraft);
-		setNotesSaved(true);
+		setNoteState({
+			matchId: currentMatch.id,
+			draft: noteDraft,
+			saved: true,
+		});
 	}
 
 	async function handleSaveMatchPlayerStats(playerStats: MatchPlayerStat[]) {
@@ -233,5 +241,6 @@ export function useMatchDetail(matchId?: string) {
 		handleSaveNotes,
 		getPlayerName,
 		handleSaveMatchPlayerStats,
+		deleteMatch,
 	};
 }

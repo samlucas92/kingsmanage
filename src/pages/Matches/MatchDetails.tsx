@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import LinkButton from "../../components/compositions/LinkButton";
 import NotFoundCard from "../../components/compositions/NotFoundCard";
 import { TeamSelectionCard } from "./components/match-detail/TeamSelectionCard";
@@ -16,11 +16,16 @@ import { GeneratePostModal } from "./components/match-detail/GeneratePostModal";
 import { usePlayerStore } from "../../stores/players";
 import { getClubTeamLabel, useClubTeamStore } from "../../stores/clubTeams";
 import { usePostStore } from "../../stores/posts";
+import ConfirmationModal from "../../components/compositions/ConfirmationModal";
 
 export default function MatchDetail() {
 	const { id } = useParams();
+	const navigate = useNavigate();
 	const matchDetail = useMatchDetail(id);
 	const [showGeneratePost, setShowGeneratePost] = useState(false);
+	const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+	const [isDeleting, setIsDeleting] = useState(false);
+	const [deleteError, setDeleteError] = useState("");
 	const players = usePlayerStore((state) => state.players);
 	const teamProfiles = useClubTeamStore((state) => state.profiles);
 	const loadTeamProfiles = useClubTeamStore((state) => state.loadProfiles);
@@ -66,7 +71,30 @@ export default function MatchDetail() {
 
 	return (
 		<div className="space-y-3 lg:space-y-6">
-			<LinkButton to="/matches" className="hidden lg:inline-flex">← Back to matches</LinkButton>
+			<div className="hidden items-center justify-between gap-3 lg:flex">
+				<LinkButton to="/matches">← Back to matches</LinkButton>
+				<button
+					type="button"
+					onClick={() => setShowDeleteConfirmation(true)}
+					className="rounded-xl border border-red-300 px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-50"
+				>
+					Delete match
+				</button>
+			</div>
+
+			<button
+				type="button"
+				onClick={() => setShowDeleteConfirmation(true)}
+				className="w-full rounded-xl border border-red-300 px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-50 lg:hidden"
+			>
+				Delete match
+			</button>
+
+			{deleteError && (
+				<div className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700">
+					{deleteError}
+				</div>
+			)}
 
 			{matchDetail.playerLoadError && (
 				<div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800 shadow-sm">
@@ -163,6 +191,32 @@ export default function MatchDetail() {
 				onClose={() => setShowGeneratePost(false)}
 				onPublish={async (request) => {
 					await createPost(request);
+				}}
+			/>
+
+			<ConfirmationModal
+				isOpen={showDeleteConfirmation}
+				title="Delete this match?"
+				message={`This permanently removes the fixture against ${currentMatch.opponent}, including its selection, notes, result and statistics.`}
+				confirmText="Delete match"
+				variant="danger"
+				isBusy={isDeleting}
+				onCancel={() => setShowDeleteConfirmation(false)}
+				onConfirm={async () => {
+					setIsDeleting(true);
+					setDeleteError("");
+					try {
+						await matchDetail.deleteMatch(currentMatch.id);
+						navigate("/matches", { replace: true });
+					} catch (reason) {
+						setDeleteError(
+							reason instanceof Error
+								? reason.message
+								: "Could not delete match."
+						);
+						setIsDeleting(false);
+						setShowDeleteConfirmation(false);
+					}
 				}}
 			/>
 		</div>

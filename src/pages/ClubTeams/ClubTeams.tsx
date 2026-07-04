@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { useClubTeamStore, type ClubTeamProfile } from "../../stores/clubTeams";
+import OrganizationAdminNav from "../../components/organization/OrganizationAdminNav";
 
 export default function ClubTeams() {
 	const profiles = useClubTeamStore((state) => state.profiles);
@@ -15,6 +16,7 @@ export default function ClubTeams() {
 
 	return (
 		<div className="space-y-6">
+			<OrganizationAdminNav />
 			<header className="surface-card p-6">
 				<p className="text-xs font-black uppercase tracking-[.14em] text-yepset-600">Club setup</p>
 				<h1 className="mt-2 text-3xl font-bold text-slate-900">Club teams</h1>
