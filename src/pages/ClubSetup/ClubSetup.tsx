@@ -12,7 +12,10 @@ import {
 } from "../../services/fileService";
 import { organizationApi } from "../../services/organizationApi";
 import { useAuthStore } from "../../stores/auth";
-import type { ClubTeamProfile } from "../../stores/clubTeams";
+import {
+	useClubTeamStore,
+	type ClubTeamProfile,
+} from "../../stores/clubTeams";
 import type { ClubVenue, SportsClub } from "../../types/organization";
 import {
 	buildSetupChecklist,
@@ -22,12 +25,14 @@ import {
 } from "./setupModel";
 import { SetupProgress } from "./SetupProgress";
 import OrganizationAdminNav from "../../components/organization/OrganizationAdminNav";
+import ConfirmationModal from "../../components/compositions/ConfirmationModal";
 
 type TeamDraft = ClubTeamProfile & { isNew?: boolean };
 
 export default function ClubSetup() {
 	const navigate = useNavigate();
 	const currentUser = useAuthStore((state) => state.currentUser);
+	const deleteClubTeam = useClubTeamStore((state) => state.deleteProfile);
 	const activeClubId = useAuthStore(
 		(state) => state.availableClubs.find((club) => club.isCurrent)?.id
 	);
@@ -155,6 +160,26 @@ export default function ClubSetup() {
 		}
 	}
 
+	async function deleteTeam(team: TeamDraft) {
+		if (team.isNew) {
+			setTeams((current) => current.filter((item) => item.id !== team.id));
+			return;
+		}
+		setSaving(true);
+		setError("");
+		try {
+			await deleteClubTeam(team.id);
+			setTeams((current) => current.filter((item) => item.id !== team.id));
+		} catch (reason) {
+			setError(
+				reason instanceof Error ? reason.message : "Could not delete team."
+			);
+			throw reason;
+		} finally {
+			setSaving(false);
+		}
+	}
+
 	async function changeLogo(file: File) {
 		if (!club) return;
 		const validationError = await getManagedImageValidationError(file, "club-logo");
@@ -241,6 +266,7 @@ export default function ClubSetup() {
 							sportKey={club.sportKey}
 							saving={saving}
 							onChange={setTeams}
+							onDelete={deleteTeam}
 							onBack={() => setStep(1)}
 							onNext={saveTeams}
 						/>
@@ -412,6 +438,7 @@ function TeamsStep({
 	sportKey,
 	saving,
 	onChange,
+	onDelete,
 	onBack,
 	onNext,
 }: {
@@ -419,10 +446,12 @@ function TeamsStep({
 	sportKey: string;
 	saving: boolean;
 	onChange: (teams: TeamDraft[]) => void;
+	onDelete: (team: TeamDraft) => Promise<void>;
 	onBack: () => void;
 	onNext: () => Promise<void>;
 }) {
 	const suggestedNames = getSuggestedTeamNames(sportKey);
+	const [teamToDelete, setTeamToDelete] = useState<TeamDraft | null>(null);
 	function update(id: string, changes: Partial<TeamDraft>) {
 		onChange(teams.map((team) => team.id === id ? { ...team, ...changes } : team));
 	}
@@ -440,12 +469,30 @@ function TeamsStep({
 							Competitions <span className="font-normal text-slate-500">one per line</span>
 							<textarea rows={3} value={team.competitions.join("\n")} onChange={(event) => update(team.id, { competitions: event.target.value.split("\n") })} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" placeholder="League&#10;Cup" />
 						</label>
-						{team.isNew && <button type="button" className="mt-2 text-sm font-bold text-red-700" onClick={() => onChange(teams.filter((item) => item.id !== team.id))}>Remove team</button>}
+						<button type="button" className="mt-2 text-sm font-bold text-red-700" onClick={() => setTeamToDelete(team)}>{team.isNew ? "Remove team" : "Delete team"}</button>
 					</div>
 				))}
 			</div>
 			<button type="button" className="btn-secondary mt-4" onClick={() => onChange([...teams, newTeam(teams.length)])}>Add another team</button>
 			<StepActions saving={saving} validation="" onBack={onBack} onNext={() => void onNext()} onNextLabel="Save teams" />
+			<ConfirmationModal
+				isOpen={Boolean(teamToDelete)}
+				title={`${teamToDelete?.isNew ? "Remove" : "Delete"} ${teamToDelete?.displayName || "team"}?`}
+				message={teamToDelete?.isNew ? "This removes the unsaved team from setup." : "This permanently removes the team. Deletion will be refused if it is used by matches, events or statistics."}
+				confirmText={teamToDelete?.isNew ? "Remove team" : "Delete team"}
+				variant="danger"
+				isBusy={saving}
+				onCancel={() => setTeamToDelete(null)}
+				onConfirm={async () => {
+					if (!teamToDelete) return;
+					try {
+						await onDelete(teamToDelete);
+						setTeamToDelete(null);
+					} catch {
+						// The parent displays the API error.
+					}
+				}}
+			/>
 		</div>
 	);
 }

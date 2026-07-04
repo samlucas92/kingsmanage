@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { useClubTeamStore, type ClubTeamProfile } from "../../stores/clubTeams";
 import OrganizationAdminNav from "../../components/organization/OrganizationAdminNav";
+import ConfirmationModal from "../../components/compositions/ConfirmationModal";
 
 export default function ClubTeams() {
 	const profiles = useClubTeamStore((state) => state.profiles);
@@ -53,6 +54,7 @@ function TeamProfileForm({ profile, onSave, onDelete }: {
 	const [draft, setDraft] = useState(profile);
 	const [isSaving, setIsSaving] = useState(false);
 	const [message, setMessage] = useState("");
+	const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
 	async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -73,10 +75,6 @@ function TeamProfileForm({ profile, onSave, onDelete }: {
 	}
 
 	async function handleDelete() {
-		if (!window.confirm(`Delete ${profile.displayName}? This cannot be undone.`)) {
-			return;
-		}
-
 		setIsSaving(true);
 		setMessage("");
 		try {
@@ -84,6 +82,7 @@ function TeamProfileForm({ profile, onSave, onDelete }: {
 		} catch (error) {
 			setMessage(error instanceof Error ? error.message : "Could not delete team.");
 			setIsSaving(false);
+			setShowDeleteConfirmation(false);
 		}
 	}
 
@@ -128,10 +127,20 @@ function TeamProfileForm({ profile, onSave, onDelete }: {
 			</label>
 
 			<div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-				<button type="button" disabled={isSaving} onClick={() => void handleDelete()} className="rounded-xl border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60">Delete team</button>
+				<button type="button" disabled={isSaving} onClick={() => setShowDeleteConfirmation(true)} className="rounded-xl border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60">Delete team</button>
 				<p className={`text-sm ${message === "Team saved." ? "text-green-700" : "text-red-700"}`}>{message}</p>
 				<button type="submit" disabled={isSaving} className="btn-primary disabled:opacity-60">{isSaving ? "Saving..." : "Save team"}</button>
 			</div>
+			<ConfirmationModal
+				isOpen={showDeleteConfirmation}
+				title={`Delete ${profile.displayName}?`}
+				message="This permanently removes the team. If it is used by matches, events or statistics, deletion will be refused and you can archive it instead."
+				confirmText="Delete team"
+				variant="danger"
+				isBusy={isSaving}
+				onCancel={() => setShowDeleteConfirmation(false)}
+				onConfirm={handleDelete}
+			/>
 		</form>
 	);
 }

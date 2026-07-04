@@ -10,6 +10,7 @@ export type ClubTeamProfile = {
 	displayName: string;
 	shortName: string;
 	isActive: boolean;
+	isDeleted?: boolean;
 	sortOrder: number;
 	competitions: string[];
 	createdAt?: string;
