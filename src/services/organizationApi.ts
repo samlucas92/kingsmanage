@@ -15,6 +15,8 @@ export const organizationApi = {
 		apiClient.put<SportsClub>(`/organization/clubs/${club.id}`, club),
 	setClubActive: (id: string, isActive: boolean) =>
 		apiClient.patch<SportsClub>(`/organization/clubs/${id}/active`, { isActive }),
+	deleteClub: (id: string) =>
+		apiClient.delete(`/organization/clubs/${id}`),
 	getDashboard: (clubId?: string) =>
 		apiClient.get<OrganizationDashboard>(
 			`/organization/dashboard${clubId ? `?clubId=${encodeURIComponent(clubId)}` : ""}`

@@ -10,6 +10,7 @@ import { FormationManagerModal } from "./FormationManagerModal";
 import { useAuthStore } from "../../stores/auth";
 import { OrganizationDashboardPanel } from "./OrganizationDashboardPanel";
 import OrganizationAdminNav from "../../components/organization/OrganizationAdminNav";
+import ConfirmationModal from "../../components/compositions/ConfirmationModal";
 
 const sports = Object.keys(sportDefinitions);
 
@@ -22,7 +23,9 @@ export default function Organization() {
 	const [clubs, setClubs] = useState<SportsClub[]>([]);
 	const [editingClub, setEditingClub] = useState<SportsClub | null>(null);
 	const [formationClub, setFormationClub] = useState<SportsClub | null>(null);
+	const [deletingClub, setDeletingClub] = useState<SportsClub | null>(null);
 	const [isCreating, setIsCreating] = useState(false);
+	const [isDeleting, setIsDeleting] = useState(false);
 	const [error, setError] = useState("");
 	const [isLoading, setIsLoading] = useState(true);
 
@@ -78,6 +81,30 @@ export default function Organization() {
 			setClubs((current) => current.map((item) => item.id === updated.id ? updated : item));
 		} catch (saveError) {
 			setError(saveError instanceof Error ? saveError.message : "Failed to update club.");
+		}
+	}
+
+	async function deleteClub() {
+		if (!deletingClub) return;
+		setIsDeleting(true);
+		try {
+			await organizationApi.deleteClub(deletingClub.id);
+			setClubs((current) => current.filter((club) => club.id !== deletingClub.id));
+			useAuthStore.setState((state) => ({
+				availableClubs: state.availableClubs.filter(
+					(club) => club.id !== deletingClub.id
+				),
+			}));
+			setDeletingClub(null);
+			setError("");
+		} catch (deleteError) {
+			setError(
+				deleteError instanceof Error
+					? deleteError.message
+					: "Failed to delete club."
+			);
+		} finally {
+			setIsDeleting(false);
 		}
 	}
 
@@ -167,7 +194,7 @@ export default function Organization() {
 					{clubs.map((club) => (
 						<article key={club.id} className="surface-card p-5 transition hover:border-yepset-200">
 							<div className="flex items-start justify-between gap-3"><div className="flex items-center gap-3">{club.logoFileId ? <ManagedFileImage fileId={club.logoFileId} alt={`${club.name} logo`} className="h-16 w-16 rounded-xl object-contain" /> : <div className="grid h-16 w-16 place-items-center rounded-xl bg-yepset-100 text-xl font-black text-yepset-700">{club.name.charAt(0)}</div>}<div><h3 className="font-bold text-slate-900">{club.name}</h3><p className="mt-1 text-sm text-slate-500">{labelSport(club.sportKey)} · {club.slug}</p></div></div><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${club.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>{club.isActive ? "Active" : "Archived"}</span></div>
-							<div className="mt-5 flex flex-wrap gap-2">{useAuthStore.getState().availableClubs.some((item) => item.id === club.id && item.isCurrent) && <Link to="/club-setup" className="btn-primary">Guided setup</Link>}<button onClick={() => setFormationClub(club)} className="btn-secondary w-full justify-center sm:w-auto">Manage formations</button><button onClick={() => { setEditingClub(club); setIsCreating(false); }} className="btn-secondary">Edit</button><label className="btn-secondary cursor-pointer">Change logo<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void changeClubLogo(club, file); event.target.value = ""; }} /></label>{club.logoFileId && <button onClick={() => void removeClubLogo(club)} className="btn-secondary text-red-700">Remove logo</button>}{canManageOrganization && <button onClick={() => void toggleClub(club)} className="btn-secondary">{club.isActive ? "Archive" : "Restore"}</button>}</div>
+							<div className="mt-5 flex flex-wrap gap-2">{useAuthStore.getState().availableClubs.some((item) => item.id === club.id && item.isCurrent) && <Link to="/club-setup" className="btn-primary">Guided setup</Link>}<button onClick={() => setFormationClub(club)} className="btn-secondary w-full justify-center sm:w-auto">Manage formations</button><button onClick={() => { setEditingClub(club); setIsCreating(false); }} className="btn-secondary">Edit</button><label className="btn-secondary cursor-pointer">Change logo<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void changeClubLogo(club, file); event.target.value = ""; }} /></label>{club.logoFileId && <button onClick={() => void removeClubLogo(club)} className="btn-secondary text-red-700">Remove logo</button>}{canManageOrganization && <button onClick={() => void toggleClub(club)} className="btn-secondary">{club.isActive ? "Archive" : "Restore"}</button>}{canManageOrganization && !club.isActive && <button onClick={() => setDeletingClub(club)} className="btn-secondary border-red-200 text-red-700 hover:bg-red-50">Delete</button>}</div>
 						</article>
 					))}
 				</div>
@@ -175,6 +202,16 @@ export default function Organization() {
 
 			{(isCreating || editingClub) && <ClubModal club={editingClub} onClose={() => { setEditingClub(null); setIsCreating(false); }} onManageFormations={editingClub ? () => { setFormationClub(editingClub); setEditingClub(null); } : undefined} onSave={saveClub} />}
 			{formationClub && <FormationManagerModal club={formationClub} onClose={() => setFormationClub(null)} onSave={(formations) => saveClubFormations(formationClub, formations)} />}
+			<ConfirmationModal
+				isOpen={deletingClub !== null}
+				title={`Delete ${deletingClub?.name ?? "club"}?`}
+				message="This permanently deletes the club. The club must be archived, you must be working in a different club, and it cannot have teams, users or operational data."
+				confirmText="Delete club"
+				isBusy={isDeleting}
+				variant="danger"
+				onCancel={() => setDeletingClub(null)}
+				onConfirm={deleteClub}
+			/>
 		</div>
 	);
 }
