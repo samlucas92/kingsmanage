@@ -35,4 +35,21 @@ describe("RichTextContent lists", () => {
 		expect(html).toContain("<ul");
 		expect(html).toContain("Bring boots");
 	});
+
+	it("renders bullet-prefixed rich text lines as list items", () => {
+		const value = serializeRichText([
+			{
+				type: "paragraph",
+				children: [{ text: "Squad:\n• Alice\n• Bob" }],
+			},
+		]);
+
+		const html = renderToStaticMarkup(<RichTextContent value={value} />);
+
+		expect(html).toContain("<p>Squad:</p>");
+		expect(html).toContain("<ul");
+		expect(html).toContain("<li");
+		expect(html).toContain("Alice");
+		expect(html).toContain("Bob");
+	});
 });

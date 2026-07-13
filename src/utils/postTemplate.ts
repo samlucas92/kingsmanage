@@ -2,7 +2,10 @@ import type { Match } from "../stores/match";
 import type { Player } from "../stores/players";
 import type { ClubPostTemplate } from "../types/posts";
 import { formatDisplayDateTime } from "./date";
-import { ensureRichTextWithLink } from "./richText";
+import {
+	ensureRichTextWithLink,
+	normalizeBulletListParagraphs,
+} from "./richText";
 
 export type PostTemplateValues = {
 	team: string;
@@ -89,8 +92,9 @@ export function buildGeneratedRichPostBody(
 	body: string,
 	values: PostTemplateValues
 ) {
+	const bodyWithLists = normalizeBulletListParagraphs(body);
 	const withLocationLink = ensureRichTextWithLink(
-		body,
+		bodyWithLists,
 		values.location,
 		values.locationUrl
 	);

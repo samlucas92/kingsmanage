@@ -1,5 +1,5 @@
 import { Node, Text, type Descendant } from "slate";
-import type { RichTextNode } from "../types/slate";
+import type { RichTextElement, RichTextNode } from "../types/slate";
 
 const prefix = "yepset-richtext:v1:";
 
@@ -44,6 +44,11 @@ export function ensureRichTextWithLink(value: string, linkText: string, url: str
 				}
 	);
 	return serializeRichText(nodes);
+}
+
+export function normalizeBulletListParagraphs(value: string) {
+	const nodes = deserializeRichText(ensureRichText(value));
+	return serializeRichText(nodes.flatMap(expandGeneratedListParagraph) as Descendant[]);
 }
 
 function replaceTextWithLink(
@@ -100,4 +105,120 @@ export function isRichTextEmpty(value: string) {
 
 export function renderLeafText(node: Descendant): string {
 	return Text.isText(node) ? node.text : Node.string(node);
+}
+
+function expandGeneratedListParagraph(node: RichTextNode): RichTextNode[] {
+	if ("text" in node) {
+		return [node];
+	}
+
+	if (node.type !== "paragraph") {
+		return [
+			{
+				...node,
+				children: node.children.flatMap(expandGeneratedListParagraph),
+			},
+		];
+	}
+
+	const lines = splitInlineChildrenIntoLines(node.children);
+
+	if (lines.length <= 1 || !lines.some(isBulletLine)) {
+		return [node];
+	}
+
+	const result: RichTextNode[] = [];
+	let bulletItems: RichTextElement[] = [];
+
+	function flushBulletItems() {
+		if (bulletItems.length === 0) {
+			return;
+		}
+
+		result.push({
+			type: "bulleted-list",
+			children: bulletItems,
+		});
+		bulletItems = [];
+	}
+
+	for (const line of lines) {
+		if (isBulletLine(line)) {
+			bulletItems.push({
+				type: "list-item",
+				children: stripBulletPrefix(line),
+			});
+			continue;
+		}
+
+		flushBulletItems();
+
+		if (isBlankLine(line)) {
+			continue;
+		}
+
+		result.push({
+			type: "paragraph",
+			children: line,
+		});
+	}
+
+	flushBulletItems();
+
+	return result.length > 0 ? result : [node];
+}
+
+function splitInlineChildrenIntoLines(children: RichTextNode[]) {
+	const lines: RichTextNode[][] = [[]];
+
+	for (const child of children) {
+		if (!("text" in child)) {
+			lines[lines.length - 1].push(child);
+			continue;
+		}
+
+		const parts = child.text.split(/\r?\n/);
+
+		parts.forEach((part, index) => {
+			if (index > 0) {
+				lines.push([]);
+			}
+
+			if (part || parts.length === 1) {
+				lines[lines.length - 1].push({
+					...child,
+					text: part,
+				});
+			}
+		});
+	}
+
+	return lines;
+}
+
+function isBulletLine(line: RichTextNode[]) {
+	const firstText = line.find((node) => "text" in node);
+	return Boolean(firstText && /^(\s*[•*-]\s+)/.test(firstText.text));
+}
+
+function stripBulletPrefix(line: RichTextNode[]): RichTextNode[] {
+	let strippedFirstText = false;
+
+	return line
+		.map((node) => {
+			if (!("text" in node) || strippedFirstText) {
+				return node;
+			}
+
+			strippedFirstText = true;
+			return {
+				...node,
+				text: node.text.replace(/^\s*[•*-]\s+/, ""),
+			};
+		})
+		.filter((node) => !("text" in node) || node.text.length > 0);
+}
+
+function isBlankLine(line: RichTextNode[]) {
+	return line.every((node) => "text" in node && node.text.trim().length === 0);
 }

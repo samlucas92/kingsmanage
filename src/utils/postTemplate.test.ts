@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Match } from "../stores/match";
+import { deserializeRichText, serializeRichText } from "./richText";
 import { applyPostTemplate, buildGeneratedRichPostBody, buildTemplateValues, shuffleNames } from "./postTemplate";
 
 describe("post templates", () => {
@@ -61,5 +62,55 @@ describe("post templates", () => {
 		expect(richBody.match(/"type":"link"/g)).toHaveLength(2);
 		expect(richBody).toContain('"text":"The Rec"');
 		expect(richBody).toContain('"text":"Directions"');
+	});
+
+	it("turns generated squad bullet text into semantic rich text list items", () => {
+		const values = {
+			team: "First Team",
+			opponent: "Rovers",
+			date: "18/07/2026, 13:00:00",
+			venue: "Home",
+			location: "Penyrheol 3G",
+			locationUrl: "",
+			squad: "• Alice\n• Bob\n• Charlie",
+			directions: "Directions to follow",
+			directionsUrl: "",
+			competition: "Friendly",
+		};
+
+		const richTemplate = serializeRichText([
+			{
+				type: "paragraph",
+				children: [{ text: "Squad:\n{{squad}}" }],
+			},
+		]);
+
+		const generated = applyPostTemplate({
+			id: "template-1",
+			name: "Matchday",
+			titleTemplate: "{{team}} vs {{opponent}}",
+			bodyTemplate: richTemplate,
+			isPinned: false,
+			createdAt: "",
+			updatedAt: "",
+		}, values);
+
+		const body = buildGeneratedRichPostBody(generated.body, values);
+		const nodes = deserializeRichText(body);
+
+		expect(nodes).toMatchObject([
+			{
+				type: "paragraph",
+				children: [{ text: "Squad:" }],
+			},
+			{
+				type: "bulleted-list",
+				children: [
+					{ type: "list-item", children: [{ text: "Alice" }] },
+					{ type: "list-item", children: [{ text: "Bob" }] },
+					{ type: "list-item", children: [{ text: "Charlie" }] },
+				],
+			},
+		]);
 	});
 });

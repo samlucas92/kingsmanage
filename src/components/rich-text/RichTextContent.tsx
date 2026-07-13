@@ -1,7 +1,11 @@
 import type { Descendant } from "slate";
 
 import type { RichTextElement, RichTextLeaf } from "../../types/slate";
-import { deserializeRichText, isRichText } from "../../utils/richText";
+import {
+	deserializeRichText,
+	isRichText,
+	normalizeBulletListParagraphs,
+} from "../../utils/richText";
 import PostBody from "../posts/PostBody";
 import ManagedFileImage from "../files/ManagedFileImage";
 
@@ -10,7 +14,9 @@ export default function RichTextContent({ value, className = "", inverted = fals
 		return <div className={`whitespace-pre-wrap ${className}`}><PostBody body={value} inverted={inverted} /></div>;
 	}
 
-	return <div className={`space-y-2 ${className}`}>{deserializeRichText(value).map((node, index) => <NodeView key={index} node={node} inverted={inverted} />)}</div>;
+	const nodes = deserializeRichText(normalizeBulletListParagraphs(value));
+
+	return <div className={`space-y-2 ${className}`}>{nodes.map((node, index) => <NodeView key={index} node={node} inverted={inverted} />)}</div>;
 }
 
 function NodeView({ node, inverted }: { node: Descendant; inverted: boolean }) {
