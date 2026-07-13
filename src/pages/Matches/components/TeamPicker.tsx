@@ -7,11 +7,15 @@ import { TeamBench } from "./team-picker/TeamBench";
 import { AvailablePlayersPanel } from "./team-picker/AvailablePlayersPanel";
 import { getPositionFitLabel } from "./team-picker/PositionCompatibility";
 import { snapPitchOverlayToPointer } from "./team-picker/dragOverlay";
+import type { ClubEventAvailabilityStatus } from "../../../types/events";
 import type { FormationPosition } from "./team-picker/Types";
 import { useTeamPicker } from "./team-picker/useTeamPicker";
 
 interface TeamPickerProps {
 	matchId: string;
+	getPlayerAvailabilityStatus?: (
+		playerId: string
+	) => ClubEventAvailabilityStatus | undefined;
 }
 
 type MobilePlayerSelectorMode =
@@ -30,7 +34,10 @@ type MobilePlayerSelectorMode =
 			positionIndex?: number;
 	  };
 
-export default function TeamPicker({ matchId }: TeamPickerProps) {
+export default function TeamPicker({
+	matchId,
+	getPlayerAvailabilityStatus,
+}: TeamPickerProps) {
 	const teamPicker = useTeamPicker(matchId);
 
 	const [mobilePlayerSelectorMode, setMobilePlayerSelectorMode] =
@@ -208,6 +215,7 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 						isLineupLocked={teamPicker.isLineupLocked}
 						openMenuPlayerId={teamPicker.openMenu?.playerId}
 						hoveredSwapTargetPlayerId={teamPicker.hoveredSwapTargetPlayerId}
+						getPlayerAvailabilityStatus={getPlayerAvailabilityStatus}
 						onOpenPlayerMenu={teamPicker.openPlayerMenu}
 					/>
 				</div>
@@ -321,6 +329,7 @@ export default function TeamPicker({ matchId }: TeamPickerProps) {
 					formation={selectedFormation}
 					availablePlayers={teamPicker.availablePlayers}
 					getPlayerPositions={teamPicker.getPlayerPositions}
+					getPlayerAvailabilityStatus={getPlayerAvailabilityStatus}
 					onClose={closeMobilePlayerSelector}
 					onSelectPlayer={handleSelectMobilePlayer}
 				/>
@@ -411,6 +420,7 @@ function MobilePlayerSelector({
 	formation,
 	availablePlayers,
 	getPlayerPositions,
+	getPlayerAvailabilityStatus,
 	onClose,
 	onSelectPlayer,
 }: {
@@ -422,6 +432,9 @@ function MobilePlayerSelector({
 		isActive: boolean;
 	}[];
 	getPlayerPositions: (playerId: string) => string[];
+	getPlayerAvailabilityStatus?: (
+		playerId: string
+	) => ClubEventAvailabilityStatus | undefined;
 	onClose: () => void;
 	onSelectPlayer: (playerId: string) => void;
 }) {
@@ -517,6 +530,8 @@ function MobilePlayerSelector({
 								const fitLabel = position
 									? getPositionFitLabel(playerPositions, position.label)
 									: "";
+								const availabilityStatus =
+									getPlayerAvailabilityStatus?.(player.id);
 
 								return (
 									<button
@@ -537,15 +552,21 @@ function MobilePlayerSelector({
 											</p>
 										</div>
 
-										{position && (
-											<span
-												className={`shrink-0 rounded-full px-2 py-1 text-xs font-bold ${getFitClass(
-													fitLabel
-												)}`}
-											>
-												{fitLabel}
-											</span>
-										)}
+										<div className="flex shrink-0 flex-col items-end gap-1">
+											{availabilityStatus && (
+												<AvailabilityStatusBadge status={availabilityStatus} />
+											)}
+
+											{position && (
+												<span
+													className={`rounded-full px-2 py-1 text-xs font-bold ${getFitClass(
+														fitLabel
+													)}`}
+												>
+													{fitLabel}
+												</span>
+											)}
+										</div>
 									</button>
 								);
 							})}
@@ -554,6 +575,22 @@ function MobilePlayerSelector({
 				</div>
 			</div>
 		</div>
+	);
+}
+
+function AvailabilityStatusBadge({
+	status,
+}: {
+	status: ClubEventAvailabilityStatus;
+}) {
+	return (
+		<span
+			className={`rounded-full px-2 py-1 text-xs font-bold ${getAvailabilityStatusClass(
+				status
+			)}`}
+		>
+			{getAvailabilityStatusLabel(status)}
+		</span>
 	);
 }
 
@@ -785,6 +822,30 @@ function getFitClass(fitLabel: string) {
 
 	if (fitLabel === "Emergency") {
 		return "bg-amber-100 text-amber-800";
+	}
+
+	return "bg-slate-100 text-slate-600";
+}
+
+function getAvailabilityStatusLabel(status: ClubEventAvailabilityStatus) {
+	if (status === "Available") {
+		return "Available";
+	}
+
+	if (status === "Declined") {
+		return "Declined";
+	}
+
+	return "No reply";
+}
+
+function getAvailabilityStatusClass(status: ClubEventAvailabilityStatus) {
+	if (status === "Available") {
+		return "bg-green-100 text-green-800";
+	}
+
+	if (status === "Declined") {
+		return "bg-red-100 text-red-800";
 	}
 
 	return "bg-slate-100 text-slate-600";

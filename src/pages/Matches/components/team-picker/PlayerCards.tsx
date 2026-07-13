@@ -1,6 +1,7 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import type { MouseEvent } from "react";
+import type { ClubEventAvailabilityStatus } from "../../../../types/events";
 import type { DragData, DropData } from "./Types";
 
 interface AvailablePlayerProps {
@@ -9,6 +10,7 @@ interface AvailablePlayerProps {
 	disabled: boolean;
 	isMenuOpen: boolean;
 	isSwapTarget?: boolean;
+	availabilityStatus?: ClubEventAvailabilityStatus;
 	onOpenMenu: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
@@ -18,6 +20,7 @@ export function AvailablePlayer({
 	disabled,
 	isMenuOpen,
 	isSwapTarget = false,
+	availabilityStatus,
 	onOpenMenu,
 }: AvailablePlayerProps) {
 	const {
@@ -86,6 +89,16 @@ export function AvailablePlayer({
 				{isSwapTarget ? `↔ ${name}` : name}
 			</button>
 
+			{availabilityStatus && (
+				<span
+					className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${getAvailabilityStatusClass(
+						availabilityStatus
+					)}`}
+				>
+					{getAvailabilityStatusLabel(availabilityStatus)}
+				</span>
+			)}
+
 			<button
 				type="button"
 				onClick={onOpenMenu}
@@ -99,6 +112,30 @@ export function AvailablePlayer({
 			</button>
 		</div>
 	);
+}
+
+function getAvailabilityStatusLabel(status: ClubEventAvailabilityStatus) {
+	if (status === "Available") {
+		return "Available";
+	}
+
+	if (status === "Declined") {
+		return "Declined";
+	}
+
+	return "No reply";
+}
+
+function getAvailabilityStatusClass(status: ClubEventAvailabilityStatus) {
+	if (status === "Available") {
+		return "bg-green-100 text-green-800";
+	}
+
+	if (status === "Declined") {
+		return "bg-red-100 text-red-800";
+	}
+
+	return "bg-slate-100 text-slate-600";
 }
 
 interface SelectedPitchPlayerProps {

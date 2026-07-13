@@ -134,6 +134,9 @@ export default function MatchDetail() {
 				benchCount={matchDetail.benchCount}
 				totalSelectedCount={matchDetail.totalSelectedCount}
 				isLineupLocked={currentMatch.isLineupLocked}
+				getPlayerAvailabilityStatus={
+					matchDetail.getMatchPlayerAvailabilityStatus
+				}
 				onSaveTeamClick={matchDetail.handleSaveTeamClick}
 				onGeneratePostClick={() => setShowGeneratePost(true)}
 			/>

@@ -5,6 +5,8 @@ import type {
 	MatchPlayerStat,
 } from "../../../stores/match";
 import { usePlayerStore } from "../../../stores/players";
+import { useEventStore } from "../../../stores/events";
+import { getPlayerAvailabilityStatus } from "../../../utils/events";
 
 type ResultPreview = "won" | "lost" | "draw";
 
@@ -37,6 +39,9 @@ export function useMatchDetail(matchId?: string) {
 		(state) => state.updateMatchPlayerStats
 	);
 	const deleteMatch = useMatchStore((state) => state.deleteMatch);
+	const events = useEventStore((state) => state.events);
+	const selectedEvent = useEventStore((state) => state.selectedEvent);
+	const loadEvent = useEventStore((state) => state.loadEvent);
 
 	const [showResultModal, setShowResultModal] = useState(false);
 	const [homeGoals, setHomeGoals] = useState(0);
@@ -61,6 +66,22 @@ export function useMatchDetail(matchId?: string) {
 
 		void loadMatch(matchId);
 	}, [loadMatch, matchId]);
+
+	useEffect(() => {
+		const clubEventId = match?.clubEventId;
+
+		if (!clubEventId) {
+			return;
+		}
+
+		const eventIsLoaded =
+			selectedEvent?.id === clubEventId ||
+			events.some((event) => event.id === clubEventId);
+
+		if (!eventIsLoaded) {
+			void loadEvent(clubEventId);
+		}
+	}, [events, loadEvent, match?.clubEventId, selectedEvent?.id]);
 
 	function getPlayerName(playerId: string) {
 		const player = players.find((player) => player.id === playerId);
@@ -106,6 +127,17 @@ export function useMatchDetail(matchId?: string) {
 				: awayGoals > homeGoals
 					? "won"
 					: "lost";
+	const linkedEvent = currentMatch?.clubEventId
+		? selectedEvent?.id === currentMatch.clubEventId
+			? selectedEvent
+			: events.find((event) => event.id === currentMatch.clubEventId)
+		: undefined;
+
+	function getMatchPlayerAvailabilityStatus(playerId: string) {
+		return linkedEvent
+			? getPlayerAvailabilityStatus(linkedEvent, playerId)
+			: undefined;
+	}
 
 	function handleSaveTeamClick() {
 		if (!currentMatch) {
@@ -240,6 +272,7 @@ export function useMatchDetail(matchId?: string) {
 		updateNoteDraft,
 		handleSaveNotes,
 		getPlayerName,
+		getMatchPlayerAvailabilityStatus,
 		handleSaveMatchPlayerStats,
 		deleteMatch,
 	};

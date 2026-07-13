@@ -1,5 +1,6 @@
 import type { MouseEvent } from "react";
 import StatusBadge from "../../../../components/compositions/StatusBadge";
+import type { ClubEventAvailabilityStatus } from "../../../../types/events";
 import { AvailablePlayer } from "./PlayerCards";
 
 type Player = {
@@ -13,6 +14,9 @@ interface AvailablePlayersPanelProps {
 	isLineupLocked: boolean;
 	openMenuPlayerId?: string;
 	hoveredSwapTargetPlayerId?: string | null;
+	getPlayerAvailabilityStatus?: (
+		playerId: string
+	) => ClubEventAvailabilityStatus | undefined;
 	onOpenPlayerMenu: (
 		playerId: string,
 		event: MouseEvent<HTMLButtonElement>
@@ -24,6 +28,7 @@ export function AvailablePlayersPanel({
 	isLineupLocked,
 	openMenuPlayerId,
 	hoveredSwapTargetPlayerId = null,
+	getPlayerAvailabilityStatus,
 	onOpenPlayerMenu,
 }: AvailablePlayersPanelProps) {
 	return (
@@ -58,6 +63,7 @@ export function AvailablePlayersPanel({
 							disabled={isLineupLocked}
 							isMenuOpen={openMenuPlayerId === player.id}
 							isSwapTarget={hoveredSwapTargetPlayerId === player.id}
+							availabilityStatus={getPlayerAvailabilityStatus?.(player.id)}
 							onOpenMenu={(event) => onOpenPlayerMenu(player.id, event)}
 						/>
 					))}
