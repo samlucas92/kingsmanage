@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	type ClipboardEvent,
+	type ReactNode,
+} from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import AttachmentList from "../../components/files/AttachmentList";
@@ -14,6 +21,7 @@ import { formatDisplayDateTime } from "../../utils/date";
 import { getPostTypeClass, getPostTypeLabel } from "../../utils/posts";
 import PostFormModal from "./components/PostFormModal";
 import RichTextContent from "../../components/rich-text/RichTextContent";
+import { getSelectedPostHtml } from "../../utils/clipboardHtml";
 
 export default function PostDetail() {
 	const { id } = useParams<{ id: string }>();
@@ -39,6 +47,7 @@ export default function PostDetail() {
 	const [attachmentsError, setAttachmentsError] = useState("");
 	const [fileToDelete, setFileToDelete] = useState<ClubFile | null>(null);
 	const [isDeletingFile, setIsDeletingFile] = useState(false);
+	const postBodyRef = useRef<HTMLDivElement | null>(null);
 
 	const postFromList = useMemo(
 		() => posts.find((post) => post.id === id) ?? null,
@@ -148,6 +157,25 @@ export default function PostDetail() {
 		setAttachmentsError("");
 	}
 
+	function handlePostBodyCopy(event: ClipboardEvent<HTMLDivElement>) {
+		const selection = window.getSelection();
+		const postBodyElement = postBodyRef.current;
+
+		if (!selection || !postBodyElement) {
+			return;
+		}
+
+		const selectedPostContent = getSelectedPostHtml(selection, postBodyElement);
+
+		if (!selectedPostContent) {
+			return;
+		}
+
+		event.clipboardData.setData("text/html", selectedPostContent.html);
+		event.clipboardData.setData("text/plain", selectedPostContent.text);
+		event.preventDefault();
+	}
+
 	if (!id) {
 		return (
 			<PostDetailShell>
@@ -245,7 +273,11 @@ export default function PostDetail() {
 					</div>
 				</div>
 
-				<div className="px-5 py-6 sm:px-6">
+				<div
+					ref={postBodyRef}
+					onCopy={handlePostBodyCopy}
+					className="px-5 py-6 sm:px-6"
+				>
 					<RichTextContent value={post.body} className="text-base leading-8 text-slate-700" />
 				</div>
 			</article>
