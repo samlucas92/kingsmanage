@@ -3,7 +3,6 @@ import {
 	useMemo,
 	useRef,
 	useState,
-	type ClipboardEvent,
 	type ReactNode,
 } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -21,7 +20,7 @@ import { formatDisplayDateTime } from "../../utils/date";
 import { getPostTypeClass, getPostTypeLabel } from "../../utils/posts";
 import PostFormModal from "./components/PostFormModal";
 import RichTextContent from "../../components/rich-text/RichTextContent";
-import { getSelectedPostHtml } from "../../utils/clipboardHtml";
+import { writeSelectedPostHtmlToClipboard } from "../../utils/clipboardHtml";
 
 export default function PostDetail() {
 	const { id } = useParams<{ id: string }>();
@@ -78,6 +77,24 @@ export default function PostDetail() {
 	useEffect(() => {
 		return () => clearSelectedPost();
 	}, [clearSelectedPost]);
+
+	useEffect(() => {
+		function handleDocumentCopy(event: ClipboardEvent) {
+			const postBodyElement = postBodyRef.current;
+
+			if (!postBodyElement) {
+				return;
+			}
+
+			writeSelectedPostHtmlToClipboard(event, postBodyElement);
+		}
+
+		document.addEventListener("copy", handleDocumentCopy, true);
+
+		return () => {
+			document.removeEventListener("copy", handleDocumentCopy, true);
+		};
+	}, []);
 
 	async function loadAttachments(postId: string) {
 		setIsLoadingAttachments(true);
@@ -155,25 +172,6 @@ export default function PostDetail() {
 	function handleFileUploaded(file: ClubFile) {
 		setAttachments((currentFiles) => [file, ...currentFiles]);
 		setAttachmentsError("");
-	}
-
-	function handlePostBodyCopy(event: ClipboardEvent<HTMLDivElement>) {
-		const selection = window.getSelection();
-		const postBodyElement = postBodyRef.current;
-
-		if (!selection || !postBodyElement) {
-			return;
-		}
-
-		const selectedPostContent = getSelectedPostHtml(selection, postBodyElement);
-
-		if (!selectedPostContent) {
-			return;
-		}
-
-		event.clipboardData.setData("text/html", selectedPostContent.html);
-		event.clipboardData.setData("text/plain", selectedPostContent.text);
-		event.preventDefault();
 	}
 
 	if (!id) {
@@ -275,7 +273,6 @@ export default function PostDetail() {
 
 				<div
 					ref={postBodyRef}
-					onCopy={handlePostBodyCopy}
 					className="px-5 py-6 sm:px-6"
 				>
 					<RichTextContent value={post.body} className="text-base leading-8 text-slate-700" />

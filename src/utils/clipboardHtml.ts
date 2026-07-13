@@ -43,6 +43,29 @@ export function getSelectedPostHtml(selection: Selection, root: HTMLElement) {
 	};
 }
 
+export function writeSelectedPostHtmlToClipboard(
+	event: ClipboardEvent,
+	root: HTMLElement
+) {
+	const selection = root.ownerDocument.getSelection();
+
+	if (!selection || !event.clipboardData) {
+		return false;
+	}
+
+	const selectedPostContent = getSelectedPostHtml(selection, root);
+
+	if (!selectedPostContent) {
+		return false;
+	}
+
+	event.clipboardData.setData("text/html", selectedPostContent.html);
+	event.clipboardData.setData("text/plain", selectedPostContent.text);
+	event.preventDefault();
+
+	return true;
+}
+
 export function sanitizeCopiedPostHtml(html: string) {
 	if (typeof document === "undefined") {
 		return sanitizeCopiedPostHtmlFallback(html);
