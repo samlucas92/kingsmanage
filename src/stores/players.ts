@@ -112,10 +112,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
 	},
 
 	addPlayer: async (player) => {
-		const createdPlayer = await playerApi.createPlayer({
-			id: "",
-			...player,
-		});
+		const createdPlayer = await playerApi.createPlayer(player);
 
 		set((state) => ({
 			players: addPlayerRecord(state.players, createdPlayer),
