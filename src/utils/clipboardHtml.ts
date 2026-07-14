@@ -39,7 +39,7 @@ export function getSelectedPostHtml(selection: Selection, root: HTMLElement) {
 
 	return {
 		html: sanitizeCopiedPostHtml(container.innerHTML),
-		text: selection.toString(),
+		text: getCopiedPostPlainText(container),
 	};
 }
 
@@ -81,6 +81,20 @@ export function sanitizeCopiedPostHtml(html: string) {
 	}
 
 	return output.innerHTML;
+}
+
+export function getCopiedPostPlainText(html: string | HTMLElement) {
+	if (typeof html !== "string") {
+		return normalizeClipboardText(getPlainTextFromNode(html));
+	}
+
+	if (typeof document === "undefined") {
+		return normalizeClipboardText(getPlainTextFromHtmlFallback(html));
+	}
+
+	const template = document.createElement("template");
+	template.innerHTML = html;
+	return normalizeClipboardText(getPlainTextFromNode(template.content));
 }
 
 function selectionRangeIntersectsElement(range: Range, element: HTMLElement) {
@@ -136,6 +150,102 @@ function cleanCopiedNode(node: Node): Node {
 	children.forEach((child) => copy.appendChild(child));
 
 	return copy;
+}
+
+function getPlainTextFromNode(node: Node): string {
+	if (node.nodeType === Node.TEXT_NODE) {
+		return node.textContent ?? "";
+	}
+
+	if (node.nodeType !== Node.ELEMENT_NODE && node.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) {
+		return "";
+	}
+
+	const element = node as HTMLElement;
+	const tagName = element.nodeType === Node.ELEMENT_NODE
+		? element.tagName.toLowerCase()
+		: "";
+
+	if (tagName === "br") {
+		return "\n";
+	}
+
+	if (tagName === "a") {
+		const text = getChildrenPlainText(element).trim();
+		const href = element.getAttribute("href");
+
+		if (href && /^https?:\/\//i.test(href) && text && text !== href) {
+			return `${text} (${href})`;
+		}
+
+		return text || href || "";
+	}
+
+	if (tagName === "ul") {
+		return getListPlainText(element, false);
+	}
+
+	if (tagName === "ol") {
+		return getListPlainText(element, true);
+	}
+
+	if (tagName === "li") {
+		return getChildrenPlainText(element);
+	}
+
+	const text = getChildrenPlainText(node);
+
+	if (["p", "h1", "h2", "h3", "figure", "figcaption"].includes(tagName)) {
+		return `${text}\n\n`;
+	}
+
+	return text;
+}
+
+function getChildrenPlainText(node: Node) {
+	return Array.from(node.childNodes).map(getPlainTextFromNode).join("");
+}
+
+function getListPlainText(list: HTMLElement, numbered: boolean) {
+	const items = Array.from(list.children).filter(
+		(child) => child.tagName.toLowerCase() === "li"
+	);
+
+	return `${items
+		.map((item, index) => {
+			const marker = numbered ? `${index + 1}.` : "-";
+			return `${marker} ${getChildrenPlainText(item).trim()}`;
+		})
+		.join("\n")}\n\n`;
+}
+
+function getPlainTextFromHtmlFallback(html: string) {
+	return html
+		.replace(
+			/<a\b[^>]*href=["'](https?:\/\/[^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi,
+			(_match, href: string, label: string) => {
+				const cleanLabel = stripHtml(label).trim();
+				return cleanLabel && cleanLabel !== href
+					? `${cleanLabel} (${href})`
+					: href;
+			}
+		)
+		.replace(/<li\b[^>]*>([\s\S]*?)<\/li>/gi, (_match, item: string) => `- ${stripHtml(item).trim()}\n`)
+		.replace(/<\/(p|h1|h2|h3|ul|ol|figure|figcaption)>/gi, "\n\n")
+		.replace(/<br\s*\/?>/gi, "\n")
+		.replace(/<[^>]+>/g, "");
+}
+
+function stripHtml(value: string) {
+	return value.replace(/<[^>]+>/g, "");
+}
+
+function normalizeClipboardText(value: string) {
+	return value
+		.replace(/\u00a0/g, " ")
+		.replace(/[ \t]+\n/g, "\n")
+		.replace(/\n{3,}/g, "\n\n")
+		.trim();
 }
 
 function sanitizeCopiedPostHtmlFallback(html: string) {

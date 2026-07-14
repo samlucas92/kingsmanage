@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { sanitizeCopiedPostHtml } from "./clipboardHtml";
+import {
+	getCopiedPostPlainText,
+	sanitizeCopiedPostHtml,
+} from "./clipboardHtml";
 
 describe("clipboard html", () => {
 	it("strips application-only attributes from copied post markup", () => {
@@ -28,5 +31,22 @@ describe("clipboard html", () => {
 		);
 
 		expect(html).toBe("<p><a>Bad link</a></p>");
+	});
+
+	it("includes hrefs in plain text when destination apps ignore html", () => {
+		const text = getCopiedPostPlainText(
+			[
+				"<p>Squad:</p>",
+				"<ul>",
+				"<li>Alice</li>",
+				"<li>Bob</li>",
+				"</ul>",
+				'<p><a href="https://example.com/directions">Directions</a></p>',
+			].join("")
+		);
+
+		expect(text).toBe(
+			"Squad:\n\n- Alice\n- Bob\n\nDirections (https://example.com/directions)"
+		);
 	});
 });
