@@ -6,6 +6,7 @@ export const setupSteps = [
 	"Club identity",
 	"Venues",
 	"Teams",
+	"Finance",
 	"Staff access",
 	"Review",
 ] as const;

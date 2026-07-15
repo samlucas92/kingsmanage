@@ -10,10 +10,12 @@ import { usePlayerStore } from "../../stores/players";
 import { useSeasonStore } from "../../stores/seasons";
 import { useStatsStore } from "../../stores/stats";
 import { useFinanceStore } from "../../stores/finance";
+import { useEventStore } from "../../stores/events";
 import { matchApi } from "../../services/matchApi";
 import { PlayerFormModal } from "./components/PlayerFormModal";
 import { usePlayerForm } from "./hooks/usePlayerForm";
 import { formatDisplayDate } from "../../utils/date";
+import type { ClubEvent, ClubEventAvailabilityStatus } from "../../types/events";
 import type { FinanceTransaction } from "../../types/finance";
 
 type PlayerMatchRecord = Awaited<ReturnType<typeof matchApi.getPlayerMatches>>[number];
@@ -21,6 +23,20 @@ type PlayerMatchRecord = Awaited<ReturnType<typeof matchApi.getPlayerMatches>>[n
 type FinanceStatus = {
 	label: string;
 	tone: "success" | "warning" | "danger" | "neutral";
+};
+
+type TrainingReport = {
+	total: number;
+	available: number;
+	declined: number;
+	unanswered: number;
+	availabilityRate: number;
+	recent: Array<{
+		id: string;
+		title: string;
+		startDateTime: string;
+		status: ClubEventAvailabilityStatus;
+	}>;
 };
 
 function formatCurrency(amount: number) {
@@ -86,6 +102,74 @@ function getFinanceStatus(
 	};
 }
 
+function getTrainingAvailabilityReport({
+	playerId,
+	seasonStartDate,
+	seasonEndDate,
+	events,
+}: {
+	playerId?: string;
+	seasonStartDate?: string;
+	seasonEndDate?: string;
+	events: ClubEvent[];
+}): TrainingReport {
+	if (!playerId || !seasonStartDate || !seasonEndDate) {
+		return emptyTrainingReport();
+	}
+
+	const seasonStart = new Date(seasonStartDate).getTime();
+	const seasonEnd = new Date(seasonEndDate).getTime();
+	const trainingEvents = events
+		.filter((event) => {
+			if (event.type !== "Training") {
+				return false;
+			}
+
+			const eventTime = new Date(event.startDateTime).getTime();
+			return eventTime >= seasonStart && eventTime <= seasonEnd;
+		})
+		.sort(
+			(firstEvent, secondEvent) =>
+				new Date(secondEvent.startDateTime).getTime() -
+				new Date(firstEvent.startDateTime).getTime()
+		);
+
+	const recent = trainingEvents.map((event) => ({
+		id: event.id,
+		title: event.title,
+		startDateTime: event.startDateTime,
+		status:
+			event.availabilityResponses.find(
+				(response) => response.playerId === playerId
+			)?.status ?? "Unanswered",
+	}));
+	const available = recent.filter((event) => event.status === "Available").length;
+	const declined = recent.filter((event) => event.status === "Declined").length;
+	const unanswered = recent.filter((event) => event.status === "Unanswered").length;
+	const availabilityRate =
+		recent.length > 0 ? Math.round((available / recent.length) * 100) : 0;
+
+	return {
+		total: recent.length,
+		available,
+		declined,
+		unanswered,
+		availabilityRate,
+		recent: recent.slice(0, 8),
+	};
+}
+
+function emptyTrainingReport(): TrainingReport {
+	return {
+		total: 0,
+		available: 0,
+		declined: 0,
+		unanswered: 0,
+		availabilityRate: 0,
+		recent: [],
+	};
+}
+
 export default function PlayerProfile() {
 	const { id } = useParams();
 
@@ -121,6 +205,9 @@ export default function PlayerProfile() {
 	const isLoadingFinance = useFinanceStore((state) => state.isLoadingFinance);
 	const financeLoadError = useFinanceStore((state) => state.financeLoadError);
 	const loadFinance = useFinanceStore((state) => state.loadFinance);
+	const events = useEventStore((state) => state.events);
+	const loadEvents = useEventStore((state) => state.loadEvents);
+	const eventsLoadError = useEventStore((state) => state.eventsLoadError);
 
 	const player = players.find((player) => player.id === id);
 	const selectedSeason = seasons.find((season) => season.id === selectedSeasonId);
@@ -139,7 +226,8 @@ export default function PlayerProfile() {
 
 	useEffect(() => {
 		void loadSeasons();
-	}, [loadSeasons]);
+		void loadEvents(true);
+	}, [loadSeasons, loadEvents]);
 
 	useEffect(() => {
 		if (selectedSeasonId && seasons.some((season) => season.id === selectedSeasonId)) {
@@ -251,6 +339,14 @@ export default function PlayerProfile() {
 		financeTotalPaid,
 		financeBalance
 	);
+	const trainingReport = useMemo(() => {
+		return getTrainingAvailabilityReport({
+			playerId: id,
+			seasonStartDate: selectedSeason?.startDate,
+			seasonEndDate: selectedSeason?.endDate,
+			events,
+		});
+	}, [id, selectedSeason, events]);
 
 	if (!id) {
 		return (
@@ -305,6 +401,12 @@ export default function PlayerProfile() {
 			{financeLoadError && (
 				<div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
 					{financeLoadError}
+				</div>
+			)}
+
+			{eventsLoadError && (
+				<div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+					{eventsLoadError}
 				</div>
 			)}
 
@@ -397,6 +499,52 @@ export default function PlayerProfile() {
 				<MetricCard label="Career Apps" value={careerApps} />
 				<MetricCard label="Season Apps" value={seasonApps} />
 				<MetricCard label="Season Goals" value={seasonGoals} />
+			</div>
+
+			<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+					<div>
+						<h2 className="text-lg font-bold text-slate-900">
+							Training Availability Report
+						</h2>
+						<p className="mt-1 text-sm text-slate-500">
+							Based on Training event responses in the selected season. This is
+							availability, not confirmed attendance.
+						</p>
+					</div>
+					<StatusBadge
+						label={`${trainingReport.availabilityRate}% available`}
+						tone={trainingReport.availabilityRate >= 75 ? "success" : trainingReport.availabilityRate >= 50 ? "warning" : "danger"}
+					/>
+				</div>
+
+				<div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+					<MetricCard label="Training events" value={trainingReport.total} size="compact" />
+					<MetricCard label="Available" value={trainingReport.available} tone="success" size="compact" />
+					<MetricCard label="Declined" value={trainingReport.declined} tone={trainingReport.declined > 0 ? "warning" : "default"} size="compact" />
+					<MetricCard label="No response" value={trainingReport.unanswered} tone={trainingReport.unanswered > 0 ? "danger" : "default"} size="compact" />
+				</div>
+
+				{trainingReport.recent.length === 0 ? (
+					<div className="mt-4 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+						No training events found for this player in the selected season.
+					</div>
+				) : (
+					<div className="mt-4 divide-y divide-slate-100">
+						{trainingReport.recent.map((event) => (
+							<div key={event.id} className="flex items-center justify-between gap-4 py-3 text-sm">
+								<div>
+									<p className="font-semibold text-slate-900">{event.title}</p>
+									<p className="text-slate-500">{formatDisplayDate(event.startDateTime)}</p>
+								</div>
+								<StatusBadge
+									label={event.status === "Available" ? "Available" : event.status === "Declined" ? "Declined" : "No response"}
+									tone={event.status === "Available" ? "success" : event.status === "Declined" ? "warning" : "danger"}
+								/>
+							</div>
+						))}
+					</div>
+				)}
 			</div>
 
 			<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">

@@ -33,6 +33,7 @@ import FinanceTable from "./components/FinanceTable";
 import { formatCurrency } from "../../utils/format";
 
 type AmountModalMode = "owed" | "payment" | "adjustment";
+type BulkFinanceMode = AmountModalMode;
 
 type AmountModalState = {
 	mode: AmountModalMode;
@@ -119,7 +120,9 @@ export default function Finance() {
 	const [deleteTransaction, setDeleteTransaction] =
 		useState<DeleteTransactionState | null>(null);
 	const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+	const [bulkMode, setBulkMode] = useState<BulkFinanceMode>("owed");
 	const [bulkAmountValue, setBulkAmountValue] = useState("");
+	const [bulkNote, setBulkNote] = useState("");
 	const [bulkTarget, setBulkTarget] = useState<BulkTarget>("active");
 	const [amountValue, setAmountValue] = useState("");
 	const [paymentNote, setPaymentNote] = useState("");
@@ -223,14 +226,18 @@ export default function Finance() {
 	}
 
 	function openBulkModal() {
+		setBulkMode("owed");
 		setBulkAmountValue("");
+		setBulkNote("");
 		setBulkTarget("active");
 		setBulkFormError("");
 		setIsBulkModalOpen(true);
 	}
 
 	function closeBulkModal() {
+		setBulkMode("owed");
 		setBulkAmountValue("");
+		setBulkNote("");
 		setBulkTarget("active");
 		setBulkFormError("");
 		setIsBulkModalOpen(false);
@@ -323,8 +330,23 @@ export default function Finance() {
 
 		const amount = Number(bulkAmountValue);
 
-		if (!Number.isFinite(amount) || amount < 0) {
+		if (!Number.isFinite(amount)) {
+			setBulkFormError("Amount must be a valid number.");
+			return;
+		}
+
+		if (bulkMode !== "adjustment" && amount < 0) {
 			setBulkFormError("Amount must be 0 or above.");
+			return;
+		}
+
+		if (bulkMode === "payment" && amount <= 0) {
+			setBulkFormError("Payment amount must be more than 0.");
+			return;
+		}
+
+		if (bulkMode === "adjustment" && amount === 0) {
+			setBulkFormError("Adjustment amount cannot be 0.");
 			return;
 		}
 
@@ -333,8 +355,15 @@ export default function Finance() {
 			return;
 		}
 
+		const actionLabel =
+			bulkMode === "owed"
+				? "Set amount owed to"
+				: bulkMode === "payment"
+					? "Add payment of"
+					: "Add adjustment of";
+
 		const confirmed = window.confirm(
-			`Set amount owed to ${formatCurrency(amount)} for ${
+			`${actionLabel} ${formatCurrency(amount)} for ${
 				bulkTargetRows.length
 			} ${bulkTargetRows.length === 1 ? "player" : "players"} in ${
 				selectedSeason?.name ?? "the filtered season"
@@ -350,7 +379,27 @@ export default function Finance() {
 			setBulkFormError("");
 
 			for (const row of bulkTargetRows) {
-				await setPlayerAmountOwed(row.player.id, amount, selectedSeasonId);
+				if (bulkMode === "owed") {
+					await setPlayerAmountOwed(row.player.id, amount, selectedSeasonId);
+				} else if (bulkMode === "payment") {
+					await addPlayerPayment(
+						row.player.id,
+						{
+							amount,
+							note: bulkNote.trim() || undefined,
+						},
+						selectedSeasonId
+					);
+				} else {
+					await addPlayerAdjustment(
+						row.player.id,
+						{
+							amount,
+							note: bulkNote.trim() || undefined,
+						},
+						selectedSeasonId
+					);
+				}
 			}
 
 			closeBulkModal();
@@ -480,7 +529,7 @@ export default function Finance() {
 						disabled={!hasSelectedSeason || isSavingFinance}
 						className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
 					>
-						Bulk Set Owed
+						Bulk update
 					</button>
 				</div>
 			</div>
@@ -705,9 +754,9 @@ export default function Finance() {
 			</Modal>
 
 			<Modal
-				title="Bulk set amount owed"
+				title="Bulk update finance"
 				isOpen={isBulkModalOpen}
-				confirmText={isSavingFinance ? "Saving..." : "Set Amounts"}
+				confirmText={isSavingFinance ? "Saving..." : getBulkConfirmText(bulkMode)}
 				onClose={closeBulkModal}
 				onConfirm={handleConfirmBulkAmount}
 			>
@@ -719,13 +768,28 @@ export default function Finance() {
 					)}
 
 					<p className="text-sm text-slate-600">
-						This updates the amount owed for the selected group in{" "}
-						{selectedSeason?.name ?? "the filtered season"}. It does not remove
-						existing payments.
+						This applies the selected finance action to the chosen group in{" "}
+						{selectedSeason?.name ?? "the filtered season"}.
 					</p>
 
 					<label className="block text-sm font-semibold text-slate-700">
-						Amount owed
+						Action
+						<select
+							value={bulkMode}
+							onChange={(event) => {
+								setBulkMode(event.target.value as BulkFinanceMode);
+								setBulkFormError("");
+							}}
+							className="mt-1 w-full rounded-lg border px-3 py-2"
+						>
+							<option value="owed">Set amount owed</option>
+							<option value="payment">Add payment</option>
+							<option value="adjustment">Add adjustment / discount</option>
+						</select>
+					</label>
+
+					<label className="block text-sm font-semibold text-slate-700">
+						Amount
 						<input
 							type="number"
 							step="0.01"
@@ -735,9 +799,40 @@ export default function Finance() {
 								setBulkFormError("");
 							}}
 							className="mt-1 w-full rounded-lg border px-3 py-2"
-							placeholder="0.00"
+							placeholder={bulkMode === "adjustment" ? "e.g. -5.00" : "0.00"}
 						/>
 					</label>
+
+					{bulkMode !== "owed" && (
+						<label className="block text-sm font-semibold text-slate-700">
+							Note
+							<input
+								type="text"
+								value={bulkNote}
+								onChange={(event) => setBulkNote(event.target.value)}
+								className="mt-1 w-full rounded-lg border px-3 py-2"
+								placeholder={
+									bulkMode === "adjustment"
+										? "e.g. sibling discount"
+										: "e.g. bank transfer batch"
+								}
+							/>
+						</label>
+					)}
+
+					{bulkMode === "owed" && (
+						<p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+							This sets the season charge for each selected player. Existing
+							payments remain in place.
+						</p>
+					)}
+
+					{bulkMode === "adjustment" && (
+						<p className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800">
+							Use a negative amount for a discount or credit. Use a positive
+							amount for a correction that increases the balance.
+						</p>
+					)}
 
 					<label className="block text-sm font-semibold text-slate-700">
 						Apply to
@@ -823,4 +918,16 @@ function OutstandingBar({
 			<ProgressBar value={percentage} tone="danger" heightClassName="h-2" />
 		</div>
 	);
+}
+
+function getBulkConfirmText(mode: BulkFinanceMode) {
+	if (mode === "payment") {
+		return "Add Payments";
+	}
+
+	if (mode === "adjustment") {
+		return "Add Adjustments";
+	}
+
+	return "Set Amounts";
 }

@@ -16,7 +16,11 @@ import {
 	useClubTeamStore,
 	type ClubTeamProfile,
 } from "../../stores/clubTeams";
+import { useFinanceStore } from "../../stores/finance";
+import { usePlayerStore } from "../../stores/players";
+import { useSeasonStore } from "../../stores/seasons";
 import type { ClubVenue, SportsClub } from "../../types/organization";
+import { formatCurrency } from "../../utils/format";
 import {
 	buildSetupChecklist,
 	getSuggestedTeamNames,
@@ -33,6 +37,14 @@ export default function ClubSetup() {
 	const navigate = useNavigate();
 	const currentUser = useAuthStore((state) => state.currentUser);
 	const deleteClubTeam = useClubTeamStore((state) => state.deleteProfile);
+	const players = usePlayerStore((state) => state.players);
+	const loadPlayers = usePlayerStore((state) => state.loadPlayers);
+	const seasons = useSeasonStore((state) => state.seasons);
+	const activeSeasonId = useSeasonStore((state) => state.activeSeasonId);
+	const loadSeasons = useSeasonStore((state) => state.loadSeasons);
+	const setPlayerAmountOwed = useFinanceStore(
+		(state) => state.setPlayerAmountOwed
+	);
 	const activeClubId = useAuthStore(
 		(state) => state.availableClubs.find((club) => club.isCurrent)?.id
 	);
@@ -97,6 +109,17 @@ export default function ClubSetup() {
 		() => (club ? buildSetupChecklist(club, teams, currentUser) : []),
 		[club, currentUser, teams]
 	);
+	const activePlayers = useMemo(
+		() => players.filter((player) => player.isActive),
+		[players]
+	);
+	const activeSeason =
+		seasons.find((season) => season.id === activeSeasonId) ?? seasons[0];
+
+	useEffect(() => {
+		void loadPlayers(true);
+		void loadSeasons();
+	}, [loadPlayers, loadSeasons]);
 
 	async function saveClub(nextStep: number, completed = false) {
 		if (!club) return;
@@ -155,6 +178,44 @@ export default function ClubSetup() {
 			await saveClub(3);
 		} catch (reason) {
 			setError(reason instanceof Error ? reason.message : "Could not save teams.");
+		} finally {
+			setSaving(false);
+		}
+	}
+
+	async function saveSetupFinance(amountValue: string) {
+		const trimmedAmount = amountValue.trim();
+
+		if (!trimmedAmount) {
+			await saveClub(4);
+			return;
+		}
+
+		if (!activeSeason) {
+			setError("Create or select an active season before setting player finance.");
+			return;
+		}
+
+		const amount = Number(trimmedAmount);
+
+		if (!Number.isFinite(amount) || amount < 0) {
+			setError("Finance amount must be 0 or above.");
+			return;
+		}
+
+		setSaving(true);
+		setError("");
+		try {
+			for (const player of activePlayers) {
+				await setPlayerAmountOwed(player.id, amount, activeSeason.id);
+			}
+			await saveClub(4);
+		} catch (reason) {
+			setError(
+				reason instanceof Error
+					? reason.message
+					: "Could not update player finance."
+			);
 		} finally {
 			setSaving(false);
 		}
@@ -272,22 +333,31 @@ export default function ClubSetup() {
 						/>
 					)}
 					{step === 3 && (
+						<FinanceStep
+							activePlayerCount={activePlayers.length}
+							activeSeasonName={activeSeason?.name ?? ""}
+							saving={saving}
+							onBack={() => setStep(2)}
+							onNext={saveSetupFinance}
+						/>
+					)}
+					{step === 4 && (
 						<StaffStep
 							teams={teams}
 							canInvite={Boolean(canInviteStaff)}
 							saving={saving}
 							setSaving={setSaving}
 							setError={setError}
-							onBack={() => setStep(2)}
-							onNext={() => saveClub(4)}
+							onBack={() => setStep(3)}
+							onNext={() => saveClub(5)}
 						/>
 					)}
-					{step === 4 && (
+					{step === 5 && (
 						<ReviewStep
 							checklist={checklist}
 							saving={saving}
 							isAlreadyComplete={Boolean(club.setupCompletedAt)}
-							onBack={() => setStep(3)}
+							onBack={() => setStep(4)}
 							onComplete={async () => {
 								if (!isSetupComplete(checklist)) {
 									setError(
@@ -295,7 +365,7 @@ export default function ClubSetup() {
 									);
 									return;
 								}
-								await saveClub(4, true);
+								await saveClub(5, true);
 								navigate("/");
 							}}
 						/>
@@ -492,6 +562,79 @@ function TeamsStep({
 						// The parent displays the API error.
 					}
 				}}
+			/>
+		</div>
+	);
+}
+
+function FinanceStep({
+	activePlayerCount,
+	activeSeasonName,
+	saving,
+	onBack,
+	onNext,
+}: {
+	activePlayerCount: number;
+	activeSeasonName: string;
+	saving: boolean;
+	onBack: () => void;
+	onNext: (amountValue: string) => Promise<void>;
+}) {
+	const [amountValue, setAmountValue] = useState("");
+	const amount = Number(amountValue);
+	const hasValidAmount =
+		amountValue.trim() === "" || (Number.isFinite(amount) && amount >= 0);
+	const previewText =
+		amountValue.trim() && hasValidAmount
+			? `${activePlayerCount} ${activePlayerCount === 1 ? "player" : "players"} × ${formatCurrency(amount)}`
+			: "Leave blank to skip finance setup for now.";
+
+	return (
+		<div>
+			<StepHeading
+				title="Player finance"
+				description="Optionally set the season amount owed for every active player. You can still fine tune individual players from the finance page later."
+			/>
+
+			<div className="mt-5 rounded-xl border border-slate-200 p-4">
+				<p className="text-sm font-bold text-slate-900">
+					{activeSeasonName || "No active season"}
+				</p>
+				<p className="mt-1 text-sm text-slate-500">
+					This updates active players only. Existing payments are not removed.
+				</p>
+
+				<label className="mt-4 block text-sm font-semibold text-slate-700">
+					Amount each active player owes
+					<input
+						type="number"
+						min="0"
+						step="0.01"
+						value={amountValue}
+						onChange={(event) => setAmountValue(event.target.value)}
+						className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-yepset-500 focus:ring-2 focus:ring-yepset-100"
+						placeholder="e.g. 20.00"
+					/>
+				</label>
+
+				<div className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
+					{previewText}
+				</div>
+
+				{!activeSeasonName && (
+					<p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+						Create a season before using setup finance. You can skip this step
+						and come back later.
+					</p>
+				)}
+			</div>
+
+			<StepActions
+				saving={saving}
+				validation={hasValidAmount ? "" : "Enter a valid amount, or leave it blank to skip."}
+				onBack={onBack}
+				onNext={() => void onNext(amountValue)}
+				onNextLabel={amountValue.trim() ? "Set finance and continue" : "Skip and continue"}
 			/>
 		</div>
 	);

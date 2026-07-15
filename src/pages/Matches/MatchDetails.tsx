@@ -82,14 +82,6 @@ export default function MatchDetail() {
 				</button>
 			</div>
 
-			<button
-				type="button"
-				onClick={() => setShowDeleteConfirmation(true)}
-				className="w-full rounded-xl border border-red-300 px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-50 lg:hidden"
-			>
-				Delete match
-			</button>
-
 			{deleteError && (
 				<div className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700">
 					{deleteError}
@@ -157,6 +149,14 @@ export default function MatchDetail() {
 			/>
 
 			<PostponementAuditCard postponements={currentMatch.postponements} />
+
+			<button
+				type="button"
+				onClick={() => setShowDeleteConfirmation(true)}
+				className="w-full rounded-xl border border-red-300 px-4 py-3 text-sm font-bold text-red-700 hover:bg-red-50 lg:hidden"
+			>
+				Delete match
+			</button>
 
 			<ResultModal
 				isOpen={matchDetail.showResultModal}
