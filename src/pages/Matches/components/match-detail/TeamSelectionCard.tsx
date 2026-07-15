@@ -59,7 +59,7 @@ export function TeamSelectionCard({
 							: "bg-yepset-700 text-white hover:bg-yepset-800"
 						}`}
 					>
-						{isLineupLocked ? "Edit Team" : "Save Team"}
+						{isLineupLocked ? "Edit Team" : "Confirm Squad"}
 					</button>
 				</div>
 			</div>
