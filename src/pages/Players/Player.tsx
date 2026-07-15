@@ -17,7 +17,10 @@ import { usePlayerForm } from "./hooks/usePlayerForm";
 import { formatDisplayDate } from "../../utils/date";
 import type { ClubEvent, ClubEventAvailabilityStatus } from "../../types/events";
 import type { FinanceTransaction } from "../../types/finance";
-import { getTrainingAvailabilitySummary } from "../../utils/trainingAvailability";
+import {
+	getCompletedTrainingEvents,
+	getTrainingAvailabilitySummary,
+} from "../../utils/trainingAvailability";
 
 type PlayerMatchRecord = Awaited<ReturnType<typeof matchApi.getPlayerMatches>>[number];
 
@@ -118,17 +121,11 @@ function getTrainingAvailabilityReport({
 		return emptyTrainingReport();
 	}
 
-	const seasonStart = new Date(seasonStartDate).getTime();
-	const seasonEnd = new Date(seasonEndDate).getTime();
-	const trainingEvents = events
-		.filter((event) => {
-			if (event.type !== "Training") {
-				return false;
-			}
-
-			const eventTime = new Date(event.startDateTime).getTime();
-			return eventTime >= seasonStart && eventTime <= seasonEnd;
-		})
+	const trainingEvents = getCompletedTrainingEvents({
+		events,
+		seasonStartDate,
+		seasonEndDate,
+	})
 		.sort(
 			(firstEvent, secondEvent) =>
 				new Date(secondEvent.startDateTime).getTime() -
