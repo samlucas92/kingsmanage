@@ -135,7 +135,9 @@ export default function EventFormModal({
 
 		setError("");
 
-		if (!title.trim()) {
+		const eventTitle = getEventTitle(type, title, startDateTime);
+
+		if (!eventTitle.trim()) {
 			setError("Enter an event title.");
 			return;
 		}
@@ -150,12 +152,14 @@ export default function EventFormModal({
 			return;
 		}
 
+		const shouldCreateRecurrence = isRecurring && type !== "Match";
+
 		if (isRecurring && type === "Match") {
 			setError("Recurring match events are not supported yet.");
 			return;
 		}
 
-		if (isRecurring) {
+		if (shouldCreateRecurrence) {
 			if (!recurrenceEndDate) {
 				setError("Choose when the recurring series should end.");
 				return;
@@ -246,7 +250,7 @@ export default function EventFormModal({
 		const request: CreateClubEventRequest = {
 			type,
 			teamScope: type === "Match" ? teamScope : "Both",
-			title: title.trim(),
+			title: eventTitle,
 			description: description.trim(),
 			startDateTime: new Date(startDateTime).toISOString(),
 			endDateTime: endDateTime ? new Date(endDateTime).toISOString() : null,
@@ -254,7 +258,7 @@ export default function EventFormModal({
 			matchLinks,
 			createLinkedMatches: type === "Match" && matchMode === "create",
 			createMatches,
-			recurrence: isRecurring
+			recurrence: shouldCreateRecurrence
 				? {
 						isRecurring: true,
 						interval: recurrenceInterval,
@@ -314,6 +318,10 @@ export default function EventFormModal({
 			setSecondMatchId("");
 		} else {
 			setIsRecurring(false);
+		}
+
+		if (nextType === "Training") {
+			setTitle("");
 		}
 	}
 
@@ -390,16 +398,30 @@ export default function EventFormModal({
 						)}
 					</div>
 
-					<label className="block text-sm font-semibold text-slate-700">
-						Title
-						<input
-							type="text"
-							value={title}
-							onChange={(event) => setTitle(event.target.value)}
-							className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-							required
-						/>
-					</label>
+					{type === "Training" ? (
+						<div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+							<p className="text-xs font-bold uppercase tracking-wide text-blue-700">
+								Title
+							</p>
+							<p className="mt-1 text-sm font-semibold text-blue-950">
+								{getEventTitle(type, title, startDateTime) || "Training"}
+							</p>
+							<p className="mt-1 text-xs text-blue-800">
+								Training titles are generated from the selected start date.
+							</p>
+						</div>
+					) : (
+						<label className="block text-sm font-semibold text-slate-700">
+							Title
+							<input
+								type="text"
+								value={title}
+								onChange={(event) => setTitle(event.target.value)}
+								className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+								required
+							/>
+						</label>
+					)}
 
 					<label className="block text-sm font-semibold text-slate-700">
 						Description
@@ -810,6 +832,36 @@ function formatShortDate(value: string) {
 		month: "short",
 		hour: "2-digit",
 		minute: "2-digit",
+	});
+}
+
+function getEventTitle(
+	type: ClubEventType,
+	title: string,
+	startDateTime: string
+) {
+	if (type !== "Training") {
+		return title.trim();
+	}
+
+	if (!startDateTime) {
+		return "Training";
+	}
+
+	return `Training ${formatDateOnly(startDateTime)}`;
+}
+
+function formatDateOnly(value: string) {
+	const date = new Date(value);
+
+	if (Number.isNaN(date.getTime())) {
+		return "";
+	}
+
+	return date.toLocaleDateString("en-GB", {
+		day: "2-digit",
+		month: "2-digit",
+		year: "numeric",
 	});
 }
 

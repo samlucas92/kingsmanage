@@ -62,7 +62,7 @@ export const useEventStore = create<EventsState>((set, get) => ({
 	selectedEventLoadError: "",
 
 	loadEvents: async (force = false) => {
-		if (get().isLoadingEvents) {
+		if (get().isLoadingEvents && !force) {
 			return;
 		}
 
