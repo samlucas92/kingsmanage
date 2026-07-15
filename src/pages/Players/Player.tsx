@@ -17,6 +17,7 @@ import { usePlayerForm } from "./hooks/usePlayerForm";
 import { formatDisplayDate } from "../../utils/date";
 import type { ClubEvent, ClubEventAvailabilityStatus } from "../../types/events";
 import type { FinanceTransaction } from "../../types/finance";
+import { getTrainingAvailabilitySummary } from "../../utils/trainingAvailability";
 
 type PlayerMatchRecord = Awaited<ReturnType<typeof matchApi.getPlayerMatches>>[number];
 
@@ -143,18 +144,19 @@ function getTrainingAvailabilityReport({
 				(response) => response.playerId === playerId
 			)?.status ?? "Unanswered",
 	}));
-	const available = recent.filter((event) => event.status === "Available").length;
-	const declined = recent.filter((event) => event.status === "Declined").length;
-	const unanswered = recent.filter((event) => event.status === "Unanswered").length;
-	const availabilityRate =
-		recent.length > 0 ? Math.round((available / recent.length) * 100) : 0;
+	const summary = getTrainingAvailabilitySummary({
+		playerId,
+		seasonStartDate,
+		seasonEndDate,
+		events,
+	});
 
 	return {
-		total: recent.length,
-		available,
-		declined,
-		unanswered,
-		availabilityRate,
+		total: summary.total,
+		available: summary.available,
+		declined: summary.declined,
+		unanswered: summary.unanswered,
+		availabilityRate: summary.percentage,
 		recent: recent.slice(0, 8),
 	};
 }

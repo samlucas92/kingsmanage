@@ -1,6 +1,7 @@
 import PanelCard from "../../../../components/compositions/PanelCard";
 import StatusBadge from "../../../../components/compositions/StatusBadge";
 import type { ClubEventAvailabilityStatus } from "../../../../types/events";
+import type { TrainingAvailabilitySummary } from "../../../../utils/trainingAvailability";
 import TeamPicker from "../TeamPicker";
 
 interface TeamSelectionCardProps {
@@ -12,6 +13,9 @@ interface TeamSelectionCardProps {
 	getPlayerAvailabilityStatus: (
 		playerId: string
 	) => ClubEventAvailabilityStatus | undefined;
+	getPlayerTrainingAvailability: (
+		playerId: string
+	) => TrainingAvailabilitySummary;
 	onSaveTeamClick: () => void;
 	onGeneratePostClick: () => void;
 }
@@ -23,6 +27,7 @@ export function TeamSelectionCard({
 	totalSelectedCount,
 	isLineupLocked,
 	getPlayerAvailabilityStatus,
+	getPlayerTrainingAvailability,
 	onSaveTeamClick,
 	onGeneratePostClick,
 }: TeamSelectionCardProps) {
@@ -75,6 +80,7 @@ export function TeamSelectionCard({
 				<TeamPicker
 					matchId={matchId}
 					getPlayerAvailabilityStatus={getPlayerAvailabilityStatus}
+					getPlayerTrainingAvailability={getPlayerTrainingAvailability}
 				/>
 			</div>
 		</PanelCard>

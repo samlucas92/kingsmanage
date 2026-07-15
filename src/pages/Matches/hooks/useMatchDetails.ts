@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMatchStore } from "../../../stores/match";
 import type {
 	MatchNotes,
@@ -6,7 +6,12 @@ import type {
 } from "../../../stores/match";
 import { usePlayerStore } from "../../../stores/players";
 import { useEventStore } from "../../../stores/events";
+import { useSeasonStore } from "../../../stores/seasons";
 import { getPlayerAvailabilityStatus } from "../../../utils/events";
+import {
+	getTrainingAvailabilitySummary,
+	type TrainingAvailabilitySummary,
+} from "../../../utils/trainingAvailability";
 
 type ResultPreview = "won" | "lost" | "draw";
 
@@ -41,7 +46,10 @@ export function useMatchDetail(matchId?: string) {
 	const deleteMatch = useMatchStore((state) => state.deleteMatch);
 	const events = useEventStore((state) => state.events);
 	const selectedEvent = useEventStore((state) => state.selectedEvent);
+	const loadEvents = useEventStore((state) => state.loadEvents);
 	const loadEvent = useEventStore((state) => state.loadEvent);
+	const seasons = useSeasonStore((state) => state.seasons);
+	const loadSeasons = useSeasonStore((state) => state.loadSeasons);
 
 	const [showResultModal, setShowResultModal] = useState(false);
 	const [homeGoals, setHomeGoals] = useState(0);
@@ -58,6 +66,11 @@ export function useMatchDetail(matchId?: string) {
 	useEffect(() => {
 		void loadPlayers();
 	}, [loadPlayers]);
+
+	useEffect(() => {
+		void loadEvents();
+		void loadSeasons();
+	}, [loadEvents, loadSeasons]);
 
 	useEffect(() => {
 		if (!matchId) {
@@ -132,11 +145,30 @@ export function useMatchDetail(matchId?: string) {
 			? selectedEvent
 			: events.find((event) => event.id === currentMatch.clubEventId)
 		: undefined;
+	const matchSeason = useMemo(
+		() =>
+			currentMatch?.seasonId
+				? seasons.find((season) => season.id === currentMatch.seasonId)
+				: undefined,
+		[currentMatch?.seasonId, seasons]
+	);
 
 	function getMatchPlayerAvailabilityStatus(playerId: string) {
 		return linkedEvent
 			? getPlayerAvailabilityStatus(linkedEvent, playerId)
 			: undefined;
+	}
+
+	function getPlayerTrainingAvailability(
+		playerId: string
+	): TrainingAvailabilitySummary {
+		return getTrainingAvailabilitySummary({
+			playerId,
+			events,
+			seasonStartDate: matchSeason?.startDate,
+			seasonEndDate: matchSeason?.endDate,
+			untilDate: currentMatch?.date,
+		});
 	}
 
 	function handleSaveTeamClick() {
@@ -273,6 +305,7 @@ export function useMatchDetail(matchId?: string) {
 		handleSaveNotes,
 		getPlayerName,
 		getMatchPlayerAvailabilityStatus,
+		getPlayerTrainingAvailability,
 		handleSaveMatchPlayerStats,
 		deleteMatch,
 	};

@@ -8,6 +8,7 @@ import { AvailablePlayersPanel } from "./team-picker/AvailablePlayersPanel";
 import { getPositionFitLabel } from "./team-picker/PositionCompatibility";
 import { snapPitchOverlayToPointer } from "./team-picker/dragOverlay";
 import type { ClubEventAvailabilityStatus } from "../../../types/events";
+import type { TrainingAvailabilitySummary } from "../../../utils/trainingAvailability";
 import type { FormationPosition } from "./team-picker/Types";
 import { useTeamPicker } from "./team-picker/useTeamPicker";
 
@@ -16,6 +17,9 @@ interface TeamPickerProps {
 	getPlayerAvailabilityStatus?: (
 		playerId: string
 	) => ClubEventAvailabilityStatus | undefined;
+	getPlayerTrainingAvailability?: (
+		playerId: string
+	) => TrainingAvailabilitySummary;
 }
 
 type MobilePlayerSelectorMode =
@@ -37,6 +41,7 @@ type MobilePlayerSelectorMode =
 export default function TeamPicker({
 	matchId,
 	getPlayerAvailabilityStatus,
+	getPlayerTrainingAvailability,
 }: TeamPickerProps) {
 	const teamPicker = useTeamPicker(matchId);
 	const isDesktopTeamPicker = useMediaQuery("(min-width: 1280px)");
@@ -217,6 +222,7 @@ export default function TeamPicker({
 						openMenuPlayerId={teamPicker.openMenu?.playerId}
 						hoveredSwapTargetPlayerId={teamPicker.hoveredSwapTargetPlayerId}
 						getPlayerAvailabilityStatus={getPlayerAvailabilityStatus}
+						getPlayerTrainingAvailability={getPlayerTrainingAvailability}
 						onOpenPlayerMenu={teamPicker.openPlayerMenu}
 					/>
 				</div>
@@ -332,6 +338,7 @@ export default function TeamPicker({
 					availablePlayers={teamPicker.availablePlayers}
 					getPlayerPositions={teamPicker.getPlayerPositions}
 					getPlayerAvailabilityStatus={getPlayerAvailabilityStatus}
+					getPlayerTrainingAvailability={getPlayerTrainingAvailability}
 					onClose={closeMobilePlayerSelector}
 					onSelectPlayer={handleSelectMobilePlayer}
 				/>
@@ -371,6 +378,7 @@ export default function TeamPicker({
 						formation={selectedFormation}
 						pitchPlayers={teamPicker.pitchPlayers}
 						getPlayerPositions={teamPicker.getPlayerPositions}
+						getPlayerTrainingAvailability={getPlayerTrainingAvailability}
 						isPlayerRecommendedForPosition={
 							teamPicker.isPlayerRecommendedForPosition
 						}
@@ -452,6 +460,7 @@ function MobilePlayerSelector({
 	availablePlayers,
 	getPlayerPositions,
 	getPlayerAvailabilityStatus,
+	getPlayerTrainingAvailability,
 	onClose,
 	onSelectPlayer,
 }: {
@@ -466,6 +475,9 @@ function MobilePlayerSelector({
 	getPlayerAvailabilityStatus?: (
 		playerId: string
 	) => ClubEventAvailabilityStatus | undefined;
+	getPlayerTrainingAvailability?: (
+		playerId: string
+	) => TrainingAvailabilitySummary;
 	onClose: () => void;
 	onSelectPlayer: (playerId: string) => void;
 }) {
@@ -563,6 +575,8 @@ function MobilePlayerSelector({
 									: "";
 								const availabilityStatus =
 									getPlayerAvailabilityStatus?.(player.id);
+								const trainingAvailability =
+									getPlayerTrainingAvailability?.(player.id);
 
 								return (
 									<button
@@ -581,6 +595,10 @@ function MobilePlayerSelector({
 													? playerPositions.join(", ")
 													: "No preferred positions"}
 											</p>
+											<TrainingAvailabilityText
+												summary={trainingAvailability}
+												className="mt-1"
+											/>
 										</div>
 
 										<div className="flex shrink-0 flex-col items-end gap-1">
@@ -625,12 +643,47 @@ function AvailabilityStatusBadge({
 	);
 }
 
+function TrainingAvailabilityText({
+	summary,
+	className = "",
+}: {
+	summary?: TrainingAvailabilitySummary;
+	className?: string;
+}) {
+	if (!summary || summary.total === 0) {
+		return (
+			<p className={`text-xs font-semibold text-slate-400 ${className}`}>
+				No training data
+			</p>
+		);
+	}
+
+	return (
+		<p className={`text-xs font-semibold ${getTrainingAvailabilityTextClass(summary.percentage)} ${className}`}>
+			Training {summary.percentage}% · {summary.available}/{summary.total} available
+		</p>
+	);
+}
+
+function getTrainingAvailabilityTextClass(percentage: number) {
+	if (percentage >= 75) {
+		return "text-green-700";
+	}
+
+	if (percentage >= 50) {
+		return "text-amber-700";
+	}
+
+	return "text-red-700";
+}
+
 function MobileSelectedPlayerActionSheet({
 	playerId,
 	playerName,
 	formation,
 	pitchPlayers,
 	getPlayerPositions,
+	getPlayerTrainingAvailability,
 	isPlayerRecommendedForPosition,
 	onClose,
 	onAssignPosition,
@@ -651,6 +704,9 @@ function MobileSelectedPlayerActionSheet({
 		area?: string;
 	}[];
 	getPlayerPositions: (playerId: string) => string[];
+	getPlayerTrainingAvailability?: (
+		playerId: string
+	) => TrainingAvailabilitySummary;
 	isPlayerRecommendedForPosition: (
 		playerId: string,
 		positionLabel: string
@@ -664,6 +720,7 @@ function MobileSelectedPlayerActionSheet({
 	showRemove: boolean;
 }) {
 	const playerPositions = getPlayerPositions(playerId);
+	const trainingAvailability = getPlayerTrainingAvailability?.(playerId);
 
 	return (
 		<div className="fixed inset-0 z-50 xl:hidden">
@@ -691,6 +748,10 @@ function MobileSelectedPlayerActionSheet({
 									? playerPositions.join(", ")
 									: "No preferred positions"}
 							</p>
+							<TrainingAvailabilityText
+								summary={trainingAvailability}
+								className="mt-2"
+							/>
 						</div>
 
 						<button

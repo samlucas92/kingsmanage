@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+	type CSSProperties,
+} from "react";
+import { getFloatingPosition } from "../../utils/floatingPosition";
 
 export type ActionMenuItem = {
 	label: string;
@@ -22,6 +30,43 @@ export default function ActionMenu({
 }: ActionMenuProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const menuRef = useRef<HTMLDivElement | null>(null);
+	const buttonRef = useRef<HTMLButtonElement | null>(null);
+	const floatingRef = useRef<HTMLDivElement | null>(null);
+	const [menuStyle, setMenuStyle] = useState<CSSProperties>({
+		left: 0,
+		top: 0,
+		maxHeight: 320,
+	});
+	const updateMenuPosition = useCallback(() => {
+		if (!buttonRef.current || !floatingRef.current) {
+			return;
+		}
+
+		const buttonRect = buttonRef.current.getBoundingClientRect();
+		const menuRect = floatingRef.current.getBoundingClientRect();
+		const bottomPadding = window.innerWidth < 1024 ? 88 : 12;
+		const position = getFloatingPosition({
+			anchorRect: buttonRect,
+			floatingWidth: menuRect.width || 224,
+			floatingHeight: menuRect.height || 320,
+			align,
+			bottomPadding,
+		});
+
+		setMenuStyle({
+			left: position.left,
+			top: position.top,
+			maxHeight: position.maxHeight,
+		});
+	}, [align]);
+
+	useLayoutEffect(() => {
+		if (!isOpen) {
+			return;
+		}
+
+		updateMenuPosition();
+	}, [isOpen, updateMenuPosition, items.length]);
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -47,13 +92,17 @@ export default function ActionMenu({
 		document.addEventListener("mousedown", handlePointerDown);
 		document.addEventListener("touchstart", handlePointerDown);
 		document.addEventListener("keydown", handleKeyDown);
+		window.addEventListener("resize", updateMenuPosition);
+		window.addEventListener("scroll", updateMenuPosition, true);
 
 		return () => {
 			document.removeEventListener("mousedown", handlePointerDown);
 			document.removeEventListener("touchstart", handlePointerDown);
 			document.removeEventListener("keydown", handleKeyDown);
+			window.removeEventListener("resize", updateMenuPosition);
+			window.removeEventListener("scroll", updateMenuPosition, true);
 		};
-	}, [isOpen]);
+	}, [isOpen, updateMenuPosition]);
 
 	function runAction(item: ActionMenuItem) {
 		if (item.disabled) {
@@ -67,6 +116,7 @@ export default function ActionMenu({
 	return (
 		<div ref={menuRef} className={`relative inline-flex ${className}`}>
 			<button
+				ref={buttonRef}
 				type="button"
 				onClick={() => setIsOpen((current) => !current)}
 				className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
@@ -86,9 +136,9 @@ export default function ActionMenu({
 
 			{isOpen && (
 				<div
-					className={`absolute top-full z-30 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-left shadow-lg ${
-						align === "right" ? "right-0" : "left-0"
-					}`}
+					ref={floatingRef}
+					className="fixed z-50 w-56 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 text-left shadow-lg"
+					style={menuStyle}
 					role="menu"
 				>
 					{items.map((item) => (

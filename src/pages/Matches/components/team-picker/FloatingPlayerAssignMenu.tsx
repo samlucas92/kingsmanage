@@ -1,4 +1,5 @@
 import type { SelectedPlayer } from "../../../../stores/match";
+import { getFloatingPosition } from "../../../../utils/floatingPosition";
 import { getPositionFitLabel } from "./PositionCompatibility";
 import type { FormationPosition } from "./Types";
 
@@ -35,14 +36,12 @@ export function FloatingPlayerAssignMenu({
 	showRemove,
 }: FloatingPlayerAssignMenuProps) {
 	const playerPositions = getPlayerPositions(playerId);
+	const menuStyle = getEstimatedMenuStyle(left, top);
 
 	return (
 		<div
-			className="fixed z-50 w-60 rounded-lg border border-slate-200 bg-white p-2 shadow-xl"
-			style={{
-				left,
-				top,
-			}}
+			className="fixed z-50 w-60 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl"
+			style={menuStyle}
 		>
 			<div className="px-2 pb-1.5">
 				<p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
@@ -138,4 +137,34 @@ export function FloatingPlayerAssignMenu({
 			</div>
 		</div>
 	);
+}
+
+function getEstimatedMenuStyle(left: number, top: number) {
+	if (typeof window === "undefined") {
+		return {
+			left,
+			top,
+			maxHeight: 300,
+		};
+	}
+
+	const anchorRect = {
+		left,
+		right: left,
+		top,
+		bottom: top,
+	} as DOMRect;
+	const position = getFloatingPosition({
+		anchorRect,
+		floatingWidth: 240,
+		floatingHeight: 300,
+		align: "left",
+		bottomPadding: 12,
+	});
+
+	return {
+		left: position.left,
+		top: position.top,
+		maxHeight: position.maxHeight,
+	};
 }

@@ -129,6 +129,9 @@ export default function MatchDetail() {
 				getPlayerAvailabilityStatus={
 					matchDetail.getMatchPlayerAvailabilityStatus
 				}
+				getPlayerTrainingAvailability={
+					matchDetail.getPlayerTrainingAvailability
+				}
 				onSaveTeamClick={matchDetail.handleSaveTeamClick}
 				onGeneratePostClick={() => setShowGeneratePost(true)}
 			/>

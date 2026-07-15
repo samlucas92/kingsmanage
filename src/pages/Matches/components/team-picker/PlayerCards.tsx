@@ -2,6 +2,7 @@ import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import type { MouseEvent } from "react";
 import type { ClubEventAvailabilityStatus } from "../../../../types/events";
+import type { TrainingAvailabilitySummary } from "../../../../utils/trainingAvailability";
 import type { DragData, DropData } from "./Types";
 
 interface AvailablePlayerProps {
@@ -11,6 +12,7 @@ interface AvailablePlayerProps {
 	isMenuOpen: boolean;
 	isSwapTarget?: boolean;
 	availabilityStatus?: ClubEventAvailabilityStatus;
+	trainingAvailability?: TrainingAvailabilitySummary;
 	onOpenMenu: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
@@ -21,6 +23,7 @@ export function AvailablePlayer({
 	isMenuOpen,
 	isSwapTarget = false,
 	availabilityStatus,
+	trainingAvailability,
 	onOpenMenu,
 }: AvailablePlayerProps) {
 	const {
@@ -89,15 +92,19 @@ export function AvailablePlayer({
 				{isSwapTarget ? `↔ ${name}` : name}
 			</button>
 
-			{availabilityStatus && (
-				<span
-					className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${getAvailabilityStatusClass(
-						availabilityStatus
-					)}`}
-				>
-					{getAvailabilityStatusLabel(availabilityStatus)}
-				</span>
-			)}
+			<div className="flex shrink-0 flex-col items-end gap-1">
+				{availabilityStatus && (
+					<span
+						className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${getAvailabilityStatusClass(
+							availabilityStatus
+						)}`}
+					>
+						{getAvailabilityStatusLabel(availabilityStatus)}
+					</span>
+				)}
+
+				<TrainingAvailabilityBadge summary={trainingAvailability} />
+			</div>
 
 			<button
 				type="button"
@@ -111,6 +118,27 @@ export function AvailablePlayer({
 				⋯
 			</button>
 		</div>
+	);
+}
+
+function TrainingAvailabilityBadge({
+	summary,
+}: {
+	summary?: TrainingAvailabilitySummary;
+}) {
+	if (!summary || summary.total === 0) {
+		return null;
+	}
+
+	return (
+		<span
+			className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${getTrainingAvailabilityClass(
+				summary.percentage
+			)}`}
+			title={`${summary.available}/${summary.total} training available · ${summary.declined} declined · ${summary.unanswered} no response`}
+		>
+			Training {summary.percentage}%
+		</span>
 	);
 }
 
@@ -136,6 +164,18 @@ function getAvailabilityStatusClass(status: ClubEventAvailabilityStatus) {
 	}
 
 	return "bg-slate-100 text-slate-600";
+}
+
+function getTrainingAvailabilityClass(percentage: number) {
+	if (percentage >= 75) {
+		return "bg-green-100 text-green-800";
+	}
+
+	if (percentage >= 50) {
+		return "bg-amber-100 text-amber-800";
+	}
+
+	return "bg-red-100 text-red-800";
 }
 
 interface SelectedPitchPlayerProps {
