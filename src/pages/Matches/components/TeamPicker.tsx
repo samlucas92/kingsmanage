@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { DragOverlayPlayer } from "./team-picker/PlayerCards";
 import { FloatingPlayerAssignMenu } from "./team-picker/FloatingPlayerAssignMenu";
@@ -39,6 +39,7 @@ export default function TeamPicker({
 	getPlayerAvailabilityStatus,
 }: TeamPickerProps) {
 	const teamPicker = useTeamPicker(matchId);
+	const isDesktopTeamPicker = useMediaQuery("(min-width: 1280px)");
 
 	const [mobilePlayerSelectorMode, setMobilePlayerSelectorMode] =
 		useState<MobilePlayerSelectorMode | null>(null);
@@ -296,6 +297,7 @@ export default function TeamPicker({
 								getPlayerNumber={teamPicker.getPlayerNumber}
 								getPlayerPositions={teamPicker.getPlayerPositions}
 								getPlayerInitials={teamPicker.getPlayerInitials}
+								enablePlayerDrag={isDesktopTeamPicker}
 								onOpenPlayerMenu={teamPicker.openPlayerMenu}
 								onOpenMobilePositionSelector={openMobilePositionSelector}
 							/>
@@ -413,6 +415,35 @@ export default function TeamPicker({
 			</DragOverlay>
 		</DndContext>
 	);
+}
+
+function useMediaQuery(query: string) {
+	const [matches, setMatches] = useState(() => {
+		if (typeof window === "undefined" || !window.matchMedia) {
+			return false;
+		}
+
+		return window.matchMedia(query).matches;
+	});
+
+	useEffect(() => {
+		if (typeof window === "undefined" || !window.matchMedia) {
+			return;
+		}
+
+		const mediaQuery = window.matchMedia(query);
+
+		function handleChange() {
+			setMatches(mediaQuery.matches);
+		}
+
+		handleChange();
+		mediaQuery.addEventListener("change", handleChange);
+
+		return () => mediaQuery.removeEventListener("change", handleChange);
+	}, [query]);
+
+	return matches;
 }
 
 function MobilePlayerSelector({

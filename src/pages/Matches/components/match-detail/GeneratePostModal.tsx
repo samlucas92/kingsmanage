@@ -149,19 +149,19 @@ export function GeneratePostModal({
 	}
 
 	return (
-		<div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/50 p-3 sm:p-6">
-			<div className="mx-auto max-w-4xl rounded-2xl bg-white shadow-2xl">
-				<header className="flex items-start justify-between border-b border-slate-200 p-5">
-					<div>
+		<div className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden bg-slate-950/50 p-2 sm:p-6">
+			<div className="mx-auto w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+				<header className="flex items-start justify-between gap-3 border-b border-slate-200 p-4 sm:p-5">
+					<div className="min-w-0">
 						<p className="text-xs font-bold uppercase tracking-wide text-blue-700">Team selection</p>
-						<h2 className="text-2xl font-black text-slate-950">Generate matchday post</h2>
+						<h2 className="text-2xl font-black leading-tight text-slate-950 sm:text-3xl">Generate matchday post</h2>
 						<p className="mt-1 text-sm text-slate-500">Squad names are shuffled each time, hiding lineup order.</p>
 					</div>
-					<button type="button" onClick={onClose} className="rounded-xl border px-3 py-2 text-sm font-bold">Close</button>
+					<button type="button" onClick={onClose} className="shrink-0 rounded-xl border px-3 py-2 text-sm font-bold">Close</button>
 				</header>
 
-				<div className="grid gap-6 p-5 lg:grid-cols-[18rem_1fr]">
-					<aside className="space-y-3">
+				<div className="grid min-w-0 gap-5 p-4 sm:p-5 lg:grid-cols-[18rem_minmax(0,1fr)]">
+					<aside className="min-w-0 space-y-3">
 						<label className="block text-sm font-bold text-slate-700">Template</label>
 						<select
 							value={selectedId}
@@ -198,13 +198,13 @@ export function GeneratePostModal({
 						<button type="button" disabled={!selectedTemplate} onClick={() => generate()} className="w-full rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white disabled:opacity-40">
 							Shuffle squad again
 						</button>
-						<p className="text-xs leading-5 text-slate-500">Available: {"{{team}}, {{opponent}}, {{date}}, {{venue}}, {{location}}, {{locationUrl}}, {{competition}}, {{squad}}, {{directions}}, {{directionsUrl}}"}</p>
+						<p className="break-words text-xs leading-5 text-slate-500">Available: {"{{team}}, {{opponent}}, {{date}}, {{venue}}, {{location}}, {{locationUrl}}, {{competition}}, {{squad}}, {{directions}}, {{directionsUrl}}"}</p>
 					</aside>
 
-					<section className="space-y-4">
+					<section className="min-w-0 space-y-4">
 						{error && <div className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</div>}
 						{isEditingTemplate ? (
-							<div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50 p-4">
+							<div className="min-w-0 space-y-3 rounded-xl border border-blue-100 bg-blue-50 p-3 sm:p-4">
 								<input value={draft.name} onChange={(event) => setDraft({...draft, name: event.target.value})} placeholder="Template name" className="w-full rounded-lg border p-2" />
 								<input value={draft.titleTemplate} onChange={(event) => setDraft({...draft, titleTemplate: event.target.value})} placeholder="Title template" className="w-full rounded-lg border p-2" />
 								<RichTextEditor
@@ -217,7 +217,7 @@ export function GeneratePostModal({
 									}}
 								/>
 								<label className="flex gap-2 text-sm font-semibold"><input type="checkbox" checked={draft.isPinned} onChange={(event) => setDraft({...draft, isPinned: event.target.checked})} /> Pin generated posts</label>
-								<div className="flex gap-2">
+								<div className="flex flex-wrap gap-2">
 									<button type="button" disabled={isBusy} onClick={() => void saveTemplate()} className="rounded-lg bg-blue-700 px-3 py-2 text-sm font-bold text-white">Save template</button>
 									{templates.length > 0 && <button type="button" onClick={() => setIsEditingTemplate(false)} className="rounded-lg border px-3 py-2 text-sm font-bold">Cancel</button>}
 								</div>
@@ -225,8 +225,8 @@ export function GeneratePostModal({
 						) : (
 							<>
 								<label className="block text-sm font-bold">Post title<input value={title} onChange={(event) => setTitle(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 p-3 font-normal" /></label>
-								<div className="block text-sm font-bold">Post content
-									<div className="mt-2 font-normal">
+								<div className="block min-w-0 text-sm font-bold">Post content
+									<div className="mt-2 min-w-0 overflow-hidden font-normal">
 										<RichTextEditor
 											key={editorRevision}
 											value={body}

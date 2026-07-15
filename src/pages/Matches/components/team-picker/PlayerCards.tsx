@@ -150,6 +150,7 @@ interface SelectedPitchPlayerProps {
 	isSwapTarget: boolean;
 	isOutOfPosition: boolean;
 	preferredPositions: string[];
+	enableDrag?: boolean;
 	onOpenMenu: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
@@ -165,8 +166,10 @@ export function SelectedPitchPlayer({
 	isSwapTarget,
 	isOutOfPosition,
 	preferredPositions,
+	enableDrag = true,
 	onOpenMenu,
 }: SelectedPitchPlayerProps) {
+	const canDrag = enableDrag && !disabled;
 	const {
 		attributes,
 		listeners,
@@ -175,7 +178,7 @@ export function SelectedPitchPlayer({
 		isDragging,
 	} = useDraggable({
 		id: `selected-${playerId}`,
-		disabled,
+		disabled: !canDrag,
 		data: {
 			type: "selected",
 			playerId,
@@ -236,11 +239,11 @@ export function SelectedPitchPlayer({
 		>
 			<button
 				type="button"
-				{...(!disabled ? listeners : {})}
-				{...(!disabled ? attributes : {})}
+				{...(canDrag ? listeners : {})}
+				{...(canDrag ? attributes : {})}
 				onClick={disabled ? undefined : onOpenMenu}
 				className={`relative flex h-[3.25rem] w-[3.25rem] items-center justify-center drop-shadow-lg ${
-					disabled ? "cursor-default" : "cursor-grab xl:cursor-grab"
+					disabled ? "cursor-default" : canDrag ? "cursor-grab" : "cursor-pointer"
 				}`}
 				aria-label={`Open actions for ${name}`}
 			>
