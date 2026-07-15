@@ -119,11 +119,16 @@ export const useEventStore = create<EventsState>((set, get) => ({
 
 	createEvent: async (request) => {
 		const createdEvent = await eventsApi.createEvent(request);
+		const shouldReloadEvents = Boolean(request.recurrence?.isRecurring);
 
 		set((state) => ({
 			events: replaceEvent(state.events, createdEvent),
 			hasLoadedEvents: true,
 		}));
+
+		if (shouldReloadEvents) {
+			await get().loadEvents(true);
+		}
 
 		return createdEvent;
 	},

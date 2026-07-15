@@ -4,6 +4,17 @@ export type ClubEventAvailabilityStatus = "Unanswered" | "Available" | "Declined
 export type EventClubTeam = "First" | "Second";
 export type EventMatchVenue = "Home" | "Away";
 export type EventLineupFormation = "FourFourTwo" | "FourThreeThree" | "ThreeFiveTwo" | "FourTwoThreeOne";
+export type RecurrenceIntervalUnit = "Days" | "Weeks";
+
+export type ClubEventRecurrence = {
+	seriesId: string;
+	occurrenceNumber: number;
+	totalOccurrences: number;
+	interval: number;
+	unit: RecurrenceIntervalUnit;
+	seriesStartDateTime: string;
+	seriesEndDate: string;
+};
 
 export type ClubEventMatchLink = {
 	team: EventClubTeam;
@@ -30,6 +41,8 @@ export type ClubEvent = {
 	startDateTime: string;
 	endDateTime?: string | null;
 	location: string;
+	recurrenceSeriesId?: string | null;
+	recurrence?: ClubEventRecurrence | null;
 	matchLinks: ClubEventMatchLink[];
 	availabilityResponses: ClubEventAvailabilityResponse[];
 	seenBy: ClubEventSeenStatus[];
@@ -59,6 +72,14 @@ export type CreateClubEventRequest = {
 	matchLinks: ClubEventMatchLink[];
 	createLinkedMatches: boolean;
 	createMatches: CreateMatchForEventRequest[];
+	recurrence?: CreateEventRecurrenceRequest | null;
+};
+
+export type CreateEventRecurrenceRequest = {
+	isRecurring: boolean;
+	interval: number;
+	unit: RecurrenceIntervalUnit;
+	endDate: string;
 };
 
 export type UpdateClubEventRequest = {

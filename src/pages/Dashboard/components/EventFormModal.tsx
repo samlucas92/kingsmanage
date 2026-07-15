@@ -14,6 +14,7 @@ import type {
 	CreateClubEventRequest,
 	EventClubTeam,
 	EventMatchVenue,
+	RecurrenceIntervalUnit,
 } from "../../../types/events";
 
 
@@ -64,6 +65,10 @@ export default function EventFormModal({
 	const [startDateTime, setStartDateTime] = useState("");
 	const [endDateTime, setEndDateTime] = useState("");
 	const [location, setLocation] = useState("");
+	const [isRecurring, setIsRecurring] = useState(false);
+	const [recurrenceInterval, setRecurrenceInterval] = useState(1);
+	const [recurrenceUnit, setRecurrenceUnit] = useState<RecurrenceIntervalUnit>("Weeks");
+	const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
 	const [matchMode, setMatchMode] = useState<MatchLinkMode>("none");
 	const [firstMatchId, setFirstMatchId] = useState("");
 	const [secondMatchId, setSecondMatchId] = useState("");
@@ -85,6 +90,24 @@ export default function EventFormModal({
 	const secondTeamMatches = useMemo(
 		() => getAvailableMatchesForTeam(matches, SECOND_TEAM_ID),
 		[matches]
+	);
+	const recurrencePreview = useMemo(
+		() =>
+			buildRecurrencePreview({
+				startDateTime,
+				endDate: recurrenceEndDate,
+				interval: recurrenceInterval,
+				unit: recurrenceUnit,
+				isRecurring: isRecurring && type !== "Match",
+			}),
+		[
+			isRecurring,
+			recurrenceEndDate,
+			recurrenceInterval,
+			recurrenceUnit,
+			startDateTime,
+			type,
+		]
 	);
 
 	useEffect(() => {
@@ -125,6 +148,33 @@ export default function EventFormModal({
 		if (endDateTime && new Date(endDateTime).getTime() < new Date(startDateTime).getTime()) {
 			setError("End date cannot be before the start date.");
 			return;
+		}
+
+		if (isRecurring && type === "Match") {
+			setError("Recurring match events are not supported yet.");
+			return;
+		}
+
+		if (isRecurring) {
+			if (!recurrenceEndDate) {
+				setError("Choose when the recurring series should end.");
+				return;
+			}
+
+			if (recurrenceInterval < 1) {
+				setError("Recurring interval must be at least 1.");
+				return;
+			}
+
+			if (recurrencePreview.length === 0) {
+				setError("Recurring preview has no event dates.");
+				return;
+			}
+
+			if (recurrencePreview.length > 80) {
+				setError("Recurring events are limited to 80 occurrences.");
+				return;
+			}
 		}
 
 		const matchLinks = [];
@@ -204,6 +254,14 @@ export default function EventFormModal({
 			matchLinks,
 			createLinkedMatches: type === "Match" && matchMode === "create",
 			createMatches,
+			recurrence: isRecurring
+				? {
+						isRecurring: true,
+						interval: recurrenceInterval,
+						unit: recurrenceUnit,
+						endDate: new Date(`${recurrenceEndDate}T23:59:59`).toISOString(),
+					}
+				: null,
 		};
 
 		setIsSaving(true);
@@ -232,6 +290,10 @@ export default function EventFormModal({
 		setStartDateTime("");
 		setEndDateTime("");
 		setLocation("");
+		setIsRecurring(false);
+		setRecurrenceInterval(1);
+		setRecurrenceUnit("Weeks");
+		setRecurrenceEndDate("");
 		setMatchMode("none");
 		setFirstMatchId("");
 		setSecondMatchId("");
@@ -250,6 +312,8 @@ export default function EventFormModal({
 			setMatchMode("none");
 			setFirstMatchId("");
 			setSecondMatchId("");
+		} else {
+			setIsRecurring(false);
 		}
 	}
 
@@ -379,6 +443,93 @@ export default function EventFormModal({
 							className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
 						/>
 					</label>
+
+					{type !== "Match" && (
+						<section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+							<label className="flex items-start gap-3">
+								<input
+									type="checkbox"
+									checked={isRecurring}
+									onChange={(event) => setIsRecurring(event.target.checked)}
+									className="mt-1 h-4 w-4 rounded border-slate-300"
+								/>
+								<span>
+									<span className="block text-sm font-bold text-slate-900">
+										Repeat this event
+									</span>
+									<span className="mt-1 block text-sm text-slate-500">
+										Create multiple events between the start date and an end date.
+									</span>
+								</span>
+							</label>
+
+							{isRecurring && (
+								<div className="mt-4 space-y-4">
+									<div className="grid gap-4 md:grid-cols-3">
+										<label className="block text-sm font-semibold text-slate-700">
+											Every
+											<input
+												type="number"
+												min="1"
+												value={recurrenceInterval}
+												onChange={(event) =>
+													setRecurrenceInterval(Number(event.target.value))
+												}
+												className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+											/>
+										</label>
+
+										<label className="block text-sm font-semibold text-slate-700">
+											Unit
+											<select
+												value={recurrenceUnit}
+												onChange={(event) =>
+													setRecurrenceUnit(event.target.value as RecurrenceIntervalUnit)
+												}
+												className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+											>
+												<option value="Days">Days</option>
+												<option value="Weeks">Weeks</option>
+											</select>
+										</label>
+
+										<label className="block text-sm font-semibold text-slate-700">
+											Until
+											<input
+												type="date"
+												value={recurrenceEndDate}
+												onChange={(event) => setRecurrenceEndDate(event.target.value)}
+												className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+											/>
+										</label>
+									</div>
+
+									<div className="rounded-xl border border-slate-200 bg-white p-3">
+										<p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+											Preview · {recurrencePreview.length}{" "}
+											{recurrencePreview.length === 1 ? "event" : "events"}
+										</p>
+										{recurrencePreview.length === 0 ? (
+											<p className="mt-2 text-sm text-slate-500">
+												Choose a start date and end date to preview the series.
+											</p>
+										) : (
+											<div className="mt-2 flex max-h-32 flex-wrap gap-2 overflow-y-auto">
+												{recurrencePreview.map((date) => (
+													<span
+														key={date.toISOString()}
+														className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800"
+													>
+														{formatPreviewDate(date)}
+													</span>
+												))}
+											</div>
+										)}
+									</div>
+								</div>
+							)}
+						</section>
+					)}
 
 					{type === "Match" && (
 						<section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -655,6 +806,48 @@ function formatShortDate(value: string) {
 	}
 
 	return date.toLocaleString("en-GB", {
+		day: "2-digit",
+		month: "short",
+		hour: "2-digit",
+		minute: "2-digit",
+	});
+}
+
+function buildRecurrencePreview({
+	startDateTime,
+	endDate,
+	interval,
+	unit,
+	isRecurring,
+}: {
+	startDateTime: string;
+	endDate: string;
+	interval: number;
+	unit: RecurrenceIntervalUnit;
+	isRecurring: boolean;
+}) {
+	if (!isRecurring || !startDateTime || !endDate || interval < 1) {
+		return [];
+	}
+
+	const dates: Date[] = [];
+	const current = new Date(startDateTime);
+	const end = new Date(`${endDate}T23:59:59`);
+
+	while (
+		current.getTime() <= end.getTime() &&
+		dates.length <= 80
+	) {
+		dates.push(new Date(current));
+		current.setDate(current.getDate() + (unit === "Weeks" ? interval * 7 : interval));
+	}
+
+	return dates;
+}
+
+function formatPreviewDate(date: Date) {
+	return date.toLocaleString("en-GB", {
+		weekday: "short",
 		day: "2-digit",
 		month: "short",
 		hour: "2-digit",
