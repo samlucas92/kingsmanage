@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import ReportBarChart from "../../components/charts/ReportBarChart";
 import ReportChartContainer from "../../components/charts/ReportChartContainer";
 import ReportDoughnutChart from "../../components/charts/ReportDoughnutChart";
+import ReportLineChart from "../../components/charts/ReportLineChart";
 import ReportEmptyState from "../../components/ReportEmptyState";
 import ReportMetricCard from "../../components/ReportMetricCard";
 import ReportPageHeader from "../../components/ReportPageHeader";
@@ -17,8 +18,8 @@ export default function AvailabilityReport() {
 	const [report, setReport] = useState<AvailabilityReportResponse | null>(null);
 	const [isLoadingReport, setIsLoadingReport] = useState(false);
 	const [reportError, setReportError] = useState("");
-	const averageResponses = report?.completedEvents
-		? Math.round(report.totalResponses / report.completedEvents)
+	const averageResponses = report
+		? report.averages.available + report.averages.declined + report.averages.unanswered
 		: 0;
 
 	useEffect(() => {
@@ -76,9 +77,9 @@ export default function AvailabilityReport() {
 
 			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
 				<ReportMetricCard label="Completed events" value={report?.completedEvents ?? 0} />
-				<ReportMetricCard label="Available" value={report?.totals.available ?? 0} tone="success" />
-				<ReportMetricCard label="Declined" value={report?.totals.declined ?? 0} tone={(report?.totals.declined ?? 0) > 0 ? "warning" : "default"} />
-				<ReportMetricCard label="Avg responses" value={averageResponses} helper="Per completed event" />
+				<ReportMetricCard label="Avg available" value={formatAverage(report?.averages.available ?? 0)} tone="success" helper="Per completed event" />
+				<ReportMetricCard label="Avg declined" value={formatAverage(report?.averages.declined ?? 0)} tone={(report?.averages.declined ?? 0) > 0 ? "warning" : "default"} helper="Per completed event" />
+				<ReportMetricCard label="Avg responses" value={formatAverage(averageResponses)} helper="Per completed event" />
 			</div>
 
 			<div className="grid gap-5 xl:grid-cols-[.8fr_1.2fr]">
@@ -128,6 +129,35 @@ export default function AvailabilityReport() {
 					/>
 				</ReportChartContainer>
 			</div>
+
+			<ReportChartContainer
+				title="Availability trend"
+				description="Average available, declined and unanswered responses by month."
+				isEmpty={!report || report.months.length === 0}
+			>
+				<ReportLineChart
+					ariaLabel="Average availability response trend by month"
+					labels={report?.months.map((month) => month.label) ?? []}
+					tickPrecision={1}
+					series={[
+						{
+							label: "Available",
+							colour: "#147764",
+							values: report?.months.map((month) => month.averages.available) ?? [],
+						},
+						{
+							label: "Declined",
+							colour: "#f59e0b",
+							values: report?.months.map((month) => month.averages.declined) ?? [],
+						},
+						{
+							label: "Unanswered",
+							colour: "#dc2626",
+							values: report?.months.map((month) => month.averages.unanswered) ?? [],
+						},
+					]}
+				/>
+			</ReportChartContainer>
 
 			<ReportPanel title="Event type breakdown" description="Average responses per completed event. Hover values to see raw totals.">
 				{!report || report.completedEvents === 0 ? (

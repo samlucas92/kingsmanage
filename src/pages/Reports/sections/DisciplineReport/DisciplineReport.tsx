@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import ReportBarChart from "../../components/charts/ReportBarChart";
 import { Link } from "react-router-dom";
 import ReportDoughnutChart from "../../components/charts/ReportDoughnutChart";
 import ReportChartContainer from "../../components/charts/ReportChartContainer";
@@ -18,6 +19,7 @@ export default function DisciplineReport() {
 	const yellowCards = report?.discipline.yellowCards ?? 0;
 	const redCards = report?.discipline.redCards ?? 0;
 	const mostCardedPlayer = disciplineRows[0];
+	const topCardedRows = disciplineRows.slice(0, 8);
 
 	useEffect(() => {
 		if (!selectedSeasonId) {
@@ -82,21 +84,46 @@ export default function DisciplineReport() {
 				/>
 			</div>
 
-			<ReportChartContainer
-				title="Card mix"
-				description="Yellow versus red card split."
-				isEmpty={yellowCards + redCards === 0}
-			>
-				<ReportDoughnutChart
-					ariaLabel="Yellow and red card mix"
-					centerValue={yellowCards + redCards}
-					centerLabel="cards"
-					segments={[
-						{ label: "Yellow", value: yellowCards, colour: "#f59e0b" },
-						{ label: "Red", value: redCards, colour: "#dc2626" },
-					]}
-				/>
-			</ReportChartContainer>
+			<div className="grid gap-5 xl:grid-cols-[.8fr_1.2fr]">
+				<ReportChartContainer
+					title="Card mix"
+					description="Yellow versus red card split."
+					isEmpty={yellowCards + redCards === 0}
+				>
+					<ReportDoughnutChart
+						ariaLabel="Yellow and red card mix"
+						centerValue={yellowCards + redCards}
+						centerLabel="cards"
+						segments={[
+							{ label: "Yellow", value: yellowCards, colour: "#f59e0b" },
+							{ label: "Red", value: redCards, colour: "#dc2626" },
+						]}
+					/>
+				</ReportChartContainer>
+
+				<ReportChartContainer
+					title="Most carded players"
+					description="Top players by total cards."
+					isEmpty={topCardedRows.length === 0}
+				>
+					<ReportBarChart
+						ariaLabel="Most carded players"
+						labels={topCardedRows.map((playerStats) => shortName(playerStats.playerName))}
+						series={[
+							{
+								label: "Yellow",
+								colour: "#f59e0b",
+								values: topCardedRows.map((playerStats) => playerStats.yellowCards),
+							},
+							{
+								label: "Red",
+								colour: "#dc2626",
+								values: topCardedRows.map((playerStats) => playerStats.redCards),
+							},
+						]}
+					/>
+				</ReportChartContainer>
+			</div>
 
 			<ReportPanel title="Player discipline" description="Players with yellow or red cards in the selected season.">
 				{disciplineRows.length === 0 ? (
@@ -132,4 +159,11 @@ export default function DisciplineReport() {
 			</ReportPanel>
 		</div>
 	);
+}
+
+function shortName(name: string) {
+	const [firstName, ...rest] = name.split(" ");
+	const lastName = rest.at(-1);
+
+	return lastName ? `${firstName[0]}. ${lastName}` : name;
 }

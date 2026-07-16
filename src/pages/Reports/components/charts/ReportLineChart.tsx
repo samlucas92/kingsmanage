@@ -22,12 +22,14 @@ type ReportLineChartProps = {
 	labels: string[];
 	series: ReportLineSeries[];
 	ariaLabel: string;
+	tickPrecision?: number;
 };
 
 export default function ReportLineChart({
 	labels,
 	series,
 	ariaLabel,
+	tickPrecision = 0,
 }: ReportLineChartProps) {
 	const data = {
 		labels,
@@ -59,7 +61,7 @@ export default function ReportLineChart({
 				grid: { color: "#f1f5f9" },
 				ticks: {
 					color: "#64748b",
-					precision: 0,
+					precision: tickPrecision,
 					font: { size: 11, weight: 700 },
 				},
 			},

@@ -4,15 +4,26 @@ import ReportBarChart from "../../components/charts/ReportBarChart";
 import ReportChartContainer from "../../components/charts/ReportChartContainer";
 import ReportMetricCard from "../../components/ReportMetricCard";
 import ReportPageHeader from "../../components/ReportPageHeader";
+import ReportPanel from "../../components/ReportPanel";
 import { useReportsContext } from "../../ReportsContext";
-import { reportsApi, type PlayerReportsResponse } from "../../../../services/reportsApi";
+import { reportsApi, type PlayerContribution, type PlayerReportsResponse } from "../../../../services/reportsApi";
+
+type RankingMode = "contributions" | "goals" | "assists" | "appearances";
+
+const rankingModes: Array<{ key: RankingMode; label: string }> = [
+	{ key: "contributions", label: "Contributions" },
+	{ key: "goals", label: "Goals" },
+	{ key: "assists", label: "Assists" },
+	{ key: "appearances", label: "Appearances" },
+];
 
 export default function PlayerStatsReport() {
 	const { selectedSeasonId, setSelectedSeasonId, selectedTeamId, selectedPlayerId } = useReportsContext();
 	const [report, setReport] = useState<PlayerReportsResponse | null>(null);
 	const [isLoadingReport, setIsLoadingReport] = useState(false);
 	const [reportError, setReportError] = useState("");
-	const topContributors = report?.topContributors ?? [];
+	const [rankingMode, setRankingMode] = useState<RankingMode>("contributions");
+	const rankingRows = getRankingRows(report?.topContributors ?? [], rankingMode);
 
 	useEffect(() => {
 		if (!selectedSeasonId) {
@@ -72,27 +83,54 @@ export default function PlayerStatsReport() {
 				<ReportMetricCard label="Goal contributions" value={report?.summary.contributions ?? 0} helper={`${report?.summary.assists ?? 0} assists`} />
 			</div>
 			<ReportChartContainer
-				title="Top player contributions"
-				description="Goals and assists for the selected player filter."
-				isEmpty={topContributors.length === 0}
+				title="Top player rankings"
+				description="Switch between goals, assists, appearances and combined contributions."
+				action={
+					<div className="flex flex-wrap gap-1">
+						{rankingModes.map((mode) => (
+							<button
+								key={mode.key}
+								type="button"
+								onClick={() => setRankingMode(mode.key)}
+								className={`rounded-full px-3 py-1 text-xs font-black transition ${
+									rankingMode === mode.key
+										? "bg-yepset-700 text-white"
+										: "border border-slate-200 bg-white text-slate-600 hover:border-yepset-200 hover:text-yepset-700"
+								}`}
+							>
+								{mode.label}
+							</button>
+						))}
+					</div>
+				}
+				isEmpty={rankingRows.length === 0}
 			>
 				<ReportBarChart
-					ariaLabel="Top player goals and assists"
-					labels={topContributors.map((playerStats) => shortName(playerStats.playerName))}
+					ariaLabel="Top player ranking"
+					labels={rankingRows.map((playerStats) => shortName(playerStats.playerName))}
 					series={[
 						{
-							label: "Goals",
+							label: getRankingLabel(rankingMode),
 							colour: "#147764",
-							values: topContributors.map((playerStats) => playerStats.goals),
-						},
-						{
-							label: "Assists",
-							colour: "#2563eb",
-							values: topContributors.map((playerStats) => playerStats.assists),
+							values: rankingRows.map((playerStats) => getRankingValue(playerStats, rankingMode)),
 						},
 					]}
 				/>
 			</ReportChartContainer>
+			<ReportPanel title="Top contributors" description="Goals plus assists, with appearances for context.">
+				<div className="divide-y divide-slate-100 rounded-2xl border border-slate-200">
+					{(report?.topContributors ?? []).slice(0, 8).map((player, index) => (
+						<div key={player.playerId} className="grid grid-cols-[2rem_1fr_repeat(4,4rem)] items-center gap-2 px-4 py-3 text-sm">
+							<span className="font-black text-slate-400">{index + 1}</span>
+							<span className="min-w-0 truncate font-black text-slate-950">{player.playerName}</span>
+							<span className="text-center font-black text-yepset-700">{player.goals}</span>
+							<span className="text-center font-black text-blue-700">{player.assists}</span>
+							<span className="text-center font-black text-slate-950">{player.contributions}</span>
+							<span className="text-center font-bold text-slate-500">{player.appearances}</span>
+						</div>
+					))}
+				</div>
+			</ReportPanel>
 			<Stats
 				variant="report"
 				selectedSeasonId={selectedSeasonId}
@@ -103,6 +141,30 @@ export default function PlayerStatsReport() {
 			/>
 		</div>
 	);
+}
+
+function getRankingRows(rows: PlayerContribution[], mode: RankingMode) {
+	return [...rows]
+		.sort((firstPlayer, secondPlayer) =>
+			getRankingValue(secondPlayer, mode) - getRankingValue(firstPlayer, mode) ||
+			secondPlayer.contributions - firstPlayer.contributions ||
+			firstPlayer.playerName.localeCompare(secondPlayer.playerName)
+		)
+		.slice(0, 8);
+}
+
+function getRankingValue(player: PlayerContribution, mode: RankingMode) {
+	if (mode === "goals") return player.goals;
+	if (mode === "assists") return player.assists;
+	if (mode === "appearances") return player.appearances;
+	return player.contributions;
+}
+
+function getRankingLabel(mode: RankingMode) {
+	if (mode === "goals") return "Goals";
+	if (mode === "assists") return "Assists";
+	if (mode === "appearances") return "Appearances";
+	return "Contributions";
 }
 
 function shortName(name: string) {

@@ -63,11 +63,30 @@ export type MonthlyResultBreakdown = {
 	goalsAgainst: number;
 };
 
+export type MatchHighlight = {
+	matchId: string;
+	opponent: string;
+	date: string;
+	goalsFor: number;
+	goalsAgainst: number;
+	margin: number;
+};
+
+export type CompetitionBreakdown = {
+	competition: string;
+	summary: ResultBreakdown;
+};
+
 export type TeamPerformanceReportResponse = {
 	summary: ResultBreakdown;
 	homeAway: HomeAwayBreakdown;
 	months: MonthlyResultBreakdown[];
 	recentForm: Array<"W" | "D" | "L">;
+	cleanSheets: number;
+	failedToScore: number;
+	biggestWin?: MatchHighlight | null;
+	biggestLoss?: MatchHighlight | null;
+	competitions: CompetitionBreakdown[];
 };
 
 export type PlayerStatsSummary = {
@@ -128,12 +147,23 @@ export type MonthlyFinanceBreakdown = {
 	monthStart: string;
 	collected: number;
 	charged: number;
+	adjustments: number;
+};
+
+export type FinanceForecastScenario = {
+	label: string;
+	description: string;
+	dailyPace: number;
+	projectedCollected: number;
+	projectedShortfall: number;
+	completionPercentage: number;
 };
 
 export type FinanceReportResponse = {
 	expected: number;
 	collected: number;
 	outstanding: number;
+	adjustments: number;
 	paidPercentage: number;
 	playersOwing: number;
 	projectedCollected: number;
@@ -141,6 +171,13 @@ export type FinanceReportResponse = {
 	dailyPace: number;
 	requiredDailyPace: number;
 	elapsedPercentage: number;
+	forecastStatus: string;
+	last30DaysCollected: number;
+	last90DaysCollected: number;
+	last30DaysPace: number;
+	last90DaysPace: number;
+	daysRemaining: number;
+	forecastScenarios: FinanceForecastScenario[];
 	months: MonthlyFinanceBreakdown[];
 };
 

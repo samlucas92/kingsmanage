@@ -44,6 +44,7 @@ export default function TeamPerformanceReport() {
 	const homeAway = report?.homeAway ?? { home: emptySummary, away: emptySummary };
 	const monthlyBreakdown = report?.months ?? [];
 	const recentForm = report?.recentForm ?? [];
+	const competitions = report?.competitions ?? [];
 
 	useEffect(() => {
 		if (!selectedSeasonId) {
@@ -113,6 +114,13 @@ export default function TeamPerformanceReport() {
 				<ReportMetricCard label="GD" value={formatSigned(summary.goalDifference)} tone={summary.goalDifference >= 0 ? "success" : "danger"} />
 			</div>
 
+			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+				<ReportMetricCard label="Goals for" value={summary.goalsFor} helper={`${summary.averageGoalsFor} per match`} />
+				<ReportMetricCard label="Goals against" value={summary.goalsAgainst} helper={`${summary.averageGoalsAgainst} per match`} />
+				<ReportMetricCard label="Clean sheets" value={report?.cleanSheets ?? 0} tone={(report?.cleanSheets ?? 0) > 0 ? "success" : "default"} />
+				<ReportMetricCard label="Failed to score" value={report?.failedToScore ?? 0} tone={(report?.failedToScore ?? 0) > 0 ? "warning" : "success"} />
+			</div>
+
 			<div className="grid gap-5 xl:grid-cols-2">
 				<ReportChartContainer
 					title="Results over time"
@@ -171,6 +179,68 @@ export default function TeamPerformanceReport() {
 					)}
 				</ReportPanel>
 			</div>
+
+			<div className="grid gap-5 xl:grid-cols-[.8fr_1.2fr]">
+				<ReportPanel title="Match highlights" description="Biggest result swings in the selected filters.">
+					<div className="grid gap-3 sm:grid-cols-2">
+						<HighlightCard title="Biggest win" highlight={report?.biggestWin} tone="success" />
+						<HighlightCard title="Biggest loss" highlight={report?.biggestLoss} tone="danger" />
+					</div>
+				</ReportPanel>
+
+				<ReportPanel title="Competition breakdown" description="Record split by competition.">
+					{competitions.length === 0 ? (
+						<ReportEmptyState title="No competition data" message="Competition breakdown will appear after completed results." />
+					) : (
+						<div className="divide-y divide-slate-100 rounded-2xl border border-slate-200">
+							{competitions.map((item) => (
+								<div key={item.competition} className="grid grid-cols-[1fr_repeat(4,3.5rem)] items-center gap-2 px-4 py-3 text-sm">
+									<span className="min-w-0 truncate font-black text-slate-950">{item.competition}</span>
+									<span className="text-center font-bold text-slate-500">{item.summary.played}</span>
+									<span className="text-center font-black text-yepset-700">{item.summary.won}</span>
+									<span className="text-center font-black text-amber-600">{item.summary.drawn}</span>
+									<span className="text-center font-black text-red-700">{item.summary.lost}</span>
+								</div>
+							))}
+						</div>
+					)}
+				</ReportPanel>
+			</div>
+		</div>
+	);
+}
+
+function HighlightCard({
+	title,
+	highlight,
+	tone,
+}: {
+	title: string;
+	highlight?: TeamPerformanceReportResponse["biggestWin"];
+	tone: "success" | "danger";
+}) {
+	const scoreClass = tone === "success" ? "text-yepset-700" : "text-red-700";
+
+	return (
+		<div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+			<p className="text-xs font-black uppercase tracking-wide text-slate-500">{title}</p>
+			{highlight ? (
+				<>
+					<p className={`mt-2 text-xl font-black ${scoreClass}`}>
+						{highlight.goalsFor} - {highlight.goalsAgainst}
+					</p>
+					<p className="mt-1 truncate text-sm font-black text-slate-950">{highlight.opponent}</p>
+					<p className="mt-1 text-xs font-semibold text-slate-500">
+						{new Date(highlight.date).toLocaleDateString("en-GB", {
+							day: "2-digit",
+							month: "short",
+							year: "numeric",
+						})}
+					</p>
+				</>
+			) : (
+				<p className="mt-2 text-sm font-semibold text-slate-500">No result yet</p>
+			)}
 		</div>
 	);
 }
