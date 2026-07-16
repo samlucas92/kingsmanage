@@ -48,8 +48,8 @@ export function ResultCard({
 					/>
 				</div>
 
-				<div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-					<div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+				<div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-4">
+					<div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3">
 						<ResultTeam
 							name={homeTeamName}
 							score={result?.homeGoals}
@@ -106,10 +106,12 @@ function ResultTeam({
 	align: "left" | "right";
 }) {
 	return (
-		<div className={align === "right" ? "text-right" : "text-left"}>
-			<p className="truncate text-sm font-semibold text-slate-700">{name}</p>
+		<div className={`min-w-0 ${align === "right" ? "text-right" : "text-left"}`}>
+			<p className="min-w-0 truncate text-xs font-semibold text-slate-700 sm:text-sm" title={name}>
+				{name}
+			</p>
 
-			<p className="mt-1 text-4xl font-black text-blue-900">
+			<p className="mt-1 text-3xl font-black text-blue-900 sm:text-4xl">
 				{typeof score === "number" ? score : "-"}
 			</p>
 		</div>
