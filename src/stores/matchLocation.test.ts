@@ -57,4 +57,38 @@ describe("match fixture updates", () => {
 			location: "New Ground, Swansea",
 		});
 	});
+
+	it("allows fixture metadata to be corrected for completed matches", async () => {
+		useMatchStore.setState((state) => ({
+			matches: state.matches.map((match) => ({
+				...match,
+				state: "won",
+				isCompleted: true,
+				result: { homeGoals: 2, awayGoals: 1 },
+			})),
+		}));
+
+		await useMatchStore.getState().updateMatchFixture("match-1", {
+			seasonId: "season-1",
+			team: "team-1",
+			opponent: "Rovers",
+			competition: "League",
+			date: "2026-07-01T14:00:00.000Z",
+			venue: "away",
+			location: "Old Ground",
+		});
+
+		expect(updateMatch).toHaveBeenCalledWith(
+			"match-1",
+			expect.objectContaining({
+				isCompleted: true,
+				result: { homeGoals: 2, awayGoals: 1 },
+				venue: "away",
+			})
+		);
+		expect(useMatchStore.getState().matches[0]).toMatchObject({
+			isCompleted: true,
+			venue: "away",
+		});
+	});
 });

@@ -46,10 +46,6 @@ export function useMatchForm({
 	}
 
 	function openEditMatchModal(match: Match) {
-		if (match.isCompleted) {
-			return;
-		}
-
 		setEditingMatchId(match.id);
 		setTeam(match.team);
 		setOpponent(match.opponent);

@@ -218,16 +218,16 @@ function MatchActions({
 
 	return (
 		<>
+			<button
+				type="button"
+				onClick={() => onEditMatch(match)}
+				className={buttonClassName}
+			>
+				Edit
+			</button>
+
 			{!match.isCompleted && (
 				<>
-					<button
-						type="button"
-						onClick={() => onEditMatch(match)}
-						className={buttonClassName}
-					>
-						Edit
-					</button>
-
 					{match.state === "postponed" ? (
 						<button
 							type="button"

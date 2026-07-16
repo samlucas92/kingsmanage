@@ -166,7 +166,7 @@ export function MatchFormModal({
 
 				{isEditing && (
 					<p className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
-						Completed matches cannot be edited.
+						If this match already has a result, changing Home/Away will affect how reports interpret goals for and against.
 					</p>
 				)}
 			</div>
