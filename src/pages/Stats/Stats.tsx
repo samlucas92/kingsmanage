@@ -141,6 +141,7 @@ type StatsProps = {
 	selectedSeasonId?: string;
 	onSeasonChange?: (seasonId: string) => void;
 	selectedPlayerId?: string;
+	rowsOverride?: PlayerStatsRecord[];
 	hideHeader?: boolean;
 };
 
@@ -149,6 +150,7 @@ export default function Stats({
 	selectedSeasonId: controlledSelectedSeasonId,
 	onSeasonChange,
 	selectedPlayerId = "all",
+	rowsOverride,
 	hideHeader = false,
 }: StatsProps = {}) {
 	const clubTeamProfiles = useClubTeamStore((state) => state.profiles);
@@ -203,14 +205,14 @@ export default function Stats({
 	}, [matches, selectedSeasonId]);
 
 	const statsRows = useMemo<StatsRow[]>(() => {
-		return seasonStats
+		return (rowsOverride ?? seasonStats)
 			.filter((playerStats) => includeInactive || playerStats.isActive)
 			.map((playerStats) => ({
 				...playerStats,
 				id: playerStats.playerId,
 				name: playerStats.playerName,
 			}));
-	}, [seasonStats, includeInactive]);
+	}, [includeInactive, rowsOverride, seasonStats]);
 
 	const filteredRows = useMemo(() => {
 		return statsRows.filter((row) => {

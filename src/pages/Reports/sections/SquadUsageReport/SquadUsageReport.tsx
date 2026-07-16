@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import ReportBarChart from "../../components/charts/ReportBarChart";
 import ReportChartContainer from "../../components/charts/ReportChartContainer";
@@ -7,64 +8,66 @@ import ReportMetricCard from "../../components/ReportMetricCard";
 import ReportPageHeader from "../../components/ReportPageHeader";
 import ReportPanel from "../../components/ReportPanel";
 import { useReportsContext } from "../../ReportsContext";
-import { useStatsStore } from "../../../../stores/stats";
+import { reportsApi, type PlayerReportsResponse } from "../../../../services/reportsApi";
 
 export default function SquadUsageReport() {
-	const { selectedTeamId, selectedPlayerId, isLoading, loadError } = useReportsContext();
-	const seasonStats = useStatsStore((state) => state.seasonStats);
-	const activeStats = seasonStats.filter((playerStats) => {
-		if (!playerStats.isActive) {
-			return false;
-		}
-
-		return selectedPlayerId === "all" || playerStats.playerId === selectedPlayerId;
-	});
+	const { selectedSeasonId, selectedTeamId, selectedPlayerId, isLoading, loadError } = useReportsContext();
+	const [report, setReport] = useState<PlayerReportsResponse | null>(null);
+	const [isLoadingReport, setIsLoadingReport] = useState(false);
+	const [reportError, setReportError] = useState("");
 	const isTeamFiltered = selectedTeamId !== "all";
-	const teamUsageRows = activeStats
-		.map((playerStats) => {
-			const teamStats = playerStats.teamStats?.find((item) => item.teamId === selectedTeamId);
-
-			return {
-				...playerStats,
-				teamAppearances: teamStats?.appearances ?? 0,
-				teamGoals: teamStats?.goals ?? 0,
-				teamAssists: teamStats?.assists ?? 0,
-				teamMinutes: teamStats?.minutes ?? 0,
-			};
-		})
-		.filter((playerStats) => !isTeamFiltered || playerStats.teamAppearances > 0 || playerStats.teamMinutes > 0);
-	const totalMinutes = activeStats.reduce((total, playerStats) => total + playerStats.minutes, 0);
-	const totalStarts = activeStats.reduce((total, playerStats) => total + playerStats.starts, 0);
-	const totalBench = activeStats.reduce((total, playerStats) => total + playerStats.bench, 0);
-	const totalUnused = activeStats.reduce((total, playerStats) => total + playerStats.unusedSubstitutes, 0);
-	const filteredTotalMinutes = isTeamFiltered
-		? teamUsageRows.reduce((total, playerStats) => total + playerStats.teamMinutes, 0)
-		: totalMinutes;
-	const filteredAppearances = teamUsageRows.reduce((total, playerStats) =>
-		total + (isTeamFiltered ? playerStats.teamAppearances : playerStats.seasonApps), 0
-	);
-	const filteredGoals = teamUsageRows.reduce((total, playerStats) =>
-		total + (isTeamFiltered ? playerStats.teamGoals : playerStats.seasonGoals), 0
-	);
-	const filteredAssists = teamUsageRows.reduce((total, playerStats) =>
-		total + (isTeamFiltered ? playerStats.teamAssists : playerStats.assists), 0
-	);
-	const topMinutes = [...teamUsageRows]
-		.sort((firstPlayer, secondPlayer) =>
-			(isTeamFiltered ? secondPlayer.teamMinutes : secondPlayer.minutes) -
-			(isTeamFiltered ? firstPlayer.teamMinutes : firstPlayer.minutes)
-		)
-		.slice(0, 8);
+	const teamUsageRows = report?.squadUsage ?? [];
+	const totalMinutes = teamUsageRows.reduce((total, playerStats) => total + playerStats.minutes, 0);
+	const totalStarts = teamUsageRows.reduce((total, playerStats) => total + playerStats.starts, 0);
+	const totalBench = teamUsageRows.reduce((total, playerStats) => total + playerStats.bench, 0);
+	const totalUnused = teamUsageRows.reduce((total, playerStats) => total + playerStats.unusedSubstitutes, 0);
+	const filteredAppearances = teamUsageRows.reduce((total, playerStats) => total + playerStats.appearances, 0);
+	const filteredGoals = teamUsageRows.reduce((total, playerStats) => total + playerStats.goals, 0);
+	const filteredAssists = teamUsageRows.reduce((total, playerStats) => total + playerStats.assists, 0);
+	const topMinutes = [...teamUsageRows].slice(0, 8);
 	const topInvolvement = [...teamUsageRows]
 		.map((playerStats) => ({
 			...playerStats,
 			involvement: isTeamFiltered
-				? playerStats.teamAppearances
+				? playerStats.appearances
 				: playerStats.starts + playerStats.bench + playerStats.unusedSubstitutes,
 		}))
 		.filter((playerStats) => playerStats.involvement > 0)
 		.sort((firstPlayer, secondPlayer) => secondPlayer.involvement - firstPlayer.involvement)
 		.slice(0, 10);
+
+	useEffect(() => {
+		if (!selectedSeasonId) {
+			setReport(null);
+			return;
+		}
+
+		let isCurrent = true;
+		setIsLoadingReport(true);
+		setReportError("");
+
+		reportsApi.getPlayerReports({
+			seasonId: selectedSeasonId,
+			teamId: selectedTeamId,
+			playerId: selectedPlayerId,
+		})
+			.then((response) => {
+				if (isCurrent) setReport(response);
+			})
+			.catch((error) => {
+				if (isCurrent) {
+					setReportError(error instanceof Error ? error.message : "Failed to load squad usage report.");
+					setReport(null);
+				}
+			})
+			.finally(() => {
+				if (isCurrent) setIsLoadingReport(false);
+			});
+
+		return () => {
+			isCurrent = false;
+		};
+	}, [selectedPlayerId, selectedSeasonId, selectedTeamId]);
 
 	return (
 		<div className="space-y-5">
@@ -74,19 +77,19 @@ export default function SquadUsageReport() {
 				showPlayerFilter
 			/>
 
-			{loadError && (
+			{(loadError || reportError) && (
 				<div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-					{loadError}
+					{loadError || reportError}
 				</div>
 			)}
-			{isLoading && (
+			{(isLoading || isLoadingReport) && (
 				<div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-500">
 					Loading report data...
 				</div>
 			)}
 
 			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-				<ReportMetricCard label="Total minutes" value={filteredTotalMinutes.toLocaleString("en-GB")} />
+				<ReportMetricCard label="Total minutes" value={totalMinutes.toLocaleString("en-GB")} />
 				<ReportMetricCard label={isTeamFiltered ? "Appearances" : "Starts"} value={isTeamFiltered ? filteredAppearances : totalStarts} />
 				<ReportMetricCard label={isTeamFiltered ? "Goals" : "Bench"} value={isTeamFiltered ? filteredGoals : totalBench} />
 				<ReportMetricCard
@@ -132,7 +135,7 @@ export default function SquadUsageReport() {
 							{
 								label: "Minutes",
 								colour: "#147764",
-								values: topMinutes.map((playerStats) => isTeamFiltered ? playerStats.teamMinutes : playerStats.minutes),
+								values: topMinutes.map((playerStats) => playerStats.minutes),
 							},
 						]}
 					/>
@@ -163,10 +166,10 @@ export default function SquadUsageReport() {
 									>
 										{playerStats.playerName}
 									</Link>
-									<span className="text-center font-black text-slate-900">{isTeamFiltered ? playerStats.teamAppearances : playerStats.starts}</span>
-									<span className="text-center font-black text-slate-900">{isTeamFiltered ? playerStats.teamGoals : playerStats.bench}</span>
-									<span className="text-center font-black text-amber-600">{isTeamFiltered ? playerStats.teamAssists : playerStats.unusedSubstitutes}</span>
-									<span className="text-center font-black text-yepset-700">{isTeamFiltered ? playerStats.teamMinutes : playerStats.minutes}</span>
+									<span className="text-center font-black text-slate-900">{isTeamFiltered ? playerStats.appearances : playerStats.starts}</span>
+									<span className="text-center font-black text-slate-900">{isTeamFiltered ? playerStats.goals : playerStats.bench}</span>
+									<span className="text-center font-black text-amber-600">{isTeamFiltered ? playerStats.assists : playerStats.unusedSubstitutes}</span>
+									<span className="text-center font-black text-yepset-700">{playerStats.minutes}</span>
 								</div>
 							))}
 						</div>

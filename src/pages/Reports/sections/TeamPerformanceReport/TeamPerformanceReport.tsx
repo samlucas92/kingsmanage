@@ -5,6 +5,7 @@ import ReportEmptyState from "../../components/ReportEmptyState";
 import ReportPageHeader from "../../components/ReportPageHeader";
 import ReportChartContainer from "../../components/charts/ReportChartContainer";
 import ReportBarChart from "../../components/charts/ReportBarChart";
+import ReportLineChart from "../../components/charts/ReportLineChart";
 import { useReportsContext } from "../../ReportsContext";
 import {
 	reportsApi,
@@ -134,7 +135,7 @@ export default function TeamPerformanceReport() {
 					description="Monthly scoring and concession trend."
 					isEmpty={monthlyBreakdown.length === 0}
 				>
-					<ReportBarChart
+					<ReportLineChart
 						ariaLabel="Goals for versus goals against by month"
 						labels={monthlyBreakdown.map((month) => month.label)}
 						series={[

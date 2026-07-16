@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import ReportDoughnutChart from "../../components/charts/ReportDoughnutChart";
 import ReportChartContainer from "../../components/charts/ReportChartContainer";
@@ -6,28 +7,49 @@ import ReportMetricCard from "../../components/ReportMetricCard";
 import ReportPageHeader from "../../components/ReportPageHeader";
 import ReportPanel from "../../components/ReportPanel";
 import { useReportsContext } from "../../ReportsContext";
-import { useStatsStore } from "../../../../stores/stats";
+import { reportsApi, type PlayerReportsResponse } from "../../../../services/reportsApi";
 
 export default function DisciplineReport() {
-	const { selectedPlayerId, isLoading, loadError } = useReportsContext();
-	const seasonStats = useStatsStore((state) => state.seasonStats);
-	const filteredSeasonStats = seasonStats.filter((playerStats) =>
-		selectedPlayerId === "all" || playerStats.playerId === selectedPlayerId
-	);
-	const disciplineRows = filteredSeasonStats
-		.map((playerStats) => ({
-			...playerStats,
-			totalCards: playerStats.yellowCards + playerStats.redCards,
-		}))
-		.filter((playerStats) => playerStats.totalCards > 0)
-		.sort((firstPlayer, secondPlayer) =>
-			secondPlayer.totalCards - firstPlayer.totalCards ||
-			secondPlayer.redCards - firstPlayer.redCards ||
-			firstPlayer.playerName.localeCompare(secondPlayer.playerName)
-		);
-	const yellowCards = filteredSeasonStats.reduce((total, playerStats) => total + playerStats.yellowCards, 0);
-	const redCards = filteredSeasonStats.reduce((total, playerStats) => total + playerStats.redCards, 0);
+	const { selectedSeasonId, selectedPlayerId, isLoading, loadError } = useReportsContext();
+	const [report, setReport] = useState<PlayerReportsResponse | null>(null);
+	const [isLoadingReport, setIsLoadingReport] = useState(false);
+	const [reportError, setReportError] = useState("");
+	const disciplineRows = report?.discipline.players ?? [];
+	const yellowCards = report?.discipline.yellowCards ?? 0;
+	const redCards = report?.discipline.redCards ?? 0;
 	const mostCardedPlayer = disciplineRows[0];
+
+	useEffect(() => {
+		if (!selectedSeasonId) {
+			setReport(null);
+			return;
+		}
+
+		let isCurrent = true;
+		setIsLoadingReport(true);
+		setReportError("");
+
+		reportsApi.getPlayerReports({
+			seasonId: selectedSeasonId,
+			playerId: selectedPlayerId,
+		})
+			.then((response) => {
+				if (isCurrent) setReport(response);
+			})
+			.catch((error) => {
+				if (isCurrent) {
+					setReportError(error instanceof Error ? error.message : "Failed to load discipline report.");
+					setReport(null);
+				}
+			})
+			.finally(() => {
+				if (isCurrent) setIsLoadingReport(false);
+			});
+
+		return () => {
+			isCurrent = false;
+		};
+	}, [selectedPlayerId, selectedSeasonId]);
 
 	return (
 		<div className="space-y-5">
@@ -38,12 +60,12 @@ export default function DisciplineReport() {
 				showPlayerFilter
 			/>
 
-			{loadError && (
+			{(loadError || reportError) && (
 				<div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-					{loadError}
+					{loadError || reportError}
 				</div>
 			)}
-			{isLoading && (
+			{(isLoading || isLoadingReport) && (
 				<div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-500">
 					Loading report data...
 				</div>

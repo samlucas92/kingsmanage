@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import ReportMetricCard from "../../components/ReportMetricCard";
 import ReportPanel from "../../components/ReportPanel";
@@ -6,22 +7,7 @@ import ReportPageHeader from "../../components/ReportPageHeader";
 import ReportChartContainer from "../../components/charts/ReportChartContainer";
 import ReportLineChart from "../../components/charts/ReportLineChart";
 import { useReportsContext } from "../../ReportsContext";
-import { useMatchStore } from "../../../../stores/match";
-import { usePlayerStore } from "../../../../stores/players";
-import { useSeasonStore } from "../../../../stores/seasons";
-import { useStatsStore } from "../../../../stores/stats";
-import { useEventStore } from "../../../../stores/events";
-import { formatCurrency } from "../../../../utils/format";
-import {
-	getActivePlayerCount,
-	getAvailabilitySummary,
-	getCompletedReportMatches,
-	getFinanceReportSummary,
-	getMonthlyResultBreakdown,
-	getRecentForm,
-	getResultBreakdown,
-	getTopPlayers,
-} from "../../utils/reportCalculations";
+import { reportsApi, type OverviewReportResponse } from "../../../../services/reportsApi";
 
 export default function OverviewReport() {
 	const {
@@ -36,29 +22,50 @@ export default function OverviewReport() {
 		isLoading,
 		loadError,
 	} = useReportsContext();
-	const matches = useMatchStore((state) => state.matches);
-	const players = usePlayerStore((state) => state.players);
-	const events = useEventStore((state) => state.events);
-	const seasons = useSeasonStore((state) => state.seasons);
-	const seasonStats = useStatsStore((state) => state.seasonStats);
+	const [report, setReport] = useState<OverviewReportResponse | null>(null);
+	const [isLoadingReport, setIsLoadingReport] = useState(false);
+	const [reportError, setReportError] = useState("");
+	const summary = report?.teamPerformance.summary;
+	const recentForm = report?.teamPerformance.recentForm ?? [];
+	const monthlyBreakdown = report?.teamPerformance.months ?? [];
+	const topPlayers = report?.topContributors ?? [];
+	const availabilitySummary = report?.availability;
 
-	const selectedSeason = seasons.find((season) => season.id === selectedSeasonId);
-	const completedMatches = getCompletedReportMatches(matches, selectedSeasonId, selectedTeamId, {
-		competition: selectedCompetition,
-		venue: selectedVenue,
-		dateFrom,
-		dateTo,
-	});
-	const summary = getResultBreakdown(completedMatches);
-	const recentForm = getRecentForm(completedMatches);
-	const monthlyBreakdown = getMonthlyResultBreakdown(completedMatches);
-	const topPlayers = getTopPlayers(seasonStats);
-	const financeReportSummary = getFinanceReportSummary(financeSummary);
-	const availabilitySummary = getAvailabilitySummary({
-		events,
-		seasonStartDate: selectedSeason?.startDate,
-		seasonEndDate: selectedSeason?.endDate,
-	});
+	useEffect(() => {
+		if (!selectedSeasonId) {
+			setReport(null);
+			return;
+		}
+
+		let isCurrent = true;
+		setIsLoadingReport(true);
+		setReportError("");
+
+		reportsApi.getOverviewReport({
+			seasonId: selectedSeasonId,
+			teamId: selectedTeamId,
+			competition: selectedCompetition,
+			venue: selectedVenue,
+			dateFrom,
+			dateTo,
+		})
+			.then((response) => {
+				if (isCurrent) setReport(response);
+			})
+			.catch((error) => {
+				if (isCurrent) {
+					setReportError(error instanceof Error ? error.message : "Failed to load overview report.");
+					setReport(null);
+				}
+			})
+			.finally(() => {
+				if (isCurrent) setIsLoadingReport(false);
+			});
+
+		return () => {
+			isCurrent = false;
+		};
+	}, [dateFrom, dateTo, selectedCompetition, selectedSeasonId, selectedTeamId, selectedVenue]);
 
 	return (
 		<div className="space-y-5">
@@ -69,24 +76,19 @@ export default function OverviewReport() {
 				showVenueFilter
 			/>
 
-			{loadError && <ErrorBanner message={loadError} />}
-			{isLoading && <LoadingBanner />}
+			{(loadError || reportError) && <ErrorBanner message={loadError || reportError} />}
+			{(isLoading || isLoadingReport) && <LoadingBanner />}
 
 			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-				<ReportMetricCard label="Matches played" value={summary.played} />
-				<ReportMetricCard label="Wins" value={summary.won} tone="success" helper={`${summary.winPercentage}% win rate`} />
-				<ReportMetricCard label="Goal difference" value={formatSigned(summary.goalDifference)} tone={summary.goalDifference >= 0 ? "success" : "danger"} />
-				<ReportMetricCard label="Active players" value={getActivePlayerCount(players)} />
-				<ReportMetricCard label="Goals for" value={summary.goalsFor} />
-				<ReportMetricCard label="Goals against" value={summary.goalsAgainst} />
-				<ReportMetricCard label="Availability" value={`${availabilitySummary.availablePercentage}%`} helper={`${availabilitySummary.available}/${availabilitySummary.totalResponses} available responses`} />
-				{canViewFinance && financeReportSummary && (
-					<ReportMetricCard
-						label="Outstanding finance"
-						value={formatCurrency(financeReportSummary.outstanding)}
-						tone={financeReportSummary.outstanding > 0 ? "danger" : "success"}
-						helper={`${financeReportSummary.playersOwing} players owing`}
-					/>
+				<ReportMetricCard label="Matches played" value={summary?.played ?? 0} />
+				<ReportMetricCard label="Wins" value={summary?.won ?? 0} tone="success" helper={`${summary?.winPercentage ?? 0}% win rate`} />
+				<ReportMetricCard label="Goal difference" value={formatSigned(summary?.goalDifference ?? 0)} tone={(summary?.goalDifference ?? 0) >= 0 ? "success" : "danger"} />
+				<ReportMetricCard label="Active players" value={report?.activePlayers ?? 0} />
+				<ReportMetricCard label="Goals for" value={summary?.goalsFor ?? 0} />
+				<ReportMetricCard label="Goals against" value={summary?.goalsAgainst ?? 0} />
+				<ReportMetricCard label="Availability" value={`${availabilitySummary?.availablePercentage ?? 0}%`} helper={`${availabilitySummary?.totals.available ?? 0}/${availabilitySummary?.totalResponses ?? 0} available responses`} />
+				{canViewFinance && financeSummary && (
+					<ReportMetricCard label="Outstanding finance" value="Open finance report" helper="Finance is loaded from the finance report API" />
 				)}
 			</div>
 
@@ -109,11 +111,11 @@ export default function OverviewReport() {
 				</ReportPanel>
 
 				<ReportPanel title="Leading players" description="Top contributors from existing player stats.">
-					{topPlayers.contributions.length === 0 ? (
+					{topPlayers.length === 0 ? (
 						<ReportEmptyState title="No player stats" message="Player rankings will appear after match stats are recorded." />
 					) : (
 						<div className="divide-y divide-slate-100">
-							{topPlayers.contributions.map((player) => (
+							{topPlayers.map((player) => (
 								<div key={player.playerId} className="flex items-center justify-between py-3 text-sm">
 									<Link to={`/players/${player.playerId}`} className="font-black text-slate-900 hover:text-yepset-700">
 										{player.playerName}
