@@ -1,33 +1,35 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 
 import Header from "../components/layout/Header";
 import MobileBottomNavigation from "../components/layout/MobileBottomNavigation";
 import Sidebar from "../components/layout/Sidebar";
 import ProtectedRoute from "../components/routing/ProtectedRoute";
-import AccessDenied from "../pages/AccessDenied/AccessDenied";
-import Dashboard from "../pages/Dashboard/Dashboard";
-import EventDetail from "../pages/Events/EventDetail";
-import Finance from "../pages/Finance/Finance";
-import HistoricalStats from "../pages/HistoricalStats/HistoricalStats";
-import Login from "../pages/Login/Login";
-import MatchDetail from "../pages/Matches/MatchDetails";
-import Notifications from "../pages/Notifications/Notifications";
-import Matches from "../pages/Matches/Matches";
-import Player from "../pages/Players/Player";
-import Players from "../pages/Players/Players";
-import PostDetail from "../pages/Posts/PostDetail";
-import Seasons from "../pages/Seasons/Seasons";
-import Stats from "../pages/Stats/Stats";
-import Settings from "../pages/Settings/Settings";
-import Users from "../pages/Users/Users";
-import ClubTeams from "../pages/ClubTeams/ClubTeams";
-import Organization from "../pages/Organization/Organization";
-import PlatformOrganizations from "../pages/PlatformOrganizations/PlatformOrganizations";
-import ClubSetup from "../pages/ClubSetup/ClubSetup";
-import Billing from "../pages/Billing/Billing";
 import { ClubSetupReminder } from "../pages/ClubSetup/ClubSetupReminder";
 import { useClubTeamStore } from "../stores/clubTeams";
+
+const AccessDenied = lazy(() => import("../pages/AccessDenied/AccessDenied"));
+const Billing = lazy(() => import("../pages/Billing/Billing"));
+const ClubSetup = lazy(() => import("../pages/ClubSetup/ClubSetup"));
+const ClubTeams = lazy(() => import("../pages/ClubTeams/ClubTeams"));
+const Dashboard = lazy(() => import("../pages/Dashboard/Dashboard"));
+const EventDetail = lazy(() => import("../pages/Events/EventDetail"));
+const Finance = lazy(() => import("../pages/Finance/Finance"));
+const HistoricalStats = lazy(() => import("../pages/HistoricalStats/HistoricalStats"));
+const Login = lazy(() => import("../pages/Login/Login"));
+const MatchDetail = lazy(() => import("../pages/Matches/MatchDetails"));
+const Matches = lazy(() => import("../pages/Matches/Matches"));
+const Notifications = lazy(() => import("../pages/Notifications/Notifications"));
+const Organization = lazy(() => import("../pages/Organization/Organization"));
+const PlatformOrganizations = lazy(() => import("../pages/PlatformOrganizations/PlatformOrganizations"));
+const Player = lazy(() => import("../pages/Players/Player"));
+const Players = lazy(() => import("../pages/Players/Players"));
+const PostDetail = lazy(() => import("../pages/Posts/PostDetail"));
+const ReportsPage = lazy(() => import("../pages/Reports/ReportsPage"));
+const Seasons = lazy(() => import("../pages/Seasons/Seasons"));
+const Settings = lazy(() => import("../pages/Settings/Settings"));
+const Stats = lazy(() => import("../pages/Stats/Stats"));
+const Users = lazy(() => import("../pages/Users/Users"));
 
 const managementRoles = ["Admin", "Coach"] as const;
 const adminRoles = ["Admin"] as const;
@@ -35,49 +37,60 @@ const allRoles = ["Admin", "Coach", "Player"] as const;
 
 export default function AppRouter() {
 	return (
-		<Routes>
-			<Route path="/login" element={<Login />} />
+		<Suspense fallback={<PageLoadingFallback />}>
+			<Routes>
+				<Route path="/login" element={<Login />} />
 
-			<Route element={<ProtectedRoute allowedRoles={[...allRoles]} />}>
-				<Route element={<AppShell />}>
-					<Route index element={<Dashboard />} />
-					<Route path="/events/:id" element={<EventDetail />} />
-					<Route path="/posts/:id" element={<PostDetail />} />
-					<Route path="/notifications" element={<Notifications />} />
-					<Route path="/settings" element={<Settings />} />
-					<Route path="/access-denied" element={<AccessDenied />} />
+				<Route element={<ProtectedRoute allowedRoles={[...allRoles]} />}>
+					<Route element={<AppShell />}>
+						<Route index element={<Dashboard />} />
+						<Route path="/events/:id" element={<EventDetail />} />
+						<Route path="/posts/:id" element={<PostDetail />} />
+						<Route path="/notifications" element={<Notifications />} />
+						<Route path="/settings" element={<Settings />} />
+						<Route path="/access-denied" element={<AccessDenied />} />
 
 
-					<Route element={<ProtectedRoute allowedRoles={[...managementRoles]} />}>
-						<Route path="/matches" element={<Matches />} />
-						<Route path="/matches/:id" element={<MatchDetail />} />
-						<Route path="/players" element={<Players />} />
-						<Route path="/players/:id" element={<Player />} />
-						<Route path="/stats" element={<Stats />} />
-						<Route path="/historical-stats" element={<HistoricalStats />} />
-					</Route>
+						<Route element={<ProtectedRoute allowedRoles={[...managementRoles]} />}>
+							<Route path="/matches" element={<Matches />} />
+							<Route path="/matches/:id" element={<MatchDetail />} />
+							<Route path="/players" element={<Players />} />
+							<Route path="/players/:id" element={<Player />} />
+							<Route path="/reports/*" element={<ReportsPage />} />
+							<Route path="/stats" element={<Stats />} />
+							<Route path="/historical-stats" element={<HistoricalStats />} />
+						</Route>
 
-					<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} />}>
-						<Route path="/finance" element={<Finance />} />
-						<Route path="/seasons" element={<Seasons />} />
-						<Route path="/club-teams" element={<ClubTeams />} />
-					</Route>
-					<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} allowedTenantRoles={["OrganizationAdmin"]} />}>
-						<Route path="/users" element={<Users />} />
-						<Route path="/billing" element={<Billing />} />
-					</Route>
-					<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} allowedTenantRoles={["OrganizationAdmin", "ClubAdmin"]} />}>
-						<Route path="/organization" element={<Organization />} />
-						<Route path="/club-setup" element={<ClubSetup />} />
-					</Route>
-					<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} requirePlatformAdmin />}>
-						<Route path="/platform/organizations" element={<PlatformOrganizations />} />
+						<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} />}>
+							<Route path="/finance" element={<Finance />} />
+							<Route path="/seasons" element={<Seasons />} />
+							<Route path="/club-teams" element={<ClubTeams />} />
+						</Route>
+						<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} allowedTenantRoles={["OrganizationAdmin"]} />}>
+							<Route path="/users" element={<Users />} />
+							<Route path="/billing" element={<Billing />} />
+						</Route>
+						<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} allowedTenantRoles={["OrganizationAdmin", "ClubAdmin"]} />}>
+							<Route path="/organization" element={<Organization />} />
+							<Route path="/club-setup" element={<ClubSetup />} />
+						</Route>
+						<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} requirePlatformAdmin />}>
+							<Route path="/platform/organizations" element={<PlatformOrganizations />} />
+						</Route>
 					</Route>
 				</Route>
-			</Route>
 
-			<Route path="*" element={<Navigate to="/" replace />} />
-		</Routes>
+				<Route path="*" element={<Navigate to="/" replace />} />
+			</Routes>
+		</Suspense>
+	);
+}
+
+function PageLoadingFallback() {
+	return (
+		<div className="grid min-h-screen place-items-center bg-slate-50 px-4 text-sm font-bold text-slate-500">
+			Loading Yepset...
+		</div>
 	);
 }
 

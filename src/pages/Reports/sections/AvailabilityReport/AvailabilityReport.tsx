@@ -1,0 +1,177 @@
+import { useEffect, useState } from "react";
+import ReportBarChart from "../../components/charts/ReportBarChart";
+import ReportChartContainer from "../../components/charts/ReportChartContainer";
+import ReportDoughnutChart from "../../components/charts/ReportDoughnutChart";
+import ReportEmptyState from "../../components/ReportEmptyState";
+import ReportMetricCard from "../../components/ReportMetricCard";
+import ReportPageHeader from "../../components/ReportPageHeader";
+import ReportPanel from "../../components/ReportPanel";
+import { useReportsContext } from "../../ReportsContext";
+import type { ClubEventType } from "../../../../types/events";
+import { reportsApi, type AvailabilityReportResponse } from "../../../../services/reportsApi";
+
+const eventTypes: ClubEventType[] = ["Match", "Training", "Social", "Meeting"];
+
+export default function AvailabilityReport() {
+	const { selectedSeasonId, isLoading, loadError } = useReportsContext();
+	const [report, setReport] = useState<AvailabilityReportResponse | null>(null);
+	const [isLoadingReport, setIsLoadingReport] = useState(false);
+	const [reportError, setReportError] = useState("");
+	const averageResponses = report?.completedEvents
+		? Math.round(report.totalResponses / report.completedEvents)
+		: 0;
+
+	useEffect(() => {
+		if (!selectedSeasonId) {
+			setReport(null);
+			return;
+		}
+
+		let isCurrent = true;
+
+		setIsLoadingReport(true);
+		setReportError("");
+
+		reportsApi.getAvailabilityReport({ seasonId: selectedSeasonId })
+			.then((response) => {
+				if (isCurrent) {
+					setReport(response);
+				}
+			})
+			.catch((error) => {
+				if (isCurrent) {
+					setReportError(error instanceof Error ? error.message : "Failed to load availability report.");
+					setReport(null);
+				}
+			})
+			.finally(() => {
+				if (isCurrent) {
+					setIsLoadingReport(false);
+				}
+			});
+
+		return () => {
+			isCurrent = false;
+		};
+	}, [selectedSeasonId]);
+
+	return (
+		<div className="space-y-5">
+			<ReportPageHeader
+				title="Availability"
+				description="Event response insight from completed events."
+				showTeamFilter={false}
+			/>
+
+			{(loadError || reportError) && (
+				<div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+					{loadError || reportError}
+				</div>
+			)}
+			{(isLoading || isLoadingReport) && (
+				<div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-500">
+					Loading report data...
+				</div>
+			)}
+
+			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+				<ReportMetricCard label="Completed events" value={report?.completedEvents ?? 0} />
+				<ReportMetricCard label="Available" value={report?.totals.available ?? 0} tone="success" />
+				<ReportMetricCard label="Declined" value={report?.totals.declined ?? 0} tone={(report?.totals.declined ?? 0) > 0 ? "warning" : "default"} />
+				<ReportMetricCard label="Avg responses" value={averageResponses} helper="Per completed event" />
+			</div>
+
+			<div className="grid gap-5 xl:grid-cols-[.8fr_1.2fr]">
+				<ReportChartContainer
+					title="Average response mix"
+					description="Average available, declined and unanswered responses per completed event."
+					isEmpty={!report || report.totalResponses === 0}
+				>
+					<ReportDoughnutChart
+						ariaLabel="Average availability response mix per completed event"
+						centerValue={formatAverage(report?.averages.available ?? 0)}
+						centerLabel="avg available"
+						segments={[
+							{ label: "Available", value: report?.averages.available ?? 0, colour: "#147764" },
+							{ label: "Declined", value: report?.averages.declined ?? 0, colour: "#f59e0b" },
+							{ label: "Unanswered", value: report?.averages.unanswered ?? 0, colour: "#dc2626" },
+						]}
+					/>
+				</ReportChartContainer>
+
+				<ReportChartContainer
+					title="Average availability responses"
+					description="Average responses per completed event, grouped by event type."
+					isEmpty={!report || report.completedEvents === 0}
+				>
+					<ReportBarChart
+						ariaLabel="Average availability responses by event type"
+						labels={eventTypes}
+						tickPrecision={1}
+						series={[
+							{
+								label: "Available",
+								colour: "#147764",
+								values: eventTypes.map((type) => getEventTypeBreakdown(report, type).averages.available),
+							},
+							{
+								label: "Declined",
+								colour: "#f59e0b",
+								values: eventTypes.map((type) => getEventTypeBreakdown(report, type).averages.declined),
+							},
+							{
+								label: "Unanswered",
+								colour: "#dc2626",
+								values: eventTypes.map((type) => getEventTypeBreakdown(report, type).averages.unanswered),
+							},
+						]}
+					/>
+				</ReportChartContainer>
+			</div>
+
+			<ReportPanel title="Event type breakdown" description="Average responses per completed event. Hover values to see raw totals.">
+				{!report || report.completedEvents === 0 ? (
+					<ReportEmptyState title="No completed events" message="Availability reports will appear once completed events have responses." />
+				) : (
+					<div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
+						{eventTypes.map((type) => {
+							const breakdown = getEventTypeBreakdown(report, type);
+
+							return (
+								<div key={type} className="grid grid-cols-[1fr_repeat(4,4.5rem)] items-center gap-2 px-4 py-3 text-sm">
+									<span className="font-black text-slate-950">{type}</span>
+									<span className="text-center font-bold text-slate-500">{breakdown.completedEvents} events</span>
+									<span className="text-center font-black text-yepset-700" title={`${breakdown.totals.available} total available`}>
+										{formatAverage(breakdown.averages.available)}
+									</span>
+									<span className="text-center font-black text-amber-600" title={`${breakdown.totals.declined} total declined`}>
+										{formatAverage(breakdown.averages.declined)}
+									</span>
+									<span className="text-center font-black text-red-700" title={`${breakdown.totals.unanswered} total unanswered`}>
+										{formatAverage(breakdown.averages.unanswered)}
+									</span>
+								</div>
+							);
+						})}
+					</div>
+				)}
+			</ReportPanel>
+		</div>
+	);
+}
+
+function formatAverage(value: number) {
+	return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function getEventTypeBreakdown(
+	report: AvailabilityReportResponse | null,
+	type: ClubEventType
+) {
+	return report?.eventTypes.find((item) => item.type === type) ?? {
+		type,
+		completedEvents: 0,
+		totals: { available: 0, declined: 0, unanswered: 0 },
+		averages: { available: 0, declined: 0, unanswered: 0 },
+	};
+}

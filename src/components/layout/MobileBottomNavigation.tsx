@@ -10,7 +10,7 @@ type MobileBottomNavigationProps = {
 type MobileNavigationItem = {
 	label: string;
 	to: string;
-	icon: "dashboard" | "players" | "matches" | "finance" | "events" | "posts" | "messages";
+	icon: "dashboard" | "players" | "matches" | "finance" | "reports" | "events" | "posts" | "messages";
 };
 
 export default function MobileBottomNavigation({
@@ -26,14 +26,14 @@ export default function MobileBottomNavigation({
 					{ label: "Dashboard", to: "/", icon: "dashboard" },
 					{ label: "Players", to: "/players", icon: "players" },
 					{ label: "Matches", to: "/matches", icon: "matches" },
-					{ label: "Finances", to: "/finance", icon: "finance" },
+					{ label: "Reports", to: "/reports", icon: "reports" },
 				]
 			: role === "Coach"
 				? [
 						{ label: "Dashboard", to: "/", icon: "dashboard" },
 						{ label: "Players", to: "/players", icon: "players" },
 						{ label: "Matches", to: "/matches", icon: "matches" },
-						{ label: "Posts", to: "/?tab=posts", icon: "posts" },
+						{ label: "Reports", to: "/reports", icon: "reports" },
 					]
 				: [
 						{ label: "Dashboard", to: "/", icon: "dashboard" },
@@ -99,6 +99,8 @@ function MobileNavigationIcon({
 					? "M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"
 					: name === "finance"
 						? "M4 7h16v12H4zM4 10h16m-4 5h1"
+						: name === "reports"
+							? "M4 19V5m5 14v-8m5 8V8m5 11V3M3 21h18"
 						: name === "posts"
 							? "M5 4h14v16H5zM8 8h8m-8 4h8m-8 4h5"
 							: name === "messages"

@@ -5,6 +5,20 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  build: {
+    rolldownOptions: {
+      onwarn(warning, warn) {
+        if (
+          warning.code === 'INVALID_ANNOTATION' &&
+          warning.loc?.file?.includes('@microsoft/signalr/dist/esm/Utils.js')
+        ) {
+          return
+        }
+
+        warn(warning)
+      },
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),

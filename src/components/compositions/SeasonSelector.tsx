@@ -7,6 +7,7 @@ type SeasonSelectorProps = {
 	disabled?: boolean;
 	className?: string;
 	selectClassName?: string;
+	showActiveLabel?: boolean;
 };
 
 export default function SeasonSelector({
@@ -16,6 +17,7 @@ export default function SeasonSelector({
 	disabled = false,
 	className = "",
 	selectClassName = "",
+	showActiveLabel = false,
 }: SeasonSelectorProps) {
 	const seasons = useSeasonStore((state) => state.seasons);
 
@@ -52,7 +54,7 @@ export default function SeasonSelector({
 
 				{seasons.map((season) => (
 					<option key={season.id} value={season.id}>
-						{season.name}
+						{season.name}{showActiveLabel && season.isActive ? " (current)" : ""}
 					</option>
 				))}
 			</select>

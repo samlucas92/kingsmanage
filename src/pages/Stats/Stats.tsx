@@ -136,7 +136,21 @@ function getExportColumns(
 	];
 }
 
-export default function Stats() {
+type StatsProps = {
+	variant?: "standalone" | "report";
+	selectedSeasonId?: string;
+	onSeasonChange?: (seasonId: string) => void;
+	selectedPlayerId?: string;
+	hideHeader?: boolean;
+};
+
+export default function Stats({
+	variant = "standalone",
+	selectedSeasonId: controlledSelectedSeasonId,
+	onSeasonChange,
+	selectedPlayerId = "all",
+	hideHeader = false,
+}: StatsProps = {}) {
 	const clubTeamProfiles = useClubTeamStore((state) => state.profiles);
 	const firstTeamName = getClubTeamLabel(clubTeamProfiles, "first");
 	const secondTeamName = getClubTeamLabel(clubTeamProfiles, "second");
@@ -152,7 +166,9 @@ export default function Stats() {
 	const [includeInactive, setIncludeInactive] = useState(false);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [copyStatus, setCopyStatus] = useState("");
-	const [selectedSeasonId, setSelectedSeasonId] = useState("");
+	const [internalSelectedSeasonId, setInternalSelectedSeasonId] = useState("");
+	const selectedSeasonId = controlledSelectedSeasonId ?? internalSelectedSeasonId;
+	const setSelectedSeasonId = onSeasonChange ?? setInternalSelectedSeasonId;
 
 	const selectedSeason = seasons.find((season) => season.id === selectedSeasonId);
 	const selectedSeasonName = selectedSeason?.name ?? "Selected season";
@@ -197,10 +213,14 @@ export default function Stats() {
 	}, [seasonStats, includeInactive]);
 
 	const filteredRows = useMemo(() => {
-		return statsRows.filter((row) =>
-			row.name.toLowerCase().includes(searchTerm.toLowerCase())
-		);
-	}, [statsRows, searchTerm]);
+		return statsRows.filter((row) => {
+			if (selectedPlayerId !== "all" && row.playerId !== selectedPlayerId) {
+				return false;
+			}
+
+			return row.name.toLowerCase().includes(searchTerm.toLowerCase());
+		});
+	}, [statsRows, searchTerm, selectedPlayerId]);
 
 	const sortedRows = useMemo(() => {
 		return [...filteredRows].sort((firstRow, secondRow) => {
@@ -303,27 +323,35 @@ export default function Stats() {
 
 	return (
 		<div className="w-full min-w-0 space-y-6 overflow-hidden">
-			<div className="flex min-w-0 flex-wrap items-start justify-between gap-4">
-				<div className="min-w-0">
-					<h1 className="text-2xl font-bold text-blue-900">Stats</h1>
-					<p className="text-gray-600">
-						Player stats split by selected season, pre-25/26 history and career
-						totals across every tracked season.
-					</p>
-				</div>
+			{!hideHeader && (
+				<div className="flex min-w-0 flex-wrap items-start justify-between gap-4">
+					<div className="min-w-0">
+						{variant === "report" && (
+							<p className="text-xs font-black uppercase tracking-wide text-yepset-700">Reports</p>
+						)}
+						<h1 className="text-2xl font-black tracking-[-.03em] text-slate-950">
+							{variant === "report" ? "Player Stats" : "Stats"}
+						</h1>
+						<p className="text-gray-600">
+							{variant === "report"
+								? "Goals, assists, appearances and match records for the selected report season."
+								: "Player stats split by selected season, pre-25/26 history and career totals across every tracked season."}
+						</p>
+					</div>
 
-				<SeasonSelector
-					label="Filter season"
-					selectedSeasonId={selectedSeasonId}
-					onSeasonChange={setSelectedSeasonId}
-				/>
-			</div>
+					<SeasonSelector
+						label="Filter season"
+						selectedSeasonId={selectedSeasonId}
+						onSeasonChange={setSelectedSeasonId}
+					/>
+				</div>
+			)}
 
 			<PanelCard>
 				<div className="flex min-w-0 flex-wrap items-center justify-between gap-4">
 					<div className="min-w-0">
 						<p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-							Stats view
+							{variant === "report" ? "Player stats report" : "Stats view"}
 						</p>
 						<h2 className="mt-1 text-lg font-bold text-slate-900">
 							{selectedSeasonName}
