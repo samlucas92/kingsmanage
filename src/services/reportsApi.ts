@@ -215,6 +215,7 @@ export const reportsApi = {
 		venue,
 		dateFrom,
 		dateTo,
+		includeFriendlies,
 	}: {
 		seasonId: string;
 		teamId: string;
@@ -222,6 +223,7 @@ export const reportsApi = {
 		venue?: ReportsVenueFilter;
 		dateFrom?: string;
 		dateTo?: string;
+		includeFriendlies?: boolean;
 	}) => {
 		const params = new URLSearchParams({ seasonId });
 
@@ -243,6 +245,10 @@ export const reportsApi = {
 
 		if (dateTo) {
 			params.set("dateTo", dateTo);
+		}
+
+		if (typeof includeFriendlies === "boolean") {
+			params.set("includeFriendlies", String(includeFriendlies));
 		}
 
 		return apiClient.get<TeamPerformanceReportResponse>(
@@ -298,6 +304,7 @@ type ReportFilterParams = {
 	venue?: ReportsVenueFilter;
 	dateFrom?: string;
 	dateTo?: string;
+	includeFriendlies?: boolean;
 };
 
 function buildReportParams({
@@ -307,6 +314,7 @@ function buildReportParams({
 	venue,
 	dateFrom,
 	dateTo,
+	includeFriendlies,
 }: ReportFilterParams) {
 	const params = new URLSearchParams({ seasonId });
 
@@ -328,6 +336,10 @@ function buildReportParams({
 
 	if (dateTo) {
 		params.set("dateTo", dateTo);
+	}
+
+	if (typeof includeFriendlies === "boolean") {
+		params.set("includeFriendlies", String(includeFriendlies));
 	}
 
 	return params;

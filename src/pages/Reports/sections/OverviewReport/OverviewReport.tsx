@@ -18,6 +18,7 @@ export default function OverviewReport() {
 		selectedVenue,
 		dateFrom,
 		dateTo,
+		includeFriendlies,
 		canViewFinance,
 		financeSummary,
 		isLoading,
@@ -26,7 +27,7 @@ export default function OverviewReport() {
 	const { report, isLoadingReport, reportError } = useReportResource<OverviewReportResponse>({
 		canLoad: Boolean(selectedSeasonId),
 		errorMessage: "Failed to load overview report.",
-		dependencies: [dateFrom, dateTo, selectedCompetition, selectedSeasonId, selectedTeamId, selectedVenue],
+		dependencies: [dateFrom, dateTo, includeFriendlies, selectedCompetition, selectedSeasonId, selectedTeamId, selectedVenue],
 		load: () =>
 			reportsApi.getOverviewReport({
 				seasonId: selectedSeasonId,
@@ -35,6 +36,7 @@ export default function OverviewReport() {
 				venue: selectedVenue,
 				dateFrom,
 				dateTo,
+				includeFriendlies,
 			}),
 	});
 	const summary = report?.teamPerformance.summary;

@@ -4,8 +4,8 @@ import ReportChartContainer from "../../components/charts/ReportChartContainer";
 import ReportMetricCard from "../../components/ReportMetricCard";
 import ReportPageHeader from "../../components/ReportPageHeader";
 import ReportPanel from "../../components/ReportPanel";
-import ReportsFilterBar from "../../components/ReportsFilterBar";
 import ReportLoadState from "../../components/ReportLoadState";
+import ReportMobileRankedList from "../../components/ReportMobileRankedList";
 import { useReportsContext } from "../../ReportsContext";
 import { useReportResource } from "../../hooks/useReportResource";
 import { reportsApi, type PlayerContribution, type PlayerReportsResponse } from "../../../../services/reportsApi";
@@ -20,9 +20,8 @@ const rankingModes: Array<{ key: RankingMode; label: string }> = [
 ];
 
 export default function PlayerStatsReport() {
-	const { selectedSeasonId, selectedTeamId, selectedPlayerId } = useReportsContext();
+	const { selectedSeasonId, selectedTeamId, selectedPlayerId, includeFriendlies } = useReportsContext();
 	const [rankingMode, setRankingMode] = useState<RankingMode>("contributions");
-	const [includeFriendlies, setIncludeFriendlies] = useState(true);
 	const { report, isLoadingReport, reportError } = useReportResource<PlayerReportsResponse>({
 		canLoad: Boolean(selectedSeasonId),
 		errorMessage: "Failed to load player reports.",
@@ -44,20 +43,7 @@ export default function PlayerStatsReport() {
 				description="Goals, assists, appearances and match records."
 				showTeamFilter
 				showPlayerFilter
-			>
-				<div className="flex flex-col items-stretch gap-3 lg:items-end">
-					<ReportsFilterBar showTeamFilter showPlayerFilter />
-					<label className="inline-flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm">
-						<span>Include friendlies</span>
-						<input
-							type="checkbox"
-							checked={includeFriendlies}
-							onChange={(event) => setIncludeFriendlies(event.target.checked)}
-							className="h-4 w-4 rounded border-slate-300 text-yepset-700 focus:ring-yepset-600"
-						/>
-					</label>
-				</div>
-			</ReportPageHeader>
+			/>
 			<ReportLoadState
 				error={reportError}
 				isLoading={isLoadingReport}
@@ -92,17 +78,29 @@ export default function PlayerStatsReport() {
 				}
 				isEmpty={rankingRows.length === 0}
 			>
-				<ReportBarChart
-					ariaLabel="Top player ranking"
-					labels={rankingRows.map((playerStats) => shortName(playerStats.playerName))}
-					series={[
-						{
-							label: getRankingLabel(rankingMode),
-							colour: "#147764",
-							values: rankingRows.map((playerStats) => getRankingValue(playerStats, rankingMode)),
-						},
-					]}
-				/>
+				<div className="sm:hidden">
+					<ReportMobileRankedList
+						items={rankingRows.map((playerStats) => ({
+							id: playerStats.playerId,
+							label: playerStats.playerName,
+							value: getRankingValue(playerStats, rankingMode),
+							helper: getRankingLabel(rankingMode),
+						}))}
+					/>
+				</div>
+				<div className="hidden sm:block">
+					<ReportBarChart
+						ariaLabel="Top player ranking"
+						labels={rankingRows.map((playerStats) => shortName(playerStats.playerName))}
+						series={[
+							{
+								label: getRankingLabel(rankingMode),
+								colour: "#147764",
+								values: rankingRows.map((playerStats) => getRankingValue(playerStats, rankingMode)),
+							},
+						]}
+					/>
+				</div>
 			</ReportChartContainer>
 			<ReportPanel title="Top contributors" description="Goals plus assists, with appearances for context.">
 				<div className="divide-y divide-slate-100 rounded-2xl border border-slate-200">

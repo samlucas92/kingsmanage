@@ -29,6 +29,8 @@ type ReportsContextValue = {
 	setDateFrom: (date: string) => void;
 	dateTo: string;
 	setDateTo: (date: string) => void;
+	includeFriendlies: boolean;
+	setIncludeFriendlies: (includeFriendlies: boolean) => void;
 	canViewFinance: boolean;
 	financeSummary?: FinanceSummary;
 	isLoading: boolean;
@@ -47,6 +49,7 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
 	const [selectedPlayerId, setSelectedPlayerId] = useState("all");
 	const [dateFrom, setDateFrom] = useState("");
 	const [dateTo, setDateTo] = useState("");
+	const [includeFriendlies, setIncludeFriendlies] = useState(true);
 
 	const seasons = useSeasonStore((state) => state.seasons);
 	const activeSeasonId = useSeasonStore((state) => state.activeSeasonId);
@@ -173,6 +176,8 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
 			setDateFrom,
 			dateTo,
 			setDateTo,
+			includeFriendlies,
+			setIncludeFriendlies,
 			canViewFinance,
 			financeSummary,
 			isLoading,
@@ -185,6 +190,7 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
 			loadError,
 			dateFrom,
 			dateTo,
+			includeFriendlies,
 			selectedSeasonId,
 			selectedCompetition,
 			selectedPlayerId,

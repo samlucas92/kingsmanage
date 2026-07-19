@@ -7,20 +7,22 @@ import ReportMetricCard from "../../components/ReportMetricCard";
 import ReportPageHeader from "../../components/ReportPageHeader";
 import ReportPanel from "../../components/ReportPanel";
 import ReportLoadState from "../../components/ReportLoadState";
+import ReportMobileRankedList from "../../components/ReportMobileRankedList";
 import { useReportsContext } from "../../ReportsContext";
 import { useReportResource } from "../../hooks/useReportResource";
 import { reportsApi, type PlayerReportsResponse } from "../../../../services/reportsApi";
 
 export default function DisciplineReport() {
-	const { selectedSeasonId, selectedPlayerId, isLoading, loadError } = useReportsContext();
+	const { selectedSeasonId, selectedPlayerId, includeFriendlies, isLoading, loadError } = useReportsContext();
 	const { report, isLoadingReport, reportError } = useReportResource<PlayerReportsResponse>({
 		canLoad: Boolean(selectedSeasonId),
 		errorMessage: "Failed to load discipline report.",
-		dependencies: [selectedPlayerId, selectedSeasonId],
+		dependencies: [includeFriendlies, selectedPlayerId, selectedSeasonId],
 		load: () =>
 			reportsApi.getPlayerReports({
 				seasonId: selectedSeasonId,
 				playerId: selectedPlayerId,
+				includeFriendlies,
 			}),
 	});
 	const disciplineRows = report?.discipline.players ?? [];
@@ -76,22 +78,34 @@ export default function DisciplineReport() {
 					description="Top players by total cards."
 					isEmpty={topCardedRows.length === 0}
 				>
-					<ReportBarChart
-						ariaLabel="Most carded players"
-						labels={topCardedRows.map((playerStats) => shortName(playerStats.playerName))}
-						series={[
-							{
-								label: "Yellow",
-								colour: "#f59e0b",
-								values: topCardedRows.map((playerStats) => playerStats.yellowCards),
-							},
-							{
-								label: "Red",
-								colour: "#dc2626",
-								values: topCardedRows.map((playerStats) => playerStats.redCards),
-							},
-						]}
-					/>
+					<div className="sm:hidden">
+						<ReportMobileRankedList
+							items={topCardedRows.map((playerStats) => ({
+								id: playerStats.playerId,
+								label: playerStats.playerName,
+								value: playerStats.totalCards,
+								helper: `${playerStats.yellowCards} yellow · ${playerStats.redCards} red`,
+							}))}
+						/>
+					</div>
+					<div className="hidden sm:block">
+						<ReportBarChart
+							ariaLabel="Most carded players"
+							labels={topCardedRows.map((playerStats) => shortName(playerStats.playerName))}
+							series={[
+								{
+									label: "Yellow",
+									colour: "#f59e0b",
+									values: topCardedRows.map((playerStats) => playerStats.yellowCards),
+								},
+								{
+									label: "Red",
+									colour: "#dc2626",
+									values: topCardedRows.map((playerStats) => playerStats.redCards),
+								},
+							]}
+						/>
+					</div>
 				</ReportChartContainer>
 			</div>
 

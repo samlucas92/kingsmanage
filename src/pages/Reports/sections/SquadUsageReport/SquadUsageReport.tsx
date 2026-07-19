@@ -7,21 +7,23 @@ import ReportMetricCard from "../../components/ReportMetricCard";
 import ReportPageHeader from "../../components/ReportPageHeader";
 import ReportPanel from "../../components/ReportPanel";
 import ReportLoadState from "../../components/ReportLoadState";
+import ReportMobileRankedList from "../../components/ReportMobileRankedList";
 import { useReportsContext } from "../../ReportsContext";
 import { useReportResource } from "../../hooks/useReportResource";
 import { reportsApi, type PlayerReportsResponse } from "../../../../services/reportsApi";
 
 export default function SquadUsageReport() {
-	const { selectedSeasonId, selectedTeamId, selectedPlayerId, isLoading, loadError } = useReportsContext();
+	const { selectedSeasonId, selectedTeamId, selectedPlayerId, includeFriendlies, isLoading, loadError } = useReportsContext();
 	const { report, isLoadingReport, reportError } = useReportResource<PlayerReportsResponse>({
 		canLoad: Boolean(selectedSeasonId),
 		errorMessage: "Failed to load squad usage report.",
-		dependencies: [selectedPlayerId, selectedSeasonId, selectedTeamId],
+		dependencies: [includeFriendlies, selectedPlayerId, selectedSeasonId, selectedTeamId],
 		load: () =>
 			reportsApi.getPlayerReports({
 				seasonId: selectedSeasonId,
 				teamId: selectedTeamId,
 				playerId: selectedPlayerId,
+				includeFriendlies,
 			}),
 	});
 	const isTeamFiltered = selectedTeamId !== "all";
@@ -34,6 +36,13 @@ export default function SquadUsageReport() {
 	const filteredGoals = teamUsageRows.reduce((total, playerStats) => total + playerStats.goals, 0);
 	const filteredAssists = teamUsageRows.reduce((total, playerStats) => total + playerStats.assists, 0);
 	const topMinutes = [...teamUsageRows].slice(0, 8);
+	const topTenMinutes = [...teamUsageRows]
+		.sort((firstPlayer, secondPlayer) => secondPlayer.minutes - firstPlayer.minutes)
+		.slice(0, 10);
+	const bottomTenMinutes = [...teamUsageRows]
+		.filter((playerStats) => playerStats.minutes > 0 || playerStats.appearances > 0 || playerStats.starts > 0 || playerStats.bench > 0)
+		.sort((firstPlayer, secondPlayer) => firstPlayer.minutes - secondPlayer.minutes || firstPlayer.playerName.localeCompare(secondPlayer.playerName))
+		.slice(0, 10);
 	const topInvolvement = [...teamUsageRows]
 		.map((playerStats) => ({
 			...playerStats,
@@ -95,20 +104,42 @@ export default function SquadUsageReport() {
 
 				<ReportChartContainer
 					title="Most minutes played"
-					description="Top active players by recorded minutes."
+					description="Top active players by recorded minutes. On mobile this becomes top and bottom 10 lists."
 					isEmpty={topMinutes.length === 0}
 				>
-					<ReportBarChart
-						ariaLabel="Top players by minutes played"
-						labels={topMinutes.map((playerStats) => shortName(playerStats.playerName))}
-						series={[
-							{
-								label: "Minutes",
-								colour: "#147764",
-								values: topMinutes.map((playerStats) => playerStats.minutes),
-							},
-						]}
-					/>
+					<div className="space-y-3 sm:hidden">
+						<ReportMobileRankedList
+							title="Top 10 used"
+							items={topTenMinutes.map((playerStats) => ({
+								id: `top-${playerStats.playerId}`,
+								label: playerStats.playerName,
+								value: playerStats.minutes,
+								helper: `${playerStats.appearances} apps · ${playerStats.starts} starts`,
+							}))}
+						/>
+						<ReportMobileRankedList
+							title="Bottom 10 under-utilised"
+							items={bottomTenMinutes.map((playerStats) => ({
+								id: `bottom-${playerStats.playerId}`,
+								label: playerStats.playerName,
+								value: playerStats.minutes,
+								helper: `${playerStats.appearances} apps · ${playerStats.starts} starts`,
+							}))}
+						/>
+					</div>
+					<div className="hidden sm:block">
+						<ReportBarChart
+							ariaLabel="Top players by minutes played"
+							labels={topMinutes.map((playerStats) => shortName(playerStats.playerName))}
+							series={[
+								{
+									label: "Minutes",
+									colour: "#147764",
+									values: topMinutes.map((playerStats) => playerStats.minutes),
+								},
+							]}
+						/>
+					</div>
 				</ReportChartContainer>
 			</div>
 
@@ -116,34 +147,48 @@ export default function SquadUsageReport() {
 				{topInvolvement.length === 0 ? (
 					<ReportEmptyState title="No squad usage yet" message="Usage appears after match stats have been recorded." />
 				) : (
-					<div className="overflow-hidden rounded-2xl border border-slate-200">
-						<div className="grid grid-cols-[1fr_repeat(4,4.5rem)] gap-2 bg-slate-50 px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500">
-							<span>Player</span>
-							<span className="text-center">{isTeamFiltered ? "Apps" : "Starts"}</span>
-							<span className="text-center">{isTeamFiltered ? "Goals" : "Bench"}</span>
-							<span className="text-center">{isTeamFiltered ? "Assists" : "Unused"}</span>
-							<span className="text-center">Minutes</span>
+					<>
+						<div className="sm:hidden">
+							<ReportMobileRankedList
+								items={topInvolvement.map((playerStats) => ({
+									id: playerStats.playerId,
+									label: playerStats.playerName,
+									value: isTeamFiltered ? playerStats.appearances : playerStats.starts + playerStats.bench,
+									helper: isTeamFiltered
+										? `${playerStats.goals} goals · ${playerStats.assists} assists · ${playerStats.minutes} mins`
+										: `${playerStats.starts} starts · ${playerStats.bench} bench · ${playerStats.minutes} mins`,
+								}))}
+							/>
 						</div>
-						<div className="divide-y divide-slate-100 bg-white">
-							{topInvolvement.map((playerStats) => (
-								<div
-									key={playerStats.playerId}
-									className="grid grid-cols-[1fr_repeat(4,4.5rem)] items-center gap-2 px-4 py-3 text-sm"
-								>
-									<Link
-										to={`/players/${playerStats.playerId}`}
-										className="min-w-0 truncate font-black text-slate-950 hover:text-yepset-700"
+						<div className="hidden overflow-hidden rounded-2xl border border-slate-200 sm:block">
+							<div className="grid grid-cols-[1fr_repeat(4,4.5rem)] gap-2 bg-slate-50 px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500">
+								<span>Player</span>
+								<span className="text-center">{isTeamFiltered ? "Apps" : "Starts"}</span>
+								<span className="text-center">{isTeamFiltered ? "Goals" : "Bench"}</span>
+								<span className="text-center">{isTeamFiltered ? "Assists" : "Unused"}</span>
+								<span className="text-center">Minutes</span>
+							</div>
+							<div className="divide-y divide-slate-100 bg-white">
+								{topInvolvement.map((playerStats) => (
+									<div
+										key={playerStats.playerId}
+										className="grid grid-cols-[1fr_repeat(4,4.5rem)] items-center gap-2 px-4 py-3 text-sm"
 									>
-										{playerStats.playerName}
-									</Link>
-									<span className="text-center font-black text-slate-900">{isTeamFiltered ? playerStats.appearances : playerStats.starts}</span>
-									<span className="text-center font-black text-slate-900">{isTeamFiltered ? playerStats.goals : playerStats.bench}</span>
-									<span className="text-center font-black text-amber-600">{isTeamFiltered ? playerStats.assists : playerStats.unusedSubstitutes}</span>
-									<span className="text-center font-black text-yepset-700">{playerStats.minutes}</span>
-								</div>
-							))}
+										<Link
+											to={`/players/${playerStats.playerId}`}
+											className="min-w-0 truncate font-black text-slate-950 hover:text-yepset-700"
+										>
+											{playerStats.playerName}
+										</Link>
+										<span className="text-center font-black text-slate-900">{isTeamFiltered ? playerStats.appearances : playerStats.starts}</span>
+										<span className="text-center font-black text-slate-900">{isTeamFiltered ? playerStats.goals : playerStats.bench}</span>
+										<span className="text-center font-black text-amber-600">{isTeamFiltered ? playerStats.assists : playerStats.unusedSubstitutes}</span>
+										<span className="text-center font-black text-yepset-700">{playerStats.minutes}</span>
+									</div>
+								))}
+							</div>
 						</div>
-					</div>
+					</>
 				)}
 			</ReportPanel>
 		</div>

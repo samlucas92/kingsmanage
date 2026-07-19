@@ -10,6 +10,7 @@ type ReportsFilterBarProps = {
 	showVenueFilter?: boolean;
 	showPlayerFilter?: boolean;
 	showDateRangeFilter?: boolean;
+	showFriendliesFilter?: boolean;
 };
 
 export default function ReportsFilterBar({
@@ -18,6 +19,7 @@ export default function ReportsFilterBar({
 	showVenueFilter = false,
 	showPlayerFilter = false,
 	showDateRangeFilter = false,
+	showFriendliesFilter = true,
 }: ReportsFilterBarProps) {
 	const clubTeams = useClubTeamStore((state) => state.profiles);
 	const matches = useMatchStore((state) => state.matches);
@@ -37,6 +39,8 @@ export default function ReportsFilterBar({
 		setDateFrom,
 		dateTo,
 		setDateTo,
+		includeFriendlies,
+		setIncludeFriendlies,
 	} = useReportsContext();
 	const competitionOptions = [...new Set(
 		matches
@@ -156,6 +160,18 @@ export default function ReportsFilterBar({
 						/>
 					</label>
 				</div>
+			)}
+
+			{showFriendliesFilter && (
+				<label className="inline-flex min-h-[2.4rem] items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm">
+					<span>Include friendlies</span>
+					<input
+						type="checkbox"
+						checked={includeFriendlies}
+						onChange={(event) => setIncludeFriendlies(event.target.checked)}
+						className="h-4 w-4 rounded border-slate-300 text-yepset-700 focus:ring-yepset-600"
+					/>
+				</label>
 			)}
 		</div>
 	);

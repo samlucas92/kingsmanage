@@ -26,6 +26,7 @@ export default function FinanceReport() {
 				title="Finance"
 				description="Collections, outstanding totals and season-end projection."
 				showTeamFilter={false}
+				showFriendliesFilter={false}
 			/>
 
 			<ReportLoadState

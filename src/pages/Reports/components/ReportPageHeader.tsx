@@ -9,6 +9,7 @@ type ReportPageHeaderProps = {
 	showVenueFilter?: boolean;
 	showPlayerFilter?: boolean;
 	showDateRangeFilter?: boolean;
+	showFriendliesFilter?: boolean;
 	children?: React.ReactNode;
 };
 
@@ -20,6 +21,7 @@ export default function ReportPageHeader({
 	showVenueFilter = false,
 	showPlayerFilter = false,
 	showDateRangeFilter = false,
+	showFriendliesFilter = true,
 	children,
 }: ReportPageHeaderProps) {
 	return (
@@ -44,6 +46,7 @@ export default function ReportPageHeader({
 							showVenueFilter={showVenueFilter}
 							showPlayerFilter={showPlayerFilter}
 							showDateRangeFilter={showDateRangeFilter}
+							showFriendliesFilter={showFriendliesFilter}
 						/>
 					)}
 				</div>

@@ -33,6 +33,7 @@ export default function TrainingDevelopmentReport() {
 				title="Training and Development"
 				description="Foundation for training insight and player development."
 				showTeamFilter={false}
+				showFriendliesFilter={false}
 			/>
 
 			<ReportLoadState

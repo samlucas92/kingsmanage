@@ -35,13 +35,14 @@ export default function TeamPerformanceReport() {
 		selectedVenue,
 		dateFrom,
 		dateTo,
+		includeFriendlies,
 		isLoading,
 		loadError,
 	} = useReportsContext();
 	const { report, isLoadingReport, reportError } = useReportResource<TeamPerformanceReportResponse>({
 		canLoad: Boolean(selectedSeasonId),
 		errorMessage: "Failed to load team performance report.",
-		dependencies: [dateFrom, dateTo, selectedCompetition, selectedSeasonId, selectedTeamId, selectedVenue],
+		dependencies: [dateFrom, dateTo, includeFriendlies, selectedCompetition, selectedSeasonId, selectedTeamId, selectedVenue],
 		load: () =>
 			reportsApi.getTeamPerformanceReport({
 				seasonId: selectedSeasonId,
@@ -50,6 +51,7 @@ export default function TeamPerformanceReport() {
 				venue: selectedVenue,
 				dateFrom,
 				dateTo,
+				includeFriendlies,
 			}),
 	});
 	const summary = report?.summary ?? emptySummary;

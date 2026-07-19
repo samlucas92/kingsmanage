@@ -32,6 +32,7 @@ export default function AvailabilityReport() {
 				title="Availability"
 				description="Event response insight from completed events."
 				showTeamFilter={false}
+				showFriendliesFilter={false}
 			/>
 
 			<ReportLoadState
