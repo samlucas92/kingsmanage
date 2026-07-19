@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import ReportMetricCard from "../../components/ReportMetricCard";
 import ReportPanel from "../../components/ReportPanel";
 import ReportEmptyState from "../../components/ReportEmptyState";
@@ -6,7 +5,9 @@ import ReportPageHeader from "../../components/ReportPageHeader";
 import ReportChartContainer from "../../components/charts/ReportChartContainer";
 import ReportBarChart from "../../components/charts/ReportBarChart";
 import ReportLineChart from "../../components/charts/ReportLineChart";
+import ReportLoadState from "../../components/ReportLoadState";
 import { useReportsContext } from "../../ReportsContext";
+import { useReportResource } from "../../hooks/useReportResource";
 import {
 	reportsApi,
 	type ResultBreakdown,
@@ -37,55 +38,25 @@ export default function TeamPerformanceReport() {
 		isLoading,
 		loadError,
 	} = useReportsContext();
-	const [report, setReport] = useState<TeamPerformanceReportResponse | null>(null);
-	const [isLoadingReport, setIsLoadingReport] = useState(false);
-	const [reportError, setReportError] = useState("");
+	const { report, isLoadingReport, reportError } = useReportResource<TeamPerformanceReportResponse>({
+		canLoad: Boolean(selectedSeasonId),
+		errorMessage: "Failed to load team performance report.",
+		dependencies: [dateFrom, dateTo, selectedCompetition, selectedSeasonId, selectedTeamId, selectedVenue],
+		load: () =>
+			reportsApi.getTeamPerformanceReport({
+				seasonId: selectedSeasonId,
+				teamId: selectedTeamId,
+				competition: selectedCompetition,
+				venue: selectedVenue,
+				dateFrom,
+				dateTo,
+			}),
+	});
 	const summary = report?.summary ?? emptySummary;
 	const homeAway = report?.homeAway ?? { home: emptySummary, away: emptySummary };
 	const monthlyBreakdown = report?.months ?? [];
 	const recentForm = report?.recentForm ?? [];
 	const competitions = report?.competitions ?? [];
-
-	useEffect(() => {
-		if (!selectedSeasonId) {
-			setReport(null);
-			return;
-		}
-
-		let isCurrent = true;
-
-		setIsLoadingReport(true);
-		setReportError("");
-
-		reportsApi.getTeamPerformanceReport({
-			seasonId: selectedSeasonId,
-			teamId: selectedTeamId,
-			competition: selectedCompetition,
-			venue: selectedVenue,
-			dateFrom,
-			dateTo,
-		})
-			.then((response) => {
-				if (isCurrent) {
-					setReport(response);
-				}
-			})
-			.catch((error) => {
-				if (isCurrent) {
-					setReportError(error instanceof Error ? error.message : "Failed to load team performance report.");
-					setReport(null);
-				}
-			})
-			.finally(() => {
-				if (isCurrent) {
-					setIsLoadingReport(false);
-				}
-			});
-
-		return () => {
-			isCurrent = false;
-		};
-	}, [dateFrom, dateTo, selectedCompetition, selectedSeasonId, selectedTeamId, selectedVenue]);
 
 	return (
 		<div className="space-y-5">
@@ -96,16 +67,10 @@ export default function TeamPerformanceReport() {
 				showVenueFilter
 			/>
 
-			{(loadError || reportError) && (
-				<div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-					{loadError || reportError}
-				</div>
-			)}
-			{(isLoading || isLoadingReport) && (
-				<div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-500">
-					Loading report data...
-				</div>
-			)}
+			<ReportLoadState
+				error={loadError || reportError}
+				isLoading={isLoading || isLoadingReport}
+			/>
 
 			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
 				<ReportMetricCard label="Played" value={summary.played} />

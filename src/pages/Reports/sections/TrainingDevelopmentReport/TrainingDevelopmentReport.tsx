@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import ReportBarChart from "../../components/charts/ReportBarChart";
 import ReportChartContainer from "../../components/charts/ReportChartContainer";
 import ReportDoughnutChart from "../../components/charts/ReportDoughnutChart";
@@ -7,54 +6,26 @@ import ReportMetricCard from "../../components/ReportMetricCard";
 import ReportPanel from "../../components/ReportPanel";
 import ReportEmptyState from "../../components/ReportEmptyState";
 import ReportPageHeader from "../../components/ReportPageHeader";
+import ReportLoadState from "../../components/ReportLoadState";
 import { useReportsContext } from "../../ReportsContext";
+import { useReportResource } from "../../hooks/useReportResource";
 import { reportsApi, type AvailabilityReportResponse } from "../../../../services/reportsApi";
 
 export default function TrainingDevelopmentReport() {
 	const { selectedSeasonId, loadError, isLoading } = useReportsContext();
-	const [report, setReport] = useState<AvailabilityReportResponse | null>(null);
-	const [isLoadingReport, setIsLoadingReport] = useState(false);
-	const [reportError, setReportError] = useState("");
+	const { report, isLoadingReport, reportError } = useReportResource<AvailabilityReportResponse>({
+		canLoad: Boolean(selectedSeasonId),
+		errorMessage: "Failed to load training report.",
+		dependencies: [selectedSeasonId],
+		load: () =>
+			reportsApi.getAvailabilityReport({
+				seasonId: selectedSeasonId,
+				eventType: "Training",
+			}),
+	});
 	const averageResponses = report
 		? report.averages.available + report.averages.declined + report.averages.unanswered
 		: 0;
-
-	useEffect(() => {
-		if (!selectedSeasonId) {
-			setReport(null);
-			return;
-		}
-
-		let isCurrent = true;
-
-		setIsLoadingReport(true);
-		setReportError("");
-
-		reportsApi.getAvailabilityReport({
-			seasonId: selectedSeasonId,
-			eventType: "Training",
-		})
-			.then((response) => {
-				if (isCurrent) {
-					setReport(response);
-				}
-			})
-			.catch((error) => {
-				if (isCurrent) {
-					setReportError(error instanceof Error ? error.message : "Failed to load training report.");
-					setReport(null);
-				}
-			})
-			.finally(() => {
-				if (isCurrent) {
-					setIsLoadingReport(false);
-				}
-			});
-
-		return () => {
-			isCurrent = false;
-		};
-	}, [selectedSeasonId]);
 
 	return (
 		<div className="space-y-5">
@@ -64,16 +35,10 @@ export default function TrainingDevelopmentReport() {
 				showTeamFilter={false}
 			/>
 
-			{(loadError || reportError) && (
-				<div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-					{loadError || reportError}
-				</div>
-			)}
-			{(isLoading || isLoadingReport) && (
-				<div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-500">
-					Loading report data...
-				</div>
-			)}
+			<ReportLoadState
+				error={loadError || reportError}
+				isLoading={isLoading || isLoadingReport}
+			/>
 
 			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
 				<ReportMetricCard label="Completed training" value={report?.completedEvents ?? 0} />

@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import ReportBarChart from "../../components/charts/ReportBarChart";
 import ReportChartContainer from "../../components/charts/ReportChartContainer";
 import ReportMetricCard from "../../components/ReportMetricCard";
 import ReportPageHeader from "../../components/ReportPageHeader";
 import ReportPanel from "../../components/ReportPanel";
 import ReportsFilterBar from "../../components/ReportsFilterBar";
+import ReportLoadState from "../../components/ReportLoadState";
 import { useReportsContext } from "../../ReportsContext";
+import { useReportResource } from "../../hooks/useReportResource";
 import { reportsApi, type PlayerContribution, type PlayerReportsResponse } from "../../../../services/reportsApi";
 
 type RankingMode = "contributions" | "goals" | "assists" | "appearances";
@@ -19,46 +21,21 @@ const rankingModes: Array<{ key: RankingMode; label: string }> = [
 
 export default function PlayerStatsReport() {
 	const { selectedSeasonId, selectedTeamId, selectedPlayerId } = useReportsContext();
-	const [report, setReport] = useState<PlayerReportsResponse | null>(null);
-	const [isLoadingReport, setIsLoadingReport] = useState(false);
-	const [reportError, setReportError] = useState("");
 	const [rankingMode, setRankingMode] = useState<RankingMode>("contributions");
 	const [includeFriendlies, setIncludeFriendlies] = useState(true);
+	const { report, isLoadingReport, reportError } = useReportResource<PlayerReportsResponse>({
+		canLoad: Boolean(selectedSeasonId),
+		errorMessage: "Failed to load player reports.",
+		dependencies: [includeFriendlies, selectedPlayerId, selectedSeasonId, selectedTeamId],
+		load: () =>
+			reportsApi.getPlayerReports({
+				seasonId: selectedSeasonId,
+				teamId: selectedTeamId,
+				playerId: selectedPlayerId,
+				includeFriendlies,
+			}),
+	});
 	const rankingRows = getRankingRows(report?.topContributors ?? [], rankingMode);
-
-	useEffect(() => {
-		if (!selectedSeasonId) {
-			setReport(null);
-			return;
-		}
-
-		let isCurrent = true;
-		setIsLoadingReport(true);
-		setReportError("");
-
-		reportsApi.getPlayerReports({
-			seasonId: selectedSeasonId,
-			teamId: selectedTeamId,
-			playerId: selectedPlayerId,
-			includeFriendlies,
-		})
-			.then((response) => {
-				if (isCurrent) setReport(response);
-			})
-			.catch((error) => {
-				if (isCurrent) {
-					setReportError(error instanceof Error ? error.message : "Failed to load player reports.");
-					setReport(null);
-				}
-			})
-			.finally(() => {
-				if (isCurrent) setIsLoadingReport(false);
-			});
-
-		return () => {
-			isCurrent = false;
-		};
-	}, [includeFriendlies, selectedPlayerId, selectedSeasonId, selectedTeamId]);
 
 	return (
 		<div className="space-y-5">
@@ -81,16 +58,11 @@ export default function PlayerStatsReport() {
 					</label>
 				</div>
 			</ReportPageHeader>
-			{reportError && (
-				<div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-					{reportError}
-				</div>
-			)}
-			{isLoadingReport && (
-				<div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-500">
-					Loading player reports...
-				</div>
-			)}
+			<ReportLoadState
+				error={reportError}
+				isLoading={isLoadingReport}
+				loadingMessage="Loading player reports..."
+			/>
 			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
 				<ReportMetricCard label="Active players" value={report?.summary.activePlayers ?? 0} />
 				<ReportMetricCard label="Appearances" value={report?.summary.appearances ?? 0} />

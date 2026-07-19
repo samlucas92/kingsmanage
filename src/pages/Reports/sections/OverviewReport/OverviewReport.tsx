@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import ReportMetricCard from "../../components/ReportMetricCard";
 import ReportPanel from "../../components/ReportPanel";
@@ -6,7 +5,9 @@ import ReportEmptyState from "../../components/ReportEmptyState";
 import ReportPageHeader from "../../components/ReportPageHeader";
 import ReportChartContainer from "../../components/charts/ReportChartContainer";
 import ReportLineChart from "../../components/charts/ReportLineChart";
+import ReportLoadState from "../../components/ReportLoadState";
 import { useReportsContext } from "../../ReportsContext";
+import { useReportResource } from "../../hooks/useReportResource";
 import { reportsApi, type OverviewReportResponse } from "../../../../services/reportsApi";
 
 export default function OverviewReport() {
@@ -22,50 +23,25 @@ export default function OverviewReport() {
 		isLoading,
 		loadError,
 	} = useReportsContext();
-	const [report, setReport] = useState<OverviewReportResponse | null>(null);
-	const [isLoadingReport, setIsLoadingReport] = useState(false);
-	const [reportError, setReportError] = useState("");
+	const { report, isLoadingReport, reportError } = useReportResource<OverviewReportResponse>({
+		canLoad: Boolean(selectedSeasonId),
+		errorMessage: "Failed to load overview report.",
+		dependencies: [dateFrom, dateTo, selectedCompetition, selectedSeasonId, selectedTeamId, selectedVenue],
+		load: () =>
+			reportsApi.getOverviewReport({
+				seasonId: selectedSeasonId,
+				teamId: selectedTeamId,
+				competition: selectedCompetition,
+				venue: selectedVenue,
+				dateFrom,
+				dateTo,
+			}),
+	});
 	const summary = report?.teamPerformance.summary;
 	const recentForm = report?.teamPerformance.recentForm ?? [];
 	const monthlyBreakdown = report?.teamPerformance.months ?? [];
 	const topPlayers = report?.topContributors ?? [];
 	const availabilitySummary = report?.availability;
-
-	useEffect(() => {
-		if (!selectedSeasonId) {
-			setReport(null);
-			return;
-		}
-
-		let isCurrent = true;
-		setIsLoadingReport(true);
-		setReportError("");
-
-		reportsApi.getOverviewReport({
-			seasonId: selectedSeasonId,
-			teamId: selectedTeamId,
-			competition: selectedCompetition,
-			venue: selectedVenue,
-			dateFrom,
-			dateTo,
-		})
-			.then((response) => {
-				if (isCurrent) setReport(response);
-			})
-			.catch((error) => {
-				if (isCurrent) {
-					setReportError(error instanceof Error ? error.message : "Failed to load overview report.");
-					setReport(null);
-				}
-			})
-			.finally(() => {
-				if (isCurrent) setIsLoadingReport(false);
-			});
-
-		return () => {
-			isCurrent = false;
-		};
-	}, [dateFrom, dateTo, selectedCompetition, selectedSeasonId, selectedTeamId, selectedVenue]);
 
 	return (
 		<div className="space-y-5">
@@ -76,8 +52,10 @@ export default function OverviewReport() {
 				showVenueFilter
 			/>
 
-			{(loadError || reportError) && <ErrorBanner message={loadError || reportError} />}
-			{(isLoading || isLoadingReport) && <LoadingBanner />}
+			<ReportLoadState
+				error={loadError || reportError}
+				isLoading={isLoading || isLoadingReport}
+			/>
 
 			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
 				<ReportMetricCard label="Matches played" value={summary?.played ?? 0} />
@@ -150,22 +128,6 @@ export default function OverviewReport() {
 					]}
 				/>
 			</ReportChartContainer>
-		</div>
-	);
-}
-
-function LoadingBanner() {
-	return (
-		<div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-500">
-			Loading report data...
-		</div>
-	);
-}
-
-function ErrorBanner({ message }: { message: string }) {
-	return (
-		<div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-			{message}
 		</div>
 	);
 }

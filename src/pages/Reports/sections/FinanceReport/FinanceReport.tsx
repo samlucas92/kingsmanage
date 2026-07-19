@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import ReportBarChart from "../../components/charts/ReportBarChart";
 import ReportChartContainer from "../../components/charts/ReportChartContainer";
 import ReportDoughnutChart from "../../components/charts/ReportDoughnutChart";
@@ -6,44 +5,20 @@ import ReportEmptyState from "../../components/ReportEmptyState";
 import ReportMetricCard from "../../components/ReportMetricCard";
 import ReportPageHeader from "../../components/ReportPageHeader";
 import ReportPanel from "../../components/ReportPanel";
+import ReportLoadState from "../../components/ReportLoadState";
 import { useReportsContext } from "../../ReportsContext";
+import { useReportResource } from "../../hooks/useReportResource";
 import { reportsApi, type FinanceReportResponse } from "../../../../services/reportsApi";
 import { formatCurrency } from "../../../../utils/format";
 
 export default function FinanceReport() {
 	const { selectedSeasonId, isLoading, loadError } = useReportsContext();
-	const [report, setReport] = useState<FinanceReportResponse | null>(null);
-	const [isLoadingReport, setIsLoadingReport] = useState(false);
-	const [reportError, setReportError] = useState("");
-
-	useEffect(() => {
-		if (!selectedSeasonId) {
-			setReport(null);
-			return;
-		}
-
-		let isCurrent = true;
-		setIsLoadingReport(true);
-		setReportError("");
-
-		reportsApi.getFinanceReport(selectedSeasonId)
-			.then((response) => {
-				if (isCurrent) setReport(response);
-			})
-			.catch((error) => {
-				if (isCurrent) {
-					setReportError(error instanceof Error ? error.message : "Failed to load finance report.");
-					setReport(null);
-				}
-			})
-			.finally(() => {
-				if (isCurrent) setIsLoadingReport(false);
-			});
-
-		return () => {
-			isCurrent = false;
-		};
-	}, [selectedSeasonId]);
+	const { report, isLoadingReport, reportError } = useReportResource<FinanceReportResponse>({
+		canLoad: Boolean(selectedSeasonId),
+		errorMessage: "Failed to load finance report.",
+		dependencies: [selectedSeasonId],
+		load: () => reportsApi.getFinanceReport(selectedSeasonId),
+	});
 
 	return (
 		<div className="space-y-5">
@@ -53,16 +28,10 @@ export default function FinanceReport() {
 				showTeamFilter={false}
 			/>
 
-			{(loadError || reportError) && (
-				<div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-					{loadError || reportError}
-				</div>
-			)}
-			{(isLoading || isLoadingReport) && (
-				<div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-500">
-					Loading report data...
-				</div>
-			)}
+			<ReportLoadState
+				error={loadError || reportError}
+				isLoading={isLoading || isLoadingReport}
+			/>
 
 			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
 				<ReportMetricCard label="Expected" value={formatCurrency(report?.expected ?? 0)} />
