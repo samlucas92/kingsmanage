@@ -45,6 +45,11 @@ const navigationItems: NavigationItem[] = [
 		roles: ["Admin", "Coach"],
 	},
 	{
+		label: "Training",
+		to: "/training",
+		roles: ["Admin", "Coach"],
+	},
+	{
 		label: "Stats",
 		to: "/stats",
 		roles: ["Admin", "Coach"],

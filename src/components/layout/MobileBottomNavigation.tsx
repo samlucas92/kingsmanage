@@ -10,7 +10,7 @@ type MobileBottomNavigationProps = {
 type MobileNavigationItem = {
 	label: string;
 	to: string;
-	icon: "dashboard" | "players" | "matches" | "finance" | "reports" | "events" | "posts" | "messages";
+	icon: "dashboard" | "players" | "matches" | "finance" | "reports" | "training" | "events" | "posts" | "messages";
 };
 
 export default function MobileBottomNavigation({
@@ -26,14 +26,14 @@ export default function MobileBottomNavigation({
 					{ label: "Dashboard", to: "/", icon: "dashboard" },
 					{ label: "Players", to: "/players", icon: "players" },
 					{ label: "Matches", to: "/matches", icon: "matches" },
-					{ label: "Reports", to: "/reports", icon: "reports" },
+					{ label: "Training", to: "/training", icon: "training" },
 				]
 			: role === "Coach"
 				? [
 						{ label: "Dashboard", to: "/", icon: "dashboard" },
 						{ label: "Players", to: "/players", icon: "players" },
 						{ label: "Matches", to: "/matches", icon: "matches" },
-						{ label: "Reports", to: "/reports", icon: "reports" },
+						{ label: "Training", to: "/training", icon: "training" },
 					]
 				: [
 						{ label: "Dashboard", to: "/", icon: "dashboard" },
@@ -101,11 +101,13 @@ function MobileNavigationIcon({
 						? "M4 7h16v12H4zM4 10h16m-4 5h1"
 						: name === "reports"
 							? "M4 19V5m5 14v-8m5 8V8m5 11V3M3 21h18"
-						: name === "posts"
-							? "M5 4h14v16H5zM8 8h8m-8 4h8m-8 4h5"
-							: name === "messages"
-								? "M4 5h16v12H8l-4 4V5Zm4 5h8m-8 3h5"
-								: "M5 12h.01M12 12h.01M19 12h.01";
+							: name === "training"
+								? "M12 3v18M7 6h10a3 3 0 0 1 0 6H7m0 0h11a3 3 0 0 1 0 6H7"
+								: name === "posts"
+									? "M5 4h14v16H5zM8 8h8m-8 4h8m-8 4h5"
+									: name === "messages"
+										? "M4 5h16v12H8l-4 4V5Zm4 5h8m-8 3h5"
+										: "M5 12h.01M12 12h.01M19 12h.01";
 
 	return (
 		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

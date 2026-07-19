@@ -29,6 +29,7 @@ const ReportsPage = lazy(() => import("../pages/Reports/ReportsPage"));
 const Seasons = lazy(() => import("../pages/Seasons/Seasons"));
 const Settings = lazy(() => import("../pages/Settings/Settings"));
 const Stats = lazy(() => import("../pages/Stats/Stats"));
+const Training = lazy(() => import("../pages/Training/Training"));
 const Users = lazy(() => import("../pages/Users/Users"));
 
 const managementRoles = ["Admin", "Coach"] as const;
@@ -58,6 +59,7 @@ export default function AppRouter() {
 							<Route path="/players/:id" element={<Player />} />
 							<Route path="/reports/*" element={<ReportsPage />} />
 							<Route path="/stats" element={<Stats />} />
+							<Route path="/training" element={<Training />} />
 							<Route path="/historical-stats" element={<HistoricalStats />} />
 						</Route>
 

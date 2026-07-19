@@ -6,17 +6,21 @@ import EmptyState from "../../components/compositions/EmptyState";
 import SeasonSelector from "../../components/compositions/SeasonSelector";
 import MetricCard from "../../components/compositions/MetricCard";
 import StatusBadge from "../../components/compositions/StatusBadge";
+import RadarChart from "../../components/charts/RadarChart";
+import { useAuthStore } from "../../stores/auth";
 import { usePlayerStore } from "../../stores/players";
 import { useSeasonStore } from "../../stores/seasons";
 import { useStatsStore } from "../../stores/stats";
 import { useFinanceStore } from "../../stores/finance";
 import { useEventStore } from "../../stores/events";
 import { matchApi } from "../../services/matchApi";
+import { trainingApi } from "../../services/trainingApi";
 import { PlayerFormModal } from "./components/PlayerFormModal";
 import { usePlayerForm } from "./hooks/usePlayerForm";
 import { formatDisplayDate } from "../../utils/date";
 import type { ClubEvent, ClubEventAvailabilityStatus } from "../../types/events";
 import type { FinanceTransaction } from "../../types/finance";
+import type { PlayerTrainingDevelopment } from "../../types/training";
 import {
 	getCompletedTrainingEvents,
 	getTrainingAvailabilitySummary,
@@ -176,7 +180,11 @@ export default function PlayerProfile() {
 	const [isLoadingRecentAppearances, setIsLoadingRecentAppearances] = useState(false);
 	const [recentAppearancesError, setRecentAppearancesError] = useState("");
 	const [selectedSeasonId, setSelectedSeasonId] = useState("");
+	const [trainingDevelopment, setTrainingDevelopment] = useState<PlayerTrainingDevelopment | null>(null);
+	const [isLoadingTrainingDevelopment, setIsLoadingTrainingDevelopment] = useState(false);
+	const [trainingDevelopmentError, setTrainingDevelopmentError] = useState("");
 
+	const currentUser = useAuthStore((state) => state.currentUser);
 	const players = usePlayerStore((state) => state.players);
 	const isLoadingPlayers = usePlayerStore((state) => state.isLoadingPlayers);
 	const playerLoadError = usePlayerStore((state) => state.playerLoadError);
@@ -214,6 +222,7 @@ export default function PlayerProfile() {
 	const playerFinanceRecord = playerFinanceRecords.find(
 		(record) => record.playerId === id
 	);
+	const canViewTrainingDevelopment = currentUser?.role !== "Player";
 
 	useEffect(() => {
 		if (!id) {
@@ -299,6 +308,51 @@ export default function PlayerProfile() {
 			isMounted = false;
 		};
 	}, [id, selectedSeasonId]);
+
+	useEffect(() => {
+		if (!id || !selectedSeason || !canViewTrainingDevelopment) {
+			setTrainingDevelopment(null);
+			return;
+		}
+
+		let isMounted = true;
+
+		async function loadTrainingDevelopment() {
+			setIsLoadingTrainingDevelopment(true);
+			setTrainingDevelopmentError("");
+
+			try {
+				const development = await trainingApi.getPlayerDevelopment({
+					playerId: id!,
+					from: selectedSeason!.startDate,
+					to: selectedSeason!.endDate,
+				});
+
+				if (isMounted) {
+					setTrainingDevelopment(development);
+				}
+			} catch (error) {
+				if (isMounted) {
+					setTrainingDevelopment(null);
+					setTrainingDevelopmentError(
+						error instanceof Error
+							? error.message
+							: "Failed to load player development."
+					);
+				}
+			} finally {
+				if (isMounted) {
+					setIsLoadingTrainingDevelopment(false);
+				}
+			}
+		}
+
+		void loadTrainingDevelopment();
+
+		return () => {
+			isMounted = false;
+		};
+	}, [canViewTrainingDevelopment, id, selectedSeason]);
 
 	const playerForm = usePlayerForm({
 		players,
@@ -415,10 +469,17 @@ export default function PlayerProfile() {
 				</div>
 			)}
 
+			{trainingDevelopmentError && (
+				<div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+					{trainingDevelopmentError}
+				</div>
+			)}
+
 			{(isLoadingSeasons ||
 				isLoadingStats ||
 				isLoadingFinance ||
-				isLoadingRecentAppearances) && (
+				isLoadingRecentAppearances ||
+				isLoadingTrainingDevelopment) && (
 				<div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
 					Loading season data...
 				</div>
@@ -499,6 +560,92 @@ export default function PlayerProfile() {
 				<MetricCard label="Season Apps" value={seasonApps} />
 				<MetricCard label="Season Goals" value={seasonGoals} />
 			</div>
+
+			{canViewTrainingDevelopment && (
+				<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+					<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+						<div>
+							<h2 className="text-lg font-bold text-slate-900">
+								Player Development
+							</h2>
+							<p className="mt-1 text-sm text-slate-500">
+								Private coaching view based on saved Training assessments. Players cannot see this section.
+							</p>
+						</div>
+						<StatusBadge
+							label={`${trainingDevelopment?.assessmentCount ?? 0} assessments`}
+							tone={(trainingDevelopment?.assessmentCount ?? 0) > 0 ? "success" : "neutral"}
+						/>
+					</div>
+
+					{!trainingDevelopment || trainingDevelopment.assessmentCount === 0 ? (
+						<div className="mt-4">
+							<EmptyState
+								title="No development assessments yet"
+								message="Use the Training area to assess this player against top-level metrics and micro-categories."
+							/>
+						</div>
+					) : (
+						<div className="mt-4 grid gap-5 xl:grid-cols-[22rem_1fr]">
+							<RadarChart
+								metrics={trainingDevelopment.averages.map((metric) => ({
+									key: metric.key,
+									label: metric.label,
+									value: metric.rating,
+								}))}
+							/>
+							<div className="space-y-4">
+								<div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+									{trainingDevelopment.averages.slice(0, 4).map((metric) => (
+										<MetricCard
+											key={metric.key}
+											label={metric.label}
+											value={`${metric.rating}/5`}
+											size="compact"
+										/>
+									))}
+								</div>
+								<div className="overflow-hidden rounded-2xl border border-slate-200">
+									<div className="bg-slate-50 px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500">
+										Latest assessment micro-categories
+									</div>
+									<div className="divide-y divide-slate-100">
+										{trainingDevelopment.latestAssessment?.metrics.map((metric) => (
+											<div key={metric.key} className="p-4">
+												<div className="flex items-center justify-between gap-3">
+													<p className="font-black text-slate-950">{metric.label}</p>
+													<span className="rounded-full bg-yepset-100 px-2 py-1 text-xs font-black text-yepset-900">
+														{metric.rating}/5
+													</span>
+												</div>
+												<div className="mt-2 grid gap-2 sm:grid-cols-2">
+													{metric.categories.map((category) => (
+														<div
+															key={category.key}
+															className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2 text-sm"
+														>
+															<span className="font-semibold text-slate-600">{category.label}</span>
+															<span className="font-black text-slate-950">{category.rating}/5</span>
+														</div>
+													))}
+												</div>
+											</div>
+										))}
+									</div>
+								</div>
+								{trainingDevelopment.latestAssessment?.notes && (
+									<div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+										<p className="text-xs font-black uppercase tracking-wide text-slate-500">Latest coach notes</p>
+										<p className="mt-2 whitespace-pre-wrap text-sm font-semibold text-slate-700">
+											{trainingDevelopment.latestAssessment.notes}
+										</p>
+									</div>
+								)}
+							</div>
+						</div>
+					)}
+				</div>
+			)}
 
 			<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
 				<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
