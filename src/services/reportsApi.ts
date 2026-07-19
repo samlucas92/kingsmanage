@@ -259,10 +259,12 @@ export const reportsApi = {
 		seasonId,
 		teamId,
 		playerId,
+		includeFriendlies,
 	}: {
 		seasonId: string;
 		teamId?: string;
 		playerId?: string;
+		includeFriendlies?: boolean;
 	}) => {
 		const params = new URLSearchParams({ seasonId });
 
@@ -272,6 +274,10 @@ export const reportsApi = {
 
 		if (playerId && playerId !== "all") {
 			params.set("playerId", playerId);
+		}
+
+		if (typeof includeFriendlies === "boolean") {
+			params.set("includeFriendlies", String(includeFriendlies));
 		}
 
 		return apiClient.get<PlayerReportsResponse>(

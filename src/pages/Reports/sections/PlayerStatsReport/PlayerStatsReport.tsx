@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import Stats from "../../../Stats/Stats";
 import ReportBarChart from "../../components/charts/ReportBarChart";
 import ReportChartContainer from "../../components/charts/ReportChartContainer";
 import ReportMetricCard from "../../components/ReportMetricCard";
 import ReportPageHeader from "../../components/ReportPageHeader";
 import ReportPanel from "../../components/ReportPanel";
+import ReportsFilterBar from "../../components/ReportsFilterBar";
 import { useReportsContext } from "../../ReportsContext";
 import { reportsApi, type PlayerContribution, type PlayerReportsResponse } from "../../../../services/reportsApi";
 
@@ -18,11 +18,12 @@ const rankingModes: Array<{ key: RankingMode; label: string }> = [
 ];
 
 export default function PlayerStatsReport() {
-	const { selectedSeasonId, setSelectedSeasonId, selectedTeamId, selectedPlayerId } = useReportsContext();
+	const { selectedSeasonId, selectedTeamId, selectedPlayerId } = useReportsContext();
 	const [report, setReport] = useState<PlayerReportsResponse | null>(null);
 	const [isLoadingReport, setIsLoadingReport] = useState(false);
 	const [reportError, setReportError] = useState("");
 	const [rankingMode, setRankingMode] = useState<RankingMode>("contributions");
+	const [includeFriendlies, setIncludeFriendlies] = useState(true);
 	const rankingRows = getRankingRows(report?.topContributors ?? [], rankingMode);
 
 	useEffect(() => {
@@ -39,6 +40,7 @@ export default function PlayerStatsReport() {
 			seasonId: selectedSeasonId,
 			teamId: selectedTeamId,
 			playerId: selectedPlayerId,
+			includeFriendlies,
 		})
 			.then((response) => {
 				if (isCurrent) setReport(response);
@@ -56,7 +58,7 @@ export default function PlayerStatsReport() {
 		return () => {
 			isCurrent = false;
 		};
-	}, [selectedPlayerId, selectedSeasonId, selectedTeamId]);
+	}, [includeFriendlies, selectedPlayerId, selectedSeasonId, selectedTeamId]);
 
 	return (
 		<div className="space-y-5">
@@ -65,7 +67,20 @@ export default function PlayerStatsReport() {
 				description="Goals, assists, appearances and match records."
 				showTeamFilter
 				showPlayerFilter
-			/>
+			>
+				<div className="flex flex-col items-stretch gap-3 lg:items-end">
+					<ReportsFilterBar showTeamFilter showPlayerFilter />
+					<label className="inline-flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm">
+						<span>Include friendlies</span>
+						<input
+							type="checkbox"
+							checked={includeFriendlies}
+							onChange={(event) => setIncludeFriendlies(event.target.checked)}
+							className="h-4 w-4 rounded border-slate-300 text-yepset-700 focus:ring-yepset-600"
+						/>
+					</label>
+				</div>
+			</ReportPageHeader>
 			{reportError && (
 				<div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
 					{reportError}
@@ -131,14 +146,6 @@ export default function PlayerStatsReport() {
 					))}
 				</div>
 			</ReportPanel>
-			<Stats
-				variant="report"
-				selectedSeasonId={selectedSeasonId}
-				onSeasonChange={setSelectedSeasonId}
-				selectedPlayerId={selectedPlayerId}
-				rowsOverride={report?.players}
-				hideHeader
-			/>
 		</div>
 	);
 }
