@@ -38,6 +38,7 @@ export default function Training() {
 	const [selectedSeasonId, setSelectedSeasonId] = useState("");
 	const [selectedEventId, setSelectedEventId] = useState("");
 	const [selectedPlayerId, setSelectedPlayerId] = useState("");
+	const [isEditorOpen, setIsEditorOpen] = useState(false);
 	const [assessments, setAssessments] = useState<TrainingAssessment[]>([]);
 	const [draft, setDraft] = useState<DraftAssessment | null>(null);
 	const [isLoadingAssessments, setIsLoadingAssessments] = useState(false);
@@ -51,9 +52,7 @@ export default function Training() {
 	}, [loadEvents, loadPlayers, loadSeasons]);
 
 	useEffect(() => {
-		if (selectedSeasonId && seasons.some((season) => season.id === selectedSeasonId)) {
-			return;
-		}
+		if (selectedSeasonId && seasons.some((season) => season.id === selectedSeasonId)) return;
 
 		setSelectedSeasonId(activeSeasonId || seasons[0]?.id || "");
 	}, [activeSeasonId, seasons, selectedSeasonId]);
@@ -68,7 +67,7 @@ export default function Training() {
 		() => [...players].filter((player) => player.isActive).sort((firstPlayer, secondPlayer) => firstPlayer.name.localeCompare(secondPlayer.name)),
 		[players]
 	);
-	const selectedPlayer = activePlayers.find((player) => player.id === selectedPlayerId) ?? activePlayers[0];
+	const selectedPlayer = activePlayers.find((player) => player.id === selectedPlayerId);
 	const selectedAssessment = assessments.find((assessment) => assessment.playerId === selectedPlayer?.id);
 	const assessedCount = assessments.length;
 	const averageRating = useMemo(() => getAverageAssessmentRating(assessments), [assessments]);
@@ -84,18 +83,7 @@ export default function Training() {
 	}, [selectedEvent?.id]);
 
 	useEffect(() => {
-		if (!selectedPlayer?.id) {
-			setSelectedPlayerId("");
-			return;
-		}
-
-		setSelectedPlayerId(selectedPlayer.id);
-	}, [selectedPlayer?.id]);
-
-	useEffect(() => {
-		if (!selectedEvent?.id) {
-			return;
-		}
+		if (!selectedEvent?.id) return;
 
 		let isMounted = true;
 
@@ -124,7 +112,7 @@ export default function Training() {
 	}, [selectedEvent?.id]);
 
 	useEffect(() => {
-		if (!selectedPlayer) {
+		if (!selectedPlayer || !isEditorOpen) {
 			setDraft(null);
 			return;
 		}
@@ -150,12 +138,10 @@ export default function Training() {
 		return () => {
 			isMounted = false;
 		};
-	}, [selectedAssessment, selectedPlayer]);
+	}, [isEditorOpen, selectedAssessment, selectedPlayer]);
 
 	async function handleSaveAssessment() {
-		if (!selectedEvent || !selectedPlayer || !draft) {
-			return;
-		}
+		if (!selectedEvent || !selectedPlayer || !draft) return;
 
 		setIsSaving(true);
 		setTrainingError("");
@@ -168,9 +154,7 @@ export default function Training() {
 			);
 
 			setAssessments((currentAssessments) => {
-				const existingIndex = currentAssessments.findIndex((assessment) => assessment.playerId === savedAssessment.playerId);
-
-				if (existingIndex === -1) {
+				if (!currentAssessments.some((assessment) => assessment.playerId === savedAssessment.playerId)) {
 					return [...currentAssessments, savedAssessment];
 				}
 
@@ -184,6 +168,17 @@ export default function Training() {
 		} finally {
 			setIsSaving(false);
 		}
+	}
+
+	function openPlayerAssessment(playerId: string) {
+		setSelectedPlayerId(playerId);
+		setIsEditorOpen(true);
+	}
+
+	function closePlayerAssessment() {
+		setIsEditorOpen(false);
+		setSelectedPlayerId("");
+		setDraft(null);
 	}
 
 	return (
@@ -222,100 +217,214 @@ export default function Training() {
 					message="Create Training events first, then they will appear here for assessment."
 				/>
 			) : (
-				<div className="grid gap-5 xl:grid-cols-[22rem_1fr]">
-					<div className="space-y-4">
-						<Panel title="Training session">
-							<label className="block text-xs font-black uppercase tracking-wide text-slate-500">
-								Session
-								<select
-									value={selectedEvent?.id ?? ""}
-									onChange={(event) => setSelectedEventId(event.target.value)}
-									className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-800 shadow-sm outline-none focus:border-yepset-600 focus:ring-2 focus:ring-yepset-600/15"
-								>
-									{trainingEvents.map((trainingEvent) => (
-										<option key={trainingEvent.id} value={trainingEvent.id}>
-											{trainingEvent.title} · {formatDisplayDate(trainingEvent.startDateTime)}
-										</option>
-									))}
-								</select>
-							</label>
-						</Panel>
-
-						<Panel title="Players">
-							<div className="space-y-2">
-								{activePlayers.map((player) => {
-									const assessment = assessments.find((item) => item.playerId === player.id);
-									const isSelected = player.id === selectedPlayer?.id;
-
-									return (
-										<button
-											key={player.id}
-											type="button"
-											onClick={() => setSelectedPlayerId(player.id)}
-											className={`w-full rounded-2xl border px-3 py-3 text-left transition ${
-												isSelected
-													? "border-yepset-600 bg-yepset-50 shadow-sm"
-													: "border-slate-200 bg-white hover:border-yepset-200 hover:bg-slate-50"
-											}`}
-										>
-											<div className="flex items-center justify-between gap-3">
-												<div className="min-w-0">
-													<p className="truncate text-sm font-black text-slate-950">{player.name}</p>
-													<p className="text-xs font-semibold text-slate-500">{getTrainingPlayerRole(player)}</p>
-												</div>
-												<StatusBadge
-													label={assessment ? "Assessed" : "Pending"}
-													tone={assessment ? "success" : "neutral"}
-												/>
-											</div>
-										</button>
-									);
-								})}
-							</div>
-						</Panel>
-					</div>
+				<>
+					<Panel title="Training session">
+						<label className="block text-xs font-black uppercase tracking-wide text-slate-500">
+							Session
+							<select
+								value={selectedEvent?.id ?? ""}
+								onChange={(event) => setSelectedEventId(event.target.value)}
+								className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-800 shadow-sm outline-none focus:border-yepset-600 focus:ring-2 focus:ring-yepset-600/15"
+							>
+								{trainingEvents.map((trainingEvent) => (
+									<option key={trainingEvent.id} value={trainingEvent.id}>
+										{trainingEvent.title} · {formatDisplayDate(trainingEvent.startDateTime)}
+									</option>
+								))}
+							</select>
+						</label>
+					</Panel>
 
 					<Panel
-						title={selectedPlayer ? selectedPlayer.name : "Select a player"}
-						description={selectedEvent ? `${selectedEvent.title} · ${formatDisplayDate(selectedEvent.startDateTime)}` : undefined}
-						action={draft ? (
-							<button
-								type="button"
-								onClick={() => void handleSaveAssessment()}
-								disabled={isSaving}
-								className="rounded-xl bg-yepset-900 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-yepset-800 disabled:cursor-not-allowed disabled:opacity-60"
-							>
-								{isSaving ? "Saving..." : "Save assessment"}
-							</button>
-						) : null}
+						title="Player overview"
+						description="Track who has been assessed for this session and open the full review when needed."
 					>
 						{isLoadingEvents || isLoadingPlayers || isLoadingAssessments ? (
 							<div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800">
 								Loading training data...
 							</div>
-						) : !selectedPlayer || !draft ? (
+						) : activePlayers.length === 0 ? (
+							<EmptyState title="No active players" message="Active players will appear here for training assessments." />
+						) : (
+							<PlayerOverviewList
+								players={activePlayers}
+								assessments={assessments}
+								onOpenAssessment={openPlayerAssessment}
+							/>
+						)}
+					</Panel>
+
+					{isEditorOpen && (
+						<AssessmentModal
+							draft={draft}
+							isLoading={isLoadingEvents || isLoadingPlayers || isLoadingAssessments}
+							isSaving={isSaving}
+							selectedEvent={selectedEvent}
+							selectedPlayerName={selectedPlayer?.name}
+							onClose={closePlayerAssessment}
+							onSave={() => void handleSaveAssessment()}
+							onMetricRatingChange={(metricKey, rating) =>
+								setDraft((currentDraft) => currentDraft
+									? { ...currentDraft, metrics: updateMetricRating(currentDraft.metrics, metricKey, rating) }
+									: currentDraft)
+							}
+							onCategoryRatingChange={(metricKey, categoryKey, rating) =>
+								setDraft((currentDraft) => currentDraft
+									? { ...currentDraft, metrics: updateCategoryRating(currentDraft.metrics, metricKey, categoryKey, rating) }
+									: currentDraft)
+							}
+							onNotesChange={(notes) =>
+								setDraft((currentDraft) => currentDraft ? { ...currentDraft, notes } : currentDraft)
+							}
+						/>
+					)}
+				</>
+			)}
+		</div>
+	);
+}
+
+function PlayerOverviewList({
+	players,
+	assessments,
+	onOpenAssessment,
+}: {
+	players: Array<{ id: string; name: string; positions: string[] }>;
+	assessments: TrainingAssessment[];
+	onOpenAssessment: (playerId: string) => void;
+}) {
+	return (
+		<div className="overflow-hidden rounded-2xl border border-slate-200">
+			<div className="hidden grid-cols-[1fr_8rem_8rem_7rem] gap-3 bg-slate-50 px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500 sm:grid">
+				<span>Player</span>
+				<span>Role</span>
+				<span>Status</span>
+				<span className="text-right">Action</span>
+			</div>
+			<div className="divide-y divide-slate-100 bg-white">
+				{players.map((player) => {
+					const assessment = assessments.find((item) => item.playerId === player.id);
+					const rating = assessment ? getAssessmentAverage(assessment) : 0;
+
+					return (
+						<div
+							key={player.id}
+							className="grid gap-3 px-4 py-4 sm:grid-cols-[1fr_8rem_8rem_7rem] sm:items-center"
+						>
+							<div className="flex items-center justify-between gap-3">
+								<div className="min-w-0">
+									<p className="truncate text-sm font-black text-slate-950">{player.name}</p>
+									<p className="text-xs font-semibold text-slate-500 sm:hidden">
+										{getTrainingPlayerRole(player)} · {assessment ? `${rating}/5 average` : "No assessment yet"}
+									</p>
+								</div>
+								<div className="sm:hidden">
+									<StatusBadge
+										label={assessment ? "Assessed" : "Pending"}
+										tone={assessment ? "success" : "neutral"}
+									/>
+								</div>
+							</div>
+							<span className="hidden text-sm font-bold text-slate-600 sm:block">{getTrainingPlayerRole(player)}</span>
+							<div className="hidden sm:block">
+								<StatusBadge
+									label={assessment ? `${rating}/5` : "Pending"}
+									tone={assessment ? "success" : "neutral"}
+								/>
+							</div>
+							<button
+								type="button"
+								onClick={() => onOpenAssessment(player.id)}
+								className="rounded-xl border border-yepset-200 px-3 py-2 text-sm font-black text-yepset-800 transition hover:border-yepset-600 hover:bg-yepset-50"
+							>
+								{assessment ? "See more" : "Assess"}
+							</button>
+						</div>
+					);
+				})}
+			</div>
+		</div>
+	);
+}
+
+function AssessmentModal({
+	draft,
+	isLoading,
+	isSaving,
+	selectedEvent,
+	selectedPlayerName,
+	onClose,
+	onSave,
+	onMetricRatingChange,
+	onCategoryRatingChange,
+	onNotesChange,
+}: {
+	draft: DraftAssessment | null;
+	isLoading: boolean;
+	isSaving: boolean;
+	selectedEvent?: ClubEvent;
+	selectedPlayerName?: string;
+	onClose: () => void;
+	onSave: () => void;
+	onMetricRatingChange: (metricKey: string, rating: number) => void;
+	onCategoryRatingChange: (metricKey: string, categoryKey: string, rating: number) => void;
+	onNotesChange: (notes: string) => void;
+}) {
+	return (
+		<div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/55 px-3 py-6 backdrop-blur-sm sm:px-6">
+			<div className="mx-auto max-w-6xl rounded-3xl bg-white shadow-2xl">
+				<div className="sticky top-0 z-10 flex flex-col gap-3 border-b border-slate-200 bg-white/95 p-4 backdrop-blur sm:flex-row sm:items-start sm:justify-between sm:p-5">
+					<div>
+						<p className="text-xs font-black uppercase tracking-wide text-yepset-700">Training assessment</p>
+						<h2 className="text-2xl font-black text-slate-950">{selectedPlayerName ?? "Select a player"}</h2>
+						{selectedEvent && (
+							<p className="mt-1 text-sm font-semibold text-slate-500">
+								{selectedEvent.title} · {formatDisplayDate(selectedEvent.startDateTime)}
+							</p>
+						)}
+					</div>
+					<div className="flex gap-2">
+						<button
+							type="button"
+							onClick={onClose}
+							className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-black text-slate-900 transition hover:bg-slate-50"
+						>
+							Close
+						</button>
+						{draft && (
+							<button
+								type="button"
+								onClick={onSave}
+								disabled={isSaving}
+								className="rounded-xl bg-yepset-900 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-yepset-800 disabled:cursor-not-allowed disabled:opacity-60"
+							>
+								{isSaving ? "Saving..." : "Save assessment"}
+							</button>
+						)}
+					</div>
+				</div>
+
+				<div className="p-4 sm:p-5">
+					<Panel title={selectedPlayerName ?? "Select a player"}>
+						{isLoading ? (
+							<div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800">
+								Loading training data...
+							</div>
+						) : !draft ? (
 							<EmptyState title="No player selected" message="Choose a player to begin their training assessment." />
 						) : (
 							<div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
 								<div className="space-y-4">
 									<TrainingMetricEditor
 										metrics={draft.metrics}
-										onMetricRatingChange={(metricKey, rating) =>
-											setDraft((currentDraft) => currentDraft
-												? { ...currentDraft, metrics: updateMetricRating(currentDraft.metrics, metricKey, rating) }
-												: currentDraft)
-										}
-										onCategoryRatingChange={(metricKey, categoryKey, rating) =>
-											setDraft((currentDraft) => currentDraft
-												? { ...currentDraft, metrics: updateCategoryRating(currentDraft.metrics, metricKey, categoryKey, rating) }
-												: currentDraft)
-										}
+										onMetricRatingChange={onMetricRatingChange}
+										onCategoryRatingChange={onCategoryRatingChange}
 									/>
 									<label className="block">
 										<span className="text-xs font-black uppercase tracking-wide text-slate-500">Coach notes</span>
 										<textarea
 											value={draft.notes}
-											onChange={(event) => setDraft({ ...draft, notes: event.target.value })}
+											onChange={(event) => onNotesChange(event.target.value)}
 											rows={4}
 											className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-yepset-600 focus:ring-2 focus:ring-yepset-600/15"
 											placeholder="Add private coaching notes..."
@@ -336,7 +445,7 @@ export default function Training() {
 						)}
 					</Panel>
 				</div>
-			)}
+			</div>
 		</div>
 	);
 }
@@ -349,7 +458,7 @@ function Panel({
 }: {
 	title: string;
 	description?: string;
-	action?: React.ReactNode;
+	action?: ReactNode;
 	children: ReactNode;
 }) {
 	return (
@@ -385,9 +494,19 @@ function getTrainingEventsForSeason(
 function getAverageAssessmentRating(assessments: TrainingAssessment[]) {
 	const ratings = assessments.flatMap((assessment) => assessment.metrics.map((metric) => metric.rating));
 
-	if (ratings.length === 0) {
-		return 0;
-	}
+	if (ratings.length === 0) return 0;
 
-	return Math.round((ratings.reduce((total, rating) => total + rating, 0) / ratings.length) * 10) / 10;
+	return roundRating(ratings.reduce((total, rating) => total + rating, 0) / ratings.length);
+}
+
+function getAssessmentAverage(assessment: TrainingAssessment) {
+	if (assessment.metrics.length === 0) return 0;
+
+	return roundRating(
+		assessment.metrics.reduce((total, metric) => total + metric.rating, 0) / assessment.metrics.length
+	);
+}
+
+function roundRating(rating: number) {
+	return Math.round(rating * 10) / 10;
 }
