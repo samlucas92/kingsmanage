@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { statsApi, type PlayerStatsRecord } from "../services/statsApi";
+import { getAsyncErrorMessage } from "./asyncStore";
 
 type StatsStore = {
 	seasonStats: PlayerStatsRecord[];
@@ -56,10 +57,7 @@ export const useStatsStore = create<StatsStore>()((set, get) => ({
 		} catch (error) {
 			set({
 				isLoadingStats: false,
-				statsLoadError:
-					error instanceof Error
-						? error.message
-						: "Failed to load stats.",
+				statsLoadError: getAsyncErrorMessage(error, "Failed to load stats."),
 			});
 		}
 	},

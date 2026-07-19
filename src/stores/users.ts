@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { usersApi } from "../services/usersApi";
 import type { AuthUser, CreateUserRequest, UpdateMembershipsRequest, UpdateUserRequest } from "../types/auth";
+import { getAsyncErrorMessage } from "./asyncStore";
 
 type UserState = {
 	users: AuthUser[];
@@ -63,7 +64,7 @@ export const useUserStore = create<UserState>((set, get) => ({
 		} catch (error) {
 			set({
 				isLoadingUsers: false,
-				userLoadError: error instanceof Error ? error.message : "Failed to load users.",
+				userLoadError: getAsyncErrorMessage(error, "Failed to load users."),
 			});
 		}
 	},

@@ -7,6 +7,7 @@ import type {
 	CreateClubEventRequest,
 	UpdateClubEventRequest,
 } from "../types/events";
+import { getAsyncErrorMessage } from "./asyncStore";
 
 type EventsState = {
 	events: ClubEvent[];
@@ -86,8 +87,7 @@ export const useEventStore = create<EventsState>((set, get) => ({
 		} catch (error) {
 			set({
 				isLoadingEvents: false,
-				eventsLoadError:
-					error instanceof Error ? error.message : "Failed to load events.",
+				eventsLoadError: getAsyncErrorMessage(error, "Failed to load events."),
 			});
 		}
 	},
@@ -111,8 +111,7 @@ export const useEventStore = create<EventsState>((set, get) => ({
 		} catch (error) {
 			set({
 				isLoadingSelectedEvent: false,
-				selectedEventLoadError:
-					error instanceof Error ? error.message : "Failed to load event.",
+				selectedEventLoadError: getAsyncErrorMessage(error, "Failed to load event."),
 			});
 		}
 	},

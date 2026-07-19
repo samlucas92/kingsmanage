@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import { seasonApi, type SeasonSetupInput } from "../services/seasonApi";
+import { getAsyncErrorMessage } from "./asyncStore";
 
 export type Season = {
 	id: string;
@@ -88,8 +89,7 @@ export const useSeasonStore = create<SeasonStore>()((set, get) => ({
 		} catch (error) {
 			set({
 				isLoadingSeasons: false,
-				seasonLoadError:
-					error instanceof Error ? error.message : "Failed to load seasons.",
+				seasonLoadError: getAsyncErrorMessage(error, "Failed to load seasons."),
 			});
 		}
 	},

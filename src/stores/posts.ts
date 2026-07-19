@@ -6,6 +6,7 @@ import type {
 	CreateClubPostRequest,
 	UpdateClubPostRequest,
 } from "../types/posts";
+import { getAsyncErrorMessage } from "./asyncStore";
 
 type PostsState = {
 	posts: ClubPost[];
@@ -80,8 +81,7 @@ export const usePostStore = create<PostsState>((set, get) => ({
 		} catch (error) {
 			set({
 				isLoadingPosts: false,
-				postsLoadError:
-					error instanceof Error ? error.message : "Failed to load posts.",
+				postsLoadError: getAsyncErrorMessage(error, "Failed to load posts."),
 			});
 		}
 	},
@@ -104,8 +104,7 @@ export const usePostStore = create<PostsState>((set, get) => ({
 		} catch (error) {
 			set({
 				isLoadingSelectedPost: false,
-				selectedPostLoadError:
-					error instanceof Error ? error.message : "Failed to load post.",
+				selectedPostLoadError: getAsyncErrorMessage(error, "Failed to load post."),
 			});
 		}
 	},

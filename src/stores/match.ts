@@ -63,6 +63,7 @@ export type MatchPlayerStatField =
 
 export type MatchPlayerStatValue = number | boolean | string;
 export type ClubTeam = string;
+export type MatchCompetitionType = "unknown" | "league" | "cup" | "friendly" | "tournament";
 
 export type Match = {
 	id: string;
@@ -71,6 +72,7 @@ export type Match = {
 	team: ClubTeam;
 	opponent: string;
 	competition?: string;
+	competitionType?: MatchCompetitionType;
 	date: string;
 	venue: "home" | "away";
 	location?: string;

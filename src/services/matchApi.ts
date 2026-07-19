@@ -3,6 +3,7 @@ import type {
 	ClubTeam,
 	LineupFormation,
 	Match,
+	MatchCompetitionType,
 	MatchFixtureInput,
 	MatchNotes,
 	MatchPlayerStat,
@@ -21,6 +22,7 @@ export type PlayerMatchRecord = {
 	seasonId?: string;
 	team: ClubTeam;
 	opponent: string;
+	competitionType?: MatchCompetitionType;
 	date: string;
 	venue: MatchVenue;
 	state: MatchState;
@@ -32,6 +34,7 @@ export type PlayerMatchRecord = {
 type ApiClubTeam = "First" | "Second";
 type ApiMatchVenue = "Home" | "Away";
 type ApiMatchState = "Upcoming" | "Won" | "Lost" | "Draw" | "Postponed";
+type ApiMatchCompetitionType = "Unknown" | "League" | "Cup" | "Friendly" | "Tournament";
 type ApiLineupFormation =
 	| "FourFourTwo"
 	| "FourThreeThree"
@@ -54,6 +57,7 @@ type ApiMatch = Omit<
 	teamId?: string | null;
 	venue: ApiMatchVenue;
 	state: ApiMatchState;
+	competitionType?: ApiMatchCompetitionType;
 	selectedFormation: ApiLineupFormation;
 	formationKey?: string;
 	playerStats?: ApiMatchPlayerStat[];
@@ -75,6 +79,7 @@ type ApiMatchViewModel = Omit<
 	teamId: string;
 	venue: ApiMatchVenue;
 	state: ApiMatchState;
+	competitionType?: ApiMatchCompetitionType;
 };
 
 
@@ -87,6 +92,7 @@ type ApiPlayerMatchViewModel = Omit<
 	teamId: string;
 	venue: ApiMatchVenue;
 	state: ApiMatchState;
+	competitionType?: ApiMatchCompetitionType;
 	playerStat?: ApiMatchPlayerStat | null;
 };
 
@@ -182,6 +188,26 @@ function fromApiState(state: ApiMatchState): MatchState {
 	}
 }
 
+function fromApiCompetitionType(type?: ApiMatchCompetitionType): MatchCompetitionType | undefined {
+	if (!type) {
+		return undefined;
+	}
+
+	switch (type) {
+		case "League":
+			return "league";
+		case "Cup":
+			return "cup";
+		case "Friendly":
+			return "friendly";
+		case "Tournament":
+			return "tournament";
+		case "Unknown":
+		default:
+			return "unknown";
+	}
+}
+
 function toApiFormation(formation: LineupFormation): ApiLineupFormation {
 	switch (formation) {
 		case "4-4-2":
@@ -244,6 +270,7 @@ function fromApiMatch(match: ApiMatch): Match {
 		team: match.teamId ?? fromApiClubTeam(match.team),
 		venue: fromApiVenue(match.venue),
 		state: fromApiState(match.state),
+		competitionType: fromApiCompetitionType(match.competitionType),
 		selectedFormation: match.formationKey || fromApiFormation(match.selectedFormation),
 		result: match.result ?? undefined,
 		notes: match.notes ?? emptyMatchNotes,
@@ -260,6 +287,7 @@ function fromApiMatchViewModel(match: ApiMatchViewModel): Match {
 		team: match.teamId ?? fromApiClubTeam(match.team),
 		venue: fromApiVenue(match.venue),
 		state: fromApiState(match.state),
+		competitionType: fromApiCompetitionType(match.competitionType),
 		selectedFormation: "4-3-3",
 		result: match.result ?? undefined,
 		notes: emptyMatchNotes,
@@ -277,13 +305,15 @@ function fromApiPlayerMatchViewModel(match: ApiPlayerMatchViewModel): PlayerMatc
 		team: match.teamId ?? fromApiClubTeam(match.team),
 		venue: fromApiVenue(match.venue),
 		state: fromApiState(match.state),
+		competitionType: fromApiCompetitionType(match.competitionType),
 		result: match.result ?? undefined,
 		playerStat: match.playerStat ? fromApiPlayerStat(match.playerStat) : undefined,
 	};
 }
 
 function toApiMatch(match: Match): ApiMatch {
-	const { isDetailLoaded, ...matchToSave } = match;
+	const { competitionType: _competitionType, isDetailLoaded, ...matchToSave } = match;
+	void _competitionType;
 	void isDetailLoaded;
 
 	return {

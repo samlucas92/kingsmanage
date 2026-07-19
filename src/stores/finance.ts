@@ -6,6 +6,7 @@ import type {
 	NewFinancePaymentInput,
 	PlayerFinanceRecord,
 } from "../types/finance";
+import { getAsyncErrorMessage } from "./asyncStore";
 
 export type {
 	FinancePayment,
@@ -87,10 +88,7 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
 		} catch (error) {
 			set({
 				isLoadingFinance: false,
-				financeLoadError:
-					error instanceof Error
-						? error.message
-						: "Failed to load finance records.",
+				financeLoadError: getAsyncErrorMessage(error, "Failed to load finance records."),
 			});
 		}
 	},

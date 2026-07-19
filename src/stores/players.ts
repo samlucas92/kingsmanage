@@ -5,6 +5,7 @@ import {
 	updatePlayerRecord,
 } from "../services/playerService";
 import { playerApi } from "../services/playerApi";
+import { getAsyncErrorMessage } from "./asyncStore";
 
 export type Player = {
 	id: string;
@@ -71,10 +72,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
 		} catch (error) {
 			set({
 				isLoadingPlayers: false,
-				playerLoadError:
-					error instanceof Error
-						? error.message
-						: "Failed to load players.",
+				playerLoadError: getAsyncErrorMessage(error, "Failed to load players."),
 			});
 		}
 	},
@@ -103,10 +101,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
 		} catch (error) {
 			set({
 				isLoadingPlayers: false,
-				playerLoadError:
-					error instanceof Error
-						? error.message
-						: "Failed to load player.",
+				playerLoadError: getAsyncErrorMessage(error, "Failed to load player."),
 			});
 		}
 	},
