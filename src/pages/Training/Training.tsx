@@ -4,6 +4,7 @@ import EmptyState from "../../components/compositions/EmptyState";
 import MetricCard from "../../components/compositions/MetricCard";
 import StatusBadge from "../../components/compositions/StatusBadge";
 import RadarChart from "../../components/charts/RadarChart";
+import RichTextEditor from "../../components/rich-text/RichTextEditor";
 import { useEventStore } from "../../stores/events";
 import { usePlayerStore } from "../../stores/players";
 import { useSeasonStore } from "../../stores/seasons";
@@ -16,7 +17,9 @@ import {
 	updateCategoryRating,
 	updateMetricRating,
 } from "../../utils/trainingDevelopment";
-import type { ClubEvent } from "../../types/events";
+import { ensureRichText } from "../../utils/richText";
+import { getPlayerAvailabilityStatus } from "../../utils/events";
+import type { ClubEvent, ClubEventAvailabilityStatus, TrainingPlanDrill } from "../../types/events";
 import type { TrainingAssessment } from "../../types/training";
 import TrainingMetricEditor from "./components/TrainingMetricEditor";
 
@@ -27,6 +30,7 @@ export default function Training() {
 	const isLoadingEvents = useEventStore((state) => state.isLoadingEvents);
 	const eventsLoadError = useEventStore((state) => state.eventsLoadError);
 	const loadEvents = useEventStore((state) => state.loadEvents);
+	const updateEvent = useEventStore((state) => state.updateEvent);
 	const players = usePlayerStore((state) => state.players);
 	const isLoadingPlayers = usePlayerStore((state) => state.isLoadingPlayers);
 	const playerLoadError = usePlayerStore((state) => state.playerLoadError);
@@ -41,8 +45,10 @@ export default function Training() {
 	const [isEditorOpen, setIsEditorOpen] = useState(false);
 	const [assessments, setAssessments] = useState<TrainingAssessment[]>([]);
 	const [draft, setDraft] = useState<DraftAssessment | null>(null);
+	const [planDrills, setPlanDrills] = useState<TrainingPlanDrill[]>([]);
 	const [isLoadingAssessments, setIsLoadingAssessments] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
+	const [isSavingPlan, setIsSavingPlan] = useState(false);
 	const [trainingError, setTrainingError] = useState("");
 
 	useEffect(() => {
@@ -71,16 +77,25 @@ export default function Training() {
 	const selectedAssessment = assessments.find((assessment) => assessment.playerId === selectedPlayer?.id);
 	const assessedCount = assessments.length;
 	const averageRating = useMemo(() => getAverageAssessmentRating(assessments), [assessments]);
+	const plannedMinutes = planDrills.reduce((total, drill) => total + Number(drill.durationMinutes || 0), 0);
+	const availableCount = useMemo(
+		() => selectedEvent
+			? activePlayers.filter((player) => getPlayerAvailabilityStatus(selectedEvent, player.id) === "Available").length
+			: 0,
+		[activePlayers, selectedEvent]
+	);
 
 	useEffect(() => {
 		if (!selectedEvent?.id) {
 			setSelectedEventId("");
 			setAssessments([]);
+			setPlanDrills([]);
 			return;
 		}
 
 		setSelectedEventId(selectedEvent.id);
-	}, [selectedEvent?.id]);
+		setPlanDrills(selectedEvent.trainingPlanDrills ?? []);
+	}, [selectedEvent?.id, selectedEvent?.trainingPlanDrills]);
 
 	useEffect(() => {
 		if (!selectedEvent?.id) return;
@@ -170,6 +185,55 @@ export default function Training() {
 		}
 	}
 
+	async function handleSavePlan() {
+		if (!selectedEvent) return;
+
+		setIsSavingPlan(true);
+		setTrainingError("");
+
+		try {
+			const savedEvent = await updateEvent(selectedEvent.id, {
+				type: selectedEvent.type,
+				teamScope: selectedEvent.teamScope,
+				title: selectedEvent.title,
+				description: selectedEvent.description,
+				startDateTime: selectedEvent.startDateTime,
+				endDateTime: selectedEvent.endDateTime,
+				location: selectedEvent.location,
+				matchLinks: selectedEvent.matchLinks,
+				trainingPlanDrills: normalisePlanDrills(planDrills),
+			});
+
+			setPlanDrills(savedEvent.trainingPlanDrills ?? []);
+		} catch (error) {
+			setTrainingError(error instanceof Error ? error.message : "Failed to save training plan.");
+		} finally {
+			setIsSavingPlan(false);
+		}
+	}
+
+	function addPlanDrill() {
+		setPlanDrills((currentDrills) => [
+			...currentDrills,
+			{
+				id: crypto.randomUUID(),
+				title: "",
+				durationMinutes: 15,
+				content: ensureRichText(""),
+			},
+		]);
+	}
+
+	function updatePlanDrill(id: string, update: Partial<TrainingPlanDrill>) {
+		setPlanDrills((currentDrills) =>
+			currentDrills.map((drill) => drill.id === id ? { ...drill, ...update } : drill)
+		);
+	}
+
+	function removePlanDrill(id: string) {
+		setPlanDrills((currentDrills) => currentDrills.filter((drill) => drill.id !== id));
+	}
+
 	function openPlayerAssessment(playerId: string) {
 		setSelectedPlayerId(playerId);
 		setIsEditorOpen(true);
@@ -205,8 +269,10 @@ export default function Training() {
 				</div>
 			)}
 
-			<div className="grid gap-3 sm:grid-cols-3">
+			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
 				<MetricCard label="Training sessions" value={trainingEvents.length} />
+				<MetricCard label="Plan duration" value={`${plannedMinutes}/90m`} tone={plannedMinutes === 90 ? "success" : plannedMinutes > 90 ? "warning" : "default"} />
+				<MetricCard label="Available players" value={`${availableCount}/${activePlayers.length}`} tone="success" />
 				<MetricCard label="Players assessed" value={`${assessedCount}/${activePlayers.length}`} />
 				<MetricCard label="Average rating" value={averageRating ? `${averageRating}/5` : "—"} />
 			</div>
@@ -235,6 +301,16 @@ export default function Training() {
 						</label>
 					</Panel>
 
+					<TrainingPlanEditor
+						drills={planDrills}
+						isSaving={isSavingPlan}
+						totalMinutes={plannedMinutes}
+						onAddDrill={addPlanDrill}
+						onSave={() => void handleSavePlan()}
+						onUpdateDrill={updatePlanDrill}
+						onRemoveDrill={removePlanDrill}
+					/>
+
 					<Panel
 						title="Player overview"
 						description="Track who has been assessed for this session and open the full review when needed."
@@ -248,6 +324,7 @@ export default function Training() {
 						) : (
 							<PlayerOverviewList
 								players={activePlayers}
+								selectedEvent={selectedEvent}
 								assessments={assessments}
 								onOpenAssessment={openPlayerAssessment}
 							/>
@@ -284,48 +361,173 @@ export default function Training() {
 	);
 }
 
+function TrainingPlanEditor({
+	drills,
+	isSaving,
+	totalMinutes,
+	onAddDrill,
+	onSave,
+	onUpdateDrill,
+	onRemoveDrill,
+}: {
+	drills: TrainingPlanDrill[];
+	isSaving: boolean;
+	totalMinutes: number;
+	onAddDrill: () => void;
+	onSave: () => void;
+	onUpdateDrill: (id: string, update: Partial<TrainingPlanDrill>) => void;
+	onRemoveDrill: (id: string) => void;
+}) {
+	const durationTone = totalMinutes === 90
+		? "text-yepset-700"
+		: totalMinutes > 90
+			? "text-amber-700"
+			: "text-slate-500";
+
+	return (
+		<Panel
+			title="Training plan"
+			description="Break the session into drills with duration and coaching detail."
+			action={(
+				<div className="flex flex-wrap gap-2">
+					<button
+						type="button"
+						onClick={onAddDrill}
+						className="rounded-xl border border-yepset-200 px-4 py-2 text-sm font-black text-yepset-800 transition hover:border-yepset-600 hover:bg-yepset-50"
+					>
+						Add drill
+					</button>
+					<button
+						type="button"
+						onClick={onSave}
+						disabled={isSaving}
+						className="rounded-xl bg-yepset-900 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-yepset-800 disabled:cursor-not-allowed disabled:opacity-60"
+					>
+						{isSaving ? "Saving..." : "Save plan"}
+					</button>
+				</div>
+			)}
+		>
+			<div className="mb-4 flex flex-wrap items-center gap-2 text-sm font-bold">
+				<span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
+					{drills.length} drills
+				</span>
+				<span className={`rounded-full bg-slate-100 px-3 py-1 ${durationTone}`}>
+					{totalMinutes}/90 minutes planned
+				</span>
+			</div>
+
+			{drills.length === 0 ? (
+				<div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-500">
+					No drills yet. Add warm-up, technical, game-based and cool-down blocks to build the session plan.
+				</div>
+			) : (
+				<div className="space-y-4">
+					{drills.map((drill, index) => (
+						<div key={drill.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+							<div className="mb-3 flex flex-col gap-3 md:flex-row md:items-end">
+								<label className="flex-1 text-xs font-black uppercase tracking-wide text-slate-500">
+									Drill {index + 1}
+									<input
+										value={drill.title}
+										onChange={(event) => onUpdateDrill(drill.id, { title: event.target.value })}
+										className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold normal-case tracking-normal text-slate-900 outline-none focus:border-yepset-600 focus:ring-2 focus:ring-yepset-600/15"
+										placeholder="e.g. Rondo warm-up"
+									/>
+								</label>
+								<label className="w-full text-xs font-black uppercase tracking-wide text-slate-500 md:w-36">
+									Minutes
+									<input
+										type="number"
+										min={0}
+										max={180}
+										value={drill.durationMinutes}
+										onChange={(event) => onUpdateDrill(drill.id, { durationMinutes: Number(event.target.value) })}
+										className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold normal-case tracking-normal text-slate-900 outline-none focus:border-yepset-600 focus:ring-2 focus:ring-yepset-600/15"
+									/>
+								</label>
+								<button
+									type="button"
+									onClick={() => onRemoveDrill(drill.id)}
+									className="rounded-xl border border-red-200 px-4 py-2 text-sm font-black text-red-700 transition hover:bg-red-50"
+								>
+									Remove
+								</button>
+							</div>
+							<RichTextEditor
+								value={drill.content}
+								onChange={(content) => onUpdateDrill(drill.id, { content })}
+								placeholder="Add setup, coaching points, progressions, constraints..."
+								compact
+							/>
+						</div>
+					))}
+				</div>
+			)}
+		</Panel>
+	);
+}
+
 function PlayerOverviewList({
 	players,
+	selectedEvent,
 	assessments,
 	onOpenAssessment,
 }: {
 	players: Array<{ id: string; name: string; positions: string[] }>;
+	selectedEvent?: ClubEvent;
 	assessments: TrainingAssessment[];
 	onOpenAssessment: (playerId: string) => void;
 }) {
+	const sortedPlayers = [...players].sort((firstPlayer, secondPlayer) => {
+		const firstStatus = selectedEvent ? getPlayerAvailabilityStatus(selectedEvent, firstPlayer.id) : "Unanswered";
+		const secondStatus = selectedEvent ? getPlayerAvailabilityStatus(selectedEvent, secondPlayer.id) : "Unanswered";
+		const statusDifference = getTrainingStatusSortOrder(firstStatus) - getTrainingStatusSortOrder(secondStatus);
+
+		return statusDifference || firstPlayer.name.localeCompare(secondPlayer.name);
+	});
+
 	return (
 		<div className="overflow-hidden rounded-2xl border border-slate-200">
-			<div className="hidden grid-cols-[1fr_8rem_8rem_7rem] gap-3 bg-slate-50 px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500 sm:grid">
+			<div className="hidden grid-cols-[1fr_8rem_9rem_8rem_7rem] gap-3 bg-slate-50 px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500 sm:grid">
 				<span>Player</span>
 				<span>Role</span>
-				<span>Status</span>
+				<span>Training</span>
+				<span>Assessment</span>
 				<span className="text-right">Action</span>
 			</div>
 			<div className="divide-y divide-slate-100 bg-white">
-				{players.map((player) => {
+				{sortedPlayers.map((player) => {
 					const assessment = assessments.find((item) => item.playerId === player.id);
 					const rating = assessment ? getAssessmentAverage(assessment) : 0;
+					const trainingStatus = selectedEvent ? getPlayerAvailabilityStatus(selectedEvent, player.id) : "Unanswered";
 
 					return (
 						<div
 							key={player.id}
-							className="grid gap-3 px-4 py-4 sm:grid-cols-[1fr_8rem_8rem_7rem] sm:items-center"
+							className="grid gap-3 px-4 py-4 sm:grid-cols-[1fr_8rem_9rem_8rem_7rem] sm:items-center"
 						>
 							<div className="flex items-center justify-between gap-3">
 								<div className="min-w-0">
 									<p className="truncate text-sm font-black text-slate-950">{player.name}</p>
 									<p className="text-xs font-semibold text-slate-500 sm:hidden">
-										{getTrainingPlayerRole(player)} · {assessment ? `${rating}/5 average` : "No assessment yet"}
+										{getTrainingPlayerRole(player)} · {getTrainingStatusLabel(trainingStatus)} · {assessment ? `${rating}/5 average` : "No assessment yet"}
 									</p>
 								</div>
 								<div className="sm:hidden">
 									<StatusBadge
-										label={assessment ? "Assessed" : "Pending"}
-										tone={assessment ? "success" : "neutral"}
+										label={getTrainingStatusLabel(trainingStatus)}
+										tone={getTrainingStatusTone(trainingStatus)}
 									/>
 								</div>
 							</div>
 							<span className="hidden text-sm font-bold text-slate-600 sm:block">{getTrainingPlayerRole(player)}</span>
+							<div className="hidden sm:block">
+								<StatusBadge
+									label={getTrainingStatusLabel(trainingStatus)}
+									tone={getTrainingStatusTone(trainingStatus)}
+								/>
+							</div>
 							<div className="hidden sm:block">
 								<StatusBadge
 									label={assessment ? `${rating}/5` : "Pending"}
@@ -475,6 +677,24 @@ function Panel({
 	);
 }
 
+function getTrainingStatusSortOrder(status: ClubEventAvailabilityStatus) {
+	if (status === "Available") return 0;
+	if (status === "Unanswered") return 1;
+	return 2;
+}
+
+function getTrainingStatusLabel(status: ClubEventAvailabilityStatus) {
+	if (status === "Available") return "Available";
+	if (status === "Declined") return "Declined";
+	return "No response";
+}
+
+function getTrainingStatusTone(status: ClubEventAvailabilityStatus) {
+	if (status === "Available") return "success";
+	if (status === "Declined") return "warning";
+	return "neutral";
+}
+
 function getTrainingEventsForSeason(
 	events: ClubEvent[],
 	seasonStartDate?: string,
@@ -489,6 +709,21 @@ function getTrainingEventsForSeason(
 			return event.type === "Training" && eventTime >= startTime && eventTime <= endTime;
 		})
 		.sort((firstEvent, secondEvent) => new Date(secondEvent.startDateTime).getTime() - new Date(firstEvent.startDateTime).getTime());
+}
+
+function normalisePlanDrills(drills: TrainingPlanDrill[]) {
+	return drills
+		.filter((drill) =>
+			drill.title.trim() ||
+			drill.content.trim() ||
+			Number(drill.durationMinutes || 0) > 0
+		)
+		.map((drill) => ({
+			...drill,
+			title: drill.title.trim(),
+			durationMinutes: Math.max(0, Math.min(180, Number(drill.durationMinutes || 0))),
+			content: ensureRichText(drill.content),
+		}));
 }
 
 function getAverageAssessmentRating(assessments: TrainingAssessment[]) {

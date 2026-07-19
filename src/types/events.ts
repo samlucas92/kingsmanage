@@ -32,6 +32,13 @@ export type ClubEventSeenStatus = {
 	seenAt: string;
 };
 
+export type TrainingPlanDrill = {
+	id: string;
+	title: string;
+	durationMinutes: number;
+	content: string;
+};
+
 export type ClubEvent = {
 	id: string;
 	type: ClubEventType;
@@ -43,6 +50,7 @@ export type ClubEvent = {
 	location: string;
 	recurrenceSeriesId?: string | null;
 	recurrence?: ClubEventRecurrence | null;
+	trainingPlanDrills?: TrainingPlanDrill[];
 	matchLinks: ClubEventMatchLink[];
 	availabilityResponses: ClubEventAvailabilityResponse[];
 	seenBy: ClubEventSeenStatus[];
@@ -73,6 +81,7 @@ export type CreateClubEventRequest = {
 	createLinkedMatches: boolean;
 	createMatches: CreateMatchForEventRequest[];
 	recurrence?: CreateEventRecurrenceRequest | null;
+	trainingPlanDrills?: TrainingPlanDrill[];
 };
 
 export type CreateEventRecurrenceRequest = {
@@ -91,6 +100,7 @@ export type UpdateClubEventRequest = {
 	endDateTime?: string | null;
 	location: string;
 	matchLinks: ClubEventMatchLink[];
+	trainingPlanDrills?: TrainingPlanDrill[];
 };
 
 export type UpdateClubEventAvailabilityRequest = {
