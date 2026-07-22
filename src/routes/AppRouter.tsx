@@ -5,6 +5,7 @@ import Header from "../components/layout/Header";
 import MobileBottomNavigation from "../components/layout/MobileBottomNavigation";
 import Sidebar from "../components/layout/Sidebar";
 import ProtectedRoute from "../components/routing/ProtectedRoute";
+import ColdStartSplash from "../components/startup/ColdStartSplash";
 import { ClubSetupReminder } from "../pages/ClubSetup/ClubSetupReminder";
 import { useClubTeamStore } from "../stores/clubTeams";
 
@@ -90,9 +91,7 @@ export default function AppRouter() {
 
 function PageLoadingFallback() {
 	return (
-		<div className="grid min-h-screen place-items-center bg-slate-50 px-4 text-sm font-bold text-slate-500">
-			Loading Yepset...
-		</div>
+		<ColdStartSplash title="Loading Yepset" message="Pulling the app into place before we open your club workspace." />
 	);
 }
 

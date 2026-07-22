@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuthStore } from "../../stores/auth";
 import type { TenantRole } from "../../types/auth";
+import ColdStartSplash from "../startup/ColdStartSplash";
 
 export type ProtectedRole = "Admin" | "Coach" | "Player";
 
@@ -30,7 +31,7 @@ export default function ProtectedRoute({
 	}, [initialise, isInitialised, isLoading]);
 
 	if (!isInitialised || isLoading) {
-		return null;
+		return <ColdStartSplash />;
 	}
 
 	if (!isAuthenticated || !currentUser) {

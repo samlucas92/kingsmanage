@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../stores/auth";
 import BrandMark from "../../components/layout/BrandMark";
+import ColdStartSplash from "../../components/startup/ColdStartSplash";
 
 const DEFAULT_VIEWPORT_CONTENT = "width=device-width, initial-scale=1.0";
 const LOCKED_VIEWPORT_CONTENT = `${DEFAULT_VIEWPORT_CONTENT}, maximum-scale=1.0`;
@@ -42,6 +43,15 @@ export default function Login() {
 
 	if (isInitialised && isAuthenticated) {
 		return <Navigate to={fromPath} replace />;
+	}
+
+	if (isLoading) {
+		return (
+			<ColdStartSplash
+				title="Signing in to Yepset"
+				message="If the club server has been asleep, this may take a short moment while Render wakes it up."
+			/>
+		);
 	}
 
 	const handleSubmit = async (event: React.SyntheticEvent<HTMLFormElement>) => {
