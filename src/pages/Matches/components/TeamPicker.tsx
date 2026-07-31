@@ -48,6 +48,7 @@ export default function TeamPicker({
 
 	const [mobilePlayerSelectorMode, setMobilePlayerSelectorMode] =
 		useState<MobilePlayerSelectorMode | null>(null);
+	const [showAvailableOnly, setShowAvailableOnly] = useState(false);
 
 	if (!teamPicker.match) {
 		return (
@@ -58,6 +59,12 @@ export default function TeamPicker({
 	}
 
 	const selectedFormation = teamPicker.formations[teamPicker.selectedFormation];
+	const preparedAvailablePlayers = prepareAvailablePlayers({
+		players: teamPicker.availablePlayers,
+		showAvailableOnly,
+		getPlayerAvailabilityStatus,
+		getPlayerTrainingAvailability,
+	});
 
 	const activePlayerName = teamPicker.activeDragData
 		? teamPicker.getPlayerName(teamPicker.activeDragData.playerId)
@@ -217,12 +224,15 @@ export default function TeamPicker({
 			<div className="grid min-w-0 items-start gap-4 xl:grid-cols-[320px_minmax(420px,1fr)]">
 				<div className="hidden min-w-0 xl:block xl:sticky xl:top-0">
 					<AvailablePlayersPanel
-						availablePlayers={teamPicker.availablePlayers}
+						availablePlayers={preparedAvailablePlayers}
 						isLineupLocked={teamPicker.isLineupLocked}
+						showAvailableOnly={showAvailableOnly}
+						canFilterByAvailability={Boolean(getPlayerAvailabilityStatus)}
 						openMenuPlayerId={teamPicker.openMenu?.playerId}
 						hoveredSwapTargetPlayerId={teamPicker.hoveredSwapTargetPlayerId}
 						getPlayerAvailabilityStatus={getPlayerAvailabilityStatus}
 						getPlayerTrainingAvailability={getPlayerTrainingAvailability}
+						onShowAvailableOnlyChange={setShowAvailableOnly}
 						onOpenPlayerMenu={teamPicker.openPlayerMenu}
 					/>
 				</div>
@@ -335,10 +345,13 @@ export default function TeamPicker({
 				<MobilePlayerSelector
 					mode={mobilePlayerSelectorMode}
 					formation={selectedFormation}
-					availablePlayers={teamPicker.availablePlayers}
+					availablePlayers={preparedAvailablePlayers}
+					showAvailableOnly={showAvailableOnly}
+					canFilterByAvailability={Boolean(getPlayerAvailabilityStatus)}
 					getPlayerPositions={teamPicker.getPlayerPositions}
 					getPlayerAvailabilityStatus={getPlayerAvailabilityStatus}
 					getPlayerTrainingAvailability={getPlayerTrainingAvailability}
+					onShowAvailableOnlyChange={setShowAvailableOnly}
 					onClose={closeMobilePlayerSelector}
 					onSelectPlayer={handleSelectMobilePlayer}
 				/>
@@ -425,6 +438,53 @@ export default function TeamPicker({
 	);
 }
 
+function prepareAvailablePlayers({
+	players,
+	showAvailableOnly,
+	getPlayerAvailabilityStatus,
+	getPlayerTrainingAvailability,
+}: {
+	players: {
+		id: string;
+		name: string;
+		isActive: boolean;
+	}[];
+	showAvailableOnly: boolean;
+	getPlayerAvailabilityStatus?: (
+		playerId: string
+	) => ClubEventAvailabilityStatus | undefined;
+	getPlayerTrainingAvailability?: (
+		playerId: string
+	) => TrainingAvailabilitySummary;
+}) {
+	return [...players]
+		.filter(
+			(player) =>
+				!showAvailableOnly ||
+				!getPlayerAvailabilityStatus ||
+				getPlayerAvailabilityStatus(player.id) === "Available"
+		)
+		.sort((firstPlayer, secondPlayer) => {
+			const firstTraining = getPlayerTrainingAvailability?.(firstPlayer.id);
+			const secondTraining = getPlayerTrainingAvailability?.(secondPlayer.id);
+			const firstPercentage = firstTraining?.percentage ?? -1;
+			const secondPercentage = secondTraining?.percentage ?? -1;
+
+			if (secondPercentage !== firstPercentage) {
+				return secondPercentage - firstPercentage;
+			}
+
+			const firstTotal = firstTraining?.total ?? 0;
+			const secondTotal = secondTraining?.total ?? 0;
+
+			if (secondTotal !== firstTotal) {
+				return secondTotal - firstTotal;
+			}
+
+			return firstPlayer.name.localeCompare(secondPlayer.name);
+		});
+}
+
 function useMediaQuery(query: string) {
 	const [matches, setMatches] = useState(() => {
 		if (typeof window === "undefined" || !window.matchMedia) {
@@ -458,9 +518,12 @@ function MobilePlayerSelector({
 	mode,
 	formation,
 	availablePlayers,
+	showAvailableOnly,
+	canFilterByAvailability,
 	getPlayerPositions,
 	getPlayerAvailabilityStatus,
 	getPlayerTrainingAvailability,
+	onShowAvailableOnlyChange,
 	onClose,
 	onSelectPlayer,
 }: {
@@ -471,6 +534,8 @@ function MobilePlayerSelector({
 		name: string;
 		isActive: boolean;
 	}[];
+	showAvailableOnly: boolean;
+	canFilterByAvailability: boolean;
 	getPlayerPositions: (playerId: string) => string[];
 	getPlayerAvailabilityStatus?: (
 		playerId: string
@@ -478,6 +543,7 @@ function MobilePlayerSelector({
 	getPlayerTrainingAvailability?: (
 		playerId: string
 	) => TrainingAvailabilitySummary;
+	onShowAvailableOnlyChange: (value: boolean) => void;
 	onClose: () => void;
 	onSelectPlayer: (playerId: string) => void;
 }) {
@@ -496,7 +562,7 @@ function MobilePlayerSelector({
 
 	const sortedPlayers = [...filteredPlayers].sort((firstPlayer, secondPlayer) => {
 		if (!position) {
-			return firstPlayer.name.localeCompare(secondPlayer.name);
+			return 0;
 		}
 
 		const firstFit = getPositionFitLabel(
@@ -515,7 +581,7 @@ function MobilePlayerSelector({
 			return secondScore - firstScore;
 		}
 
-		return firstPlayer.name.localeCompare(secondPlayer.name);
+		return 0;
 	});
 
 	return (
@@ -559,6 +625,28 @@ function MobilePlayerSelector({
 						placeholder="Search players..."
 						className="mt-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm"
 					/>
+
+					<label className={`mt-3 flex items-start gap-2 rounded-xl border px-3 py-2 text-xs font-semibold ${
+						canFilterByAvailability
+							? "border-yepset-100 bg-yepset-50 text-yepset-900"
+							: "border-slate-200 bg-slate-50 text-slate-400"
+					}`}>
+						<input
+							type="checkbox"
+							checked={showAvailableOnly}
+							disabled={!canFilterByAvailability}
+							onChange={(event) => onShowAvailableOnlyChange(event.target.checked)}
+							className="mt-0.5 h-4 w-4 rounded border-slate-300"
+						/>
+						<span>
+							Show available only
+							<span className="block font-medium">
+								{canFilterByAvailability
+									? "Uses match event availability."
+									: "Link this match to an event to use this filter."}
+							</span>
+						</span>
+					</label>
 				</div>
 
 				<div className="max-h-[60vh] overflow-y-auto p-4">

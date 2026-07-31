@@ -8,6 +8,7 @@ import {
 	getClubTeamLabel,
 	useClubTeamStore,
 } from "../../../stores/clubTeams";
+import { formatDateForInput } from "../../../utils/date";
 import type {
 	ClubEventTeamScope,
 	ClubEventType,
@@ -27,18 +28,14 @@ type EventFormModalProps = {
 type MatchLinkMode = "none" | "link" | "create";
 
 type MatchDetails = {
-	opponent: string;
 	competition: string;
-	location: string;
 	venue: EventMatchVenue;
 };
 
 const eventTypes: ClubEventType[] = ["Match", "Training", "Social", "Meeting"];
 
 const emptyMatchDetails: MatchDetails = {
-	opponent: "",
 	competition: "",
-	location: "",
 	venue: "Home",
 };
 
@@ -61,9 +58,11 @@ export default function EventFormModal({
 	const [type, setType] = useState<ClubEventType>("Training");
 	const [teamScope, setTeamScope] = useState<ClubEventTeamScope>("First");
 	const [title, setTitle] = useState("");
+	const [matchOpponent, setMatchOpponent] = useState("");
 	const [description, setDescription] = useState("");
 	const [startDateTime, setStartDateTime] = useState("");
 	const [endDateTime, setEndDateTime] = useState("");
+	const [hasEditedEndDateTime, setHasEditedEndDateTime] = useState(false);
 	const [location, setLocation] = useState("");
 	const [isRecurring, setIsRecurring] = useState(false);
 	const [recurrenceInterval, setRecurrenceInterval] = useState(1);
@@ -135,10 +134,15 @@ export default function EventFormModal({
 
 		setError("");
 
-		const eventTitle = getEventTitle(type, title, startDateTime);
+		const eventTitle = getEventTitle(type, title, startDateTime, matchOpponent);
 
 		if (!eventTitle.trim()) {
 			setError("Enter an event title.");
+			return;
+		}
+
+		if (type === "Match" && !matchOpponent.trim()) {
+			setError("Enter the opponent.");
 			return;
 		}
 
@@ -149,6 +153,11 @@ export default function EventFormModal({
 
 		if (endDateTime && new Date(endDateTime).getTime() < new Date(startDateTime).getTime()) {
 			setError("End date cannot be before the start date.");
+			return;
+		}
+
+		if (type === "Match" && !location.trim()) {
+			setError("Enter the match location.");
 			return;
 		}
 
@@ -216,13 +225,13 @@ export default function EventFormModal({
 				return;
 			}
 
-			if (teamsInScope.includes("First") && !firstMatchDetails.opponent.trim()) {
-				setError(`Enter the ${firstTeamLabel} opponent.`);
+			if (teamsInScope.includes("First") && !firstMatchDetails.competition.trim()) {
+				setError(`Choose the ${firstTeamLabel} competition.`);
 				return;
 			}
 
-			if (teamsInScope.includes("Second") && !secondMatchDetails.opponent.trim()) {
-				setError(`Enter the ${secondTeamLabel} opponent.`);
+			if (teamsInScope.includes("Second") && !secondMatchDetails.competition.trim()) {
+				setError(`Choose the ${secondTeamLabel} competition.`);
 				return;
 			}
 
@@ -231,6 +240,7 @@ export default function EventFormModal({
 					seasonId: activeSeasonId,
 					team: "First",
 					details: firstMatchDetails,
+					eventOpponent: matchOpponent,
 					eventStartDateTime: startDateTime,
 					eventLocation: location,
 				}));
@@ -241,6 +251,7 @@ export default function EventFormModal({
 					seasonId: activeSeasonId,
 					team: "Second",
 					details: secondMatchDetails,
+					eventOpponent: matchOpponent,
 					eventStartDateTime: startDateTime,
 					eventLocation: location,
 				}));
@@ -290,9 +301,11 @@ export default function EventFormModal({
 		setType("Training");
 		setTeamScope("First");
 		setTitle("");
+		setMatchOpponent("");
 		setDescription("");
 		setStartDateTime("");
 		setEndDateTime("");
+		setHasEditedEndDateTime(false);
 		setLocation("");
 		setIsRecurring(false);
 		setRecurrenceInterval(1);
@@ -318,11 +331,28 @@ export default function EventFormModal({
 			setSecondMatchId("");
 		} else {
 			setIsRecurring(false);
+			setTitle("");
+			if (startDateTime && !hasEditedEndDateTime) {
+				setEndDateTime(addMinutesToDateTimeLocal(startDateTime, 90));
+			}
 		}
 
 		if (nextType === "Training") {
 			setTitle("");
 		}
+	}
+
+	function handleStartDateTimeChange(value: string) {
+		setStartDateTime(value);
+
+		if (type === "Match" && value && !hasEditedEndDateTime) {
+			setEndDateTime(addMinutesToDateTimeLocal(value, 90));
+		}
+	}
+
+	function handleEndDateTimeChange(value: string) {
+		setEndDateTime(value);
+		setHasEditedEndDateTime(Boolean(value));
 	}
 
 	function handleTeamScopeChange(nextTeamScope: ClubEventTeamScope) {
@@ -398,16 +428,18 @@ export default function EventFormModal({
 						)}
 					</div>
 
-					{type === "Training" ? (
+					{type === "Training" || type === "Match" ? (
 						<div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
 							<p className="text-xs font-bold uppercase tracking-wide text-blue-700">
 								Title
 							</p>
 							<p className="mt-1 text-sm font-semibold text-blue-950">
-								{getEventTitle(type, title, startDateTime) || "Training"}
+								{getEventTitle(type, title, startDateTime, matchOpponent) || (type === "Match" ? "Match vs opponent" : "Training")}
 							</p>
 							<p className="mt-1 text-xs text-blue-800">
-								Training titles are generated from the selected start date.
+								{type === "Match"
+									? "Match event titles are generated from the opponent."
+									: "Training titles are generated from the selected start date."}
 							</p>
 						</div>
 					) : (
@@ -418,6 +450,20 @@ export default function EventFormModal({
 								value={title}
 								onChange={(event) => setTitle(event.target.value)}
 								className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+								required
+							/>
+						</label>
+					)}
+
+					{type === "Match" && (
+						<label className="block text-sm font-semibold text-slate-700">
+							Opponent
+							<input
+								type="text"
+								value={matchOpponent}
+								onChange={(event) => setMatchOpponent(event.target.value)}
+								className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+								placeholder="e.g. Afc Oak"
 								required
 							/>
 						</label>
@@ -439,7 +485,7 @@ export default function EventFormModal({
 							<input
 								type="datetime-local"
 								value={startDateTime}
-								onChange={(event) => setStartDateTime(event.target.value)}
+								onChange={(event) => handleStartDateTimeChange(event.target.value)}
 								className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
 								required
 							/>
@@ -450,9 +496,14 @@ export default function EventFormModal({
 							<input
 								type="datetime-local"
 								value={endDateTime}
-								onChange={(event) => setEndDateTime(event.target.value)}
+								onChange={(event) => handleEndDateTimeChange(event.target.value)}
 								className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
 							/>
+							{type === "Match" && (
+								<span className="mt-1 block text-xs text-slate-500">
+									Defaults to 90 minutes after kick-off. You can still override it.
+								</span>
+							)}
 						</label>
 					</div>
 
@@ -573,7 +624,7 @@ export default function EventFormModal({
 								/>
 								<MatchModeButton
 									isSelected={matchMode === "create"}
-									label="Create new match"
+									label="Create match from event"
 									onClick={() => setMatchMode("create")}
 								/>
 							</div>
@@ -607,22 +658,27 @@ export default function EventFormModal({
 							)}
 
 							{matchMode === "create" && (
-								<div className="mt-4 grid gap-4 lg:grid-cols-2">
-									{teamsInScope.includes("First") && (
-										<MatchDetailsFields
-											details={firstMatchDetails}
-											label={`${firstTeamLabel} match details`}
-											onChange={setFirstMatchDetails}
-										/>
-									)}
+								<div className="mt-4 space-y-4">
+									<div className="rounded-xl border border-yepset-100 bg-yepset-50 px-4 py-3 text-sm text-yepset-900">
+										The created match will reuse this event&apos;s opponent, start time and location.
+									</div>
+									<div className="grid gap-4 lg:grid-cols-2">
+										{teamsInScope.includes("First") && (
+											<MatchDetailsFields
+												details={firstMatchDetails}
+												label={`${firstTeamLabel} match details`}
+												onChange={setFirstMatchDetails}
+											/>
+										)}
 
-									{teamsInScope.includes("Second") && (
-										<MatchDetailsFields
-											details={secondMatchDetails}
-											label={`${secondTeamLabel} match details`}
-											onChange={setSecondMatchDetails}
-										/>
-									)}
+										{teamsInScope.includes("Second") && (
+											<MatchDetailsFields
+												details={secondMatchDetails}
+												label={`${secondTeamLabel} match details`}
+												onChange={setSecondMatchDetails}
+											/>
+										)}
+									</div>
 								</div>
 							)}
 						</section>
@@ -725,16 +781,6 @@ function MatchDetailsFields({
 
 			<div className="mt-4 space-y-4">
 				<label className="block text-sm font-semibold text-slate-700">
-					Opponent
-					<input
-						type="text"
-						value={details.opponent}
-						onChange={(event) => onChange({ ...details, opponent: event.target.value })}
-						className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-					/>
-				</label>
-
-				<label className="block text-sm font-semibold text-slate-700">
 					Home/Away
 					<select
 						value={details.venue}
@@ -755,18 +801,8 @@ function MatchDetailsFields({
 						className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
 					/>
 				</label>
-
-				<label className="block text-sm font-semibold text-slate-700">
-					Venue / location
-					<input
-						type="text"
-						value={details.location}
-						onChange={(event) => onChange({ ...details, location: event.target.value })}
-						className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-					/>
-				</label>
 			</div>
-		</section>
+	</section>
 	);
 }
 
@@ -793,12 +829,14 @@ function getAvailableMatchesForTeam(matches: Match[], team: ClubTeam) {
 
 function buildCreateMatchRequest({
 	details,
+	eventOpponent,
 	eventLocation,
 	eventStartDateTime,
 	seasonId,
 	team,
 }: {
 	details: MatchDetails;
+	eventOpponent: string;
 	eventLocation: string;
 	eventStartDateTime: string;
 	seasonId: string;
@@ -807,11 +845,11 @@ function buildCreateMatchRequest({
 	return {
 		seasonId,
 		team,
-		opponent: details.opponent.trim(),
+		opponent: eventOpponent.trim(),
 		competition: details.competition.trim(),
 		date: new Date(eventStartDateTime).toISOString(),
 		venue: details.venue,
-		location: details.location.trim() || eventLocation.trim(),
+		location: eventLocation.trim(),
 		selectedFormation: "FourThreeThree" as const,
 	};
 }
@@ -838,8 +876,14 @@ function formatShortDate(value: string) {
 function getEventTitle(
 	type: ClubEventType,
 	title: string,
-	startDateTime: string
+	startDateTime: string,
+	matchOpponent = ""
 ) {
+	if (type === "Match") {
+		const opponent = matchOpponent.trim();
+		return opponent ? `Match vs ${opponent}` : "";
+	}
+
 	if (type !== "Training") {
 		return title.trim();
 	}
@@ -849,6 +893,17 @@ function getEventTitle(
 	}
 
 	return `Training ${formatDateOnly(startDateTime)}`;
+}
+
+function addMinutesToDateTimeLocal(value: string, minutes: number) {
+	const date = new Date(value);
+
+	if (Number.isNaN(date.getTime())) {
+		return "";
+	}
+
+	date.setMinutes(date.getMinutes() + minutes);
+	return formatDateForInput(date.toISOString());
 }
 
 function formatDateOnly(value: string) {

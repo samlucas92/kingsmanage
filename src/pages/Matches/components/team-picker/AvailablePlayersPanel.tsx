@@ -13,6 +13,8 @@ type Player = {
 interface AvailablePlayersPanelProps {
 	availablePlayers: Player[];
 	isLineupLocked: boolean;
+	showAvailableOnly: boolean;
+	canFilterByAvailability: boolean;
 	openMenuPlayerId?: string;
 	hoveredSwapTargetPlayerId?: string | null;
 	getPlayerAvailabilityStatus?: (
@@ -25,16 +27,20 @@ interface AvailablePlayersPanelProps {
 		playerId: string,
 		event: MouseEvent<HTMLButtonElement>
 	) => void;
+	onShowAvailableOnlyChange: (value: boolean) => void;
 }
 
 export function AvailablePlayersPanel({
 	availablePlayers,
 	isLineupLocked,
+	showAvailableOnly,
+	canFilterByAvailability,
 	openMenuPlayerId,
 	hoveredSwapTargetPlayerId = null,
 	getPlayerAvailabilityStatus,
 	getPlayerTrainingAvailability,
 	onOpenPlayerMenu,
+	onShowAvailableOnlyChange,
 }: AvailablePlayersPanelProps) {
 	return (
 		<div className="flex max-h-[360px] min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:h-[520px] xl:max-h-none">
@@ -51,6 +57,28 @@ export function AvailablePlayersPanel({
 
 				<StatusBadge label={String(availablePlayers.length)} tone="neutral" />
 			</div>
+
+			<label className={`mb-3 flex shrink-0 items-start gap-2 rounded-xl border px-3 py-2 text-xs font-semibold ${
+				canFilterByAvailability
+					? "border-yepset-100 bg-yepset-50 text-yepset-900"
+					: "border-slate-200 bg-slate-50 text-slate-400"
+			}`}>
+				<input
+					type="checkbox"
+					checked={showAvailableOnly}
+					disabled={!canFilterByAvailability || isLineupLocked}
+					onChange={(event) => onShowAvailableOnlyChange(event.target.checked)}
+					className="mt-0.5 h-4 w-4 rounded border-slate-300"
+				/>
+				<span>
+					Show available only
+					<span className="block font-medium">
+						{canFilterByAvailability
+							? "Uses linked match event responses."
+							: "Link this match to an event to filter by responses."}
+					</span>
+				</span>
+			</label>
 
 			{isLineupLocked && (
 				<p className="mb-3 shrink-0 rounded-lg bg-blue-50 px-3 py-2 text-xs font-medium text-blue-800">
@@ -76,7 +104,7 @@ export function AvailablePlayersPanel({
 
 					{availablePlayers.length === 0 && (
 						<p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500">
-							All active players are already selected.
+							No available players match the current filters.
 						</p>
 					)}
 				</div>
