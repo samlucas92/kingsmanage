@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { DndContext, DragOverlay } from "@dnd-kit/core";
+import {
+	DndContext,
+	DragOverlay,
+	PointerSensor,
+	useSensor,
+	useSensors,
+} from "@dnd-kit/core";
 import { DragOverlayPlayer } from "./team-picker/PlayerCards";
 import { FloatingPlayerAssignMenu } from "./team-picker/FloatingPlayerAssignMenu";
 import { TeamPitch } from "./team-picker/TeamPitch";
@@ -45,6 +51,13 @@ export default function TeamPicker({
 }: TeamPickerProps) {
 	const teamPicker = useTeamPicker(matchId);
 	const isDesktopTeamPicker = useMediaQuery("(min-width: 1280px)");
+	const sensors = useSensors(
+		useSensor(PointerSensor, {
+			activationConstraint: {
+				distance: 6,
+			},
+		})
+	);
 
 	const [mobilePlayerSelectorMode, setMobilePlayerSelectorMode] =
 		useState<MobilePlayerSelectorMode | null>(null);
@@ -216,6 +229,7 @@ export default function TeamPicker({
 
 	return (
 		<DndContext
+			sensors={sensors}
 			onDragStart={teamPicker.handleDragStart}
 			onDragMove={teamPicker.handleDragMove}
 			onDragEnd={teamPicker.handleDragEnd}
@@ -585,7 +599,7 @@ function MobilePlayerSelector({
 	});
 
 	return (
-		<div className="fixed inset-0 z-50 xl:hidden">
+		<div className="fixed inset-0 z-50">
 			<button
 				type="button"
 				className="absolute inset-0 bg-black/40"
@@ -593,7 +607,7 @@ function MobilePlayerSelector({
 				aria-label="Close player selector"
 			/>
 
-			<div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-hidden rounded-t-2xl bg-white shadow-2xl">
+			<div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-hidden rounded-t-2xl bg-white shadow-2xl xl:bottom-auto xl:left-1/2 xl:right-auto xl:top-1/2 xl:w-full xl:max-w-xl xl:-translate-x-1/2 xl:-translate-y-1/2 xl:rounded-2xl">
 				<div className="border-b border-slate-200 p-4">
 					<div className="flex items-start justify-between gap-3">
 						<div>
