@@ -19,6 +19,9 @@ export const formsApi = {
 	createForm: (request: SaveClubFormRequest) =>
 		apiClient.post<ClubForm>("/forms", request),
 
+	createMatchAwardsForm: (matchId: string) =>
+		apiClient.post<ClubForm>("/forms/match-awards", { matchId }),
+
 	updateForm: (id: string, request: SaveClubFormRequest) =>
 		apiClient.put<ClubForm>(`/forms/${encodeURIComponent(id)}`, request),
 

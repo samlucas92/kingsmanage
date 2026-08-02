@@ -17,6 +17,7 @@ import { usePlayerStore } from "../../stores/players";
 import { getClubTeamLabel, useClubTeamStore } from "../../stores/clubTeams";
 import { usePostStore } from "../../stores/posts";
 import ConfirmationModal from "../../components/compositions/ConfirmationModal";
+import { formsApi } from "../../services/formsApi";
 
 export default function MatchDetail() {
 	const { id } = useParams();
@@ -26,6 +27,9 @@ export default function MatchDetail() {
 	const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [deleteError, setDeleteError] = useState("");
+	const [isCreatingAwardsForm, setIsCreatingAwardsForm] = useState(false);
+	const [awardsFormMessage, setAwardsFormMessage] = useState("");
+	const [awardsFormError, setAwardsFormError] = useState("");
 	const players = usePlayerStore((state) => state.players);
 	const teamProfiles = useClubTeamStore((state) => state.profiles);
 	const loadTeamProfiles = useClubTeamStore((state) => state.loadProfiles);
@@ -69,6 +73,32 @@ export default function MatchDetail() {
 
 	const currentMatch = matchDetail.match;
 
+	async function handleCreateAwardsForm() {
+		setIsCreatingAwardsForm(true);
+		setAwardsFormError("");
+		setAwardsFormMessage("");
+
+		try {
+			const form = await formsApi.createMatchAwardsForm(currentMatch.id);
+			const shareUrl = `${window.location.origin}/go/${form.goCode}`;
+
+			try {
+				await navigator.clipboard.writeText(shareUrl);
+				setAwardsFormMessage("Awards form created and share link copied.");
+			} catch {
+				setAwardsFormMessage(`Awards form created: ${shareUrl}`);
+			}
+		} catch (error) {
+			setAwardsFormError(
+				error instanceof Error
+					? error.message
+					: "Could not create awards form."
+			);
+		} finally {
+			setIsCreatingAwardsForm(false);
+		}
+	}
+
 	return (
 		<div className="space-y-3 lg:space-y-6">
 			<div className="hidden items-center justify-between gap-3 lg:flex">
@@ -85,6 +115,18 @@ export default function MatchDetail() {
 			{deleteError && (
 				<div className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700">
 					{deleteError}
+				</div>
+			)}
+
+			{awardsFormMessage && (
+				<div className="rounded-xl bg-green-50 p-3 text-sm font-semibold text-green-800">
+					{awardsFormMessage}
+				</div>
+			)}
+
+			{awardsFormError && (
+				<div className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700">
+					{awardsFormError}
 				</div>
 			)}
 
@@ -134,6 +176,8 @@ export default function MatchDetail() {
 				}
 				onSaveTeamClick={matchDetail.handleSaveTeamClick}
 				onGeneratePostClick={() => setShowGeneratePost(true)}
+				onCreateAwardsFormClick={handleCreateAwardsForm}
+				isCreatingAwardsForm={isCreatingAwardsForm}
 			/>
 
 			<MatchStatsCard
