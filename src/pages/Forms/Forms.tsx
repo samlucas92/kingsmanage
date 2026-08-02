@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import ActionMenu from "../../components/compositions/ActionMenu";
@@ -994,6 +994,7 @@ function ChoiceOptionEditor({
 	const playerLoadError = usePlayerStore((state) => state.playerLoadError);
 	const loadPlayers = usePlayerStore((state) => state.loadPlayers);
 	const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
+	const [draftOption, setDraftOption] = useState("");
 
 	useEffect(() => {
 		if (isPlayerModalOpen) {
@@ -1006,6 +1007,47 @@ function ChoiceOptionEditor({
 			...question,
 			options: mergeQuestionOptionLabels(values, question.choiceOptions ?? []),
 		});
+	}
+
+	function addManualOptions(values: string[]) {
+		const nextManualOptions = mergeManualOptionLabels([...manualOptions, ...values], question.choiceOptions ?? []);
+		updateManualOptions(nextManualOptions);
+		setDraftOption("");
+	}
+
+	function removeManualOption(value: string) {
+		updateManualOptions(manualOptions.filter((option) => option.toLowerCase() !== value.toLowerCase()));
+	}
+
+	function commitDraftOption() {
+		if (!draftOption.trim()) {
+			setDraftOption("");
+			return;
+		}
+
+		addManualOptions(splitOptionInput(draftOption));
+	}
+
+	function handleDraftKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+		if (event.key === "Enter" || event.key === ",") {
+			event.preventDefault();
+			commitDraftOption();
+		}
+
+		if (event.key === "Backspace" && !draftOption && manualOptions.length > 0) {
+			removeManualOption(manualOptions[manualOptions.length - 1]);
+		}
+	}
+
+	function handleOptionPaste(event: ClipboardEvent<HTMLInputElement>) {
+		const pastedText = event.clipboardData.getData("text");
+		const pastedOptions = splitOptionInput(pastedText);
+		if (pastedOptions.length <= 1) {
+			return;
+		}
+
+		event.preventDefault();
+		addManualOptions(pastedOptions);
 	}
 
 	function addPlayers(selectedPlayers: Player[]) {
@@ -1047,9 +1089,9 @@ function ChoiceOptionEditor({
 			<div className="rounded-2xl border border-yepset-100 bg-white p-4">
 				<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 					<div>
-						<p className="text-sm font-black text-slate-900">Player options</p>
+						<p className="text-sm font-black text-slate-900">Options</p>
 						<p className="text-xs font-bold text-slate-500">
-							Player chips submit player IDs. You can add one, many, or all players.
+							Add typed values, player-backed values, or a mix of both.
 						</p>
 					</div>
 					<button
@@ -1060,37 +1102,47 @@ function ChoiceOptionEditor({
 						Add players
 					</button>
 				</div>
-				{playerOptions.length > 0 ? (
-					<div className="mt-3 flex max-h-44 flex-wrap gap-2 overflow-y-auto">
+				<label className="mt-3 block text-sm font-bold text-slate-700">
+					Option values
+					<div className="mt-1 flex min-h-28 flex-wrap items-start gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 focus-within:border-yepset-500 focus-within:ring-2 focus-within:ring-yepset-100">
 						{playerOptions.map((option) => (
-							<span key={option.value} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-700">
+							<span key={option.value} className="inline-flex items-center gap-2 rounded-full border border-yepset-200 bg-yepset-50 px-3 py-1 text-xs font-black text-yepset-800">
 								{option.label}
 								<button
 									type="button"
 									onClick={() => removeChoiceOption(option.value)}
-									className="text-slate-400 hover:text-red-600"
+									className="text-yepset-500 hover:text-red-600"
 									aria-label={`Remove ${option.label}`}
 								>
 									×
 								</button>
 							</span>
 						))}
+						{manualOptions.map((option) => (
+							<span key={option} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-700">
+								{option}
+								<button
+									type="button"
+									onClick={() => removeManualOption(option)}
+									className="text-slate-400 hover:text-red-600"
+									aria-label={`Remove ${option}`}
+								>
+									×
+								</button>
+							</span>
+						))}
+						<input
+							value={draftOption}
+							onBlur={commitDraftOption}
+							onChange={(event) => setDraftOption(event.target.value)}
+							onKeyDown={handleDraftKeyDown}
+							onPaste={handleOptionPaste}
+							placeholder={playerOptions.length || manualOptions.length ? "Add another option..." : "Type an option and press Enter..."}
+							className="min-w-48 flex-1 border-0 bg-transparent px-1 py-1 text-sm font-bold text-slate-800 outline-none placeholder:text-slate-400"
+						/>
 					</div>
-				) : (
-					<p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm font-bold text-slate-500">
-						No players added to this question yet.
-					</p>
-				)}
+				</label>
 			</div>
-			<label className="block text-sm font-bold text-slate-700">
-				Text options, one per line
-				<textarea
-					value={manualOptions.join("\n")}
-					onChange={(event) => updateManualOptions(event.target.value.split("\n"))}
-					className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2"
-					rows={4}
-				/>
-			</label>
 			<PlayerOptionsModal
 				isLoading={isLoadingPlayers && !hasLoadedPlayers}
 				error={playerLoadError}
@@ -1380,6 +1432,33 @@ function mergeQuestionOptionLabels(
 		.filter((option, index, allOptions) =>
 			allOptions.findIndex((item) => item.toLowerCase() === option.toLowerCase()) === index
 		);
+}
+
+function mergeManualOptionLabels(
+	manualOptions: string[],
+	choiceOptions: ClubFormQuestionOption[]
+) {
+	const choiceOptionLabels = new Set(
+		choiceOptions.flatMap((option) => [
+			option.value.toLowerCase(),
+			option.label.toLowerCase(),
+		])
+	);
+
+	return manualOptions
+		.map((option) => option.trim())
+		.filter(Boolean)
+		.filter((option) => !choiceOptionLabels.has(option.toLowerCase()))
+		.filter((option, index, allOptions) =>
+			allOptions.findIndex((item) => item.toLowerCase() === option.toLowerCase()) === index
+		);
+}
+
+function splitOptionInput(value: string) {
+	return value
+		.split(/[\n,]+/)
+		.map((option) => option.trim())
+		.filter(Boolean);
 }
 
 function getAnonymousSubmissionKey() {
