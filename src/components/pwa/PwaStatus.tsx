@@ -9,6 +9,7 @@ type InstallPromptEvent = Event & {
 };
 
 const INSTALL_DISMISSED_KEY = "yepset.installPromptDismissed";
+const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1"]);
 
 export default function PwaStatus() {
 	const [isOnline, setIsOnline] = useState(() => navigator.onLine);
@@ -20,6 +21,8 @@ export default function PwaStatus() {
 	const currentUser = useAuthStore((state) => state.currentUser);
 	const isStandalone = window.matchMedia("(display-mode: standalone)").matches
 		|| ("standalone" in navigator && Boolean((navigator as Navigator & { standalone?: boolean }).standalone));
+	const isLocalBrowser = LOCAL_HOSTNAMES.has(window.location.hostname) && !isStandalone;
+	const shouldRegisterPwa = !isLocalBrowser;
 	const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
 
 	const {
@@ -27,12 +30,41 @@ export default function PwaStatus() {
 		needRefresh: [needRefresh, setNeedRefresh],
 		updateServiceWorker,
 	} = useRegisterSW({
+		immediate: shouldRegisterPwa,
 		onRegisteredSW(_serviceWorkerUrl, registration) {
 			if (!registration) return;
 			const updateTimer = window.setInterval(() => void registration.update(), 60 * 60 * 1000);
 			return () => window.clearInterval(updateTimer);
 		},
 	});
+
+	useEffect(() => {
+		if (shouldRegisterPwa) return;
+
+		async function clearLocalPwaCache() {
+			if ("serviceWorker" in navigator) {
+				const registrations = await navigator.serviceWorker.getRegistrations();
+				await Promise.all(registrations.map((registration) => registration.unregister()));
+			}
+
+			if ("caches" in window) {
+				const cacheNames = await caches.keys();
+				await Promise.all(
+					cacheNames
+						.filter((cacheName) => cacheName.startsWith("yepset-") || cacheName.startsWith("workbox-"))
+						.map((cacheName) => caches.delete(cacheName))
+				);
+			}
+		}
+
+		void clearLocalPwaCache();
+	}, [shouldRegisterPwa]);
+
+	useEffect(() => {
+		if (!needRefresh || isStandalone) return;
+
+		void updateServiceWorker(true);
+	}, [isStandalone, needRefresh, updateServiceWorker]);
 
 	useEffect(() => {
 		function updateOnlineStatus() {
@@ -72,7 +104,7 @@ export default function PwaStatus() {
 		setIsInstallHelpOpen(false);
 	}
 
-	const canOfferInstall = !isStandalone && !isInstallDismissed && (Boolean(installPrompt) || isIos);
+	const canOfferInstall = shouldRegisterPwa && !isStandalone && !isInstallDismissed && (Boolean(installPrompt) || isIos);
 
 	if (!isOnline) {
 		if (!currentUser) {
