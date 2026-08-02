@@ -4,9 +4,11 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import ActionMenu from "../../components/compositions/ActionMenu";
 import ConfirmationModal from "../../components/compositions/ConfirmationModal";
 import DataTable from "../../components/compositions/DataTable";
+import Modal from "../../components/compositions/Modal";
 import { formsApi } from "../../services/formsApi";
 import { useAuthStore } from "../../stores/auth";
 import { useMatchStore } from "../../stores/match";
+import { usePlayerStore, type Player } from "../../stores/players";
 import type {
 	ClubForm,
 	ClubFormAnswer,
@@ -920,8 +922,8 @@ function QuestionEditor({
 }) {
 	const isChoice = question.type === "SingleChoice" || question.type === "MultipleChoice";
 	const choiceOptions = getQuestionChoiceOptions(question);
-	const hasPlayerOptions = choiceOptions.some((option) => option.playerId);
-	const isPlayerBacked = isChoice && (question.optionSource !== undefined && question.optionSource !== "Manual" || hasPlayerOptions);
+	const playerOptions = choiceOptions.filter((option) => option.playerId);
+	const manualOptions = getManualQuestionOptions(question);
 
 	return (
 		<section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -945,35 +947,13 @@ function QuestionEditor({
 					Required
 				</label>
 			</div>
-			{isPlayerBacked && (
-				<div className="mt-3 rounded-2xl border border-yepset-100 bg-white p-4">
-					<div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-						<div>
-							<p className="text-sm font-black text-slate-900">
-								{formatOptionSource(question.optionSource, hasPlayerOptions)}
-							</p>
-							<p className="text-xs font-bold text-slate-500">
-								These options are player-backed and submit player IDs, so they cannot be edited as plain text here.
-							</p>
-						</div>
-						<span className="rounded-full bg-yepset-50 px-3 py-1 text-xs font-black text-yepset-700">
-							{choiceOptions.length} options
-						</span>
-					</div>
-					<div className="mt-3 flex max-h-44 flex-wrap gap-2 overflow-y-auto">
-						{choiceOptions.map((option) => (
-							<span key={option.value} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-700">
-								{option.label}
-							</span>
-						))}
-					</div>
-				</div>
-			)}
-			{isChoice && !isPlayerBacked && (
-				<label className="mt-3 block text-sm font-bold text-slate-700">
-					Options, one per line
-					<textarea value={question.options.join("\n")} onChange={(event) => onChange({ ...question, optionSource: "Manual", options: event.target.value.split("\n"), choiceOptions: [] })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2" rows={4} />
-				</label>
+			{isChoice && (
+				<ChoiceOptionEditor
+					manualOptions={manualOptions}
+					onChange={onChange}
+					playerOptions={playerOptions}
+					question={question}
+				/>
 			)}
 			{question.type === "Rating" && (
 				<div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -982,6 +962,229 @@ function QuestionEditor({
 				</div>
 			)}
 		</section>
+	);
+}
+
+function ChoiceOptionEditor({
+	question,
+	playerOptions,
+	manualOptions,
+	onChange,
+}: {
+	question: ClubFormQuestion;
+	playerOptions: ClubFormQuestionOption[];
+	manualOptions: string[];
+	onChange: (question: ClubFormQuestion) => void;
+}) {
+	const players = usePlayerStore((state) => state.players);
+	const hasLoadedPlayers = usePlayerStore((state) => state.hasLoadedPlayers);
+	const isLoadingPlayers = usePlayerStore((state) => state.isLoadingPlayers);
+	const playerLoadError = usePlayerStore((state) => state.playerLoadError);
+	const loadPlayers = usePlayerStore((state) => state.loadPlayers);
+	const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
+
+	useEffect(() => {
+		if (isPlayerModalOpen) {
+			void loadPlayers();
+		}
+	}, [isPlayerModalOpen, loadPlayers]);
+
+	function updateManualOptions(values: string[]) {
+		onChange({
+			...question,
+			options: mergeQuestionOptionLabels(values, question.choiceOptions ?? []),
+		});
+	}
+
+	function addPlayers(selectedPlayers: Player[]) {
+		const existingValues = new Set((question.choiceOptions ?? []).map((option) => option.value.toLowerCase()));
+		const playerChoiceOptions = selectedPlayers
+			.filter((player) => !existingValues.has(player.id.toLowerCase()))
+			.map((player) => ({
+				value: player.id,
+				label: player.name,
+				playerId: player.id,
+			}));
+
+		if (playerChoiceOptions.length === 0) {
+			return;
+		}
+
+		const choiceOptions = [...(question.choiceOptions ?? []), ...playerChoiceOptions];
+		onChange({
+			...question,
+			optionSource: "MatchPlayers",
+			choiceOptions,
+			options: mergeQuestionOptionLabels(manualOptions, choiceOptions),
+		});
+	}
+
+	function removeChoiceOption(value: string) {
+		const choiceOptions = (question.choiceOptions ?? []).filter((option) => option.value !== value);
+		const hasPlayers = choiceOptions.some((option) => option.playerId);
+		onChange({
+			...question,
+			optionSource: hasPlayers ? question.optionSource ?? "MatchPlayers" : "Manual",
+			choiceOptions,
+			options: mergeQuestionOptionLabels(manualOptions, choiceOptions),
+		});
+	}
+
+	return (
+		<div className="mt-3 space-y-3">
+			<div className="rounded-2xl border border-yepset-100 bg-white p-4">
+				<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+					<div>
+						<p className="text-sm font-black text-slate-900">Player options</p>
+						<p className="text-xs font-bold text-slate-500">
+							Player chips submit player IDs. You can add one, many, or all players.
+						</p>
+					</div>
+					<button
+						type="button"
+						onClick={() => setIsPlayerModalOpen(true)}
+						className="rounded-xl border border-yepset-200 px-3 py-2 text-sm font-black text-yepset-800 hover:bg-yepset-50"
+					>
+						Add players
+					</button>
+				</div>
+				{playerOptions.length > 0 ? (
+					<div className="mt-3 flex max-h-44 flex-wrap gap-2 overflow-y-auto">
+						{playerOptions.map((option) => (
+							<span key={option.value} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-700">
+								{option.label}
+								<button
+									type="button"
+									onClick={() => removeChoiceOption(option.value)}
+									className="text-slate-400 hover:text-red-600"
+									aria-label={`Remove ${option.label}`}
+								>
+									×
+								</button>
+							</span>
+						))}
+					</div>
+				) : (
+					<p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm font-bold text-slate-500">
+						No players added to this question yet.
+					</p>
+				)}
+			</div>
+			<label className="block text-sm font-bold text-slate-700">
+				Text options, one per line
+				<textarea
+					value={manualOptions.join("\n")}
+					onChange={(event) => updateManualOptions(event.target.value.split("\n"))}
+					className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2"
+					rows={4}
+				/>
+			</label>
+			<PlayerOptionsModal
+				isLoading={isLoadingPlayers && !hasLoadedPlayers}
+				error={playerLoadError}
+				isOpen={isPlayerModalOpen}
+				onClose={() => setIsPlayerModalOpen(false)}
+				onConfirm={(selectedPlayers) => {
+					addPlayers(selectedPlayers);
+					setIsPlayerModalOpen(false);
+				}}
+				players={players}
+				selectedPlayerIds={new Set(playerOptions.map((option) => option.playerId).filter(Boolean) as string[])}
+			/>
+		</div>
+	);
+}
+
+function PlayerOptionsModal({
+	isOpen,
+	players,
+	selectedPlayerIds,
+	isLoading,
+	error,
+	onClose,
+	onConfirm,
+}: {
+	isOpen: boolean;
+	players: Player[];
+	selectedPlayerIds: Set<string>;
+	isLoading: boolean;
+	error: string;
+	onClose: () => void;
+	onConfirm: (players: Player[]) => void;
+}) {
+	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+	const availablePlayers = players
+		.filter((player) => player.isActive && !selectedPlayerIds.has(player.id))
+		.sort((firstPlayer, secondPlayer) => firstPlayer.name.localeCompare(secondPlayer.name));
+
+	useEffect(() => {
+		if (isOpen) {
+			setSelectedIds(new Set());
+		}
+	}, [isOpen]);
+
+	function togglePlayer(playerId: string) {
+		setSelectedIds((current) => {
+			const next = new Set(current);
+			if (next.has(playerId)) {
+				next.delete(playerId);
+			} else {
+				next.add(playerId);
+			}
+			return next;
+		});
+	}
+
+	return (
+		<Modal
+			title="Add player options"
+			message="Select one, many, or all players to add as ID-backed form options."
+			isOpen={isOpen}
+			onClose={onClose}
+			onConfirm={() => onConfirm(availablePlayers.filter((player) => selectedIds.has(player.id)))}
+			confirmText={`Add ${selectedIds.size || ""} player${selectedIds.size === 1 ? "" : "s"}`.trim()}
+		>
+			<div className="space-y-3">
+				{error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error}</p>}
+				{isLoading ? (
+					<p className="rounded-xl bg-slate-50 px-3 py-2 text-sm font-bold text-slate-500">Loading players...</p>
+				) : (
+					<>
+						<div className="flex flex-wrap gap-2">
+							<button
+								type="button"
+								onClick={() => setSelectedIds(new Set(availablePlayers.map((player) => player.id)))}
+								className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-50"
+							>
+								Select all
+							</button>
+							<button
+								type="button"
+								onClick={() => setSelectedIds(new Set())}
+								className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-50"
+							>
+								Clear
+							</button>
+						</div>
+						<div className="max-h-72 space-y-2 overflow-y-auto rounded-2xl border border-slate-200 p-2">
+							{availablePlayers.map((player) => (
+								<label key={player.id} className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
+									<input
+										type="checkbox"
+										checked={selectedIds.has(player.id)}
+										onChange={() => togglePlayer(player.id)}
+									/>
+									<span>{player.name}</span>
+								</label>
+							))}
+							{availablePlayers.length === 0 && (
+								<p className="px-3 py-2 text-sm font-bold text-slate-500">No more active players to add.</p>
+							)}
+						</div>
+					</>
+				)}
+			</div>
+		</Modal>
 	);
 }
 
@@ -1121,29 +1324,50 @@ function getTopAnswer(question: ClubFormQuestionResult) {
 }
 
 function getQuestionChoiceOptions(question: ClubFormQuestion): ClubFormQuestionOption[] {
-	if (question.choiceOptions?.length) {
-		return question.choiceOptions
-			.map((option) => ({
-				...option,
-				value: option.value || option.label,
-				label: option.label || option.value,
-			}))
-			.filter((option) => option.value && option.label);
-	}
+	const choiceOptions = (question.choiceOptions ?? [])
+		.map((option) => ({
+			...option,
+			value: option.value || option.label,
+			label: option.label || option.value,
+		}))
+		.filter((option) => option.value && option.label);
+	const existingValues = new Set(choiceOptions.flatMap((option) => [option.value.toLowerCase(), option.label.toLowerCase()]));
+	const manualOptions = question.options
+		.filter((option) => !existingValues.has(option.toLowerCase()))
+		.map((option) => ({
+			value: option,
+			label: option,
+		}));
 
-	return question.options.map((option) => ({
-		value: option,
-		label: option,
-	}));
+	return [...choiceOptions, ...manualOptions];
 }
 
-function formatOptionSource(
-	optionSource: ClubFormQuestion["optionSource"],
-	hasPlayerOptions: boolean
+function getManualQuestionOptions(question: ClubFormQuestion): string[] {
+	const choiceOptionLabels = new Set(
+		(question.choiceOptions ?? []).flatMap((option) => [
+			option.value.toLowerCase(),
+			option.label.toLowerCase(),
+		])
+	);
+
+	return question.options.filter((option) => !choiceOptionLabels.has(option.toLowerCase()));
+}
+
+function mergeQuestionOptionLabels(
+	manualOptions: string[],
+	choiceOptions: ClubFormQuestionOption[]
 ) {
-	if (optionSource === "AllPlayers") return "All players";
-	if (optionSource === "MatchPlayers") return "Match players";
-	return hasPlayerOptions ? "Player options" : "Manual options";
+	const labels = [
+		...choiceOptions.map((option) => option.label || option.value),
+		...manualOptions,
+	];
+
+	return labels
+		.map((option) => option.trim())
+		.filter(Boolean)
+		.filter((option, index, allOptions) =>
+			allOptions.findIndex((item) => item.toLowerCase() === option.toLowerCase()) === index
+		);
 }
 
 function getAnonymousSubmissionKey() {
