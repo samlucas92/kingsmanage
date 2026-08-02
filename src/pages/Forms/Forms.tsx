@@ -519,10 +519,6 @@ function FormsList({
 
 								<dl className="grid gap-2 text-sm">
 									<div>
-										<dt className="text-xs font-black uppercase tracking-wide text-slate-400">Created by</dt>
-										<dd className="mt-0.5 break-words font-semibold text-slate-700">{form.createdByUserEmail || "Unknown"}</dd>
-									</div>
-									<div>
 										<dt className="text-xs font-black uppercase tracking-wide text-slate-400">Date created</dt>
 										<dd className="mt-0.5 font-semibold text-slate-700">{formatDisplayDateTime(form.createdAt)}</dd>
 									</div>
@@ -539,12 +535,11 @@ function FormsList({
 					>
 						<thead className="bg-slate-50 text-left text-xs font-black uppercase tracking-wide text-slate-500">
 							<tr>
-								<th className="w-[24%] px-4 py-3">Name</th>
-								<th className="w-[22%] px-4 py-3">Created by</th>
-								<th className="w-[18%] px-4 py-3">Match</th>
-								<th className="w-[10%] px-4 py-3">State</th>
-								<th className="w-[16%] px-4 py-3">Date created</th>
-								<th className="w-[10%] px-4 py-3 text-right">Actions</th>
+								<th className="w-[34%] px-4 py-3">Name</th>
+								<th className="w-[24%] px-4 py-3">Match</th>
+								<th className="w-[8%] px-4 py-3">State</th>
+								<th className="w-[22%] px-4 py-3">Date created</th>
+								<th className="w-[12%] px-4 py-3 text-right">Actions</th>
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-slate-100">
@@ -555,7 +550,6 @@ function FormsList({
 											{form.title}
 										</button>
 									</td>
-									<td className="truncate px-4 py-3 text-slate-600">{form.createdByUserEmail || "Unknown"}</td>
 									<td className="truncate px-4 py-3 text-slate-600">{form.sourceMatchLabel || "—"}</td>
 									<td className="px-4 py-3"><StatusPill status={form.status} /></td>
 									<td className="truncate px-4 py-3 text-slate-600">{formatDisplayDateTime(form.createdAt)}</td>
