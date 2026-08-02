@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
+import ConfirmationModal from "../../components/compositions/ConfirmationModal";
+import DataTable from "../../components/compositions/DataTable";
 import { formsApi } from "../../services/formsApi";
 import { useAuthStore } from "../../stores/auth";
 import type {
 	ClubForm,
 	ClubFormAnswer,
 	ClubFormQuestion,
+	ClubFormQuestionResult,
 	ClubFormQuestionType,
 	ClubFormResults,
 	ClubFormStatus,
@@ -23,25 +26,33 @@ const questionTypes: ClubFormQuestionType[] = [
 	"YesNo",
 ];
 
+const pageSize = 10;
 const anonymousSubmissionStorageKey = "yepset.forms.anonymousSubmissionKey";
 
 export default function Forms() {
-	const { goCode } = useParams<{ goCode: string }>();
+	const { formId, goCode } = useParams<{ formId: string; goCode: string }>();
+	const location = useLocation();
+	const navigate = useNavigate();
 	const currentUser = useAuthStore((state) => state.currentUser);
 	const isPublicForm = Boolean(goCode);
+	const isEditorMode = location.pathname.endsWith("/edit");
+	const isReportMode = location.pathname.endsWith("/report");
 	const canManageForms = !isPublicForm && (currentUser?.role === "Admin" || currentUser?.role === "Coach");
 
 	const [forms, setForms] = useState<ClubForm[]>([]);
-	const [selectedFormId, setSelectedFormId] = useState("");
-	const [selectedForm, setSelectedForm] = useState<ClubForm | null>(null);
+	const [form, setForm] = useState<ClubForm | null>(null);
 	const [results, setResults] = useState<ClubFormResults | null>(null);
 	const [answers, setAnswers] = useState<Record<string, DraftAnswer>>({});
 	const [editingForm, setEditingForm] = useState<SaveClubFormRequest | null>(null);
-	const [editingFormId, setEditingFormId] = useState<string | null>(null);
+	const [page, setPage] = useState(1);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isSaving, setIsSaving] = useState(false);
 	const [error, setError] = useState("");
-	const [submitMessage, setSubmitMessage] = useState("");
+	const [message, setMessage] = useState("");
+	const [deleteTarget, setDeleteTarget] = useState<ClubForm | null>(null);
+	const [cleanupMatchAward, setCleanupMatchAward] = useState(false);
+	const [copyModalOpen, setCopyModalOpen] = useState(false);
+	const [selectedCopyQuestions, setSelectedCopyQuestions] = useState<Set<string>>(new Set());
 
 	useEffect(() => {
 		if (goCode) {
@@ -49,48 +60,34 @@ export default function Forms() {
 			return;
 		}
 
+		if (formId) {
+			void loadFormDetail(formId);
+			return;
+		}
+
 		void loadForms();
-	}, [goCode]);
+	}, [formId, goCode, location.pathname]);
 
 	useEffect(() => {
-		if (isPublicForm) {
+		if (!isEditorMode || !form) {
 			return;
 		}
 
-		if (!selectedFormId) {
-			setSelectedForm(null);
-			setResults(null);
+		setEditingForm(toEditableForm(form));
+	}, [form, isEditorMode]);
+
+	useEffect(() => {
+		if (!results) {
 			return;
 		}
 
-		void loadSelectedForm(selectedFormId);
-	}, [selectedFormId]);
-
-	const selectedFormFromList = useMemo(
-		() => forms.find((form) => form.id === selectedFormId) ?? null,
-		[forms, selectedFormId]
-	);
-	const form = selectedForm ?? selectedFormFromList;
+		setSelectedCopyQuestions(new Set(results.questions.map((question) => question.questionId)));
+	}, [results]);
 
 	const canSubmitSelectedForm = form?.status === "Open" &&
 		(!form.hasSubmitted || form.allowMultipleSubmissions);
-
-	async function loadPublicForm(code: string) {
-		setIsLoading(true);
-		setError("");
-		setSubmitMessage("");
-
-		try {
-			const loadedForm = await formsApi.getPublicForm(code, getAnonymousSubmissionKey());
-			setSelectedForm(loadedForm);
-			setAnswers(buildInitialAnswers(loadedForm));
-		} catch (error) {
-			setSelectedForm(null);
-			setError(error instanceof Error ? error.message : "Failed to load form.");
-		} finally {
-			setIsLoading(false);
-		}
-	}
+	const totalPages = Math.max(1, Math.ceil(forms.length / pageSize));
+	const pageForms = forms.slice((page - 1) * pageSize, page * pageSize);
 
 	async function loadForms() {
 		setIsLoading(true);
@@ -99,11 +96,7 @@ export default function Forms() {
 		try {
 			const loadedForms = await formsApi.getForms();
 			setForms(loadedForms);
-			setSelectedFormId((current) =>
-				current && loadedForms.some((form) => form.id === current)
-					? current
-					: loadedForms[0]?.id ?? ""
-			);
+			setPage((current) => Math.min(current, Math.max(1, Math.ceil(loadedForms.length / pageSize))));
 		} catch (error) {
 			setError(error instanceof Error ? error.message : "Failed to load forms.");
 		} finally {
@@ -111,49 +104,58 @@ export default function Forms() {
 		}
 	}
 
-	async function loadSelectedForm(formId: string) {
+	async function loadFormDetail(id: string) {
+		setIsLoading(true);
 		setError("");
-		setSubmitMessage("");
+		setMessage("");
 
 		try {
-			const loadedForm = await formsApi.getForm(formId);
-			setSelectedForm(loadedForm);
+			const loadedForm = await formsApi.getForm(id);
+			setForm(loadedForm);
 			setAnswers(buildInitialAnswers(loadedForm));
-			if (canManageForms) {
-				setResults(await formsApi.getResults(formId));
+			if (canManageForms && (isReportMode || isEditorMode)) {
+				setResults(await formsApi.getResults(id));
 			}
 		} catch (error) {
 			setError(error instanceof Error ? error.message : "Failed to load form.");
+		} finally {
+			setIsLoading(false);
+		}
+	}
+
+	async function loadPublicForm(code: string) {
+		setIsLoading(true);
+		setError("");
+		setMessage("");
+
+		try {
+			const loadedForm = await formsApi.getPublicForm(code, getAnonymousSubmissionKey());
+			setForm(loadedForm);
+			setAnswers(buildInitialAnswers(loadedForm));
+		} catch (error) {
+			setForm(null);
+			setError(error instanceof Error ? error.message : "Failed to load form.");
+		} finally {
+			setIsLoading(false);
 		}
 	}
 
 	function openCreateForm() {
-		setEditingFormId(null);
+		setForm(null);
 		setEditingForm({
 			title: "",
 			description: "",
 			status: "Draft",
+			sourceType: "General",
+			sourceMatchId: null,
 			allowAnonymousResponses: true,
 			allowMultipleSubmissions: false,
 			questions: [createQuestion()],
 		});
 	}
 
-	function openEditForm(formToEdit: ClubForm) {
-		setEditingFormId(formToEdit.id);
-		setEditingForm({
-			title: formToEdit.title,
-			description: formToEdit.description,
-			status: formToEdit.status,
-			allowAnonymousResponses: formToEdit.allowAnonymousResponses,
-			allowMultipleSubmissions: formToEdit.allowMultipleSubmissions,
-			questions: formToEdit.questions.length ? formToEdit.questions : [createQuestion()],
-		});
-	}
-
 	async function saveEditingForm(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
-
 		if (!editingForm) return;
 
 		setIsSaving(true);
@@ -161,13 +163,11 @@ export default function Forms() {
 
 		try {
 			const request = normaliseFormRequest(editingForm);
-			const saved = editingFormId
-				? await formsApi.updateForm(editingFormId, request)
+			const saved = formId
+				? await formsApi.updateForm(formId, request)
 				: await formsApi.createForm(request);
 			setEditingForm(null);
-			setEditingFormId(null);
-			await loadForms();
-			setSelectedFormId(saved.id);
+			navigate(`/forms/${saved.id}/report`);
 		} catch (error) {
 			setError(error instanceof Error ? error.message : "Failed to save form.");
 		} finally {
@@ -175,18 +175,45 @@ export default function Forms() {
 		}
 	}
 
-	async function deleteForm(formId: string) {
-		if (!window.confirm("Delete this form and all anonymous submissions?")) {
-			return;
-		}
+	async function updateState(formToUpdate: ClubForm) {
+		const nextStatus: ClubFormStatus = formToUpdate.status === "Closed" ? "Open" : "Closed";
+		setError("");
+		setMessage("");
 
+		try {
+			const updated = await formsApi.updateStatus(formToUpdate.id, nextStatus);
+			setForms((current) => current.map((item) => item.id === updated.id ? updated : item));
+			setForm((current) => current?.id === updated.id ? updated : current);
+			setMessage(nextStatus === "Closed"
+				? "Form closed. If this was a match awards form, Man of the Match has been applied."
+				: "Form reopened.");
+			if (formId) {
+				await loadFormDetail(formId);
+			}
+		} catch (error) {
+			setError(error instanceof Error ? error.message : "Failed to update form state.");
+		}
+	}
+
+	async function confirmDeleteForm() {
+		if (!deleteTarget) return;
+
+		setIsSaving(true);
 		setError("");
 
 		try {
-			await formsApi.deleteForm(formId);
+			await formsApi.deleteFormWithOptions(deleteTarget.id, cleanupMatchAward);
+			setDeleteTarget(null);
+			setCleanupMatchAward(false);
+			if (formId) {
+				navigate("/forms");
+				return;
+			}
 			await loadForms();
 		} catch (error) {
 			setError(error instanceof Error ? error.message : "Failed to delete form.");
+		} finally {
+			setIsSaving(false);
 		}
 	}
 
@@ -195,7 +222,7 @@ export default function Forms() {
 
 		try {
 			await navigator.clipboard.writeText(url);
-			setSubmitMessage("Share link copied to clipboard.");
+			setMessage("Share link copied to clipboard.");
 		} catch {
 			window.prompt("Copy form link", url);
 		}
@@ -203,14 +230,11 @@ export default function Forms() {
 
 	async function submitForm(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
-
-		if (!form || !canSubmitSelectedForm) {
-			return;
-		}
+		if (!form || !canSubmitSelectedForm) return;
 
 		setIsSaving(true);
 		setError("");
-		setSubmitMessage("");
+		setMessage("");
 
 		try {
 			const submitted = isPublicForm && goCode
@@ -219,11 +243,10 @@ export default function Forms() {
 					answers: buildSubmissionAnswers(form, answers),
 				})
 				: await formsApi.submitForm(form.id, {
-				answers: buildSubmissionAnswers(form, answers),
-			});
-			setSelectedForm(submitted);
-			setForms((current) => current.map((item) => item.id === submitted.id ? submitted : item));
-			setSubmitMessage("Thanks — your anonymous response has been submitted.");
+					answers: buildSubmissionAnswers(form, answers),
+				});
+			setForm(submitted);
+			setMessage("Thanks — your response has been submitted.");
 		} catch (error) {
 			setError(error instanceof Error ? error.message : "Failed to submit form.");
 		} finally {
@@ -239,227 +262,22 @@ export default function Forms() {
 		});
 	}
 
-	const content = (
-		<div className="space-y-4 lg:space-y-6">
-			<div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-				<div>
-					<h1 className="text-2xl font-black tracking-[-.03em] text-slate-950">Forms</h1>
-					<p className="mt-1 text-sm text-slate-600">
-						{isPublicForm
-							? "Complete the form below."
-							: "Create club forms with anonymous/public response options."}
-					</p>
-				</div>
+	async function copySelectedResults() {
+		if (!results) return;
+		const selectedResults = results.questions.filter((question) => selectedCopyQuestions.has(question.questionId));
+		const text = [
+			results.title,
+			...selectedResults.map((question) => `${question.prompt}: ${getTopAnswer(question)}`),
+		].join("\n");
 
-				{canManageForms && (
-					<button type="button" onClick={openCreateForm} className="btn-primary">
-						New form
-					</button>
-				)}
-			</div>
-
-			{error && (
-				<div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-					{error}
-				</div>
-			)}
-
-			<div className={isPublicForm ? "grid gap-4" : "grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)]"}>
-				{!isPublicForm && <section className="surface-card p-4">
-					<h2 className="text-sm font-black uppercase tracking-wide text-slate-500">Available forms</h2>
-
-					{isLoading ? (
-						<p className="mt-4 text-sm text-slate-500">Loading forms...</p>
-					) : forms.length === 0 ? (
-						<p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
-							No forms are available yet.
-						</p>
-					) : (
-						<div className="mt-4 space-y-2">
-							{forms.map((formItem) => (
-								<button
-									key={formItem.id}
-									type="button"
-									onClick={() => setSelectedFormId(formItem.id)}
-									className={`w-full rounded-xl border px-3 py-3 text-left transition ${
-										selectedFormId === formItem.id
-											? "border-yepset-500 bg-yepset-50"
-											: "border-slate-200 bg-white hover:bg-slate-50"
-									}`}
-								>
-									<div className="flex items-start justify-between gap-2">
-										<p className="font-black text-slate-950">{formItem.title}</p>
-										<StatusPill status={formItem.status} />
-									</div>
-									<p className="mt-1 text-xs text-slate-500">
-										{formItem.hasSubmitted ? "Submitted" : "Not submitted"}
-										{canManageForms ? ` · ${formItem.submissionCount} responses` : ""}
-									</p>
-								</button>
-							))}
-						</div>
-					)}
-				</section>}
-
-				<section className="surface-card min-w-0 p-4 lg:p-6">
-					{isLoading && isPublicForm ? (
-						<p className="text-sm text-slate-500">Loading form...</p>
-					) : form ? (
-						<div className="space-y-6">
-							<div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-								<div>
-									<div className="flex flex-wrap items-center gap-2">
-										<StatusPill status={form.status} />
-										<span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">
-											{form.allowAnonymousResponses ? "Anonymous allowed" : "Login required"}
-										</span>
-										{form.allowMultipleSubmissions && (
-											<span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">
-												Multiple submissions allowed
-											</span>
-										)}
-									</div>
-									<h2 className="mt-3 text-2xl font-black tracking-[-.03em] text-slate-950">{form.title}</h2>
-									{form.description && <p className="mt-2 text-sm leading-6 text-slate-600">{form.description}</p>}
-									<p className="mt-2 text-xs text-slate-400">Updated {formatDisplayDateTime(form.updatedAt)}</p>
-								</div>
-
-								{canManageForms && (
-									<div className="flex flex-wrap gap-2">
-										<button type="button" onClick={() => shareForm(form)} className="btn-secondary">Share</button>
-										<button type="button" onClick={() => openEditForm(form)} className="btn-secondary">Edit</button>
-										<button type="button" onClick={() => deleteForm(form.id)} className="rounded-xl border border-red-200 px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-50">Delete</button>
-									</div>
-								)}
-							</div>
-
-							{submitMessage && (
-								<div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">
-									{submitMessage}
-								</div>
-							)}
-
-							{form.hasSubmitted && !form.allowMultipleSubmissions ? (
-								<div className="rounded-xl border border-yepset-100 bg-yepset-50 px-4 py-3 text-sm font-semibold text-yepset-900">
-									You have already submitted this form. Your answers are anonymous in the results.
-								</div>
-							) : form.status !== "Open" ? (
-								<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">
-									This form is not open for responses.
-								</div>
-							) : (
-								<form onSubmit={submitForm} className="space-y-4">
-									{form.questions.map((question) => (
-										<FormQuestionInput
-											key={question.id}
-											question={question}
-											value={answers[question.id]}
-											onChange={(value) => setAnswers((current) => ({ ...current, [question.id]: value }))}
-										/>
-									))}
-									<button type="submit" disabled={isSaving} className="btn-primary disabled:cursor-not-allowed disabled:bg-slate-300">
-										Submit anonymous response
-									</button>
-								</form>
-							)}
-
-							{canManageForms && results && (
-								<ResultsPanel results={results} />
-							)}
-						</div>
-					) : (
-						<div className="space-y-3">
-							<p className="text-sm text-slate-500">{isPublicForm ? "This form could not be loaded." : "Select a form to view it."}</p>
-							{isPublicForm && (
-								<Link to="/login" className="btn-primary inline-flex">
-									Sign in
-								</Link>
-							)}
-						</div>
-					)}
-				</section>
-			</div>
-
-			{editingForm && (
-				<div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/50 px-3 py-6">
-					<form onSubmit={saveEditingForm} className="mx-auto w-full max-w-3xl rounded-2xl bg-white shadow-2xl">
-						<div className="border-b border-slate-200 px-5 py-4">
-							<div className="flex items-start justify-between gap-3">
-								<div>
-									<p className="text-xs font-black uppercase tracking-wide text-yepset-700">Anonymous form</p>
-									<h2 className="mt-1 text-xl font-black text-slate-950">{editingFormId ? "Edit form" : "New form"}</h2>
-								</div>
-								<button type="button" onClick={() => setEditingForm(null)} className="btn-secondary">Close</button>
-							</div>
-						</div>
-
-						<div className="space-y-4 px-5 py-5">
-							<label className="block text-sm font-bold text-slate-700">
-								Title
-								<input value={editingForm.title} onChange={(event) => setEditingForm({ ...editingForm, title: event.target.value })} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" required />
-							</label>
-
-							<label className="block text-sm font-bold text-slate-700">
-								Description
-								<textarea value={editingForm.description} onChange={(event) => setEditingForm({ ...editingForm, description: event.target.value })} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" rows={3} />
-							</label>
-
-							<label className="block text-sm font-bold text-slate-700">
-								Status
-								<select value={editingForm.status} onChange={(event) => setEditingForm({ ...editingForm, status: event.target.value as ClubFormStatus })} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">
-									<option value="Draft">Draft</option>
-									<option value="Open">Open</option>
-									<option value="Closed">Closed</option>
-								</select>
-							</label>
-
-							<div className="grid gap-3 sm:grid-cols-2">
-								<label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700">
-									<input type="checkbox" checked={editingForm.allowAnonymousResponses} onChange={(event) => setEditingForm({ ...editingForm, allowAnonymousResponses: event.target.checked })} className="mt-1" />
-									<span>
-										Allow anonymous responses
-										<span className="mt-1 block text-xs font-medium text-slate-500">If off, shared form links require sign in.</span>
-									</span>
-								</label>
-								<label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700">
-									<input type="checkbox" checked={editingForm.allowMultipleSubmissions} onChange={(event) => setEditingForm({ ...editingForm, allowMultipleSubmissions: event.target.checked })} className="mt-1" />
-									<span>
-										Allow multiple submissions
-										<span className="mt-1 block text-xs font-medium text-slate-500">If off, each signed-in user/browser can answer once.</span>
-									</span>
-								</label>
-							</div>
-
-							<div className="space-y-3">
-								<div className="flex items-center justify-between gap-3">
-									<h3 className="text-sm font-black uppercase tracking-wide text-slate-500">Questions</h3>
-									<button type="button" onClick={() => setEditingForm({ ...editingForm, questions: [...editingForm.questions, createQuestion()] })} className="btn-secondary">Add question</button>
-								</div>
-
-								{editingForm.questions.map((question, index) => (
-									<QuestionEditor
-										key={question.id}
-										question={question}
-										index={index}
-										onChange={(updated) => updateEditingQuestion(index, updated)}
-										onRemove={() => setEditingForm({ ...editingForm, questions: editingForm.questions.filter((_, itemIndex) => itemIndex !== index) })}
-										canRemove={editingForm.questions.length > 1}
-									/>
-								))}
-							</div>
-						</div>
-
-						<div className="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
-							<button type="button" onClick={() => setEditingForm(null)} className="btn-secondary">Cancel</button>
-							<button type="submit" disabled={isSaving} className="btn-primary disabled:cursor-not-allowed disabled:bg-slate-300">
-								{isSaving ? "Saving..." : "Save form"}
-							</button>
-						</div>
-					</form>
-				</div>
-			)}
-		</div>
-	);
+		try {
+			await navigator.clipboard.writeText(text);
+			setCopyModalOpen(false);
+			setMessage("Results copied to clipboard.");
+		} catch {
+			window.prompt("Copy results", text);
+		}
+	}
 
 	if (isPublicForm) {
 		return (
@@ -469,13 +287,149 @@ export default function Forms() {
 						<p className="text-xs font-black uppercase tracking-[.25em] text-kick-300">Yepset</p>
 						<h1 className="mt-1 text-xl font-black">Club form</h1>
 					</div>
-					{content}
+					<FormSubmissionView
+						error={error}
+						form={form}
+						isLoading={isLoading}
+						isSaving={isSaving}
+						message={message}
+						answers={answers}
+						canSubmit={Boolean(canSubmitSelectedForm)}
+						onAnswerChange={(questionId, value) => setAnswers((current) => ({ ...current, [questionId]: value }))}
+						onSubmit={submitForm}
+					/>
 				</div>
 			</div>
 		);
 	}
 
-	return content;
+	return (
+		<div className="space-y-4 lg:space-y-6">
+			<div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+				<div>
+					<h1 className="text-2xl font-black tracking-[-.03em] text-slate-950">Forms</h1>
+					<p className="mt-1 text-sm text-slate-600">Manage club forms, match awards and response reports.</p>
+				</div>
+
+				{canManageForms && !formId && (
+					<button type="button" onClick={openCreateForm} className="btn-primary">
+						New form
+					</button>
+				)}
+			</div>
+
+			{error && <Alert tone="error">{error}</Alert>}
+			{message && <Alert tone="success">{message}</Alert>}
+
+			{isEditorMode ? (
+				<FormEditor
+					editingForm={editingForm}
+					isSaving={isSaving}
+					onCancel={() => formId ? navigate(`/forms/${formId}/report`) : setEditingForm(null)}
+					onChange={setEditingForm}
+					onQuestionChange={updateEditingQuestion}
+					onSubmit={saveEditingForm}
+				/>
+			) : isReportMode ? (
+				<FormReportView
+					form={form}
+					results={results}
+					isLoading={isLoading}
+					onBack={() => navigate("/forms")}
+					onCopy={() => setCopyModalOpen(true)}
+					onEdit={() => form && navigate(`/forms/${form.id}/edit`)}
+					onShare={() => form && void shareForm(form)}
+					onToggleState={() => form && void updateState(form)}
+					onDelete={() => form && setDeleteTarget(form)}
+				/>
+			) : editingForm ? (
+				<FormEditor
+					editingForm={editingForm}
+					isSaving={isSaving}
+					onCancel={() => setEditingForm(null)}
+					onChange={setEditingForm}
+					onQuestionChange={updateEditingQuestion}
+					onSubmit={saveEditingForm}
+				/>
+			) : (
+				<FormsList
+					forms={pageForms}
+					isLoading={isLoading}
+					page={page}
+					totalPages={totalPages}
+					onDelete={(form) => setDeleteTarget(form)}
+					onEdit={(form) => navigate(`/forms/${form.id}/edit`)}
+					onPageChange={setPage}
+					onReport={(form) => navigate(`/forms/${form.id}/report`)}
+					onShare={shareForm}
+					onToggleState={updateState}
+				/>
+			)}
+
+			<ConfirmationModal
+				isOpen={Boolean(deleteTarget)}
+				title="Delete form?"
+				message={deleteTarget ? `This deletes “${deleteTarget.title}” and all responses.` : undefined}
+				confirmText="Delete form"
+				variant="danger"
+				isBusy={isSaving}
+				onCancel={() => {
+					setDeleteTarget(null);
+					setCleanupMatchAward(false);
+				}}
+				onConfirm={confirmDeleteForm}
+			>
+				{deleteTarget?.sourceType === "MatchAwards" && (
+					<label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold text-slate-700">
+						<input
+							type="checkbox"
+							checked={cleanupMatchAward}
+							onChange={(event) => setCleanupMatchAward(event.target.checked)}
+							className="mt-1"
+						/>
+						<span>
+							Remove generated Man of the Match from the match stats
+							<span className="mt-1 block text-xs font-medium text-slate-500">
+								Leave unchecked if you have manually corrected or want to keep the match award.
+							</span>
+						</span>
+					</label>
+				)}
+			</ConfirmationModal>
+
+			<ConfirmationModal
+				isOpen={copyModalOpen}
+				title="Copy results"
+				message="Choose which question winners to include."
+				confirmText="Copy results"
+				onCancel={() => setCopyModalOpen(false)}
+				onConfirm={copySelectedResults}
+			>
+				<div className="space-y-2">
+					{results?.questions.map((question) => (
+						<label key={question.questionId} className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+							<input
+								type="checkbox"
+								checked={selectedCopyQuestions.has(question.questionId)}
+								onChange={(event) => {
+									setSelectedCopyQuestions((current) => {
+										const next = new Set(current);
+										if (event.target.checked) {
+											next.add(question.questionId);
+										} else {
+											next.delete(question.questionId);
+										}
+										return next;
+									});
+								}}
+							/>
+							{question.prompt}
+						</label>
+					))}
+				</div>
+			</ConfirmationModal>
+		</div>
+	);
 }
 
 type DraftAnswer = {
@@ -485,6 +439,301 @@ type DraftAnswer = {
 	booleanValue?: boolean | null;
 };
 
+function FormsList({
+	forms,
+	isLoading,
+	page,
+	totalPages,
+	onDelete,
+	onEdit,
+	onPageChange,
+	onReport,
+	onShare,
+	onToggleState,
+}: {
+	forms: ClubForm[];
+	isLoading: boolean;
+	page: number;
+	totalPages: number;
+	onDelete: (form: ClubForm) => void;
+	onEdit: (form: ClubForm) => void;
+	onPageChange: (page: number) => void;
+	onReport: (form: ClubForm) => void;
+	onShare: (form: ClubForm) => void | Promise<void>;
+	onToggleState: (form: ClubForm) => void | Promise<void>;
+}) {
+	if (isLoading) {
+		return <p className="surface-card p-4 text-sm font-semibold text-slate-500">Loading forms...</p>;
+	}
+
+	return (
+		<section className="surface-card overflow-hidden">
+			<DataTable empty={forms.length === 0} emptyTitle="No forms yet" emptyMessage="Create a form or generate awards from a match." minWidthClassName="min-w-[980px]">
+				<thead className="bg-slate-50 text-left text-xs font-black uppercase tracking-wide text-slate-500">
+					<tr>
+						<th className="px-4 py-3">Name</th>
+						<th className="px-4 py-3">Created by</th>
+						<th className="px-4 py-3">Match</th>
+						<th className="px-4 py-3">State</th>
+						<th className="px-4 py-3">Date created</th>
+						<th className="px-4 py-3 text-right">Actions</th>
+					</tr>
+				</thead>
+				<tbody className="divide-y divide-slate-100">
+					{forms.map((form) => (
+						<tr key={form.id}>
+							<td className="px-4 py-3">
+								<button type="button" onClick={() => onReport(form)} className="text-left font-black text-yepset-800 hover:underline">
+									{form.title}
+								</button>
+							</td>
+							<td className="px-4 py-3 text-slate-600">{form.createdByUserEmail || "Unknown"}</td>
+							<td className="px-4 py-3 text-slate-600">{form.sourceMatchLabel || "—"}</td>
+							<td className="px-4 py-3"><StatusPill status={form.status} /></td>
+							<td className="px-4 py-3 text-slate-600">{formatDisplayDateTime(form.createdAt)}</td>
+							<td className="px-4 py-3">
+								<div className="flex justify-end gap-2">
+									<button type="button" onClick={() => onEdit(form)} className="btn-secondary px-3 py-2">Edit</button>
+									<button type="button" onClick={() => void onToggleState(form)} className="btn-secondary px-3 py-2">{form.status === "Closed" ? "Open" : "Close"}</button>
+									<button type="button" onClick={() => onReport(form)} className="btn-secondary px-3 py-2">Report</button>
+									<button type="button" onClick={() => void onShare(form)} className="btn-secondary px-3 py-2">Share</button>
+									<button type="button" onClick={() => onDelete(form)} className="rounded-xl border border-red-200 px-3 py-2 text-sm font-bold text-red-700 hover:bg-red-50">Delete</button>
+								</div>
+							</td>
+						</tr>
+					))}
+				</tbody>
+			</DataTable>
+			<div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-sm font-semibold text-slate-600">
+				<span>Page {page} of {totalPages}</span>
+				<div className="flex gap-2">
+					<button type="button" disabled={page <= 1} onClick={() => onPageChange(page - 1)} className="btn-secondary px-3 py-2 disabled:opacity-50">Previous</button>
+					<button type="button" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)} className="btn-secondary px-3 py-2 disabled:opacity-50">Next</button>
+				</div>
+			</div>
+		</section>
+	);
+}
+
+function FormReportView({
+	form,
+	results,
+	isLoading,
+	onBack,
+	onCopy,
+	onDelete,
+	onEdit,
+	onShare,
+	onToggleState,
+}: {
+	form: ClubForm | null;
+	results: ClubFormResults | null;
+	isLoading: boolean;
+	onBack: () => void;
+	onCopy: () => void;
+	onDelete: () => void;
+	onEdit: () => void;
+	onShare: () => void;
+	onToggleState: () => void;
+}) {
+	if (isLoading) {
+		return <p className="surface-card p-4 text-sm font-semibold text-slate-500">Loading report...</p>;
+	}
+
+	if (!form) {
+		return <p className="surface-card p-4 text-sm font-semibold text-slate-500">Form not found.</p>;
+	}
+
+	return (
+		<section className="surface-card p-4 lg:p-6">
+			<div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+				<div>
+					<button type="button" onClick={onBack} className="mb-3 text-sm font-black uppercase tracking-wide text-yepset-800">← Back to forms</button>
+					<div className="flex flex-wrap items-center gap-2">
+						<StatusPill status={form.status} />
+						{form.sourceMatchLabel && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">{form.sourceMatchLabel}</span>}
+					</div>
+					<h2 className="mt-3 text-2xl font-black tracking-[-.03em] text-slate-950">{form.title}</h2>
+					{form.description && <p className="mt-2 text-sm leading-6 text-slate-600">{form.description}</p>}
+					<p className="mt-2 text-xs text-slate-400">Created by {form.createdByUserEmail || "Unknown"} · {formatDisplayDateTime(form.createdAt)}</p>
+				</div>
+				<div className="flex flex-wrap gap-2">
+					<button type="button" onClick={onCopy} disabled={form.status !== "Closed"} className="btn-secondary disabled:opacity-50">Copy results</button>
+					<button type="button" onClick={onShare} className="btn-secondary">Share</button>
+					<button type="button" onClick={onEdit} className="btn-secondary">Edit</button>
+					<button type="button" onClick={onToggleState} className="btn-secondary">{form.status === "Closed" ? "Open" : "Close"}</button>
+					<button type="button" onClick={onDelete} className="rounded-xl border border-red-200 px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-50">Delete</button>
+				</div>
+			</div>
+
+			{results && <ResultsPanel results={results} />}
+		</section>
+	);
+}
+
+function FormSubmissionView({
+	error,
+	form,
+	isLoading,
+	isSaving,
+	message,
+	answers,
+	canSubmit,
+	onAnswerChange,
+	onSubmit,
+}: {
+	error: string;
+	form: ClubForm | null;
+	isLoading: boolean;
+	isSaving: boolean;
+	message: string;
+	answers: Record<string, DraftAnswer>;
+	canSubmit: boolean;
+	onAnswerChange: (questionId: string, value: DraftAnswer) => void;
+	onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+	if (isLoading) {
+		return <p className="surface-card p-4 text-sm font-semibold text-slate-500">Loading form...</p>;
+	}
+
+	if (!form) {
+		return (
+			<div className="surface-card space-y-3 p-4">
+				{error && <Alert tone="error">{error}</Alert>}
+				<p className="text-sm text-slate-500">This form could not be loaded.</p>
+				<Link to="/login" className="btn-primary inline-flex">Sign in</Link>
+			</div>
+		);
+	}
+
+	return (
+		<section className="surface-card p-4 lg:p-6">
+			{error && <Alert tone="error">{error}</Alert>}
+			{message && <Alert tone="success">{message}</Alert>}
+			<div className="mb-5">
+				<StatusPill status={form.status} />
+				<h2 className="mt-3 text-2xl font-black tracking-[-.03em] text-slate-950">{form.title}</h2>
+				{form.description && <p className="mt-2 text-sm leading-6 text-slate-600">{form.description}</p>}
+			</div>
+
+			{form.hasSubmitted && !form.allowMultipleSubmissions ? (
+				<Alert tone="success">You have already submitted this form.</Alert>
+			) : form.status !== "Open" ? (
+				<Alert tone="error">This form is not open for responses.</Alert>
+			) : (
+				<form onSubmit={onSubmit} className="space-y-4">
+					{form.questions.map((question) => (
+						<FormQuestionInput
+							key={question.id}
+							question={question}
+							value={answers[question.id]}
+							onChange={(value) => onAnswerChange(question.id, value)}
+						/>
+					))}
+					<button type="submit" disabled={isSaving || !canSubmit} className="btn-primary disabled:cursor-not-allowed disabled:bg-slate-300">
+						Submit response
+					</button>
+				</form>
+			)}
+		</section>
+	);
+}
+
+function FormEditor({
+	editingForm,
+	isSaving,
+	onCancel,
+	onChange,
+	onQuestionChange,
+	onSubmit,
+}: {
+	editingForm: SaveClubFormRequest | null;
+	isSaving: boolean;
+	onCancel: () => void;
+	onChange: (form: SaveClubFormRequest | null) => void;
+	onQuestionChange: (index: number, question: ClubFormQuestion) => void;
+	onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+	if (!editingForm) {
+		return <p className="surface-card p-4 text-sm font-semibold text-slate-500">Loading editor...</p>;
+	}
+
+	return (
+		<form onSubmit={onSubmit} className="surface-card overflow-hidden">
+			<div className="border-b border-slate-200 px-5 py-4">
+				<div className="flex items-start justify-between gap-3">
+					<div>
+						<p className="text-xs font-black uppercase tracking-wide text-yepset-700">Form editor</p>
+						<h2 className="mt-1 text-xl font-black text-slate-950">{editingForm.title || "New form"}</h2>
+					</div>
+					<button type="button" onClick={onCancel} className="btn-secondary">Close</button>
+				</div>
+			</div>
+
+			<div className="space-y-4 px-5 py-5">
+				<label className="block text-sm font-bold text-slate-700">
+					Title
+					<input value={editingForm.title} onChange={(event) => onChange({ ...editingForm, title: event.target.value })} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" required />
+				</label>
+
+				<label className="block text-sm font-bold text-slate-700">
+					Description
+					<textarea value={editingForm.description} onChange={(event) => onChange({ ...editingForm, description: event.target.value })} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" rows={3} />
+				</label>
+
+				<label className="block text-sm font-bold text-slate-700">
+					Status
+					<select value={editingForm.status} onChange={(event) => onChange({ ...editingForm, status: event.target.value as ClubFormStatus })} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">
+						<option value="Draft">Draft</option>
+						<option value="Open">Open</option>
+						<option value="Closed">Closed</option>
+					</select>
+				</label>
+
+				<div className="grid gap-3 sm:grid-cols-2">
+					<label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700">
+						<input type="checkbox" checked={editingForm.allowAnonymousResponses} onChange={(event) => onChange({ ...editingForm, allowAnonymousResponses: event.target.checked })} className="mt-1" />
+						<span>Allow anonymous responses<span className="mt-1 block text-xs font-medium text-slate-500">If off, shared links require sign in.</span></span>
+					</label>
+					<label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700">
+						<input type="checkbox" checked={editingForm.allowMultipleSubmissions} onChange={(event) => onChange({ ...editingForm, allowMultipleSubmissions: event.target.checked })} className="mt-1" />
+						<span>Allow multiple submissions<span className="mt-1 block text-xs font-medium text-slate-500">If off, each user/browser can answer once.</span></span>
+					</label>
+				</div>
+
+				<div className="space-y-3">
+					<div className="flex items-center justify-between gap-3">
+						<h3 className="text-sm font-black uppercase tracking-wide text-slate-500">Questions</h3>
+						<button type="button" onClick={() => onChange({ ...editingForm, questions: [...editingForm.questions, createQuestion()] })} className="btn-secondary">Add question</button>
+					</div>
+					{editingForm.questions.map((question, index) => (
+						<QuestionEditor
+							key={question.id}
+							question={question}
+							index={index}
+							onChange={(updated) => onQuestionChange(index, updated)}
+							onRemove={() => onChange({ ...editingForm, questions: editingForm.questions.filter((_, itemIndex) => itemIndex !== index) })}
+							canRemove={editingForm.questions.length > 1}
+						/>
+					))}
+				</div>
+			</div>
+
+			<div className="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
+				<button type="button" onClick={onCancel} className="btn-secondary">Cancel</button>
+				<button type="submit" disabled={isSaving} className="btn-primary disabled:cursor-not-allowed disabled:bg-slate-300">{isSaving ? "Saving..." : "Save form"}</button>
+			</div>
+		</form>
+	);
+}
+
+function Alert({ children, tone }: { children: React.ReactNode; tone: "error" | "success" }) {
+	const className = tone === "error"
+		? "border-red-200 bg-red-50 text-red-700"
+		: "border-green-200 bg-green-50 text-green-800";
+	return <div className={`rounded-xl border px-4 py-3 text-sm font-semibold ${className}`}>{children}</div>;
+}
+
 function StatusPill({ status }: { status: ClubFormStatus }) {
 	const className =
 		status === "Open"
@@ -493,7 +742,7 @@ function StatusPill({ status }: { status: ClubFormStatus }) {
 				? "bg-red-100 text-red-800"
 				: "bg-slate-100 text-slate-700";
 
-	return <span className={`rounded-full px-2.5 py-1 text-xs font-black ${className}`}>{status}</span>;
+	return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-black ${className}`}>{status}</span>;
 }
 
 function FormQuestionInput({
@@ -513,7 +762,6 @@ function FormQuestionInput({
 				{question.prompt}
 				{question.isRequired && <span className="ml-1 text-red-600">*</span>}
 			</label>
-
 			{question.type === "ShortText" && (
 				<input value={answer.textValue} onChange={(event) => onChange({ ...answer, textValue: event.target.value })} required={question.isRequired} className="mt-3 w-full rounded-xl border border-slate-300 px-3 py-2" />
 			)}
@@ -620,8 +868,8 @@ function QuestionEditor({
 
 function ResultsPanel({ results }: { results: ClubFormResults }) {
 	return (
-		<section className="border-t border-slate-200 pt-5">
-			<h3 className="text-lg font-black text-slate-950">Anonymous results</h3>
+		<section className="mt-6 border-t border-slate-200 pt-5">
+			<h3 className="text-lg font-black text-slate-950">Results</h3>
 			<p className="mt-1 text-sm text-slate-500">{results.submissionCount} submissions. Respondent identities are not shown.</p>
 			<div className="mt-4 space-y-4">
 				{results.questions.map((question) => (
@@ -655,6 +903,19 @@ function ResultsPanel({ results }: { results: ClubFormResults }) {
 			</div>
 		</section>
 	);
+}
+
+function toEditableForm(form: ClubForm): SaveClubFormRequest {
+	return {
+		title: form.title,
+		description: form.description,
+		status: form.status,
+		sourceType: form.sourceType,
+		sourceMatchId: form.sourceMatchId ?? null,
+		allowAnonymousResponses: form.allowAnonymousResponses,
+		allowMultipleSubmissions: form.allowMultipleSubmissions,
+		questions: form.questions.length ? form.questions : [createQuestion()],
+	};
 }
 
 function createQuestion(): ClubFormQuestion {
@@ -698,12 +959,7 @@ function buildInitialAnswers(form: ClubForm): Record<string, DraftAnswer> {
 	return Object.fromEntries(
 		form.questions.map((question) => [
 			question.id,
-			{
-				textValue: "",
-				selectedOptions: [],
-				ratingValue: null,
-				booleanValue: null,
-			},
+			{ textValue: "", selectedOptions: [], ratingValue: null, booleanValue: null },
 		])
 	);
 }
@@ -718,11 +974,24 @@ function buildSubmissionAnswers(form: ClubForm, answers: Record<string, DraftAns
 	}));
 }
 
+function getTopAnswer(question: ClubFormQuestionResult) {
+	if (question.options.length > 0) {
+		const winner = question.options
+			.filter((option) => option.count > 0)
+			.sort((left, right) => right.count - left.count || left.value.localeCompare(right.value))[0];
+		return winner ? winner.value : "No responses";
+	}
+
+	if (question.averageRating !== null && question.averageRating !== undefined) {
+		return String(question.averageRating);
+	}
+
+	return question.textResponses[0] ?? "No responses";
+}
+
 function getAnonymousSubmissionKey() {
 	const existing = localStorage.getItem(anonymousSubmissionStorageKey);
-	if (existing) {
-		return existing;
-	}
+	if (existing) return existing;
 
 	const key = crypto.randomUUID();
 	localStorage.setItem(anonymousSubmissionStorageKey, key);
@@ -730,9 +999,7 @@ function getAnonymousSubmissionKey() {
 }
 
 function formatQuestionType(type: ClubFormQuestionType) {
-	return type
-		.replace(/([a-z])([A-Z])/g, "$1 $2")
-		.replace("Yes No", "Yes / No");
+	return type.replace(/([a-z])([A-Z])/g, "$1 $2").replace("Yes No", "Yes / No");
 }
 
 function range(min: number, max: number) {

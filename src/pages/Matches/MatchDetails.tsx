@@ -18,6 +18,7 @@ import { getClubTeamLabel, useClubTeamStore } from "../../stores/clubTeams";
 import { usePostStore } from "../../stores/posts";
 import ConfirmationModal from "../../components/compositions/ConfirmationModal";
 import { formsApi } from "../../services/formsApi";
+import type { ClubForm } from "../../types/forms";
 
 export default function MatchDetail() {
 	const { id } = useParams();
@@ -30,6 +31,7 @@ export default function MatchDetail() {
 	const [isCreatingAwardsForm, setIsCreatingAwardsForm] = useState(false);
 	const [awardsFormMessage, setAwardsFormMessage] = useState("");
 	const [awardsFormError, setAwardsFormError] = useState("");
+	const [matchAwardsForm, setMatchAwardsForm] = useState<ClubForm | null>(null);
 	const players = usePlayerStore((state) => state.players);
 	const teamProfiles = useClubTeamStore((state) => state.profiles);
 	const loadTeamProfiles = useClubTeamStore((state) => state.loadProfiles);
@@ -38,6 +40,29 @@ export default function MatchDetail() {
 	useEffect(() => {
 		void loadTeamProfiles();
 	}, [loadTeamProfiles]);
+
+	useEffect(() => {
+		if (!id) {
+			return;
+		}
+
+		let cancelled = false;
+		void formsApi.getMatchAwardsForm(id)
+			.then((form) => {
+				if (!cancelled) {
+					setMatchAwardsForm(form);
+				}
+			})
+			.catch(() => {
+				if (!cancelled) {
+					setMatchAwardsForm(null);
+				}
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [id]);
 
 	if (matchDetail.isLoadingMatches && !matchDetail.match) {
 		return (
@@ -80,6 +105,7 @@ export default function MatchDetail() {
 
 		try {
 			const form = await formsApi.createMatchAwardsForm(currentMatch.id);
+			setMatchAwardsForm(form);
 			const shareUrl = `${window.location.origin}/go/${form.goCode}`;
 
 			try {
@@ -177,6 +203,8 @@ export default function MatchDetail() {
 				onSaveTeamClick={matchDetail.handleSaveTeamClick}
 				onGeneratePostClick={() => setShowGeneratePost(true)}
 				onCreateAwardsFormClick={handleCreateAwardsForm}
+				onViewAwardsFormClick={() => matchAwardsForm && navigate(`/forms/${matchAwardsForm.id}/report`)}
+				hasAwardsForm={Boolean(matchAwardsForm)}
 				isCreatingAwardsForm={isCreatingAwardsForm}
 			/>
 

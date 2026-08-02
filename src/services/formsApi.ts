@@ -22,11 +22,20 @@ export const formsApi = {
 	createMatchAwardsForm: (matchId: string) =>
 		apiClient.post<ClubForm>("/forms/match-awards", { matchId }),
 
+	getMatchAwardsForm: (matchId: string) =>
+		apiClient.get<ClubForm>(`/forms/match-awards/${encodeURIComponent(matchId)}`),
+
 	updateForm: (id: string, request: SaveClubFormRequest) =>
 		apiClient.put<ClubForm>(`/forms/${encodeURIComponent(id)}`, request),
 
 	deleteForm: (id: string) =>
 		apiClient.delete<void>(`/forms/${encodeURIComponent(id)}`),
+
+	deleteFormWithOptions: (id: string, cleanupMatchAward: boolean) =>
+		apiClient.delete<void>(`/forms/${encodeURIComponent(id)}?cleanupMatchAward=${cleanupMatchAward}`),
+
+	updateStatus: (id: string, status: ClubForm["status"]) =>
+		apiClient.patch<ClubForm>(`/forms/${encodeURIComponent(id)}/status`, { status }),
 
 	submitForm: (id: string, request: SubmitClubFormRequest) =>
 		apiClient.post<ClubForm>(`/forms/${encodeURIComponent(id)}/submissions`, request),

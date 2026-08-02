@@ -19,6 +19,8 @@ interface TeamSelectionCardProps {
 	onSaveTeamClick: () => void;
 	onGeneratePostClick: () => void;
 	onCreateAwardsFormClick: () => void;
+	onViewAwardsFormClick?: () => void;
+	hasAwardsForm?: boolean;
 	isCreatingAwardsForm?: boolean;
 }
 
@@ -33,6 +35,8 @@ export function TeamSelectionCard({
 	onSaveTeamClick,
 	onGeneratePostClick,
 	onCreateAwardsFormClick,
+	onViewAwardsFormClick,
+	hasAwardsForm = false,
 	isCreatingAwardsForm = false,
 }: TeamSelectionCardProps) {
 	return (
@@ -55,8 +59,13 @@ export function TeamSelectionCard({
 				<div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
 					{isLineupLocked && totalSelectedCount > 0 && (
 						<>
-							<button type="button" onClick={onCreateAwardsFormClick} disabled={isCreatingAwardsForm} className="rounded-xl border border-yepset-200 px-5 py-3 text-sm font-bold text-yepset-800 hover:bg-yepset-50 disabled:cursor-not-allowed disabled:opacity-60">
-								{isCreatingAwardsForm ? "Creating..." : "Create awards form"}
+							<button
+								type="button"
+								onClick={hasAwardsForm ? onViewAwardsFormClick : onCreateAwardsFormClick}
+								disabled={isCreatingAwardsForm}
+								className="rounded-xl border border-yepset-200 px-5 py-3 text-sm font-bold text-yepset-800 hover:bg-yepset-50 disabled:cursor-not-allowed disabled:opacity-60"
+							>
+								{hasAwardsForm ? "View awards form" : isCreatingAwardsForm ? "Creating..." : "Create awards form"}
 							</button>
 							<button type="button" onClick={onGeneratePostClick} className="rounded-xl border border-yepset-200 px-5 py-3 text-sm font-bold text-yepset-800 hover:bg-yepset-50">
 								Generate post

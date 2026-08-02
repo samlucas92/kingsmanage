@@ -1,4 +1,5 @@
 export type ClubFormStatus = "Draft" | "Open" | "Closed";
+export type ClubFormSourceType = "General" | "MatchAwards";
 export type ClubFormQuestionType = "ShortText" | "LongText" | "SingleChoice" | "MultipleChoice" | "Rating" | "YesNo";
 
 export type ClubFormQuestion = {
@@ -17,6 +18,11 @@ export type ClubForm = {
 	title: string;
 	description: string;
 	status: ClubFormStatus;
+	sourceType: ClubFormSourceType;
+	sourceMatchId?: string | null;
+	sourceMatchLabel: string;
+	appliedMatchAwardPlayerId?: string | null;
+	createdByUserEmail: string;
 	allowAnonymousResponses: boolean;
 	allowMultipleSubmissions: boolean;
 	questions: ClubFormQuestion[];
@@ -30,6 +36,8 @@ export type SaveClubFormRequest = {
 	title: string;
 	description: string;
 	status: ClubFormStatus;
+	sourceType?: ClubFormSourceType;
+	sourceMatchId?: string | null;
 	allowAnonymousResponses: boolean;
 	allowMultipleSubmissions: boolean;
 	questions: ClubFormQuestion[];
