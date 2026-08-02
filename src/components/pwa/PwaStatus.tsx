@@ -62,20 +62,33 @@ export default function PwaStatus() {
 	}, [shouldRegisterPwa]);
 
 	useEffect(() => {
-		const updateWindow = window.setTimeout(() => setCanApplyBrowserUpdateOnLoad(false), 10000);
-		return () => window.clearTimeout(updateWindow);
-	}, []);
-
-	useEffect(() => {
 		if (!needRefresh || isStandalone) return;
 
-		if (!canApplyBrowserUpdateOnLoad) {
-			setNeedRefresh(false);
+		if (canApplyBrowserUpdateOnLoad) {
+			void updateServiceWorker(true);
 			return;
 		}
 
-		void updateServiceWorker(true);
-	}, [canApplyBrowserUpdateOnLoad, isStandalone, needRefresh, setNeedRefresh, updateServiceWorker]);
+		function activateWaitingServiceWorker() {
+			void updateServiceWorker(false);
+		}
+
+		window.addEventListener("pagehide", activateWaitingServiceWorker, { once: true });
+		window.addEventListener("beforeunload", activateWaitingServiceWorker, { once: true });
+
+		return () => {
+			window.removeEventListener("pagehide", activateWaitingServiceWorker);
+			window.removeEventListener("beforeunload", activateWaitingServiceWorker);
+		};
+	}, [canApplyBrowserUpdateOnLoad, isStandalone, needRefresh, updateServiceWorker]);
+
+	useEffect(() => {
+		const updateWindow = window.setTimeout(() => {
+			setCanApplyBrowserUpdateOnLoad(false);
+		}, 10000);
+
+		return () => window.clearTimeout(updateWindow);
+	}, []);
 
 	useEffect(() => {
 		function updateOnlineStatus() {
