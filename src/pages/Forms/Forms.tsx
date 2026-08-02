@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
+import ActionMenu from "../../components/compositions/ActionMenu";
 import ConfirmationModal from "../../components/compositions/ConfirmationModal";
 import DataTable from "../../components/compositions/DataTable";
 import { formsApi } from "../../services/formsApi";
@@ -492,12 +493,16 @@ function FormsList({
 							<td className="px-4 py-3"><StatusPill status={form.status} /></td>
 							<td className="px-4 py-3 text-slate-600">{formatDisplayDateTime(form.createdAt)}</td>
 							<td className="px-4 py-3">
-								<div className="flex justify-end gap-2">
-									<button type="button" onClick={() => onEdit(form)} className="btn-secondary px-3 py-2">Edit</button>
-									<button type="button" onClick={() => void onToggleState(form)} className="btn-secondary px-3 py-2">{form.status === "Closed" ? "Open" : "Close"}</button>
-									<button type="button" onClick={() => onReport(form)} className="btn-secondary px-3 py-2">Report</button>
-									<button type="button" onClick={() => void onShare(form)} className="btn-secondary px-3 py-2">Share</button>
-									<button type="button" onClick={() => onDelete(form)} className="rounded-xl border border-red-200 px-3 py-2 text-sm font-bold text-red-700 hover:bg-red-50">Delete</button>
+								<div className="flex justify-end">
+									<ActionMenu
+										items={[
+											{ label: "Edit", onClick: () => onEdit(form) },
+											{ label: form.status === "Closed" ? "Open form" : "Close form", onClick: () => void onToggleState(form) },
+											{ label: "Report", onClick: () => onReport(form) },
+											{ label: "Share", onClick: () => void onShare(form) },
+											{ label: "Delete", onClick: () => onDelete(form), tone: "danger" },
+										]}
+									/>
 								</div>
 							</td>
 						</tr>
