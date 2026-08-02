@@ -347,6 +347,7 @@ export default function Forms() {
 					onBack={() => navigate("/forms")}
 					onCopy={() => setCopyModalOpen(true)}
 					onEdit={() => form && navigate(`/forms/${form.id}/edit`)}
+					onGoToForm={() => form && navigate(`/go/${form.goCode}`)}
 					onShare={() => form && void shareForm(form)}
 					onToggleState={() => form && void updateState(form)}
 					onDelete={() => form && setDeleteTarget(form)}
@@ -368,6 +369,7 @@ export default function Forms() {
 					totalPages={totalPages}
 					onDelete={(form) => setDeleteTarget(form)}
 					onEdit={(form) => navigate(`/forms/${form.id}/edit`)}
+					onGoToForm={(form) => navigate(`/go/${form.goCode}`)}
 					onPageChange={setPage}
 					onReport={(form) => navigate(`/forms/${form.id}/report`)}
 					onShare={shareForm}
@@ -455,6 +457,7 @@ function FormsList({
 	totalPages,
 	onDelete,
 	onEdit,
+	onGoToForm,
 	onPageChange,
 	onReport,
 	onShare,
@@ -466,6 +469,7 @@ function FormsList({
 	totalPages: number;
 	onDelete: (form: ClubForm) => void;
 	onEdit: (form: ClubForm) => void;
+	onGoToForm: (form: ClubForm) => void;
 	onPageChange: (page: number) => void;
 	onReport: (form: ClubForm) => void;
 	onShare: (form: ClubForm) => void | Promise<void>;
@@ -496,6 +500,7 @@ function FormsList({
 											form,
 											onDelete,
 											onEdit,
+											onGoToForm,
 											onReport,
 											onShare,
 											onToggleState,
@@ -561,6 +566,7 @@ function FormsList({
 													form,
 													onDelete,
 													onEdit,
+													onGoToForm,
 													onReport,
 													onShare,
 													onToggleState,
@@ -589,6 +595,7 @@ function getFormActionItems({
 	form,
 	onDelete,
 	onEdit,
+	onGoToForm,
 	onReport,
 	onShare,
 	onToggleState,
@@ -596,11 +603,13 @@ function getFormActionItems({
 	form: ClubForm;
 	onDelete: (form: ClubForm) => void;
 	onEdit: (form: ClubForm) => void;
+	onGoToForm: (form: ClubForm) => void;
 	onReport: (form: ClubForm) => void;
 	onShare: (form: ClubForm) => void | Promise<void>;
 	onToggleState: (form: ClubForm) => void | Promise<void>;
 }) {
 	return [
+		{ label: "Go to form", onClick: () => onGoToForm(form) },
 		{ label: "Edit", onClick: () => onEdit(form) },
 		{ label: form.status === "Closed" ? "Open form" : "Close form", onClick: () => void onToggleState(form) },
 		{ label: "Report", onClick: () => onReport(form) },
@@ -617,6 +626,7 @@ function FormReportView({
 	onCopy,
 	onDelete,
 	onEdit,
+	onGoToForm,
 	onShare,
 	onToggleState,
 }: {
@@ -627,6 +637,7 @@ function FormReportView({
 	onCopy: () => void;
 	onDelete: () => void;
 	onEdit: () => void;
+	onGoToForm: () => void;
 	onShare: () => void;
 	onToggleState: () => void;
 }) {
@@ -652,6 +663,7 @@ function FormReportView({
 					<p className="mt-2 text-xs text-slate-400">Created by {form.createdByUserEmail || "Unknown"} · {formatDisplayDateTime(form.createdAt)}</p>
 				</div>
 				<div className="flex flex-wrap gap-2">
+					<button type="button" onClick={onGoToForm} className="btn-primary">Go to form</button>
 					<button type="button" onClick={onCopy} disabled={form.status !== "Closed"} className="btn-secondary disabled:opacity-50">Copy results</button>
 					<button type="button" onClick={onShare} className="btn-secondary">Share</button>
 					<button type="button" onClick={onEdit} className="btn-secondary">Edit</button>
