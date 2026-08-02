@@ -11,6 +11,7 @@ import type {
 	ClubForm,
 	ClubFormAnswer,
 	ClubFormQuestion,
+	ClubFormQuestionOption,
 	ClubFormQuestionResult,
 	ClubFormQuestionType,
 	ClubFormResults,
@@ -525,33 +526,32 @@ function FormsList({
 					<DataTable
 						className="hidden lg:block"
 						empty={false}
-						minWidthClassName="min-w-[1180px]"
-						widthClassName="w-max"
-						tableClassName="whitespace-nowrap"
+						minWidthClassName="min-w-0"
+						tableClassName="table-fixed"
 					>
 						<thead className="bg-slate-50 text-left text-xs font-black uppercase tracking-wide text-slate-500">
 							<tr>
-								<th className="w-[320px] px-4 py-3">Name</th>
-								<th className="w-[300px] px-4 py-3">Created by</th>
-								<th className="w-[220px] px-4 py-3">Match</th>
-								<th className="w-[140px] px-4 py-3">State</th>
-								<th className="w-[220px] px-4 py-3">Date created</th>
-								<th className="w-[160px] px-4 py-3 text-right">Actions</th>
+								<th className="w-[24%] px-4 py-3">Name</th>
+								<th className="w-[22%] px-4 py-3">Created by</th>
+								<th className="w-[18%] px-4 py-3">Match</th>
+								<th className="w-[10%] px-4 py-3">State</th>
+								<th className="w-[16%] px-4 py-3">Date created</th>
+								<th className="w-[10%] px-4 py-3 text-right">Actions</th>
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-slate-100">
 							{forms.map((form) => (
 								<tr key={form.id}>
-									<td className="w-[320px] px-4 py-3">
-										<button type="button" onClick={() => onReport(form)} className="text-left font-black text-yepset-800 hover:underline">
+									<td className="px-4 py-3">
+										<button type="button" onClick={() => onReport(form)} className="block max-w-full truncate text-left font-black text-yepset-800 hover:underline">
 											{form.title}
 										</button>
 									</td>
-									<td className="w-[300px] px-4 py-3 text-slate-600">{form.createdByUserEmail || "Unknown"}</td>
-									<td className="w-[220px] px-4 py-3 text-slate-600">{form.sourceMatchLabel || "—"}</td>
-									<td className="w-[140px] px-4 py-3"><StatusPill status={form.status} /></td>
-									<td className="w-[220px] px-4 py-3 text-slate-600">{formatDisplayDateTime(form.createdAt)}</td>
-									<td className="w-[160px] px-4 py-3">
+									<td className="truncate px-4 py-3 text-slate-600">{form.createdByUserEmail || "Unknown"}</td>
+									<td className="truncate px-4 py-3 text-slate-600">{form.sourceMatchLabel || "—"}</td>
+									<td className="px-4 py-3"><StatusPill status={form.status} /></td>
+									<td className="truncate px-4 py-3 text-slate-600">{formatDisplayDateTime(form.createdAt)}</td>
+									<td className="px-4 py-3">
 										<div className="flex justify-end">
 											<ActionMenu
 												items={getFormActionItems({
@@ -861,29 +861,29 @@ function FormQuestionInput({
 			)}
 			{question.type === "SingleChoice" && (
 				<div className="mt-3 space-y-2">
-					{question.options.map((option) => (
-						<label key={option} className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-							<input type="radio" name={question.id} checked={answer.selectedOptions[0] === option} onChange={() => onChange({ ...answer, selectedOptions: [option] })} required={question.isRequired} />
-							{option}
+					{getQuestionChoiceOptions(question).map((option) => (
+						<label key={option.value} className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+							<input type="radio" name={question.id} checked={answer.selectedOptions[0] === option.value} onChange={() => onChange({ ...answer, selectedOptions: [option.value] })} required={question.isRequired} />
+							{option.label}
 						</label>
 					))}
 				</div>
 			)}
 			{question.type === "MultipleChoice" && (
 				<div className="mt-3 space-y-2">
-					{question.options.map((option) => (
-						<label key={option} className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+					{getQuestionChoiceOptions(question).map((option) => (
+						<label key={option.value} className="flex items-center gap-2 text-sm font-semibold text-slate-700">
 							<input
 								type="checkbox"
-								checked={answer.selectedOptions.includes(option)}
+								checked={answer.selectedOptions.includes(option.value)}
 								onChange={(event) => onChange({
 									...answer,
 									selectedOptions: event.target.checked
-										? [...answer.selectedOptions, option]
-										: answer.selectedOptions.filter((item) => item !== option),
+										? [...answer.selectedOptions, option.value]
+										: answer.selectedOptions.filter((item) => item !== option.value),
 								})}
 							/>
-							{option}
+							{option.label}
 						</label>
 					))}
 				</div>
@@ -944,7 +944,7 @@ function QuestionEditor({
 			{isChoice && (
 				<label className="mt-3 block text-sm font-bold text-slate-700">
 					Options, one per line
-					<textarea value={question.options.join("\n")} onChange={(event) => onChange({ ...question, options: event.target.value.split("\n") })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2" rows={4} />
+					<textarea value={question.options.join("\n")} onChange={(event) => onChange({ ...question, options: event.target.value.split("\n"), choiceOptions: [] })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2" rows={4} />
 				</label>
 			)}
 			{question.type === "Rating" && (
@@ -976,7 +976,7 @@ function ResultsPanel({ results }: { results: ClubFormResults }) {
 							<div className="mt-3 space-y-2">
 								{question.options.map((option) => (
 									<div key={option.value}>
-										<div className="flex justify-between text-xs font-bold text-slate-600"><span>{option.value}</span><span>{option.count}</span></div>
+										<div className="flex justify-between text-xs font-bold text-slate-600"><span>{option.label || option.value}</span><span>{option.count}</span></div>
 										<div className="mt-1 h-2 overflow-hidden rounded-full bg-white"><div className="h-full rounded-full bg-yepset-600" style={{ width: `${results.submissionCount ? (option.count / results.submissionCount) * 100 : 0}%` }} /></div>
 									</div>
 								))}
@@ -1016,6 +1016,7 @@ function createQuestion(): ClubFormQuestion {
 		type: "ShortText",
 		isRequired: true,
 		options: [],
+		choiceOptions: [],
 		minRating: 1,
 		maxRating: 5,
 	};
@@ -1026,6 +1027,7 @@ function resetQuestionForType(question: ClubFormQuestion, type: ClubFormQuestion
 		...question,
 		type,
 		options: type === "SingleChoice" || type === "MultipleChoice" ? question.options.length ? question.options : ["Option 1", "Option 2"] : [],
+		choiceOptions: [],
 		minRating: type === "Rating" ? question.minRating : 1,
 		maxRating: type === "Rating" ? question.maxRating : 5,
 	};
@@ -1040,6 +1042,11 @@ function normaliseFormRequest(form: SaveClubFormRequest): SaveClubFormRequest {
 			...question,
 			prompt: question.prompt.trim(),
 			options: question.options.map((option) => option.trim()).filter(Boolean),
+			choiceOptions: question.choiceOptions?.map((option) => ({
+				...option,
+				value: option.value.trim(),
+				label: option.label.trim(),
+			})).filter((option) => option.value && option.label) ?? [],
 			minRating: Math.max(1, question.minRating),
 			maxRating: Math.max(question.minRating, question.maxRating),
 		})),
@@ -1069,8 +1076,8 @@ function getTopAnswer(question: ClubFormQuestionResult) {
 	if (question.options.length > 0) {
 		const winner = question.options
 			.filter((option) => option.count > 0)
-			.sort((left, right) => right.count - left.count || left.value.localeCompare(right.value))[0];
-		return winner ? winner.value : "No responses";
+			.sort((left, right) => right.count - left.count || (left.label || left.value).localeCompare(right.label || right.value))[0];
+		return winner ? winner.label || winner.value : "No responses";
 	}
 
 	if (question.averageRating !== null && question.averageRating !== undefined) {
@@ -1078,6 +1085,23 @@ function getTopAnswer(question: ClubFormQuestionResult) {
 	}
 
 	return question.textResponses[0] ?? "No responses";
+}
+
+function getQuestionChoiceOptions(question: ClubFormQuestion): ClubFormQuestionOption[] {
+	if (question.choiceOptions?.length) {
+		return question.choiceOptions
+			.map((option) => ({
+				...option,
+				value: option.value || option.label,
+				label: option.label || option.value,
+			}))
+			.filter((option) => option.value && option.label);
+	}
+
+	return question.options.map((option) => ({
+		value: option,
+		label: option,
+	}));
 }
 
 function getAnonymousSubmissionKey() {

@@ -8,8 +8,15 @@ export type ClubFormQuestion = {
 	type: ClubFormQuestionType;
 	isRequired: boolean;
 	options: string[];
+	choiceOptions?: ClubFormQuestionOption[];
 	minRating: number;
 	maxRating: number;
+};
+
+export type ClubFormQuestionOption = {
+	value: string;
+	label: string;
+	playerId?: string | null;
 };
 
 export type ClubForm = {
@@ -75,5 +82,7 @@ export type ClubFormQuestionResult = {
 
 export type ClubFormOptionResult = {
 	value: string;
+	label?: string;
+	playerId?: string | null;
 	count: number;
 };
