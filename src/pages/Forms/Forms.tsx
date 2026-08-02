@@ -995,6 +995,7 @@ function ChoiceOptionEditor({
 	const loadPlayers = usePlayerStore((state) => state.loadPlayers);
 	const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
 	const [draftOption, setDraftOption] = useState("");
+	const orderedOptions = getQuestionChoiceOptions(question);
 
 	useEffect(() => {
 		if (isPlayerModalOpen) {
@@ -1002,21 +1003,20 @@ function ChoiceOptionEditor({
 		}
 	}, [isPlayerModalOpen, loadPlayers]);
 
-	function updateManualOptions(values: string[]) {
+	function updateOptionLabels(labels: string[], choiceOptions = question.choiceOptions ?? []) {
 		onChange({
 			...question,
-			options: mergeQuestionOptionLabels(values, question.choiceOptions ?? []),
+			options: mergeOrderedOptionLabels(labels, choiceOptions),
 		});
 	}
 
 	function addManualOptions(values: string[]) {
-		const nextManualOptions = mergeManualOptionLabels([...manualOptions, ...values], question.choiceOptions ?? []);
-		updateManualOptions(nextManualOptions);
+		updateOptionLabels([...question.options, ...values]);
 		setDraftOption("");
 	}
 
 	function removeManualOption(value: string) {
-		updateManualOptions(manualOptions.filter((option) => option.toLowerCase() !== value.toLowerCase()));
+		updateOptionLabels(question.options.filter((option) => option.toLowerCase() !== value.toLowerCase()));
 	}
 
 	function commitDraftOption() {
@@ -1069,18 +1069,28 @@ function ChoiceOptionEditor({
 			...question,
 			optionSource: "MatchPlayers",
 			choiceOptions,
-			options: mergeQuestionOptionLabels(manualOptions, choiceOptions),
+			options: mergeOrderedOptionLabels([
+				...question.options,
+				...playerChoiceOptions.map((option) => option.label),
+			], choiceOptions),
 		});
 	}
 
 	function removeChoiceOption(value: string) {
+		const removedOption = (question.choiceOptions ?? []).find((option) => option.value === value);
 		const choiceOptions = (question.choiceOptions ?? []).filter((option) => option.value !== value);
 		const hasPlayers = choiceOptions.some((option) => option.playerId);
 		onChange({
 			...question,
 			optionSource: hasPlayers ? question.optionSource ?? "MatchPlayers" : "Manual",
 			choiceOptions,
-			options: mergeQuestionOptionLabels(manualOptions, choiceOptions),
+			options: mergeOrderedOptionLabels(
+				question.options.filter((option) =>
+					option.toLowerCase() !== value.toLowerCase()
+					&& option.toLowerCase() !== (removedOption?.label ?? "").toLowerCase()
+				),
+				choiceOptions
+			),
 		});
 	}
 
@@ -1103,41 +1113,38 @@ function ChoiceOptionEditor({
 					</button>
 				</div>
 				<label className="mt-3 block text-sm font-bold text-slate-700">
-					Option values
-					<div className="mt-1 flex min-h-28 flex-wrap items-start gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 focus-within:border-yepset-500 focus-within:ring-2 focus-within:ring-yepset-100">
-						{playerOptions.map((option) => (
-							<span key={option.value} className="inline-flex items-center gap-2 rounded-full border border-yepset-200 bg-yepset-50 px-3 py-1 text-xs font-black text-yepset-800">
-								{option.label}
-								<button
-									type="button"
-									onClick={() => removeChoiceOption(option.value)}
-									className="text-yepset-500 hover:text-red-600"
-									aria-label={`Remove ${option.label}`}
+					Options
+					<div className="mt-1 flex min-h-28 flex-wrap content-start items-start gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 focus-within:border-yepset-500 focus-within:ring-2 focus-within:ring-yepset-100">
+						{orderedOptions.map((option) => {
+							const isPlayerOption = Boolean(option.playerId);
+							return (
+								<span
+									key={`${option.playerId ?? "manual"}-${option.value}`}
+									className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-black ${
+										isPlayerOption
+											? "border-yepset-200 bg-yepset-50 text-yepset-800"
+											: "border-slate-200 bg-slate-50 text-slate-700"
+									}`}
 								>
-									×
-								</button>
-							</span>
-						))}
-						{manualOptions.map((option) => (
-							<span key={option} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-700">
-								{option}
-								<button
-									type="button"
-									onClick={() => removeManualOption(option)}
-									className="text-slate-400 hover:text-red-600"
-									aria-label={`Remove ${option}`}
-								>
-									×
-								</button>
-							</span>
-						))}
+									{option.label}
+									<button
+										type="button"
+										onClick={() => isPlayerOption ? removeChoiceOption(option.value) : removeManualOption(option.value)}
+										className={isPlayerOption ? "text-yepset-500 hover:text-red-600" : "text-slate-400 hover:text-red-600"}
+										aria-label={`Remove ${option.label}`}
+									>
+										×
+									</button>
+								</span>
+							);
+						})}
 						<input
 							value={draftOption}
 							onBlur={commitDraftOption}
 							onChange={(event) => setDraftOption(event.target.value)}
 							onKeyDown={handleDraftKeyDown}
 							onPaste={handleOptionPaste}
-							placeholder={playerOptions.length || manualOptions.length ? "Add another option..." : "Type an option and press Enter..."}
+							placeholder={orderedOptions.length ? "Add another option..." : "Type an option and press Enter..."}
 							className="min-w-48 flex-1 border-0 bg-transparent px-1 py-1 text-sm font-bold text-slate-800 outline-none placeholder:text-slate-400"
 						/>
 					</div>
@@ -1395,15 +1402,32 @@ function getQuestionChoiceOptions(question: ClubFormQuestion): ClubFormQuestionO
 			label: option.label || option.value,
 		}))
 		.filter((option) => option.value && option.label);
-	const existingValues = new Set(choiceOptions.flatMap((option) => [option.value.toLowerCase(), option.label.toLowerCase()]));
-	const manualOptions = question.options
-		.filter((option) => !existingValues.has(option.toLowerCase()))
-		.map((option) => ({
-			value: option,
-			label: option,
-		}));
+	const choiceOptionsByValue = new Map(
+		choiceOptions.flatMap((option) => [
+			[option.value.toLowerCase(), option],
+			[option.label.toLowerCase(), option],
+		])
+	);
+	const orderedOptions = question.options
+		.map((option) => {
+			const matchedChoiceOption = choiceOptionsByValue.get(option.toLowerCase());
+			return matchedChoiceOption ?? {
+				value: option,
+				label: option,
+			};
+		})
+		.filter((option, index, options) =>
+			options.findIndex((item) => item.value.toLowerCase() === option.value.toLowerCase()) === index
+		);
+	const orderedValues = new Set(orderedOptions.flatMap((option) => [
+		option.value.toLowerCase(),
+		option.label.toLowerCase(),
+	]));
+	const missingChoiceOptions = choiceOptions.filter((option) =>
+		!orderedValues.has(option.value.toLowerCase()) && !orderedValues.has(option.label.toLowerCase())
+	);
 
-	return [...choiceOptions, ...manualOptions];
+	return [...orderedOptions, ...missingChoiceOptions];
 }
 
 function getManualQuestionOptions(question: ClubFormQuestion): string[] {
@@ -1417,38 +1441,15 @@ function getManualQuestionOptions(question: ClubFormQuestion): string[] {
 	return question.options.filter((option) => !choiceOptionLabels.has(option.toLowerCase()));
 }
 
-function mergeQuestionOptionLabels(
-	manualOptions: string[],
+function mergeOrderedOptionLabels(
+	orderedLabels: string[],
 	choiceOptions: ClubFormQuestionOption[]
 ) {
-	const labels = [
-		...choiceOptions.map((option) => option.label || option.value),
-		...manualOptions,
-	];
+	const choiceOptionLabels = choiceOptions.map((option) => option.label || option.value);
 
-	return labels
+	return [...orderedLabels, ...choiceOptionLabels]
 		.map((option) => option.trim())
 		.filter(Boolean)
-		.filter((option, index, allOptions) =>
-			allOptions.findIndex((item) => item.toLowerCase() === option.toLowerCase()) === index
-		);
-}
-
-function mergeManualOptionLabels(
-	manualOptions: string[],
-	choiceOptions: ClubFormQuestionOption[]
-) {
-	const choiceOptionLabels = new Set(
-		choiceOptions.flatMap((option) => [
-			option.value.toLowerCase(),
-			option.label.toLowerCase(),
-		])
-	);
-
-	return manualOptions
-		.map((option) => option.trim())
-		.filter(Boolean)
-		.filter((option) => !choiceOptionLabels.has(option.toLowerCase()))
 		.filter((option, index, allOptions) =>
 			allOptions.findIndex((item) => item.toLowerCase() === option.toLowerCase()) === index
 		);
