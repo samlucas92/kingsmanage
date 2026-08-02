@@ -18,6 +18,7 @@ export default function PwaStatus() {
 	const [isInstallDismissed, setIsInstallDismissed] = useState(
 		() => localStorage.getItem(INSTALL_DISMISSED_KEY) === "true"
 	);
+	const [canApplyBrowserUpdateOnLoad, setCanApplyBrowserUpdateOnLoad] = useState(true);
 	const currentUser = useAuthStore((state) => state.currentUser);
 	const isStandalone = window.matchMedia("(display-mode: standalone)").matches
 		|| ("standalone" in navigator && Boolean((navigator as Navigator & { standalone?: boolean }).standalone));
@@ -61,10 +62,20 @@ export default function PwaStatus() {
 	}, [shouldRegisterPwa]);
 
 	useEffect(() => {
+		const updateWindow = window.setTimeout(() => setCanApplyBrowserUpdateOnLoad(false), 10000);
+		return () => window.clearTimeout(updateWindow);
+	}, []);
+
+	useEffect(() => {
 		if (!needRefresh || isStandalone) return;
 
+		if (!canApplyBrowserUpdateOnLoad) {
+			setNeedRefresh(false);
+			return;
+		}
+
 		void updateServiceWorker(true);
-	}, [isStandalone, needRefresh, updateServiceWorker]);
+	}, [canApplyBrowserUpdateOnLoad, isStandalone, needRefresh, setNeedRefresh, updateServiceWorker]);
 
 	useEffect(() => {
 		function updateOnlineStatus() {

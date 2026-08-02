@@ -23,7 +23,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       injectRegister: false,
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'pwa-icon.svg'],
       manifest: {
@@ -45,10 +45,8 @@ export default defineConfig({
         ],
       },
       workbox: {
-        clientsClaim: true,
         cleanupOutdatedCaches: true,
         navigateFallback: '/index.html',
-        skipWaiting: true,
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         runtimeCaching: [
           {
