@@ -522,30 +522,36 @@ function FormsList({
 						))}
 					</div>
 
-					<DataTable className="hidden lg:block" empty={false} minWidthClassName="min-w-[980px]">
+					<DataTable
+						className="hidden lg:block"
+						empty={false}
+						minWidthClassName="min-w-[1180px]"
+						widthClassName="w-max"
+						tableClassName="whitespace-nowrap"
+					>
 						<thead className="bg-slate-50 text-left text-xs font-black uppercase tracking-wide text-slate-500">
 							<tr>
-								<th className="px-4 py-3">Name</th>
-								<th className="px-4 py-3">Created by</th>
-								<th className="px-4 py-3">Match</th>
-								<th className="px-4 py-3">State</th>
-								<th className="px-4 py-3">Date created</th>
-								<th className="px-4 py-3 text-right">Actions</th>
+								<th className="w-[320px] px-4 py-3">Name</th>
+								<th className="w-[300px] px-4 py-3">Created by</th>
+								<th className="w-[220px] px-4 py-3">Match</th>
+								<th className="w-[140px] px-4 py-3">State</th>
+								<th className="w-[220px] px-4 py-3">Date created</th>
+								<th className="w-[160px] px-4 py-3 text-right">Actions</th>
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-slate-100">
 							{forms.map((form) => (
 								<tr key={form.id}>
-									<td className="px-4 py-3">
+									<td className="w-[320px] px-4 py-3">
 										<button type="button" onClick={() => onReport(form)} className="text-left font-black text-yepset-800 hover:underline">
 											{form.title}
 										</button>
 									</td>
-									<td className="px-4 py-3 text-slate-600">{form.createdByUserEmail || "Unknown"}</td>
-									<td className="px-4 py-3 text-slate-600">{form.sourceMatchLabel || "—"}</td>
-									<td className="px-4 py-3"><StatusPill status={form.status} /></td>
-									<td className="px-4 py-3 text-slate-600">{formatDisplayDateTime(form.createdAt)}</td>
-									<td className="px-4 py-3">
+									<td className="w-[300px] px-4 py-3 text-slate-600">{form.createdByUserEmail || "Unknown"}</td>
+									<td className="w-[220px] px-4 py-3 text-slate-600">{form.sourceMatchLabel || "—"}</td>
+									<td className="w-[140px] px-4 py-3"><StatusPill status={form.status} /></td>
+									<td className="w-[220px] px-4 py-3 text-slate-600">{formatDisplayDateTime(form.createdAt)}</td>
+									<td className="w-[160px] px-4 py-3">
 										<div className="flex justify-end">
 											<ActionMenu
 												items={getFormActionItems({
