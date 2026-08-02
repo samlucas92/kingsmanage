@@ -7,6 +7,7 @@ const AvailabilityReport = lazy(() => import("./sections/AvailabilityReport/Avai
 const DisciplineReport = lazy(() => import("./sections/DisciplineReport/DisciplineReport"));
 const FinanceReport = lazy(() => import("./sections/FinanceReport/FinanceReport"));
 const OverviewReport = lazy(() => import("./sections/OverviewReport/OverviewReport"));
+const PlayerAwardsReport = lazy(() => import("./sections/PlayerAwardsReport/PlayerAwardsReport"));
 const PlayerStatsReport = lazy(() => import("./sections/PlayerStatsReport/PlayerStatsReport"));
 const SquadUsageReport = lazy(() => import("./sections/SquadUsageReport/SquadUsageReport"));
 const TeamPerformanceReport = lazy(() => import("./sections/TeamPerformanceReport/TeamPerformanceReport"));
@@ -21,6 +22,7 @@ export default function ReportsPage() {
 					<Route path="overview" element={<OverviewReport />} />
 					<Route path="team-performance" element={<TeamPerformanceReport />} />
 					<Route path="player-stats" element={<PlayerStatsReport />} />
+					<Route path="player-awards" element={<PlayerAwardsReport />} />
 					<Route path="squad-usage" element={<SquadUsageReport />} />
 					<Route path="availability" element={<AvailabilityReport />} />
 					<Route path="discipline" element={<DisciplineReport />} />

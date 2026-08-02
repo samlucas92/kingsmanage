@@ -149,6 +149,7 @@ export default function Forms() {
 			title: "",
 			description: "",
 			status: "Draft",
+			formType: "Custom",
 			sourceType: "General",
 			sourceMatchId: null,
 			allowAnonymousResponses: true,
@@ -1036,6 +1037,7 @@ function resetQuestionForType(question: ClubFormQuestion, type: ClubFormQuestion
 function normaliseFormRequest(form: SaveClubFormRequest): SaveClubFormRequest {
 	return {
 		...form,
+		formType: form.formType ?? "Custom",
 		title: form.title.trim(),
 		description: form.description.trim(),
 		questions: form.questions.map((question) => ({

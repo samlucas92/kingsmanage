@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import ReportBarChart from "../../components/charts/ReportBarChart";
 import ReportChartContainer from "../../components/charts/ReportChartContainer";
 import ReportMetricCard from "../../components/ReportMetricCard";
@@ -8,7 +9,7 @@ import ReportLoadState from "../../components/ReportLoadState";
 import ReportMobileRankedList from "../../components/ReportMobileRankedList";
 import { useReportsContext } from "../../ReportsContext";
 import { useReportResource } from "../../hooks/useReportResource";
-import { reportsApi, type PlayerContribution, type PlayerReportsResponse } from "../../../../services/reportsApi";
+import { reportsApi, type PlayerAwardCount, type PlayerContribution, type PlayerReportsResponse } from "../../../../services/reportsApi";
 
 type RankingMode = "contributions" | "goals" | "assists" | "appearances";
 
@@ -102,6 +103,24 @@ export default function PlayerStatsReport() {
 					/>
 				</div>
 			</ReportChartContainer>
+			<ReportPanel
+				title="Player awards"
+				description="Top 5 from closed player-award forms."
+				action={<Link to="/reports/player-awards" className="text-xs font-black text-yepset-700 hover:text-yepset-900">View full report</Link>}
+			>
+				<div className="grid gap-4 lg:grid-cols-2">
+					<AwardPreviewList
+						title="Man of the match"
+						rows={(report?.awards.manOfTheMatch ?? []).slice(0, 5)}
+						emptyMessage="No man of the match awards yet."
+					/>
+					<AwardPreviewList
+						title="Dick of the day"
+						rows={(report?.awards.dickOfTheDay ?? []).slice(0, 5)}
+						emptyMessage="No dick of the day awards yet."
+					/>
+				</div>
+			</ReportPanel>
 			<ReportPanel title="Top contributors" description="Goals plus assists, with appearances for context.">
 				<div className="divide-y divide-slate-100 rounded-2xl border border-slate-200">
 					{(report?.topContributors ?? []).slice(0, 8).map((player, index) => (
@@ -116,6 +135,39 @@ export default function PlayerStatsReport() {
 					))}
 				</div>
 			</ReportPanel>
+		</div>
+	);
+}
+
+function AwardPreviewList({
+	title,
+	rows,
+	emptyMessage,
+}: {
+	title: string;
+	rows: PlayerAwardCount[];
+	emptyMessage: string;
+}) {
+	return (
+		<div>
+			<h3 className="text-sm font-black text-slate-950">{title}</h3>
+			{rows.length === 0 ? (
+				<p className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">
+					{emptyMessage}
+				</p>
+			) : (
+				<div className="mt-2 divide-y divide-slate-100 rounded-2xl border border-slate-200">
+					{rows.map((row, index) => (
+						<div key={row.playerId} className="grid grid-cols-[2rem_1fr_3rem] items-center gap-2 px-3 py-2 text-sm">
+							<span className="font-black text-slate-400">{index + 1}</span>
+							<Link to={`/players/${row.playerId}`} className="min-w-0 truncate font-black text-slate-950 hover:text-yepset-700">
+								{row.playerName}
+							</Link>
+							<span className="text-right font-black text-yepset-700">{row.count}</span>
+						</div>
+					))}
+				</div>
+			)}
 		</div>
 	);
 }

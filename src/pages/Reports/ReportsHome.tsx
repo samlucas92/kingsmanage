@@ -31,6 +31,14 @@ export default function ReportsHome() {
 			visible: true,
 		},
 		{
+			to: "/reports/player-awards",
+			icon: "★",
+			title: "Player Awards",
+			description: "Man of the match and dick of the day totals",
+			tone: "green" as const,
+			visible: true,
+		},
+		{
 			to: "/reports/training-development",
 			icon: "◎",
 			title: "Training and Development",

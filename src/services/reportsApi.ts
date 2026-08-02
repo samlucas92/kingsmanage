@@ -127,6 +127,17 @@ export type PlayerDiscipline = {
 	totalCards: number;
 };
 
+export type PlayerAwardCount = {
+	playerId: string;
+	playerName: string;
+	count: number;
+};
+
+export type PlayerAwardsReportResponse = {
+	manOfTheMatch: PlayerAwardCount[];
+	dickOfTheDay: PlayerAwardCount[];
+};
+
 export type DisciplineReportResponse = {
 	yellowCards: number;
 	redCards: number;
@@ -139,6 +150,7 @@ export type PlayerReportsResponse = {
 	players: PlayerStatsRecord[];
 	topContributors: PlayerContribution[];
 	squadUsage: PlayerUsage[];
+	awards: PlayerAwardsReportResponse;
 	discipline: DisciplineReportResponse;
 };
 
