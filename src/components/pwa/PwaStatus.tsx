@@ -98,7 +98,7 @@ export default function PwaStatus() {
 		);
 	}
 
-	if (needRefresh) {
+	if (needRefresh && isStandalone) {
 		return (
 			<StatusCard
 				tone="update"
@@ -111,7 +111,7 @@ export default function PwaStatus() {
 		);
 	}
 
-	if (offlineReady) {
+	if (offlineReady && isStandalone) {
 		return (
 			<StatusCard
 				tone="ready"
