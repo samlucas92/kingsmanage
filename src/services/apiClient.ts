@@ -101,7 +101,7 @@ async function getErrorMessage(response: Response) {
 }
 
 export const apiClient = {
-	get: <T>(path: string) => request<T>(path),
+	get: <T>(path: string, options?: RequestOptions) => request<T>(path, options),
 	post: <T>(path: string, body: unknown, options?: RequestOptions) => request<T>(path, {
 		...options,
 		method: "POST",

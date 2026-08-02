@@ -16,6 +16,7 @@ const ClubTeams = lazy(() => import("../pages/ClubTeams/ClubTeams"));
 const Dashboard = lazy(() => import("../pages/Dashboard/Dashboard"));
 const EventDetail = lazy(() => import("../pages/Events/EventDetail"));
 const Finance = lazy(() => import("../pages/Finance/Finance"));
+const Forms = lazy(() => import("../pages/Forms/Forms"));
 const HistoricalStats = lazy(() => import("../pages/HistoricalStats/HistoricalStats"));
 const Login = lazy(() => import("../pages/Login/Login"));
 const MatchDetail = lazy(() => import("../pages/Matches/MatchDetails"));
@@ -42,11 +43,13 @@ export default function AppRouter() {
 		<Suspense fallback={<PageLoadingFallback />}>
 			<Routes>
 				<Route path="/login" element={<Login />} />
+				<Route path="/go/:goCode" element={<Forms />} />
 
 				<Route element={<ProtectedRoute allowedRoles={[...allRoles]} />}>
 					<Route element={<AppShell />}>
 						<Route index element={<Dashboard />} />
 						<Route path="/events/:id" element={<EventDetail />} />
+						<Route path="/forms" element={<Forms />} />
 						<Route path="/posts/:id" element={<PostDetail />} />
 						<Route path="/notifications" element={<Notifications />} />
 						<Route path="/settings" element={<Settings />} />

@@ -45,6 +45,11 @@ const navigationItems: NavigationItem[] = [
 		roles: ["Admin", "Coach"],
 	},
 	{
+		label: "Forms",
+		to: "/forms",
+		roles: ["Admin", "Coach", "Player"],
+	},
+	{
 		label: "Training",
 		to: "/training",
 		roles: ["Admin", "Coach"],
@@ -252,6 +257,8 @@ function NavigationIcon({ path }: { path: string }) {
 						? "M4 19V9m5 10V5m5 14v-7m5 7V3"
 						: path === "/reports"
 							? "M4 19V5m5 14v-8m5 8V8m5 11V3M3 21h18"
+							: path === "/forms"
+								? "M6 3h9l3 3v15H6V3Zm8 0v4h4M9 11h6M9 15h6M9 19h3"
 						: path === "/stats" || path === "/historical-stats"
 							? "m4 17 5-5 4 4 7-9M15 7h5v5"
 							: path === "/seasons"
