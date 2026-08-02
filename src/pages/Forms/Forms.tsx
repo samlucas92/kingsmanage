@@ -6,6 +6,7 @@ import ConfirmationModal from "../../components/compositions/ConfirmationModal";
 import DataTable from "../../components/compositions/DataTable";
 import { formsApi } from "../../services/formsApi";
 import { useAuthStore } from "../../stores/auth";
+import { useMatchStore } from "../../stores/match";
 import type {
 	ClubForm,
 	ClubFormAnswer,
@@ -183,6 +184,9 @@ export default function Forms() {
 
 		try {
 			const updated = await formsApi.updateStatus(formToUpdate.id, nextStatus);
+			if (updated.sourceMatchId) {
+				await useMatchStore.getState().loadMatch(updated.sourceMatchId, true);
+			}
 			setForms((current) => current.map((item) => item.id === updated.id ? updated : item));
 			setForm((current) => current?.id === updated.id ? updated : current);
 			setMessage(nextStatus === "Closed"
@@ -469,46 +473,98 @@ function FormsList({
 
 	return (
 		<section className="surface-card overflow-hidden">
-			<DataTable empty={forms.length === 0} emptyTitle="No forms yet" emptyMessage="Create a form or generate awards from a match." minWidthClassName="min-w-[980px]">
-				<thead className="bg-slate-50 text-left text-xs font-black uppercase tracking-wide text-slate-500">
-					<tr>
-						<th className="px-4 py-3">Name</th>
-						<th className="px-4 py-3">Created by</th>
-						<th className="px-4 py-3">Match</th>
-						<th className="px-4 py-3">State</th>
-						<th className="px-4 py-3">Date created</th>
-						<th className="px-4 py-3 text-right">Actions</th>
-					</tr>
-				</thead>
-				<tbody className="divide-y divide-slate-100">
-					{forms.map((form) => (
-						<tr key={form.id}>
-							<td className="px-4 py-3">
-								<button type="button" onClick={() => onReport(form)} className="text-left font-black text-yepset-800 hover:underline">
-									{form.title}
-								</button>
-							</td>
-							<td className="px-4 py-3 text-slate-600">{form.createdByUserEmail || "Unknown"}</td>
-							<td className="px-4 py-3 text-slate-600">{form.sourceMatchLabel || "—"}</td>
-							<td className="px-4 py-3"><StatusPill status={form.status} /></td>
-							<td className="px-4 py-3 text-slate-600">{formatDisplayDateTime(form.createdAt)}</td>
-							<td className="px-4 py-3">
-								<div className="flex justify-end">
+			{forms.length === 0 ? (
+				<div className="p-6 text-center">
+					<p className="text-base font-black text-slate-950">No forms yet</p>
+					<p className="mt-1 text-sm text-slate-500">Create a form or generate awards from a match.</p>
+				</div>
+			) : (
+				<>
+					<div className="divide-y divide-slate-100 lg:hidden">
+						{forms.map((form) => (
+							<div key={form.id} className="space-y-3 p-4">
+								<div className="flex items-start justify-between gap-3">
+									<button type="button" onClick={() => onReport(form)} className="min-w-0 text-left text-lg font-black leading-tight text-yepset-800">
+										{form.title}
+									</button>
 									<ActionMenu
-										items={[
-											{ label: "Edit", onClick: () => onEdit(form) },
-											{ label: form.status === "Closed" ? "Open form" : "Close form", onClick: () => void onToggleState(form) },
-											{ label: "Report", onClick: () => onReport(form) },
-											{ label: "Share", onClick: () => void onShare(form) },
-											{ label: "Delete", onClick: () => onDelete(form), tone: "danger" },
-										]}
+										items={getFormActionItems({
+											form,
+											onDelete,
+											onEdit,
+											onReport,
+											onShare,
+											onToggleState,
+										})}
 									/>
 								</div>
-							</td>
-						</tr>
-					))}
-				</tbody>
-			</DataTable>
+
+								<div className="flex flex-wrap items-center gap-2">
+									<StatusPill status={form.status} />
+									{form.sourceMatchLabel && (
+										<span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">
+											{form.sourceMatchLabel}
+										</span>
+									)}
+								</div>
+
+								<dl className="grid gap-2 text-sm">
+									<div>
+										<dt className="text-xs font-black uppercase tracking-wide text-slate-400">Created by</dt>
+										<dd className="mt-0.5 break-words font-semibold text-slate-700">{form.createdByUserEmail || "Unknown"}</dd>
+									</div>
+									<div>
+										<dt className="text-xs font-black uppercase tracking-wide text-slate-400">Date created</dt>
+										<dd className="mt-0.5 font-semibold text-slate-700">{formatDisplayDateTime(form.createdAt)}</dd>
+									</div>
+								</dl>
+							</div>
+						))}
+					</div>
+
+					<DataTable className="hidden lg:block" empty={false} minWidthClassName="min-w-[980px]">
+						<thead className="bg-slate-50 text-left text-xs font-black uppercase tracking-wide text-slate-500">
+							<tr>
+								<th className="px-4 py-3">Name</th>
+								<th className="px-4 py-3">Created by</th>
+								<th className="px-4 py-3">Match</th>
+								<th className="px-4 py-3">State</th>
+								<th className="px-4 py-3">Date created</th>
+								<th className="px-4 py-3 text-right">Actions</th>
+							</tr>
+						</thead>
+						<tbody className="divide-y divide-slate-100">
+							{forms.map((form) => (
+								<tr key={form.id}>
+									<td className="px-4 py-3">
+										<button type="button" onClick={() => onReport(form)} className="text-left font-black text-yepset-800 hover:underline">
+											{form.title}
+										</button>
+									</td>
+									<td className="px-4 py-3 text-slate-600">{form.createdByUserEmail || "Unknown"}</td>
+									<td className="px-4 py-3 text-slate-600">{form.sourceMatchLabel || "—"}</td>
+									<td className="px-4 py-3"><StatusPill status={form.status} /></td>
+									<td className="px-4 py-3 text-slate-600">{formatDisplayDateTime(form.createdAt)}</td>
+									<td className="px-4 py-3">
+										<div className="flex justify-end">
+											<ActionMenu
+												items={getFormActionItems({
+													form,
+													onDelete,
+													onEdit,
+													onReport,
+													onShare,
+													onToggleState,
+												})}
+											/>
+										</div>
+									</td>
+								</tr>
+							))}
+						</tbody>
+					</DataTable>
+				</>
+			)}
 			<div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-sm font-semibold text-slate-600">
 				<span>Page {page} of {totalPages}</span>
 				<div className="flex gap-2">
@@ -518,6 +574,30 @@ function FormsList({
 			</div>
 		</section>
 	);
+}
+
+function getFormActionItems({
+	form,
+	onDelete,
+	onEdit,
+	onReport,
+	onShare,
+	onToggleState,
+}: {
+	form: ClubForm;
+	onDelete: (form: ClubForm) => void;
+	onEdit: (form: ClubForm) => void;
+	onReport: (form: ClubForm) => void;
+	onShare: (form: ClubForm) => void | Promise<void>;
+	onToggleState: (form: ClubForm) => void | Promise<void>;
+}) {
+	return [
+		{ label: "Edit", onClick: () => onEdit(form) },
+		{ label: form.status === "Closed" ? "Open form" : "Close form", onClick: () => void onToggleState(form) },
+		{ label: "Report", onClick: () => onReport(form) },
+		{ label: "Share", onClick: () => void onShare(form) },
+		{ label: "Delete", onClick: () => onDelete(form), tone: "danger" as const },
+	];
 }
 
 function FormReportView({
