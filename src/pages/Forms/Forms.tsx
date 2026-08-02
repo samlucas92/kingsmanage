@@ -919,6 +919,9 @@ function QuestionEditor({
 	canRemove: boolean;
 }) {
 	const isChoice = question.type === "SingleChoice" || question.type === "MultipleChoice";
+	const choiceOptions = getQuestionChoiceOptions(question);
+	const hasPlayerOptions = choiceOptions.some((option) => option.playerId);
+	const isPlayerBacked = isChoice && (question.optionSource !== undefined && question.optionSource !== "Manual" || hasPlayerOptions);
 
 	return (
 		<section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -942,10 +945,34 @@ function QuestionEditor({
 					Required
 				</label>
 			</div>
-			{isChoice && (
+			{isPlayerBacked && (
+				<div className="mt-3 rounded-2xl border border-yepset-100 bg-white p-4">
+					<div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+						<div>
+							<p className="text-sm font-black text-slate-900">
+								{formatOptionSource(question.optionSource, hasPlayerOptions)}
+							</p>
+							<p className="text-xs font-bold text-slate-500">
+								These options are player-backed and submit player IDs, so they cannot be edited as plain text here.
+							</p>
+						</div>
+						<span className="rounded-full bg-yepset-50 px-3 py-1 text-xs font-black text-yepset-700">
+							{choiceOptions.length} options
+						</span>
+					</div>
+					<div className="mt-3 flex max-h-44 flex-wrap gap-2 overflow-y-auto">
+						{choiceOptions.map((option) => (
+							<span key={option.value} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-700">
+								{option.label}
+							</span>
+						))}
+					</div>
+				</div>
+			)}
+			{isChoice && !isPlayerBacked && (
 				<label className="mt-3 block text-sm font-bold text-slate-700">
 					Options, one per line
-					<textarea value={question.options.join("\n")} onChange={(event) => onChange({ ...question, options: event.target.value.split("\n"), choiceOptions: [] })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2" rows={4} />
+					<textarea value={question.options.join("\n")} onChange={(event) => onChange({ ...question, optionSource: "Manual", options: event.target.value.split("\n"), choiceOptions: [] })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2" rows={4} />
 				</label>
 			)}
 			{question.type === "Rating" && (
@@ -1002,6 +1029,7 @@ function toEditableForm(form: ClubForm): SaveClubFormRequest {
 		title: form.title,
 		description: form.description,
 		status: form.status,
+		formType: form.formType,
 		sourceType: form.sourceType,
 		sourceMatchId: form.sourceMatchId ?? null,
 		allowAnonymousResponses: form.allowAnonymousResponses,
@@ -1016,6 +1044,7 @@ function createQuestion(): ClubFormQuestion {
 		prompt: "",
 		type: "ShortText",
 		isRequired: true,
+		optionSource: "Manual",
 		options: [],
 		choiceOptions: [],
 		minRating: 1,
@@ -1027,6 +1056,7 @@ function resetQuestionForType(question: ClubFormQuestion, type: ClubFormQuestion
 	return {
 		...question,
 		type,
+		optionSource: "Manual",
 		options: type === "SingleChoice" || type === "MultipleChoice" ? question.options.length ? question.options : ["Option 1", "Option 2"] : [],
 		choiceOptions: [],
 		minRating: type === "Rating" ? question.minRating : 1,
@@ -1043,6 +1073,7 @@ function normaliseFormRequest(form: SaveClubFormRequest): SaveClubFormRequest {
 		questions: form.questions.map((question) => ({
 			...question,
 			prompt: question.prompt.trim(),
+			optionSource: question.optionSource ?? "Manual",
 			options: question.options.map((option) => option.trim()).filter(Boolean),
 			choiceOptions: question.choiceOptions?.map((option) => ({
 				...option,
@@ -1104,6 +1135,15 @@ function getQuestionChoiceOptions(question: ClubFormQuestion): ClubFormQuestionO
 		value: option,
 		label: option,
 	}));
+}
+
+function formatOptionSource(
+	optionSource: ClubFormQuestion["optionSource"],
+	hasPlayerOptions: boolean
+) {
+	if (optionSource === "AllPlayers") return "All players";
+	if (optionSource === "MatchPlayers") return "Match players";
+	return hasPlayerOptions ? "Player options" : "Manual options";
 }
 
 function getAnonymousSubmissionKey() {

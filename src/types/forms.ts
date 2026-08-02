@@ -2,12 +2,14 @@ export type ClubFormStatus = "Draft" | "Open" | "Closed";
 export type ClubFormType = "General" | "PlayerOfTheMatch" | "Custom";
 export type ClubFormSourceType = "General" | "MatchAwards";
 export type ClubFormQuestionType = "ShortText" | "LongText" | "SingleChoice" | "MultipleChoice" | "Rating" | "YesNo";
+export type ClubFormQuestionOptionSource = "Manual" | "MatchPlayers" | "AllPlayers";
 
 export type ClubFormQuestion = {
 	id: string;
 	prompt: string;
 	type: ClubFormQuestionType;
 	isRequired: boolean;
+	optionSource?: ClubFormQuestionOptionSource;
 	options: string[];
 	choiceOptions?: ClubFormQuestionOption[];
 	minRating: number;

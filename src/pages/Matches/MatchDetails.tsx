@@ -203,6 +203,7 @@ export default function MatchDetail() {
 				onSaveTeamClick={matchDetail.handleSaveTeamClick}
 				onGeneratePostClick={() => setShowGeneratePost(true)}
 				onCreateAwardsFormClick={handleCreateAwardsForm}
+				onGoToAwardsFormClick={() => matchAwardsForm && navigate(`/go/${matchAwardsForm.goCode}`)}
 				onViewAwardsFormClick={() => matchAwardsForm && navigate(`/forms/${matchAwardsForm.id}/report`)}
 				hasAwardsForm={Boolean(matchAwardsForm)}
 				isCreatingAwardsForm={isCreatingAwardsForm}

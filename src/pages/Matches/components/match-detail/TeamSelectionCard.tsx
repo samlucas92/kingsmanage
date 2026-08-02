@@ -19,6 +19,7 @@ interface TeamSelectionCardProps {
 	onSaveTeamClick: () => void;
 	onGeneratePostClick: () => void;
 	onCreateAwardsFormClick: () => void;
+	onGoToAwardsFormClick?: () => void;
 	onViewAwardsFormClick?: () => void;
 	hasAwardsForm?: boolean;
 	isCreatingAwardsForm?: boolean;
@@ -35,6 +36,7 @@ export function TeamSelectionCard({
 	onSaveTeamClick,
 	onGeneratePostClick,
 	onCreateAwardsFormClick,
+	onGoToAwardsFormClick,
 	onViewAwardsFormClick,
 	hasAwardsForm = false,
 	isCreatingAwardsForm = false,
@@ -61,12 +63,21 @@ export function TeamSelectionCard({
 						<>
 							<button
 								type="button"
-								onClick={hasAwardsForm ? onViewAwardsFormClick : onCreateAwardsFormClick}
+								onClick={hasAwardsForm ? onGoToAwardsFormClick : onCreateAwardsFormClick}
 								disabled={isCreatingAwardsForm}
 								className="rounded-xl border border-yepset-200 px-5 py-3 text-sm font-bold text-yepset-800 hover:bg-yepset-50 disabled:cursor-not-allowed disabled:opacity-60"
 							>
-								{hasAwardsForm ? "View awards form" : isCreatingAwardsForm ? "Creating..." : "Create awards form"}
+								{hasAwardsForm ? "Go to form" : isCreatingAwardsForm ? "Creating..." : "Create awards form"}
 							</button>
+							{hasAwardsForm && onViewAwardsFormClick && (
+								<button
+									type="button"
+									onClick={onViewAwardsFormClick}
+									className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
+								>
+									View report
+								</button>
+							)}
 							<button type="button" onClick={onGeneratePostClick} className="rounded-xl border border-yepset-200 px-5 py-3 text-sm font-bold text-yepset-800 hover:bg-yepset-50">
 								Generate post
 							</button>
