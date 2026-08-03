@@ -13,7 +13,8 @@ export const formsApi = {
 
 	getPublicForm: (goCode: string, anonymousSubmissionKey: string) =>
 		apiClient.get<ClubForm>(
-			`/forms/go/${encodeURIComponent(goCode)}?anonymousSubmissionKey=${encodeURIComponent(anonymousSubmissionKey)}`
+			`/forms/go/${encodeURIComponent(goCode)}?anonymousSubmissionKey=${encodeURIComponent(anonymousSubmissionKey)}`,
+			{ authenticated: false }
 		),
 
 	createForm: (request: SaveClubFormRequest) =>
@@ -43,7 +44,8 @@ export const formsApi = {
 	submitPublicForm: (goCode: string, request: SubmitClubFormRequest) =>
 		apiClient.post<ClubForm>(
 			`/forms/go/${encodeURIComponent(goCode)}/submissions`,
-			request
+			request,
+			{ authenticated: false }
 		),
 
 	getResults: (id: string) =>
