@@ -251,6 +251,13 @@ export default function Forms() {
 		event.preventDefault();
 		if (!form || !canSubmitSelectedForm) return;
 
+		if (hasMissingRequiredOtherText(form, answers)) {
+			setAnswers((currentAnswers) => markMissingRequiredOtherText(form, currentAnswers));
+			setError("You must enter a name when choosing Other.");
+			setMessage("");
+			return;
+		}
+
 		setIsSaving(true);
 		setError("");
 		setMessage("");
@@ -484,6 +491,7 @@ type DraftAnswer = {
 	selectedOptions: string[];
 	ratingValue?: number | null;
 	booleanValue?: boolean | null;
+	showOtherTextValidation?: boolean;
 };
 
 function FormsList({
@@ -930,6 +938,11 @@ function FormQuestionInput({
 	const selectedTextOption = choiceOptions.find((option) =>
 		optionRequiresTextInput(option) && answer.selectedOptions.includes(option.value)
 	);
+	const showOtherTextValidation = Boolean(
+		selectedTextOption &&
+		answer.showOtherTextValidation &&
+		!answer.textValue.trim()
+	);
 
 	function selectSingleOption(option: ClubFormQuestionOption) {
 		onChange({
@@ -995,11 +1008,23 @@ function FormQuestionInput({
 					{selectedTextOption.textInputLabel || "Please specify"}
 					<input
 						value={answer.textValue}
+						onBlur={() => onChange({ ...answer, showOtherTextValidation: true })}
 						onChange={(event) => onChange({ ...answer, textValue: event.target.value })}
 						required
-						className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"
+						aria-invalid={showOtherTextValidation}
+						aria-describedby={`${question.id}-other-validation`}
+						className={`mt-1 w-full rounded-xl border px-3 py-2 ${
+							showOtherTextValidation
+								? "border-red-400 bg-red-50"
+								: "border-slate-300"
+						}`}
 						placeholder="Enter a name"
 					/>
+					{showOtherTextValidation && (
+						<span id={`${question.id}-other-validation`} className="mt-1 block text-sm font-black text-red-700">
+							You must enter a name when choosing Other.
+						</span>
+					)}
 				</label>
 			)}
 			{question.type === "Rating" && (
@@ -1610,6 +1635,43 @@ function buildSubmissionAnswers(form: ClubForm, answers: Record<string, DraftAns
 		ratingValue: answers[question.id]?.ratingValue ?? null,
 		booleanValue: answers[question.id]?.booleanValue ?? null,
 	}));
+}
+
+function hasMissingRequiredOtherText(form: ClubForm, answers: Record<string, DraftAnswer>) {
+	return form.questions.some((question) => {
+		const answer = answers[question.id];
+		return Boolean(answer && getSelectedRequiredTextOption(question, answer) && !answer.textValue.trim());
+	});
+}
+
+function markMissingRequiredOtherText(
+	form: ClubForm,
+	answers: Record<string, DraftAnswer>
+): Record<string, DraftAnswer> {
+	return Object.fromEntries(
+		form.questions.map((question) => {
+			const answer = answers[question.id] ?? {
+				textValue: "",
+				selectedOptions: [],
+				ratingValue: null,
+				booleanValue: null,
+			};
+
+			return [
+				question.id,
+				{
+					...answer,
+					showOtherTextValidation: Boolean(getSelectedRequiredTextOption(question, answer) && !answer.textValue.trim()),
+				},
+			];
+		})
+	);
+}
+
+function getSelectedRequiredTextOption(question: ClubFormQuestion, answer: DraftAnswer) {
+	return getQuestionChoiceOptions(question).find((option) =>
+		optionRequiresTextInput(option) && answer.selectedOptions.includes(option.value)
+	);
 }
 
 function getTopAnswer(question: ClubFormQuestionResult) {
