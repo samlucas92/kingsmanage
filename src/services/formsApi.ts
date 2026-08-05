@@ -1,6 +1,7 @@
 import { apiClient } from "./apiClient";
 import type {
 	ClubForm,
+	ClubFormSubmissionReport,
 	ClubFormResults,
 	SaveClubFormRequest,
 	SubmitClubFormRequest,
@@ -50,4 +51,7 @@ export const formsApi = {
 
 	getResults: (id: string) =>
 		apiClient.get<ClubFormResults>(`/forms/${encodeURIComponent(id)}/results`),
+
+	getSubmissionReport: (id: string) =>
+		apiClient.get<ClubFormSubmissionReport>(`/forms/${encodeURIComponent(id)}/submission-report`),
 };

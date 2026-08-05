@@ -18,6 +18,7 @@ import type {
 	ClubFormQuestionType,
 	ClubFormResults,
 	ClubFormStatus,
+	ClubFormSubmissionReport,
 	SaveClubFormRequest,
 } from "../../types/forms";
 import { formatDisplayDateTime } from "../../utils/date";
@@ -33,6 +34,7 @@ const questionTypes: ClubFormQuestionType[] = [
 
 const pageSize = 10;
 const anonymousSubmissionStorageKey = "yepset.forms.anonymousSubmissionKey";
+type ReportViewMode = "summary" | "submissions";
 
 export default function Forms() {
 	const { formId, goCode } = useParams<{ formId: string; goCode: string }>();
@@ -47,6 +49,8 @@ export default function Forms() {
 	const [forms, setForms] = useState<ClubForm[]>([]);
 	const [form, setForm] = useState<ClubForm | null>(null);
 	const [results, setResults] = useState<ClubFormResults | null>(null);
+	const [submissionReport, setSubmissionReport] = useState<ClubFormSubmissionReport | null>(null);
+	const [reportViewMode, setReportViewMode] = useState<ReportViewMode>("summary");
 	const [answers, setAnswers] = useState<Record<string, DraftAnswer>>({});
 	const [editingForm, setEditingForm] = useState<SaveClubFormRequest | null>(null);
 	const [page, setPage] = useState(1);
@@ -119,7 +123,12 @@ export default function Forms() {
 			setForm(loadedForm);
 			setAnswers(buildInitialAnswers(loadedForm));
 			if (canManageForms && (isReportMode || isEditorMode)) {
-				setResults(await formsApi.getResults(id));
+				const [loadedResults, loadedSubmissionReport] = await Promise.all([
+					formsApi.getResults(id),
+					formsApi.getSubmissionReport(id),
+				]);
+				setResults(loadedResults);
+				setSubmissionReport(loadedSubmissionReport);
 			}
 		} catch (error) {
 			setError(error instanceof Error ? error.message : "Failed to load form.");
@@ -343,11 +352,14 @@ export default function Forms() {
 				<FormReportView
 					form={form}
 					results={results}
+					submissionReport={submissionReport}
+					viewMode={reportViewMode}
 					isLoading={isLoading}
 					onBack={() => navigate("/forms")}
 					onCopy={() => setCopyModalOpen(true)}
 					onEdit={() => form && navigate(`/forms/${form.id}/edit`)}
 					onGoToForm={() => form && navigate(`/go/${form.goCode}`)}
+					onViewModeChange={setReportViewMode}
 					onShare={() => form && void shareForm(form)}
 					onToggleState={() => form && void updateState(form)}
 					onDelete={() => form && setDeleteTarget(form)}
@@ -615,23 +627,29 @@ function getFormActionItems({
 function FormReportView({
 	form,
 	results,
+	submissionReport,
+	viewMode,
 	isLoading,
 	onBack,
 	onCopy,
 	onDelete,
 	onEdit,
 	onGoToForm,
+	onViewModeChange,
 	onShare,
 	onToggleState,
 }: {
 	form: ClubForm | null;
 	results: ClubFormResults | null;
+	submissionReport: ClubFormSubmissionReport | null;
+	viewMode: ReportViewMode;
 	isLoading: boolean;
 	onBack: () => void;
 	onCopy: () => void;
 	onDelete: () => void;
 	onEdit: () => void;
 	onGoToForm: () => void;
+	onViewModeChange: (viewMode: ReportViewMode) => void;
 	onShare: () => void;
 	onToggleState: () => void;
 }) {
@@ -666,7 +684,34 @@ function FormReportView({
 				</div>
 			</div>
 
-			{results && <ResultsPanel results={results} />}
+			<div className="mt-6 flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+				<button
+					type="button"
+					onClick={() => onViewModeChange("summary")}
+					className={`flex-1 rounded-xl px-4 py-2 text-sm font-black ${
+						viewMode === "summary"
+							? "bg-white text-yepset-800 shadow-sm"
+							: "text-slate-500 hover:text-slate-800"
+					}`}
+				>
+					Summary
+				</button>
+				<button
+					type="button"
+					onClick={() => onViewModeChange("submissions")}
+					className={`flex-1 rounded-xl px-4 py-2 text-sm font-black ${
+						viewMode === "submissions"
+							? "bg-white text-yepset-800 shadow-sm"
+							: "text-slate-500 hover:text-slate-800"
+					}`}
+				>
+					Submissions
+				</button>
+			</div>
+
+			{viewMode === "summary"
+				? results && <ResultsPanel results={results} />
+				: submissionReport && <SubmissionReportPanel report={submissionReport} />}
 		</section>
 	);
 }
@@ -1288,6 +1333,48 @@ function ResultsPanel({ results }: { results: ClubFormResults }) {
 					</div>
 				))}
 			</div>
+		</section>
+	);
+}
+
+function SubmissionReportPanel({ report }: { report: ClubFormSubmissionReport }) {
+	return (
+		<section className="mt-6 border-t border-slate-200 pt-5">
+			<h3 className="text-lg font-black text-slate-950">Submissions</h3>
+			<p className="mt-1 text-sm text-slate-500">
+				{report.submissionCount} submissions. Answers are grouped by submission.
+			</p>
+
+			{report.submissions.length === 0 ? (
+				<p className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold text-slate-500">
+					No submissions yet.
+				</p>
+			) : (
+				<div className="mt-4 space-y-4">
+					{report.submissions.map((submission) => (
+						<article key={submission.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+							<div className="flex flex-wrap items-start justify-between gap-2">
+								<h4 className="font-black text-slate-950">{submission.label}</h4>
+								<span className="text-xs font-bold text-slate-500">
+									{formatDisplayDateTime(submission.submittedAt)}
+								</span>
+							</div>
+							<dl className="mt-4 divide-y divide-slate-200 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+								{submission.answers.map((answer) => (
+									<div key={answer.questionId} className="grid gap-1 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] sm:gap-4">
+										<dt className="text-xs font-black uppercase tracking-wide text-slate-500">
+											{answer.prompt}
+										</dt>
+										<dd className={`text-sm font-semibold ${answer.values.length ? "text-slate-800" : "text-slate-400"}`}>
+											{answer.displayValue}
+										</dd>
+									</div>
+								))}
+							</dl>
+						</article>
+					))}
+				</div>
+			)}
 		</section>
 	);
 }

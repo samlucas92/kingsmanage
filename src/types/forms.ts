@@ -76,6 +76,28 @@ export type ClubFormResults = {
 	questions: ClubFormQuestionResult[];
 };
 
+export type ClubFormSubmissionReport = {
+	formId: string;
+	title: string;
+	submissionCount: number;
+	submissions: ClubFormSubmission[];
+};
+
+export type ClubFormSubmission = {
+	id: string;
+	label: string;
+	submittedAt: string;
+	answers: ClubFormSubmissionAnswer[];
+};
+
+export type ClubFormSubmissionAnswer = {
+	questionId: string;
+	prompt: string;
+	type: ClubFormQuestionType;
+	displayValue: string;
+	values: string[];
+};
+
 export type ClubFormQuestionResult = {
 	questionId: string;
 	prompt: string;
