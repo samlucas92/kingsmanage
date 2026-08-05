@@ -12,6 +12,7 @@ import { usePlayerStore, type Player } from "../../stores/players";
 import type {
 	ClubForm,
 	ClubFormAnswer,
+	ClubFormOptionResult,
 	ClubFormQuestion,
 	ClubFormQuestionOption,
 	ClubFormQuestionResult,
@@ -272,6 +273,28 @@ export default function Forms() {
 		}
 	}
 
+	async function resolveAwardOption(questionId: string, selectedValue: string, playerId: string) {
+		if (!form) return;
+
+		setIsSaving(true);
+		setError("");
+		setMessage("");
+
+		try {
+			const updated = await formsApi.resolveAwardOption(form.id, {
+				questionId,
+				selectedValue,
+				playerId,
+			});
+			setForm(updated);
+			setMessage("Award option assigned to player.");
+		} catch (error) {
+			setError(error instanceof Error ? error.message : "Failed to assign player.");
+		} finally {
+			setIsSaving(false);
+		}
+	}
+
 	function updateEditingQuestion(index: number, question: ClubFormQuestion) {
 		if (!editingForm) return;
 		setEditingForm({
@@ -360,6 +383,7 @@ export default function Forms() {
 					onEdit={() => form && navigate(`/forms/${form.id}/edit`)}
 					onGoToForm={() => form && navigate(`/go/${form.goCode}`)}
 					onViewModeChange={setReportViewMode}
+					onResolveAwardOption={resolveAwardOption}
 					onShare={() => form && void shareForm(form)}
 					onToggleState={() => form && void updateState(form)}
 					onDelete={() => form && setDeleteTarget(form)}
@@ -636,6 +660,7 @@ function FormReportView({
 	onEdit,
 	onGoToForm,
 	onViewModeChange,
+	onResolveAwardOption,
 	onShare,
 	onToggleState,
 }: {
@@ -650,6 +675,7 @@ function FormReportView({
 	onEdit: () => void;
 	onGoToForm: () => void;
 	onViewModeChange: (viewMode: ReportViewMode) => void;
+	onResolveAwardOption: (questionId: string, selectedValue: string, playerId: string) => void;
 	onShare: () => void;
 	onToggleState: () => void;
 }) {
@@ -710,7 +736,7 @@ function FormReportView({
 			</div>
 
 			{viewMode === "summary"
-				? results && <ResultsPanel results={results} />
+				? results && <ResultsPanel form={form} onResolveAwardOption={onResolveAwardOption} results={results} />
 				: submissionReport && <SubmissionReportPanel report={submissionReport} />}
 		</section>
 	);
@@ -900,6 +926,33 @@ function FormQuestionInput({
 	onChange: (value: DraftAnswer) => void;
 }) {
 	const answer = value ?? { textValue: "", selectedOptions: [] };
+	const choiceOptions = getQuestionChoiceOptions(question);
+	const selectedTextOption = choiceOptions.find((option) =>
+		optionRequiresTextInput(option) && answer.selectedOptions.includes(option.value)
+	);
+
+	function selectSingleOption(option: ClubFormQuestionOption) {
+		onChange({
+			...answer,
+			selectedOptions: [option.value],
+			textValue: optionRequiresTextInput(option) ? answer.textValue : "",
+		});
+	}
+
+	function toggleMultipleOption(option: ClubFormQuestionOption, checked: boolean) {
+		const selectedOptions = checked
+			? [...answer.selectedOptions, option.value]
+			: answer.selectedOptions.filter((item) => item !== option.value);
+		const hasTextOptionSelected = choiceOptions.some((choiceOption) =>
+			optionRequiresTextInput(choiceOption) && selectedOptions.includes(choiceOption.value)
+		);
+
+		onChange({
+			...answer,
+			selectedOptions,
+			textValue: hasTextOptionSelected ? answer.textValue : "",
+		});
+	}
 
 	return (
 		<div className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -915,9 +968,9 @@ function FormQuestionInput({
 			)}
 			{question.type === "SingleChoice" && (
 				<div className="mt-3 space-y-2">
-					{getQuestionChoiceOptions(question).map((option) => (
+					{choiceOptions.map((option) => (
 						<label key={option.value} className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-							<input type="radio" name={question.id} checked={answer.selectedOptions[0] === option.value} onChange={() => onChange({ ...answer, selectedOptions: [option.value] })} required={question.isRequired} />
+							<input type="radio" name={question.id} checked={answer.selectedOptions[0] === option.value} onChange={() => selectSingleOption(option)} required={question.isRequired} />
 							{option.label}
 						</label>
 					))}
@@ -925,22 +978,29 @@ function FormQuestionInput({
 			)}
 			{question.type === "MultipleChoice" && (
 				<div className="mt-3 space-y-2">
-					{getQuestionChoiceOptions(question).map((option) => (
+					{choiceOptions.map((option) => (
 						<label key={option.value} className="flex items-center gap-2 text-sm font-semibold text-slate-700">
 							<input
 								type="checkbox"
 								checked={answer.selectedOptions.includes(option.value)}
-								onChange={(event) => onChange({
-									...answer,
-									selectedOptions: event.target.checked
-										? [...answer.selectedOptions, option.value]
-										: answer.selectedOptions.filter((item) => item !== option.value),
-								})}
+								onChange={(event) => toggleMultipleOption(option, event.target.checked)}
 							/>
 							{option.label}
 						</label>
 					))}
 				</div>
+			)}
+			{selectedTextOption && (
+				<label className="mt-3 block text-sm font-bold text-slate-700">
+					{selectedTextOption.textInputLabel || "Please specify"}
+					<input
+						value={answer.textValue}
+						onChange={(event) => onChange({ ...answer, textValue: event.target.value })}
+						required
+						className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"
+						placeholder="Enter a name"
+					/>
+				</label>
 			)}
 			{question.type === "Rating" && (
 				<select value={answer.ratingValue ?? ""} onChange={(event) => onChange({ ...answer, ratingValue: Number(event.target.value) || null })} required={question.isRequired} className="mt-3 w-full rounded-xl border border-slate-300 px-3 py-2">
@@ -1298,7 +1358,26 @@ function PlayerOptionsModal({
 	);
 }
 
-function ResultsPanel({ results }: { results: ClubFormResults }) {
+function ResultsPanel({
+	form,
+	results,
+	onResolveAwardOption,
+}: {
+	form: ClubForm;
+	results: ClubFormResults;
+	onResolveAwardOption: (questionId: string, selectedValue: string, playerId: string) => void;
+}) {
+	const players = usePlayerStore((state) => state.players);
+	const hasLoadedPlayers = usePlayerStore((state) => state.hasLoadedPlayers);
+	const loadPlayers = usePlayerStore((state) => state.loadPlayers);
+	const [selectedResolutionPlayers, setSelectedResolutionPlayers] = useState<Record<string, string>>({});
+
+	useEffect(() => {
+		if (form.status === "Closed" && !hasLoadedPlayers) {
+			void loadPlayers();
+		}
+	}, [form.status, hasLoadedPlayers, loadPlayers]);
+
 	return (
 		<section className="mt-6 border-t border-slate-200 pt-5">
 			<h3 className="text-lg font-black text-slate-950">Results</h3>
@@ -1319,6 +1398,18 @@ function ResultsPanel({ results }: { results: ClubFormResults }) {
 									<div key={option.value}>
 										<div className="flex justify-between text-xs font-bold text-slate-600"><span>{option.label || option.value}</span><span>{option.count}</span></div>
 										<div className="mt-1 h-2 overflow-hidden rounded-full bg-white"><div className="h-full rounded-full bg-yepset-600" style={{ width: `${results.submissionCount ? (option.count / results.submissionCount) * 100 : 0}%` }} /></div>
+										<AwardResolutionControl
+											form={form}
+											onResolve={(playerId) => onResolveAwardOption(question.questionId, option.value, playerId)}
+											option={option}
+											players={players}
+											question={question}
+											selectedPlayerId={selectedResolutionPlayers[`${question.questionId}:${option.value}`] ?? ""}
+											setSelectedPlayerId={(playerId) => setSelectedResolutionPlayers((current) => ({
+												...current,
+												[`${question.questionId}:${option.value}`]: playerId,
+											}))}
+										/>
 									</div>
 								))}
 							</div>
@@ -1334,6 +1425,65 @@ function ResultsPanel({ results }: { results: ClubFormResults }) {
 				))}
 			</div>
 		</section>
+	);
+}
+
+function AwardResolutionControl({
+	form,
+	question,
+	option,
+	players,
+	selectedPlayerId,
+	setSelectedPlayerId,
+	onResolve,
+}: {
+	form: ClubForm;
+	question: ClubFormQuestionResult;
+	option: ClubFormOptionResult;
+	players: Player[];
+	selectedPlayerId: string;
+	setSelectedPlayerId: (playerId: string) => void;
+	onResolve: (playerId: string) => void;
+}) {
+	if (form.status !== "Closed" || !isAwardQuestion(question.prompt) || !isWinningOption(question, option) || !option.requiresTextInput) {
+		return null;
+	}
+
+	const resolution = form.awardResolutions?.find((item) =>
+		item.questionId === question.questionId &&
+		item.selectedValue.toLowerCase() === option.value.toLowerCase()
+	);
+	const resolvedPlayer = players.find((player) => player.id === resolution?.playerId);
+	const activePlayers = players
+		.filter((player) => player.isActive)
+		.sort((firstPlayer, secondPlayer) => firstPlayer.name.localeCompare(secondPlayer.name));
+
+	return (
+		<div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+			<p className="text-xs font-bold text-amber-900">
+				{resolvedPlayer
+					? `Assigned to ${resolvedPlayer.name} for reporting.`
+					: "This winning Other vote needs assigning to a player if it was for a player."}
+			</p>
+			<div className="mt-2 flex flex-col gap-2 sm:flex-row">
+				<select
+					value={selectedPlayerId || resolution?.playerId || ""}
+					onChange={(event) => setSelectedPlayerId(event.target.value)}
+					className="min-w-0 flex-1 rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm font-bold text-slate-700"
+				>
+					<option value="">Choose player</option>
+					{activePlayers.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}
+				</select>
+				<button
+					type="button"
+					disabled={!(selectedPlayerId || resolution?.playerId)}
+					onClick={() => onResolve(selectedPlayerId || resolution?.playerId || "")}
+					className="rounded-xl bg-yepset-700 px-3 py-2 text-sm font-black text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+				>
+					Assign player
+				</button>
+			</div>
+		</div>
 	);
 }
 
@@ -1434,6 +1584,8 @@ function normaliseFormRequest(form: SaveClubFormRequest): SaveClubFormRequest {
 				...option,
 				value: option.value.trim(),
 				label: option.label.trim(),
+				requiresTextInput: option.requiresTextInput || isOtherOption(option.value, option.label),
+				textInputLabel: option.textInputLabel?.trim() || "Please specify",
 			})).filter((option) => option.value && option.label) ?? [],
 			minRating: Math.max(1, question.minRating),
 			maxRating: Math.max(question.minRating, question.maxRating),
@@ -1481,6 +1633,8 @@ function getQuestionChoiceOptions(question: ClubFormQuestion): ClubFormQuestionO
 			...option,
 			value: option.value || option.label,
 			label: option.label || option.value,
+			requiresTextInput: option.requiresTextInput || isOtherOption(option.value, option.label),
+			textInputLabel: option.textInputLabel || "Please specify",
 		}))
 		.filter((option) => option.value && option.label);
 	const choiceOptionsByValue = new Map(
@@ -1495,6 +1649,8 @@ function getQuestionChoiceOptions(question: ClubFormQuestion): ClubFormQuestionO
 			return matchedChoiceOption ?? {
 				value: option,
 				label: option,
+				requiresTextInput: isOtherOption(option, option),
+				textInputLabel: "Please specify",
 			};
 		})
 		.filter((option, index, options) =>
@@ -1509,6 +1665,24 @@ function getQuestionChoiceOptions(question: ClubFormQuestion): ClubFormQuestionO
 	);
 
 	return [...orderedOptions, ...missingChoiceOptions];
+}
+
+function optionRequiresTextInput(option: ClubFormQuestionOption) {
+	return option.requiresTextInput || isOtherOption(option.value, option.label);
+}
+
+function isOtherOption(value?: string | null, label?: string | null) {
+	return value?.trim().toLowerCase() === "other" || label?.trim().toLowerCase() === "other";
+}
+
+function isAwardQuestion(prompt: string) {
+	const normalisedPrompt = prompt.trim().toLowerCase();
+	return normalisedPrompt === "man of the match" || normalisedPrompt === "dick of the day";
+}
+
+function isWinningOption(question: ClubFormQuestionResult, option: ClubFormOptionResult) {
+	const winningCount = Math.max(0, ...question.options.map((item) => item.count));
+	return option.count > 0 && option.count === winningCount;
 }
 
 function getManualQuestionOptions(question: ClubFormQuestion): string[] {

@@ -20,6 +20,8 @@ export type ClubFormQuestionOption = {
 	value: string;
 	label: string;
 	playerId?: string | null;
+	requiresTextInput?: boolean;
+	textInputLabel?: string;
 };
 
 export type ClubForm = {
@@ -34,6 +36,7 @@ export type ClubForm = {
 	sourceMatchLabel: string;
 	appliedMatchAwardPlayerId?: string | null;
 	appliedMatchAwardPlayerIds?: string[];
+	awardResolutions?: ClubFormAwardResolution[];
 	createdByUserEmail: string;
 	allowAnonymousResponses: boolean;
 	allowMultipleSubmissions: boolean;
@@ -42,6 +45,14 @@ export type ClubForm = {
 	submissionCount: number;
 	createdAt: string;
 	updatedAt: string;
+};
+
+export type ClubFormAwardResolution = {
+	questionId: string;
+	questionPrompt: string;
+	selectedValue: string;
+	playerId: string;
+	resolvedAt: string;
 };
 
 export type SaveClubFormRequest = {
@@ -112,5 +123,6 @@ export type ClubFormOptionResult = {
 	value: string;
 	label?: string;
 	playerId?: string | null;
+	requiresTextInput?: boolean;
 	count: number;
 };

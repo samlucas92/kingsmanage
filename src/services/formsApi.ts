@@ -39,6 +39,9 @@ export const formsApi = {
 	updateStatus: (id: string, status: ClubForm["status"]) =>
 		apiClient.patch<ClubForm>(`/forms/${encodeURIComponent(id)}/status`, { status }),
 
+	resolveAwardOption: (id: string, request: { questionId: string; selectedValue: string; playerId: string }) =>
+		apiClient.patch<ClubForm>(`/forms/${encodeURIComponent(id)}/award-resolution`, request),
+
 	submitForm: (id: string, request: SubmitClubFormRequest) =>
 		apiClient.post<ClubForm>(`/forms/${encodeURIComponent(id)}/submissions`, request),
 
