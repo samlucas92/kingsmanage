@@ -148,15 +148,18 @@ function drawMatchDetails(
 	const timeLabel = Number.isNaN(date.getTime())
 		? "TIME TBC"
 		: date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-	const centreY = y + height * 0.34;
+	const iconTop = y + 22;
+	const iconSize = 60;
+	const textTop = y + 104;
 
-	drawCalendarIcon(context, 238, centreY - 35, 70);
-	drawClockIcon(context, 682, centreY + 2, 74);
-	drawLocationIcon(context, 1100, centreY - 14, 50);
+	drawCalendarIcon(context, 273 - iconSize / 2, iconTop, iconSize);
+	drawClockIcon(context, 682, iconTop + iconSize / 2, iconSize);
+	const locationSize = 45;
+	drawLocationIcon(context, 1090, iconTop + locationSize * 0.32, locationSize);
 
-	drawFittedText(context, dateLabel, 273, y + height * 0.56, 280, 37, 21, EDITORIAL_WHITE, "center");
-	drawFittedText(context, timeLabel, 682, y + height * 0.56, 250, 37, 21, EDITORIAL_WHITE, "center");
-	drawWrappedText(context, location.toUpperCase(), 1090, y + height * 0.54, 330, 2, 32, 17, EDITORIAL_WHITE, "center");
+	drawFittedText(context, dateLabel, 273, textTop, 280, 37, 21, EDITORIAL_WHITE, "center");
+	drawFittedText(context, timeLabel, 682, textTop, 250, 37, 21, EDITORIAL_WHITE, "center");
+	drawWrappedText(context, location.toUpperCase(), 1090, textTop, 330, 2, 32, 17, EDITORIAL_WHITE, "center");
 
 	context.strokeStyle = EDITORIAL_GOLD;
 	context.lineWidth = 3;
