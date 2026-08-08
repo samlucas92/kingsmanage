@@ -65,7 +65,6 @@ export default function SocialMediaStudio() {
 	const [templateFieldValues, setTemplateFieldValues] = useState<Record<string, string | boolean>>({});
 	const [homeTeamLogoId, setHomeTeamLogoId] = useState("");
 	const [awayTeamLogoId, setAwayTeamLogoId] = useState("");
-	const [fixtureLogoIds, setFixtureLogoIds] = useState(["", "", "", "", ""]);
 	const [featuredImageId, setFeaturedImageId] = useState("");
 	const [sponsorIds, setSponsorIds] = useState(["", "", ""]);
 	const [fixtureOverrides, setFixtureOverrides] = useState<Record<string, SocialFixtureOverride>>({});
@@ -182,12 +181,6 @@ export default function SocialMediaStudio() {
 			awayTeamLogoFallbackIndex,
 			temporaryAssets.awayTeamLogo
 		),
-		fixtureLogos: fixtureLogoIds.map((id, index) => findSelectedAsset(
-			socialGraphicAssetManifest.teamLogos,
-			id,
-			-1,
-			temporaryAssets[`fixtureLogo:${index}`]
-		)),
 		featuredImage: findSelectedAsset(
 			socialGraphicAssetManifest.featuredImages,
 			featuredImageId,
@@ -206,7 +199,6 @@ export default function SocialMediaStudio() {
 	}), [
 		homeTeamLogoId,
 		awayTeamLogoId,
-		fixtureLogoIds,
 		featuredImageId,
 		sponsorIds,
 		temporaryAssets,
@@ -341,12 +333,6 @@ export default function SocialMediaStudio() {
 
 	function setSponsorId(index: number, assetId: string) {
 		setSponsorIds((current) => current.map((id, itemIndex) => (
-			itemIndex === index ? assetId : id
-		)));
-	}
-
-	function setFixtureLogoId(index: number, assetId: string) {
-		setFixtureLogoIds((current) => current.map((id, itemIndex) => (
 			itemIndex === index ? assetId : id
 		)));
 	}
@@ -561,9 +547,6 @@ export default function SocialMediaStudio() {
 							<div className="mt-3 space-y-3">
 								<AssetPicker label={kind === "upcomingFixtures" ? "Club logo" : "Home team logo"} assets={socialGraphicAssetManifest.teamLogos} value={homeTeamLogoId} fallbackIndex={homeTeamLogoFallbackIndex} temporaryAsset={temporaryAssets.homeTeamLogo} onChange={setHomeTeamLogoId} onTemporaryImage={(file) => setTemporaryImage("homeTeamLogo", file, setHomeTeamLogoId)} />
 								{kind !== "upcomingFixtures" && <AssetPicker label="Away team logo" assets={socialGraphicAssetManifest.teamLogos} value={awayTeamLogoId} fallbackIndex={awayTeamLogoFallbackIndex} temporaryAsset={temporaryAssets.awayTeamLogo} onChange={setAwayTeamLogoId} onTemporaryImage={(file) => setTemporaryImage("awayTeamLogo", file, setAwayTeamLogoId)} />}
-								{kind === "upcomingFixtures" && selectedSocialFixtures.map((fixture, index) => (
-									<AssetPicker key={fixture.id} label={`${fixture.opponent} logo`} assets={socialGraphicAssetManifest.teamLogos} value={fixtureLogoIds[index] ?? ""} fallbackIndex={-1} temporaryAsset={temporaryAssets[`fixtureLogo:${index}`]} onChange={(assetId) => setFixtureLogoId(index, assetId)} onTemporaryImage={(file) => setTemporaryImage(`fixtureLogo:${index}`, file, (assetId) => setFixtureLogoId(index, assetId))} />
-								))}
 								{kind === "result" && <AssetPicker label="Player of the Match image" assets={socialGraphicAssetManifest.featuredImages} value={featuredImageId} fallbackIndex={0} temporaryAsset={temporaryAssets.featuredImage} onChange={setFeaturedImageId} onTemporaryImage={(file) => setTemporaryImage("featuredImage", file, setFeaturedImageId)} />}
 								{showSponsors && [0, 1, 2].map((index) => (
 									<AssetPicker key={index} label={`Sponsor ${index + 1}`} assets={socialGraphicAssetManifest.sponsors} value={sponsorIds[index] ?? ""} fallbackIndex={index} temporaryAsset={temporaryAssets[`sponsor:${index}`]} onChange={(assetId) => setSponsorId(index, assetId)} onTemporaryImage={(file) => setTemporaryImage(`sponsor:${index}`, file, (assetId) => setSponsorId(index, assetId))} />

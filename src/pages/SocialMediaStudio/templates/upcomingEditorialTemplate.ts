@@ -61,10 +61,10 @@ async function renderUpcomingEditorialTemplate({
 	await drawAssetOrPlaceholder(
 		context,
 		content.assets.homeTeamLogo,
-		1085,
-		110,
-		190,
-		210,
+		1000,
+		45,
+		285,
+		345,
 		"YOUR\nLOGO\nHERE",
 		{ frame: false, contain: true }
 	);
@@ -90,7 +90,7 @@ async function renderUpcomingEditorialTemplate({
 		await drawFixtureRow(
 			context,
 			fixtures[index],
-			content.assets.fixtureLogos[index],
+			content.assets.homeTeamLogo,
 			firstRowTop + index * (rowHeight + rowGap),
 			rowHeight
 		);
@@ -118,7 +118,7 @@ async function renderUpcomingEditorialTemplate({
 async function drawFixtureRow(
 	context: CanvasRenderingContext2D,
 	fixture: SocialFixture,
-	opponentLogo: SocialGraphicTemplateRenderContext["content"]["assets"]["fixtureLogos"][number],
+	clubLogo: SocialGraphicTemplateRenderContext["content"]["assets"]["homeTeamLogo"],
 	y: number,
 	height: number
 ) {
@@ -133,8 +133,8 @@ async function drawFixtureRow(
 	drawFittedText(context, fixture.competition.toUpperCase(), 205, y + height * 0.58, 210, 27, 17, EDITORIAL_GOLD);
 	drawVerticalDivider(context, 410, y + 24, height - 48);
 
-	if (opponentLogo) {
-		await drawAssetOrPlaceholder(context, opponentLogo, 472, y + (height - 82) / 2, 84, 82, "", { frame: false, contain: true });
+	if (clubLogo) {
+		await drawAssetOrPlaceholder(context, clubLogo, 462, y + (height - 102) / 2, 104, 102, "", { frame: false, contain: true });
 	} else {
 		drawShieldPlaceholder(context, 482, y + (height - 76) / 2, 66, 76);
 	}

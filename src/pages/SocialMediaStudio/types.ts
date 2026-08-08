@@ -11,7 +11,6 @@ export type SocialGraphicAsset = {
 export type SocialGraphicAssetSelection = {
 	homeTeamLogo?: SocialGraphicAsset;
 	awayTeamLogo?: SocialGraphicAsset;
-	fixtureLogos: Array<SocialGraphicAsset | undefined>;
 	featuredImage?: SocialGraphicAsset;
 	sponsors: Array<SocialGraphicAsset | undefined>;
 };

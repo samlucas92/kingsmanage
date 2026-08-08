@@ -75,7 +75,7 @@ async function renderMatchdayEditorialTemplate({
 	]);
 
 	context.save();
-	context.translate(width / 2, 570);
+	context.translate(width / 2, 610);
 	context.rotate(-0.18);
 	context.strokeStyle = EDITORIAL_GOLD;
 	context.lineWidth = 4;
@@ -88,8 +88,8 @@ async function renderMatchdayEditorialTemplate({
 	drawFittedText(context, "VS", 0, -48, 132, 100, 62, EDITORIAL_GOLD, "center");
 	context.restore();
 
-	const detailTop = 874;
-	const detailHeight = showSponsors ? 190 : 398;
+	const detailTop = 915;
+	const detailHeight = showSponsors ? 175 : 386;
 	drawRoundedFrame(context, 64, detailTop, 1237, detailHeight, 20);
 	drawMatchDetails(context, fixture.date, fixture.location, detailTop, detailHeight);
 
@@ -121,12 +121,12 @@ async function drawTeam(
 	y: number
 ) {
 	if (asset) {
-		await drawAssetOrPlaceholder(context, asset, x, y, 290, 300, "", { frame: false, contain: true });
+		await drawAssetOrPlaceholder(context, asset, x - 35, y - 20, 360, 400, "", { frame: false, contain: true });
 	} else {
-		drawShieldPlaceholder(context, x + 20, y, 250, 300);
+		drawShieldPlaceholder(context, x - 5, y - 10, 300, 370);
 	}
-	drawFittedText(context, teamName.toUpperCase(), x + 145, y + 330, 420, 50, 26, EDITORIAL_WHITE, "center");
-	drawFittedText(context, `(${venueLabel})`, x + 145, y + 390, 260, 30, 20, EDITORIAL_GOLD, "center");
+	drawFittedText(context, teamName.toUpperCase(), x + 145, y + 400, 420, 50, 26, EDITORIAL_WHITE, "center");
+	drawFittedText(context, `(${venueLabel})`, x + 145, y + 458, 260, 30, 20, EDITORIAL_GOLD, "center");
 }
 
 function drawMatchDetails(

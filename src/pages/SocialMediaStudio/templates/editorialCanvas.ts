@@ -5,6 +5,15 @@ export const EDITORIAL_GOLD = "#d7a600";
 export const EDITORIAL_WHITE = "#f4f4f2";
 export const EDITORIAL_BLACK = "#050606";
 
+type ImageContentBounds = {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+};
+
+const imageContentBoundsCache = new Map<string, ImageContentBounds>();
+
 export function drawEditorialBackground(
 	context: CanvasRenderingContext2D,
 	width: number,
@@ -344,7 +353,7 @@ function drawImageCover(
 	context.drawImage(image, x + (width - renderedWidth) / 2, y + (height - renderedHeight) / 2, renderedWidth, renderedHeight);
 }
 
-function drawImageContain(
+export function drawImageContain(
 	context: CanvasRenderingContext2D,
 	image: HTMLImageElement,
 	x: number,
@@ -352,8 +361,72 @@ function drawImageContain(
 	width: number,
 	height: number
 ) {
-	const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
-	const renderedWidth = image.naturalWidth * scale;
-	const renderedHeight = image.naturalHeight * scale;
-	context.drawImage(image, x + (width - renderedWidth) / 2, y + (height - renderedHeight) / 2, renderedWidth, renderedHeight);
+	const bounds = getImageContentBounds(image);
+	const scale = Math.min(width / bounds.width, height / bounds.height);
+	const renderedWidth = bounds.width * scale;
+	const renderedHeight = bounds.height * scale;
+	context.drawImage(
+		image,
+		bounds.x,
+		bounds.y,
+		bounds.width,
+		bounds.height,
+		x + (width - renderedWidth) / 2,
+		y + (height - renderedHeight) / 2,
+		renderedWidth,
+		renderedHeight
+	);
+}
+
+function getImageContentBounds(image: HTMLImageElement): ImageContentBounds {
+	const cacheKey = image.currentSrc || image.src;
+	const cachedBounds = imageContentBoundsCache.get(cacheKey);
+	if (cachedBounds) return cachedBounds;
+
+	const fallbackBounds = {
+		x: 0,
+		y: 0,
+		width: image.naturalWidth,
+		height: image.naturalHeight,
+	};
+
+	try {
+		const sampleScale = Math.min(1, 256 / Math.max(image.naturalWidth, image.naturalHeight));
+		const sampleWidth = Math.max(1, Math.round(image.naturalWidth * sampleScale));
+		const sampleHeight = Math.max(1, Math.round(image.naturalHeight * sampleScale));
+		const sampleCanvas = document.createElement("canvas");
+		sampleCanvas.width = sampleWidth;
+		sampleCanvas.height = sampleHeight;
+		const sampleContext = sampleCanvas.getContext("2d", { willReadFrequently: true });
+		if (!sampleContext) return fallbackBounds;
+
+		sampleContext.drawImage(image, 0, 0, sampleWidth, sampleHeight);
+		const pixels = sampleContext.getImageData(0, 0, sampleWidth, sampleHeight).data;
+		let left = sampleWidth;
+		let top = sampleHeight;
+		let right = -1;
+		let bottom = -1;
+
+		for (let pixelIndex = 0; pixelIndex < sampleWidth * sampleHeight; pixelIndex += 1) {
+			if (pixels[pixelIndex * 4 + 3] <= 8) continue;
+			const pixelX = pixelIndex % sampleWidth;
+			const pixelY = Math.floor(pixelIndex / sampleWidth);
+			left = Math.min(left, pixelX);
+			top = Math.min(top, pixelY);
+			right = Math.max(right, pixelX);
+			bottom = Math.max(bottom, pixelY);
+		}
+
+		if (right < left || bottom < top) return fallbackBounds;
+		const bounds = {
+			x: left / sampleScale,
+			y: top / sampleScale,
+			width: (right - left + 1) / sampleScale,
+			height: (bottom - top + 1) / sampleScale,
+		};
+		imageContentBoundsCache.set(cacheKey, bounds);
+		return bounds;
+	} catch {
+		return fallbackBounds;
+	}
 }

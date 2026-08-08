@@ -1,4 +1,5 @@
 import { loadTemplateImage } from "../socialGraphicCanvas";
+import { drawImageContain as drawContainedImage } from "./editorialCanvas";
 import type {
 	SocialGraphicAsset,
 	SocialScorer,
@@ -71,12 +72,13 @@ async function renderResultEditorialTemplate({
 	await drawAssetOrPlaceholder(
 		context,
 		content.assets.homeTeamLogo,
-		1050,
-		164,
-		210,
-		180,
+		1005,
+		55,
+		280,
+		340,
 		"HOME TEAM\nLOGO",
-		false
+		false,
+		true
 	);
 
 	context.strokeStyle = GOLD;
@@ -123,7 +125,8 @@ async function renderResultEditorialTemplate({
 		430,
 		contentBottom - 574,
 		"PLAYER IMAGE",
-		true
+		true,
+		false
 	);
 	if (fixture.playerOfTheMatch.trim()) {
 		const captionTop = contentBottom - 118;
@@ -225,7 +228,7 @@ async function drawTeamRow({
 	label: string;
 	scorers: SocialScorer[];
 }) {
-	await drawAssetOrPlaceholder(context, asset, 70, y, 235, 276, label, true);
+	await drawAssetOrPlaceholder(context, asset, 70, y, 235, 276, label, true, true);
 	drawFittedText(context, teamName.toUpperCase(), 340, y + 104, 310, 92, 62, 30, WHITE, "left");
 	drawScorerList(context, scorers, 340, y + 176, 310);
 	drawFittedText(context, String(score), 720, y + 34, 94, 210, 202, 82, WHITE, "center");
@@ -296,7 +299,8 @@ async function drawAssetOrPlaceholder(
 	width: number,
 	height: number,
 	placeholder: string,
-	showFrame: boolean
+	showFrame: boolean,
+	contain: boolean
 ) {
 	if (showFrame) drawRoundedFrame(context, x, y, width, height, 22);
 
@@ -308,7 +312,11 @@ async function drawAssetOrPlaceholder(
 	const image = await loadTemplateImage(asset.source);
 	context.save();
 	clipRoundedRect(context, x + 7, y + 7, width - 14, height - 14, 16);
-	drawImageCover(context, image, x + 7, y + 7, width - 14, height - 14);
+	if (contain) {
+		drawContainedImage(context, image, x + 7, y + 7, width - 14, height - 14);
+	} else {
+		drawImageCover(context, image, x + 7, y + 7, width - 14, height - 14);
+	}
 	context.restore();
 }
 
@@ -328,7 +336,7 @@ async function drawSponsorSlot(
 	}
 
 	const image = await loadTemplateImage(asset.source);
-	drawImageContain(context, image, x + 28, y + 26, width - 56, height - 52);
+	drawContainedImage(context, image, x + 28, y + 26, width - 56, height - 52);
 }
 
 function drawDividerTitle(context: CanvasRenderingContext2D, title: string, y: number) {
@@ -396,20 +404,6 @@ function drawImageCover(
 	height: number
 ) {
 	const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
-	const renderedWidth = image.naturalWidth * scale;
-	const renderedHeight = image.naturalHeight * scale;
-	context.drawImage(image, x + (width - renderedWidth) / 2, y + (height - renderedHeight) / 2, renderedWidth, renderedHeight);
-}
-
-function drawImageContain(
-	context: CanvasRenderingContext2D,
-	image: HTMLImageElement,
-	x: number,
-	y: number,
-	width: number,
-	height: number
-) {
-	const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
 	const renderedWidth = image.naturalWidth * scale;
 	const renderedHeight = image.naturalHeight * scale;
 	context.drawImage(image, x + (width - renderedWidth) / 2, y + (height - renderedHeight) / 2, renderedWidth, renderedHeight);
