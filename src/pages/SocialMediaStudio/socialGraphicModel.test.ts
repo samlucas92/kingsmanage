@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import type { ClubTeamProfile } from "../../stores/clubTeams";
 import type { Match } from "../../stores/match";
+import type { Player } from "../../stores/players";
 import {
+	aggregateScorers,
+	applySocialFixtureOverride,
 	getClubScore,
 	getDefaultHeadline,
 	getOpponentScore,
@@ -52,8 +55,71 @@ describe("social graphic model", () => {
 			date: "2026-08-10T14:00:00.000Z",
 			venue: "home",
 			location: "Colts Ground",
+			playerOfTheMatch: "",
 			result: undefined,
+			scorers: [],
 		});
+	});
+
+	it("uses the marked match award to seed the editable Player of the Match name", () => {
+		const players: Player[] = [
+			{ id: "player-1", name: "Alex Smith", positions: [], appearances: 0, number: 9, isActive: true },
+		];
+		const fixture = toSocialFixture(createMatch({
+			playerStats: [
+				{ playerId: "player-1", goals: 1, assists: 0, yellowCards: 0, redCards: 0, minutes: 90, isMOTM: true, note: "" },
+			],
+		}), teamProfiles, players);
+
+		expect(fixture.playerOfTheMatch).toBe("Alex Smith");
+		expect(applySocialFixtureOverride(fixture, { playerOfTheMatch: "A. Smith" }).playerOfTheMatch).toBe("A. Smith");
+	});
+
+	it("applies graphic-only copy and score overrides without changing the match fixture", () => {
+		const fixture = toSocialFixture(
+			createMatch({ result: { homeGoals: 2, awayGoals: 1 } }),
+			teamProfiles
+		);
+		const editedFixture = applySocialFixtureOverride(fixture, {
+			opponent: "Riverside Athletic",
+			competition: "County Cup",
+			date: "2026-08-10T19:30",
+			location: "Colts Ground, High Street, Kingsbridge",
+			homeGoals: 4,
+		});
+
+		expect(editedFixture).toMatchObject({
+			opponent: "Riverside Athletic",
+			competition: "County Cup",
+			date: "2026-08-10T19:30",
+			location: "Colts Ground, High Street, Kingsbridge",
+			result: { homeGoals: 4, awayGoals: 1 },
+		});
+		expect(fixture).toMatchObject({
+			opponent: "Riverside",
+			competition: "League",
+			location: "Colts Ground",
+			result: { homeGoals: 2, awayGoals: 1 },
+		});
+	});
+
+	it("groups duplicate scorer records and keeps one total per player", () => {
+		const players: Player[] = [
+			{ id: "player-1", name: "Alex Smith", positions: [], appearances: 0, number: 9, isActive: true },
+			{ id: "player-2", name: "Jamie Jones", positions: [], appearances: 0, number: 10, isActive: true },
+		];
+		const match = createMatch({
+			playerStats: [
+				{ playerId: "player-1", goals: 1, assists: 0, yellowCards: 0, redCards: 0, minutes: 45, isMOTM: false, note: "" },
+				{ playerId: "player-1", goals: 2, assists: 0, yellowCards: 0, redCards: 0, minutes: 45, isMOTM: false, note: "" },
+				{ playerId: "player-2", goals: 1, assists: 0, yellowCards: 0, redCards: 0, minutes: 90, isMOTM: false, note: "" },
+			],
+		});
+
+		expect(aggregateScorers(match, players)).toEqual([
+			{ playerId: "player-1", name: "Alex Smith", goals: 3 },
+			{ playerId: "player-2", name: "Jamie Jones", goals: 1 },
+		]);
 	});
 
 	it("presents completed scores from the club perspective", () => {
@@ -73,7 +139,7 @@ describe("social graphic model", () => {
 	});
 
 	it("provides stable default headlines for every graphic type", () => {
-		expect(getDefaultHeadline("upcomingFixtures")).toBe("Upcoming fixtures");
+		expect(getDefaultHeadline("upcomingFixtures")).toBe("Fixtures");
 		expect(getDefaultHeadline("fixture")).toBe("Matchday");
 		expect(getDefaultHeadline("result")).toBe("Full time");
 	});

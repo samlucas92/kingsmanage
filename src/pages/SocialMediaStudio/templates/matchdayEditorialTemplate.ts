@@ -14,6 +14,7 @@ import {
 	drawMultilineText,
 	drawRoundedFrame,
 	drawShieldPlaceholder,
+	drawWrappedText,
 	EDITORIAL_GOLD,
 	EDITORIAL_WHITE,
 	getTextField,
@@ -146,11 +147,11 @@ function drawMatchDetails(
 
 	drawCalendarIcon(context, 238, centreY - 35, 70);
 	drawClockIcon(context, 682, centreY + 2, 74);
-	drawLocationIcon(context, 1100, centreY - 15, 78);
+	drawLocationIcon(context, 1100, centreY - 14, 50);
 
 	drawFittedText(context, dateLabel, 273, y + height * 0.56, 280, 37, 21, EDITORIAL_WHITE, "center");
 	drawFittedText(context, timeLabel, 682, y + height * 0.56, 250, 37, 21, EDITORIAL_WHITE, "center");
-	drawFittedText(context, location.toUpperCase(), 1090, y + height * 0.56, 300, 37, 19, EDITORIAL_WHITE, "center");
+	drawWrappedText(context, location.toUpperCase(), 1090, y + height * 0.54, 330, 2, 32, 17, EDITORIAL_WHITE, "center");
 
 	context.strokeStyle = EDITORIAL_GOLD;
 	context.lineWidth = 3;
@@ -161,4 +162,3 @@ function drawMatchDetails(
 	context.lineTo(890, y + height - 28);
 	context.stroke();
 }
-

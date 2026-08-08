@@ -152,6 +152,44 @@ export function drawMultilineText(
 	});
 }
 
+export function drawWrappedText(
+	context: CanvasRenderingContext2D,
+	text: string,
+	x: number,
+	y: number,
+	maxWidth: number,
+	maxLines: number,
+	maxFontSize: number,
+	minFontSize: number,
+	colour: string,
+	align: CanvasTextAlign = "left"
+) {
+	let fontSize = maxFontSize;
+	let lines = wrapText(context, text, maxWidth, fontSize);
+	while (lines.length > maxLines && fontSize > minFontSize) {
+		fontSize -= 1;
+		lines = wrapText(context, text, maxWidth, fontSize);
+	}
+
+	if (lines.length > maxLines) {
+		lines = lines.slice(0, maxLines);
+		let finalLine = `${lines[maxLines - 1]}…`;
+		context.font = `700 ${fontSize}px Impact, "Arial Narrow", sans-serif`;
+		while (finalLine.length > 1 && context.measureText(finalLine).width > maxWidth) {
+			finalLine = `${finalLine.slice(0, -2)}…`;
+		}
+		lines[maxLines - 1] = finalLine;
+	}
+
+	context.fillStyle = colour;
+	context.font = `700 ${fontSize}px Impact, "Arial Narrow", sans-serif`;
+	context.textAlign = align;
+	context.textBaseline = "top";
+	lines.forEach((line, index) => {
+		context.fillText(line, x, y + index * fontSize * 1.12, maxWidth);
+	});
+}
+
 export function drawCalendarIcon(
 	context: CanvasRenderingContext2D,
 	x: number,
@@ -237,6 +275,31 @@ export function getTextField(value: string | boolean | undefined, fallback: stri
 	return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
+function wrapText(
+	context: CanvasRenderingContext2D,
+	text: string,
+	maxWidth: number,
+	fontSize: number
+) {
+	context.font = `700 ${fontSize}px Impact, "Arial Narrow", sans-serif`;
+	const words = text.trim().split(/\s+/).filter(Boolean);
+	const lines: string[] = [];
+	let line = "";
+
+	words.forEach((word) => {
+		const candidate = line ? `${line} ${word}` : word;
+		if (line && context.measureText(candidate).width > maxWidth) {
+			lines.push(line);
+			line = word;
+		} else {
+			line = candidate;
+		}
+	});
+
+	if (line) lines.push(line);
+	return lines.length > 0 ? lines : [""];
+}
+
 function roundedRectPath(
 	context: CanvasRenderingContext2D,
 	x: number,
@@ -294,4 +357,3 @@ function drawImageContain(
 	const renderedHeight = image.naturalHeight * scale;
 	context.drawImage(image, x + (width - renderedWidth) / 2, y + (height - renderedHeight) / 2, renderedWidth, renderedHeight);
 }
-

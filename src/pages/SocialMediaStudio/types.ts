@@ -39,7 +39,25 @@ export type SocialFixture = {
 	date: string;
 	venue: "home" | "away";
 	location: string;
+	playerOfTheMatch: string;
 	result?: MatchResult;
+	scorers: SocialScorer[];
+};
+
+export type SocialFixtureOverride = Partial<
+	Pick<
+		SocialFixture,
+		"teamName" | "opponent" | "competition" | "date" | "venue" | "location" | "playerOfTheMatch"
+	>
+> & {
+	homeGoals?: number;
+	awayGoals?: number;
+};
+
+export type SocialScorer = {
+	playerId: string;
+	name: string;
+	goals: number;
 };
 
 export type SocialGraphicContent = {

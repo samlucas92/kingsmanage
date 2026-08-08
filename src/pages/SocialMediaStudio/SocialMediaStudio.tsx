@@ -3,7 +3,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuthStore } from "../../stores/auth";
 import { useClubTeamStore } from "../../stores/clubTeams";
 import { useMatchStore } from "../../stores/match";
+import { usePlayerStore } from "../../stores/players";
 import { useSeasonStore } from "../../stores/seasons";
+import { formatDateForInput } from "../../utils/date";
 import { socialGraphicAssetManifest } from "./assetManifest";
 import {
 	copyCanvasPng,
@@ -11,6 +13,7 @@ import {
 	renderSocialGraphic,
 } from "./socialGraphicCanvas";
 import {
+	applySocialFixtureOverride,
 	getClubScore,
 	getDefaultHeadline,
 	getGraphicKindLabel,
@@ -20,6 +23,7 @@ import {
 import { socialGraphicTemplates } from "./templateRegistry";
 import type {
 	SocialFixture,
+	SocialFixtureOverride,
 	SocialGraphicAsset,
 	SocialGraphicContent,
 	SocialGraphicKind,
@@ -38,6 +42,9 @@ export default function SocialMediaStudio() {
 	const isLoadingMatches = useMatchStore((state) => state.isLoadingMatches);
 	const matchLoadError = useMatchStore((state) => state.matchLoadError);
 	const loadMatches = useMatchStore((state) => state.loadMatches);
+	const loadMatch = useMatchStore((state) => state.loadMatch);
+	const players = usePlayerStore((state) => state.players);
+	const loadPlayers = usePlayerStore((state) => state.loadPlayers);
 	const seasons = useSeasonStore((state) => state.seasons);
 	const activeSeasonId = useSeasonStore((state) => state.activeSeasonId);
 	const isLoadingSeasons = useSeasonStore((state) => state.isLoadingSeasons);
@@ -60,6 +67,7 @@ export default function SocialMediaStudio() {
 	const [fixtureLogoIds, setFixtureLogoIds] = useState(["", "", "", "", ""]);
 	const [featuredImageId, setFeaturedImageId] = useState("");
 	const [sponsorIds, setSponsorIds] = useState(["", "", ""]);
+	const [fixtureOverrides, setFixtureOverrides] = useState<Record<string, SocialFixtureOverride>>({});
 	const [isRendering, setIsRendering] = useState(false);
 	const [actionMessage, setActionMessage] = useState("");
 	const [actionError, setActionError] = useState("");
@@ -71,7 +79,8 @@ export default function SocialMediaStudio() {
 	useEffect(() => {
 		void loadSeasons();
 		void loadTeamProfiles();
-	}, [loadSeasons, loadTeamProfiles]);
+		void loadPlayers();
+	}, [loadSeasons, loadTeamProfiles, loadPlayers]);
 
 	useEffect(() => {
 		if (activeSeasonId) {
@@ -112,6 +121,12 @@ export default function SocialMediaStudio() {
 	const effectiveResultId = completedMatches.some((match) => match.id === selectedResultId)
 		? selectedResultId
 		: completedMatches[0]?.id ?? "";
+
+	useEffect(() => {
+		if (kind !== "result" || !effectiveResultId) return;
+		const selectedResult = matches.find((match) => match.id === effectiveResultId);
+		if (!selectedResult?.isDetailLoaded) void loadMatch(effectiveResultId);
+	}, [kind, effectiveResultId, matches, loadMatch]);
 
 	const availableTemplates = useMemo(
 		() => socialGraphicTemplates.filter((template) => template.supportedKinds.includes(kind)),
@@ -187,13 +202,21 @@ export default function SocialMediaStudio() {
 		seasonMatches,
 	]);
 
+	const selectedSocialFixtures = useMemo(
+		() => selectedMatches.map((match) => applySocialFixtureOverride(
+			toSocialFixture(match, teamProfiles, players),
+			fixtureOverrides[match.id]
+		)),
+		[selectedMatches, teamProfiles, players, fixtureOverrides]
+	);
+
 	const content = useMemo<SocialGraphicContent>(() => ({
 		kind,
 		clubName,
 		clubHandle: clubHandle.trim(),
 		headline: headline.trim() || getDefaultHeadline(kind),
 		footer: footer.trim() || `Come on, ${clubName}!`,
-		fixtures: selectedMatches.map((match) => toSocialFixture(match, teamProfiles)),
+		fixtures: selectedSocialFixtures,
 		fields: effectiveTemplateFields,
 		assets: selectedAssets,
 	}), [
@@ -202,8 +225,7 @@ export default function SocialMediaStudio() {
 		clubHandle,
 		headline,
 		footer,
-		selectedMatches,
-		teamProfiles,
+		selectedSocialFixtures,
 		effectiveTemplateFields,
 		selectedAssets,
 	]);
@@ -263,6 +285,28 @@ export default function SocialMediaStudio() {
 			...current,
 			[fieldId]: value,
 		}));
+	}
+
+	function setFixtureOverride<Field extends keyof SocialFixtureOverride>(
+		fixtureId: string,
+		field: Field,
+		value: SocialFixtureOverride[Field]
+	) {
+		setFixtureOverrides((current) => ({
+			...current,
+			[fixtureId]: {
+				...current[fixtureId],
+				[field]: value,
+			},
+		}));
+	}
+
+	function resetFixtureOverride(fixtureId: string) {
+		setFixtureOverrides((current) => {
+			const next = { ...current };
+			delete next[fixtureId];
+			return next;
+		});
 	}
 
 	function setSponsorId(index: number, assetId: string) {
@@ -397,18 +441,30 @@ export default function SocialMediaStudio() {
 						<div className="mt-3 space-y-3">
 							{kind === "upcomingFixtures" ? (
 								<UpcomingFixturePicker
-									fixtures={upcomingMatches.map((match) => toSocialFixture(match, teamProfiles))}
+									fixtures={upcomingMatches.map((match) => toSocialFixture(match, teamProfiles, players))}
 									selectedIds={effectiveUpcomingIds}
 									onToggle={toggleUpcomingMatch}
 								/>
 							) : (
 								<SingleMatchPicker
 									label={kind === "fixture" ? "Fixture" : "Result"}
-									fixtures={(kind === "fixture" ? upcomingMatches : completedMatches).map((match) => toSocialFixture(match, teamProfiles))}
+									fixtures={(kind === "fixture" ? upcomingMatches : completedMatches).map((match) => toSocialFixture(match, teamProfiles, players))}
 									selectedId={kind === "fixture" ? effectiveFixtureId : effectiveResultId}
 									onChange={kind === "fixture" ? setSelectedFixtureId : setSelectedResultId}
 								/>
 							)}
+
+							{selectedSocialFixtures.map((fixture, index) => (
+								<FixtureCopyEditor
+									key={fixture.id}
+									fixture={fixture}
+									showScores={kind === "result"}
+									defaultOpen={selectedSocialFixtures.length === 1 || index === 0}
+									hasOverride={Boolean(fixtureOverrides[fixture.id])}
+									onChange={(field, value) => setFixtureOverride(fixture.id, field, value)}
+									onReset={() => resetFixtureOverride(fixture.id)}
+								/>
+							))}
 
 							<label className="block text-sm font-semibold text-slate-700">
 								Headline
@@ -454,10 +510,10 @@ export default function SocialMediaStudio() {
 							<div className="mt-3 space-y-3">
 								<AssetPicker label={kind === "upcomingFixtures" ? "Club logo" : "Home team logo"} assets={socialGraphicAssetManifest.teamLogos} value={homeTeamLogoId} fallbackIndex={0} onChange={setHomeTeamLogoId} />
 								{kind !== "upcomingFixtures" && <AssetPicker label="Away team logo" assets={socialGraphicAssetManifest.teamLogos} value={awayTeamLogoId} fallbackIndex={1} onChange={setAwayTeamLogoId} />}
-								{kind === "upcomingFixtures" && selectedMatches.map((match, index) => (
-									<AssetPicker key={match.id} label={`${match.opponent} logo`} assets={socialGraphicAssetManifest.teamLogos} value={fixtureLogoIds[index] ?? ""} fallbackIndex={-1} onChange={(assetId) => setFixtureLogoId(index, assetId)} />
+								{kind === "upcomingFixtures" && selectedSocialFixtures.map((fixture, index) => (
+									<AssetPicker key={fixture.id} label={`${fixture.opponent} logo`} assets={socialGraphicAssetManifest.teamLogos} value={fixtureLogoIds[index] ?? ""} fallbackIndex={-1} onChange={(assetId) => setFixtureLogoId(index, assetId)} />
 								))}
-								{kind === "result" && <AssetPicker label="Featured image" assets={socialGraphicAssetManifest.featuredImages} value={featuredImageId} fallbackIndex={0} onChange={setFeaturedImageId} />}
+								{kind === "result" && <AssetPicker label="Player of the Match image" assets={socialGraphicAssetManifest.featuredImages} value={featuredImageId} fallbackIndex={0} onChange={setFeaturedImageId} />}
 								{showSponsors && [0, 1, 2].map((index) => (
 									<AssetPicker key={index} label={`Sponsor ${index + 1}`} assets={socialGraphicAssetManifest.sponsors} value={sponsorIds[index] ?? ""} fallbackIndex={index} onChange={(assetId) => setSponsorId(index, assetId)} />
 								))}
@@ -498,6 +554,105 @@ export default function SocialMediaStudio() {
 			</div>
 		</div>
 	);
+}
+
+function FixtureCopyEditor({
+	fixture,
+	showScores,
+	defaultOpen,
+	hasOverride,
+	onChange,
+	onReset,
+}: {
+	fixture: SocialFixture;
+	showScores: boolean;
+	defaultOpen: boolean;
+	hasOverride: boolean;
+	onChange: <Field extends keyof SocialFixtureOverride>(
+		field: Field,
+		value: SocialFixtureOverride[Field]
+	) => void;
+	onReset: () => void;
+}) {
+	const [isOpen, setIsOpen] = useState(defaultOpen);
+	const homeTeam = fixture.venue === "home" ? fixture.teamName : fixture.opponent;
+	const awayTeam = fixture.venue === "away" ? fixture.teamName : fixture.opponent;
+	const inputClassName = "mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm";
+
+	return (
+		<details
+			open={isOpen}
+			onToggle={(event) => setIsOpen(event.currentTarget.open)}
+			className="rounded-xl border border-slate-200 bg-slate-50"
+		>
+			<summary className="cursor-pointer px-3 py-2.5 text-sm font-bold text-slate-800">
+				Graphic copy · {fixture.opponent}
+			</summary>
+			<div className="grid gap-3 border-t border-slate-200 p-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+				<p className="sm:col-span-2 xl:col-span-1 2xl:col-span-2 text-xs leading-5 text-slate-500">
+					Seeded from the match. Changes here only affect this image.
+				</p>
+				<label className="block text-sm font-semibold text-slate-700">
+					Club/team name
+					<input value={fixture.teamName} onChange={(event) => onChange("teamName", event.target.value)} className={inputClassName} />
+				</label>
+				<label className="block text-sm font-semibold text-slate-700">
+					Opposition
+					<input value={fixture.opponent} onChange={(event) => onChange("opponent", event.target.value)} className={inputClassName} />
+				</label>
+				<label className="block text-sm font-semibold text-slate-700">
+					Competition
+					<input value={fixture.competition} onChange={(event) => onChange("competition", event.target.value)} className={inputClassName} />
+				</label>
+				<label className="block text-sm font-semibold text-slate-700">
+					Date and kick-off
+					<input type="datetime-local" value={formatDateForInput(fixture.date)} onChange={(event) => onChange("date", event.target.value)} className={inputClassName} />
+				</label>
+				<label className="block text-sm font-semibold text-slate-700">
+					Home or away
+					<select value={fixture.venue} onChange={(event) => onChange("venue", event.target.value as SocialFixture["venue"])} className={inputClassName}>
+						<option value="home">Home</option>
+						<option value="away">Away</option>
+					</select>
+				</label>
+				<label className="block text-sm font-semibold text-slate-700 sm:col-span-2 xl:col-span-1 2xl:col-span-2">
+					Venue / address
+					<textarea rows={2} value={fixture.location} onChange={(event) => onChange("location", event.target.value)} className={`${inputClassName} resize-y`} />
+				</label>
+				{showScores && (
+					<label className="block text-sm font-semibold text-slate-700 sm:col-span-2 xl:col-span-1 2xl:col-span-2">
+						Player of the Match name
+						<input value={fixture.playerOfTheMatch} onChange={(event) => onChange("playerOfTheMatch", event.target.value)} placeholder="Selects the match award winner when available" className={inputClassName} />
+					</label>
+				)}
+				{showScores && fixture.result && (
+					<>
+						<label className="block text-sm font-semibold text-slate-700">
+							Home score · {homeTeam}
+							<input type="number" min="0" value={fixture.result.homeGoals} onChange={(event) => onChange("homeGoals", parseOptionalScore(event.target.value))} className={inputClassName} />
+						</label>
+						<label className="block text-sm font-semibold text-slate-700">
+							Away score · {awayTeam}
+							<input type="number" min="0" value={fixture.result.awayGoals} onChange={(event) => onChange("awayGoals", parseOptionalScore(event.target.value))} className={inputClassName} />
+						</label>
+					</>
+				)}
+				{hasOverride && (
+					<div className="sm:col-span-2 xl:col-span-1 2xl:col-span-2">
+						<button type="button" onClick={onReset} className="text-xs font-bold text-yepset-800 hover:text-yepset-950">
+							Reset to match data
+						</button>
+					</div>
+				)}
+			</div>
+		</details>
+	);
+}
+
+function parseOptionalScore(value: string) {
+	if (!value.trim()) return undefined;
+	const score = Number.parseInt(value, 10);
+	return Number.isNaN(score) ? undefined : Math.max(0, score);
 }
 
 function UpcomingFixturePicker({

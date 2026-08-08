@@ -1,6 +1,7 @@
 import { loadTemplateImage } from "../socialGraphicCanvas";
 import type {
 	SocialGraphicAsset,
+	SocialScorer,
 	SocialGraphicTemplate,
 	SocialGraphicTemplateRenderContext,
 } from "../types";
@@ -92,6 +93,7 @@ async function renderResultEditorialTemplate({
 		score: fixture.result.awayGoals,
 		asset: content.assets.awayTeamLogo,
 		label: "AWAY TEAM\nLOGO",
+		scorers: fixture.venue === "away" ? fixture.scorers : [],
 	});
 
 	context.strokeStyle = GOLD;
@@ -108,10 +110,11 @@ async function renderResultEditorialTemplate({
 		score: fixture.result.homeGoals,
 		asset: content.assets.homeTeamLogo,
 		label: "HOME TEAM\nLOGO",
+		scorers: fixture.venue === "home" ? fixture.scorers : [],
 	});
 
 	const featuredTitle = getTextField(content.fields.featuredTitle, "Player of the match");
-	drawFittedText(context, featuredTitle.toUpperCase(), 865, 474, 420, 58, 46, 24, GOLD, "center");
+	drawFittedText(context, featuredTitle.toUpperCase(), 1079, 474, 390, 58, 46, 24, GOLD, "center");
 	await drawAssetOrPlaceholder(
 		context,
 		content.assets.featuredImage,
@@ -119,9 +122,26 @@ async function renderResultEditorialTemplate({
 		554,
 		430,
 		contentBottom - 574,
-		"FEATURED AREA",
+		"PLAYER IMAGE",
 		true
 	);
+	if (fixture.playerOfTheMatch.trim()) {
+		const captionTop = contentBottom - 118;
+		context.fillStyle = "rgba(0,0,0,.82)";
+		context.fillRect(868, captionTop, 422, 94);
+		drawFittedText(
+			context,
+			fixture.playerOfTheMatch.toUpperCase(),
+			1079,
+			captionTop + 23,
+			378,
+			48,
+			42,
+			22,
+			WHITE,
+			"center"
+		);
+	}
 
 	if (showSponsors) {
 		const sponsorsTitle = getTextField(content.fields.sponsorsTitle, "Match sponsors");
@@ -195,6 +215,7 @@ async function drawTeamRow({
 	score,
 	asset,
 	label,
+	scorers,
 }: {
 	context: CanvasRenderingContext2D;
 	y: number;
@@ -202,10 +223,69 @@ async function drawTeamRow({
 	score: number;
 	asset?: SocialGraphicAsset;
 	label: string;
+	scorers: SocialScorer[];
 }) {
 	await drawAssetOrPlaceholder(context, asset, 70, y, 235, 276, label, true);
 	drawFittedText(context, teamName.toUpperCase(), 340, y + 104, 310, 92, 62, 30, WHITE, "left");
+	drawScorerList(context, scorers, 340, y + 176, 310);
 	drawFittedText(context, String(score), 720, y + 50, 86, 180, 172, 70, WHITE, "center");
+}
+
+function drawScorerList(
+	context: CanvasRenderingContext2D,
+	scorers: SocialScorer[],
+	x: number,
+	y: number,
+	width: number
+) {
+	if (scorers.length === 0) return;
+
+	drawFittedText(context, "SCORERS", x, y, width, 28, 22, 15, GOLD, "left");
+	const labels = scorers.map((scorer) => (
+		`${scorer.name.toUpperCase()}${scorer.goals > 1 ? ` ×${scorer.goals}` : ""}`
+	));
+	let fontSize = 20;
+	let lines = wrapScorerLabels(context, labels, width, fontSize);
+	while (lines.length > 3 && fontSize > 12) {
+		fontSize -= 1;
+		lines = wrapScorerLabels(context, labels, width, fontSize);
+	}
+
+	if (lines.length > 3) {
+		lines = [lines[0], lines[1], lines.slice(2).join(" · ")];
+	}
+
+	context.fillStyle = WHITE;
+	context.font = `700 ${fontSize}px "Arial Narrow", sans-serif`;
+	context.textAlign = "left";
+	context.textBaseline = "top";
+	lines.forEach((line, index) => {
+		context.fillText(line, x, y + 34 + index * 25, width);
+	});
+}
+
+function wrapScorerLabels(
+	context: CanvasRenderingContext2D,
+	labels: string[],
+	maxWidth: number,
+	fontSize: number
+) {
+	context.font = `700 ${fontSize}px "Arial Narrow", sans-serif`;
+	const lines: string[] = [];
+	let currentLine = "";
+
+	labels.forEach((label) => {
+		const candidate = currentLine ? `${currentLine} · ${label}` : label;
+		if (currentLine && context.measureText(candidate).width > maxWidth) {
+			lines.push(currentLine);
+			currentLine = label;
+		} else {
+			currentLine = candidate;
+		}
+	});
+
+	if (currentLine) lines.push(currentLine);
+	return lines;
 }
 
 async function drawAssetOrPlaceholder(
