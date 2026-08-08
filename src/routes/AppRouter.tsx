@@ -30,6 +30,7 @@ const PostDetail = lazy(() => import("../pages/Posts/PostDetail"));
 const ReportsPage = lazy(() => import("../pages/Reports/ReportsPage"));
 const Seasons = lazy(() => import("../pages/Seasons/Seasons"));
 const Settings = lazy(() => import("../pages/Settings/Settings"));
+const SocialMediaStudio = lazy(() => import("../pages/SocialMediaStudio/SocialMediaStudio"));
 const Stats = lazy(() => import("../pages/Stats/Stats"));
 const Training = lazy(() => import("../pages/Training/Training"));
 const Users = lazy(() => import("../pages/Users/Users"));
@@ -64,6 +65,7 @@ export default function AppRouter() {
 							<Route path="/players" element={<Players />} />
 							<Route path="/players/:id" element={<Player />} />
 							<Route path="/reports/*" element={<ReportsPage />} />
+							<Route path="/social-media" element={<SocialMediaStudio />} />
 							<Route path="/stats" element={<Stats />} />
 							<Route path="/training" element={<Training />} />
 							<Route path="/historical-stats" element={<HistoricalStats />} />

@@ -1,0 +1,297 @@
+import { loadTemplateImage } from "../socialGraphicCanvas";
+import type { SocialGraphicAsset } from "../types";
+
+export const EDITORIAL_GOLD = "#d7a600";
+export const EDITORIAL_WHITE = "#f4f4f2";
+export const EDITORIAL_BLACK = "#050606";
+
+export function drawEditorialBackground(
+	context: CanvasRenderingContext2D,
+	width: number,
+	height: number
+) {
+	context.fillStyle = EDITORIAL_BLACK;
+	context.fillRect(0, 0, width, height);
+
+	const glow = context.createRadialGradient(width * 0.48, height * 0.42, 20, width * 0.48, height * 0.42, width * 0.62);
+	glow.addColorStop(0, "rgba(38,38,34,.2)");
+	glow.addColorStop(1, "rgba(0,0,0,0)");
+	context.fillStyle = glow;
+	context.fillRect(0, 0, width, height);
+
+	context.fillStyle = "rgba(215,166,0,.12)";
+	for (let row = 0; row < 18; row += 1) {
+		for (let column = 0; column < 8; column += 1) {
+			const radius = Math.max(1.1, 5.7 - column * 0.68);
+			context.beginPath();
+			context.arc(28 + column * 18, 145 + row * 20, radius, 0, Math.PI * 2);
+			context.fill();
+		}
+	}
+
+	context.fillStyle = "rgba(255,255,255,.025)";
+	for (let index = 0; index < 220; index += 1) {
+		context.fillRect((index * 83) % width, (index * 137) % height, 2, 2);
+	}
+}
+
+export function drawEditorialBorder(
+	context: CanvasRenderingContext2D,
+	width: number,
+	height: number
+) {
+	context.strokeStyle = EDITORIAL_GOLD;
+	context.lineWidth = 3;
+	context.strokeRect(20, 20, width - 40, height - 40);
+}
+
+export function drawEditorialSectionTitle(
+	context: CanvasRenderingContext2D,
+	text: string,
+	y: number,
+	width: number,
+	maxTextWidth = 520
+) {
+	drawFittedText(context, text.toUpperCase(), width / 2, y - 26, maxTextWidth, 50, 24, EDITORIAL_GOLD, "center");
+	context.strokeStyle = EDITORIAL_GOLD;
+	context.lineWidth = 3;
+	context.beginPath();
+	context.moveTo(88, y);
+	context.lineTo(width / 2 - maxTextWidth / 2 - 35, y);
+	context.moveTo(width / 2 + maxTextWidth / 2 + 35, y);
+	context.lineTo(width - 88, y);
+	context.stroke();
+}
+
+export function drawRoundedFrame(
+	context: CanvasRenderingContext2D,
+	x: number,
+	y: number,
+	width: number,
+	height: number,
+	radius = 20
+) {
+	context.strokeStyle = EDITORIAL_GOLD;
+	context.lineWidth = 3;
+	roundedRectPath(context, x, y, width, height, radius);
+	context.stroke();
+}
+
+export async function drawAssetOrPlaceholder(
+	context: CanvasRenderingContext2D,
+	asset: SocialGraphicAsset | undefined,
+	x: number,
+	y: number,
+	width: number,
+	height: number,
+	placeholder: string,
+	options: { frame?: boolean; contain?: boolean } = {}
+) {
+	if (options.frame !== false) drawRoundedFrame(context, x, y, width, height);
+
+	if (!asset) {
+		drawMultilineText(context, placeholder, x + width / 2, y + height / 2, Math.min(31, width / 8), EDITORIAL_WHITE);
+		return;
+	}
+
+	const image = await loadTemplateImage(asset.source);
+	const innerX = x + 8;
+	const innerY = y + 8;
+	const innerWidth = width - 16;
+	const innerHeight = height - 16;
+	context.save();
+	clipRoundedRect(context, innerX, innerY, innerWidth, innerHeight, 14);
+	if (options.contain) {
+		drawImageContain(context, image, innerX, innerY, innerWidth, innerHeight);
+	} else {
+		drawImageCover(context, image, innerX, innerY, innerWidth, innerHeight);
+	}
+	context.restore();
+}
+
+export function drawFittedText(
+	context: CanvasRenderingContext2D,
+	text: string,
+	x: number,
+	y: number,
+	maxWidth: number,
+	maxFontSize: number,
+	minFontSize: number,
+	colour: string,
+	align: CanvasTextAlign = "left"
+) {
+	let fontSize = maxFontSize;
+	while (fontSize > minFontSize) {
+		context.font = `700 ${fontSize}px Impact, "Arial Narrow", sans-serif`;
+		if (context.measureText(text).width <= maxWidth) break;
+		fontSize -= 2;
+	}
+
+	context.fillStyle = colour;
+	context.font = `700 ${fontSize}px Impact, "Arial Narrow", sans-serif`;
+	context.textAlign = align;
+	context.textBaseline = "top";
+	context.fillText(text, x, y, maxWidth);
+}
+
+export function drawMultilineText(
+	context: CanvasRenderingContext2D,
+	text: string,
+	x: number,
+	y: number,
+	fontSize: number,
+	colour: string
+) {
+	const lines = text.split("\n");
+	context.fillStyle = colour;
+	context.font = `700 ${fontSize}px "Arial Narrow", sans-serif`;
+	context.textAlign = "center";
+	context.textBaseline = "middle";
+	lines.forEach((line, index) => {
+		context.fillText(line, x, y + (index - (lines.length - 1) / 2) * fontSize * 1.25);
+	});
+}
+
+export function drawCalendarIcon(
+	context: CanvasRenderingContext2D,
+	x: number,
+	y: number,
+	size: number
+) {
+	context.strokeStyle = EDITORIAL_GOLD;
+	context.lineWidth = Math.max(3, size * 0.07);
+	drawRoundedFrame(context, x, y + size * 0.14, size, size * 0.82, size * 0.1);
+	context.beginPath();
+	context.moveTo(x + size * 0.22, y);
+	context.lineTo(x + size * 0.22, y + size * 0.28);
+	context.moveTo(x + size * 0.78, y);
+	context.lineTo(x + size * 0.78, y + size * 0.28);
+	context.moveTo(x, y + size * 0.42);
+	context.lineTo(x + size, y + size * 0.42);
+	context.stroke();
+	context.fillStyle = EDITORIAL_GOLD;
+	for (let row = 0; row < 2; row += 1) {
+		for (let column = 0; column < 3; column += 1) {
+			context.fillRect(x + size * (0.19 + column * 0.25), y + size * (0.55 + row * 0.22), size * 0.1, size * 0.1);
+		}
+	}
+}
+
+export function drawLocationIcon(
+	context: CanvasRenderingContext2D,
+	x: number,
+	y: number,
+	size: number
+) {
+	context.fillStyle = EDITORIAL_GOLD;
+	context.beginPath();
+	context.arc(x, y, size * 0.32, Math.PI, 0);
+	context.quadraticCurveTo(x + size * 0.33, y + size * 0.46, x, y + size);
+	context.quadraticCurveTo(x - size * 0.33, y + size * 0.46, x - size * 0.32, y);
+	context.closePath();
+	context.fill();
+	context.fillStyle = EDITORIAL_BLACK;
+	context.beginPath();
+	context.arc(x, y, size * 0.12, 0, Math.PI * 2);
+	context.fill();
+}
+
+export function drawClockIcon(
+	context: CanvasRenderingContext2D,
+	x: number,
+	y: number,
+	size: number
+) {
+	context.strokeStyle = EDITORIAL_GOLD;
+	context.lineWidth = Math.max(3, size * 0.07);
+	context.beginPath();
+	context.arc(x, y, size / 2, 0, Math.PI * 2);
+	context.moveTo(x, y);
+	context.lineTo(x, y - size * 0.28);
+	context.moveTo(x, y);
+	context.lineTo(x + size * 0.22, y + size * 0.16);
+	context.stroke();
+}
+
+export function drawShieldPlaceholder(
+	context: CanvasRenderingContext2D,
+	x: number,
+	y: number,
+	width: number,
+	height: number
+) {
+	context.strokeStyle = EDITORIAL_GOLD;
+	context.lineWidth = 5;
+	context.beginPath();
+	context.moveTo(x + width / 2, y);
+	context.bezierCurveTo(x + width * 0.68, y + height * 0.12, x + width * 0.82, y + height * 0.14, x + width, y + height * 0.16);
+	context.lineTo(x + width, y + height * 0.58);
+	context.bezierCurveTo(x + width, y + height * 0.78, x + width * 0.7, y + height * 0.95, x + width / 2, y + height);
+	context.bezierCurveTo(x + width * 0.3, y + height * 0.95, x, y + height * 0.78, x, y + height * 0.58);
+	context.lineTo(x, y + height * 0.16);
+	context.bezierCurveTo(x + width * 0.18, y + height * 0.14, x + width * 0.32, y + height * 0.12, x + width / 2, y);
+	context.stroke();
+}
+
+export function getTextField(value: string | boolean | undefined, fallback: string) {
+	return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function roundedRectPath(
+	context: CanvasRenderingContext2D,
+	x: number,
+	y: number,
+	width: number,
+	height: number,
+	radius: number
+) {
+	const safeRadius = Math.min(radius, width / 2, height / 2);
+	context.beginPath();
+	context.moveTo(x + safeRadius, y);
+	context.arcTo(x + width, y, x + width, y + height, safeRadius);
+	context.arcTo(x + width, y + height, x, y + height, safeRadius);
+	context.arcTo(x, y + height, x, y, safeRadius);
+	context.arcTo(x, y, x + width, y, safeRadius);
+	context.closePath();
+}
+
+function clipRoundedRect(
+	context: CanvasRenderingContext2D,
+	x: number,
+	y: number,
+	width: number,
+	height: number,
+	radius: number
+) {
+	roundedRectPath(context, x, y, width, height, radius);
+	context.clip();
+}
+
+function drawImageCover(
+	context: CanvasRenderingContext2D,
+	image: HTMLImageElement,
+	x: number,
+	y: number,
+	width: number,
+	height: number
+) {
+	const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
+	const renderedWidth = image.naturalWidth * scale;
+	const renderedHeight = image.naturalHeight * scale;
+	context.drawImage(image, x + (width - renderedWidth) / 2, y + (height - renderedHeight) / 2, renderedWidth, renderedHeight);
+}
+
+function drawImageContain(
+	context: CanvasRenderingContext2D,
+	image: HTMLImageElement,
+	x: number,
+	y: number,
+	width: number,
+	height: number
+) {
+	const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
+	const renderedWidth = image.naturalWidth * scale;
+	const renderedHeight = image.naturalHeight * scale;
+	context.drawImage(image, x + (width - renderedWidth) / 2, y + (height - renderedHeight) / 2, renderedWidth, renderedHeight);
+}
+

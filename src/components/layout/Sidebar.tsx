@@ -30,6 +30,11 @@ const navigationItems: NavigationItem[] = [
 		roles: ["Admin", "Coach"],
 	},
 	{
+		label: "Social Media",
+		to: "/social-media",
+		roles: ["Admin", "Coach"],
+	},
+	{
 		label: "Players",
 		to: "/players",
 		roles: ["Admin", "Coach"],
@@ -251,6 +256,8 @@ function NavigationIcon({ path }: { path: string }) {
 						? "M4 5h16v12H8l-4 4V5Zm4 5h8m-8 3h5"
 			: path === "/matches"
 				? "M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"
+				: path === "/social-media"
+					? "M4 5h16v14H4V5Zm3 10 3-3 2 2 3-4 3 5M8 9h.01"
 				: path === "/players" || path === "/users"
 					? "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m7-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 10v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
 					: path === "/finance"
