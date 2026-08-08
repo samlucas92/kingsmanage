@@ -10,6 +10,7 @@ import { socialGraphicAssetManifest } from "./assetManifest";
 import {
 	copyCanvasPng,
 	downloadCanvasPng,
+	getSocialGraphicDimensions,
 	renderSocialGraphic,
 } from "./socialGraphicCanvas";
 import {
@@ -251,6 +252,9 @@ export default function SocialMediaStudio() {
 		effectiveTemplateFields,
 		selectedAssets,
 	]);
+	const previewDimensions = selectedTemplate
+		? getSocialGraphicDimensions(selectedTemplate, content)
+		: undefined;
 
 	useEffect(() => {
 		const canvas = canvasRef.current;
@@ -560,7 +564,7 @@ export default function SocialMediaStudio() {
 					<div className="flex items-center justify-between gap-3">
 						<h2 className="text-base font-bold text-slate-900">Preview</h2>
 						<span className="text-xs font-semibold text-slate-500">
-							{selectedTemplate ? `${selectedTemplate.width} × ${selectedTemplate.height}` : "Waiting for template"}
+							{previewDimensions ? `${previewDimensions.width} × ${previewDimensions.height}` : "Waiting for template"}
 						</span>
 					</div>
 

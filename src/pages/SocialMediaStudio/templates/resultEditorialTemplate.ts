@@ -10,6 +10,8 @@ import type {
 const GOLD = "#d7a600";
 const WHITE = "#f4f4f2";
 const BLACK = "#050606";
+const RESULT_CONTENT_BOTTOM = 1242;
+const RESULT_SPONSOR_TOP = 1302;
 
 export const resultEditorialTemplate: SocialGraphicTemplate = {
 	id: "result-editorial-gold",
@@ -17,6 +19,9 @@ export const resultEditorialTemplate: SocialGraphicTemplate = {
 	description: "Black and gold result layout with optional featured and sponsor imagery.",
 	width: 1365,
 	height: 1651,
+	resolveHeight: (content) => content.fields.showSponsors === false
+		? RESULT_SPONSOR_TOP
+		: 1651,
 	supportedKinds: ["result"],
 	fields: [
 		{
@@ -35,7 +40,7 @@ export const resultEditorialTemplate: SocialGraphicTemplate = {
 			id: "sponsorsTitle",
 			label: "Sponsors title",
 			type: "text",
-			defaultValue: "Match sponsors",
+			defaultValue: "Proudly sponsored by",
 		},
 	],
 	render: renderResultEditorialTemplate,
@@ -49,8 +54,6 @@ async function renderResultEditorialTemplate({
 }: SocialGraphicTemplateRenderContext) {
 	const fixture = content.fixtures[0];
 	const showSponsors = content.fields.showSponsors !== false;
-	const sponsorTop = showSponsors ? 1302 : height - 38;
-	const contentBottom = showSponsors ? 1242 : height - 56;
 
 	context.save();
 	drawBackground(context, width, height);
@@ -64,6 +67,9 @@ async function renderResultEditorialTemplate({
 
 	const homeTeam = fixture.venue === "home" ? fixture.teamName : fixture.opponent;
 	const awayTeam = fixture.venue === "away" ? fixture.teamName : fixture.opponent;
+	const clubLogo = fixture.venue === "home"
+		? content.assets.homeTeamLogo
+		: content.assets.awayTeamLogo;
 	const competition = fixture.competition || "Competition";
 
 	drawSectionTitle(context, competition, 108, 90, 950);
@@ -71,12 +77,12 @@ async function renderResultEditorialTemplate({
 
 	await drawAssetOrPlaceholder(
 		context,
-		content.assets.homeTeamLogo,
+		clubLogo,
 		1005,
 		55,
 		280,
 		340,
-		"HOME TEAM\nLOGO",
+		"YOUR TEAM\nLOGO",
 		false,
 		true
 	);
@@ -85,7 +91,7 @@ async function renderResultEditorialTemplate({
 	context.lineWidth = 5;
 	context.beginPath();
 	context.moveTo(810, 448);
-	context.lineTo(810, contentBottom);
+	context.lineTo(810, RESULT_CONTENT_BOTTOM);
 	context.stroke();
 
 	await drawTeamRow({
@@ -123,13 +129,13 @@ async function renderResultEditorialTemplate({
 		864,
 		554,
 		430,
-		contentBottom - 574,
+		RESULT_CONTENT_BOTTOM - 574,
 		"PLAYER IMAGE",
 		true,
 		false
 	);
 	if (fixture.playerOfTheMatch.trim()) {
-		const captionTop = contentBottom - 118;
+		const captionTop = RESULT_CONTENT_BOTTOM - 118;
 		context.fillStyle = "rgba(0,0,0,.82)";
 		context.fillRect(868, captionTop, 422, 94);
 		drawFittedText(
@@ -147,12 +153,12 @@ async function renderResultEditorialTemplate({
 	}
 
 	if (showSponsors) {
-		const sponsorsTitle = getTextField(content.fields.sponsorsTitle, "Match sponsors");
-		drawDividerTitle(context, sponsorsTitle.toUpperCase(), sponsorTop);
+		const sponsorsTitle = getTextField(content.fields.sponsorsTitle, "Proudly sponsored by");
+		drawDividerTitle(context, sponsorsTitle.toUpperCase(), RESULT_SPONSOR_TOP);
 		await Promise.all([
-			drawSponsorSlot(context, content.assets.sponsors[0], 52, sponsorTop + 52),
-			drawSponsorSlot(context, content.assets.sponsors[1], 487, sponsorTop + 52),
-			drawSponsorSlot(context, content.assets.sponsors[2], 922, sponsorTop + 52),
+			drawSponsorSlot(context, content.assets.sponsors[0], 52, RESULT_SPONSOR_TOP + 52),
+			drawSponsorSlot(context, content.assets.sponsors[1], 487, RESULT_SPONSOR_TOP + 52),
+			drawSponsorSlot(context, content.assets.sponsors[2], 922, RESULT_SPONSOR_TOP + 52),
 		]);
 	}
 

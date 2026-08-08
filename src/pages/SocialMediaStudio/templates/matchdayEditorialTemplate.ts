@@ -20,12 +20,19 @@ import {
 	getTextField,
 } from "./editorialCanvas";
 
+const MATCHDAY_SPONSOR_TOP = 1122;
+const MATCHDAY_DETAIL_HEIGHT = 175;
+const MATCHDAY_SPONSOR_FREE_HEIGHT = 1122;
+
 export const matchdayEditorialTemplate: SocialGraphicTemplate = {
 	id: "matchday-editorial-gold",
 	name: "Editorial matchday",
 	description: "Square black and gold fixture announcement with optional sponsors.",
 	width: 1365,
 	height: 1365,
+	resolveHeight: (content) => content.fields.showSponsors === false
+		? MATCHDAY_SPONSOR_FREE_HEIGHT
+		: 1365,
 	supportedKinds: ["fixture"],
 	fields: [
 		{
@@ -88,24 +95,22 @@ async function renderMatchdayEditorialTemplate({
 	drawFittedText(context, "VS", 0, -48, 132, 100, 62, EDITORIAL_GOLD, "center");
 	context.restore();
 
-	const detailTop = 915;
-	const detailHeight = showSponsors ? 175 : 386;
-	drawRoundedFrame(context, 64, detailTop, 1237, detailHeight, 20);
-	drawMatchDetails(context, fixture.date, fixture.location, detailTop, detailHeight);
+	const detailTop = 895;
+	drawRoundedFrame(context, 64, detailTop, 1237, MATCHDAY_DETAIL_HEIGHT, 20);
+	drawMatchDetails(context, fixture.date, fixture.location, detailTop, MATCHDAY_DETAIL_HEIGHT);
 
 	if (showSponsors) {
-		const sponsorTop = 1122;
 		drawEditorialSectionTitle(
 			context,
 			getTextField(content.fields.sponsorsTitle, "Proudly sponsored by"),
-			sponsorTop,
+			MATCHDAY_SPONSOR_TOP,
 			width,
 			530
 		);
 		await Promise.all([
-			drawAssetOrPlaceholder(context, content.assets.sponsors[0], 64, sponsorTop + 36, 390, 172, "SPONSOR\nPLACEHOLDER", { contain: true }),
-			drawAssetOrPlaceholder(context, content.assets.sponsors[1], 487, sponsorTop + 36, 390, 172, "SPONSOR\nPLACEHOLDER", { contain: true }),
-			drawAssetOrPlaceholder(context, content.assets.sponsors[2], 910, sponsorTop + 36, 390, 172, "SPONSOR\nPLACEHOLDER", { contain: true }),
+			drawAssetOrPlaceholder(context, content.assets.sponsors[0], 64, MATCHDAY_SPONSOR_TOP + 48, 390, 160, "SPONSOR\nPLACEHOLDER", { contain: true }),
+			drawAssetOrPlaceholder(context, content.assets.sponsors[1], 487, MATCHDAY_SPONSOR_TOP + 48, 390, 160, "SPONSOR\nPLACEHOLDER", { contain: true }),
+			drawAssetOrPlaceholder(context, content.assets.sponsors[2], 910, MATCHDAY_SPONSOR_TOP + 48, 390, 160, "SPONSOR\nPLACEHOLDER", { contain: true }),
 		]);
 	}
 
@@ -121,12 +126,12 @@ async function drawTeam(
 	y: number
 ) {
 	if (asset) {
-		await drawAssetOrPlaceholder(context, asset, x - 35, y - 20, 360, 400, "", { frame: false, contain: true });
+		await drawAssetOrPlaceholder(context, asset, x - 35, y - 20, 360, 370, "", { frame: false, contain: true });
 	} else {
-		drawShieldPlaceholder(context, x - 5, y - 10, 300, 370);
+		drawShieldPlaceholder(context, x - 5, y - 10, 300, 340);
 	}
-	drawFittedText(context, teamName.toUpperCase(), x + 145, y + 400, 420, 50, 26, EDITORIAL_WHITE, "center");
-	drawFittedText(context, `(${venueLabel})`, x + 145, y + 458, 260, 30, 20, EDITORIAL_GOLD, "center");
+	drawFittedText(context, teamName.toUpperCase(), x + 145, y + 365, 420, 50, 26, EDITORIAL_WHITE, "center");
+	drawFittedText(context, `(${venueLabel})`, x + 145, y + 421, 260, 30, 20, EDITORIAL_GOLD, "center");
 }
 
 function drawMatchDetails(

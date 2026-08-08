@@ -1,24 +1,35 @@
 import type { SocialGraphicContent, SocialGraphicTemplate } from "./types";
 
+export function getSocialGraphicDimensions(
+	template: SocialGraphicTemplate,
+	content: SocialGraphicContent
+) {
+	return {
+		width: template.width,
+		height: template.resolveHeight?.(content) ?? template.height,
+	};
+}
+
 export async function renderSocialGraphic(
 	canvas: HTMLCanvasElement,
 	template: SocialGraphicTemplate,
 	content: SocialGraphicContent
 ) {
-	canvas.width = template.width;
-	canvas.height = template.height;
+	const { width, height } = getSocialGraphicDimensions(template, content);
+	canvas.width = width;
+	canvas.height = height;
 
 	const context = canvas.getContext("2d");
 	if (!context) {
 		throw new Error("This browser cannot create the social graphic preview.");
 	}
 
-	context.clearRect(0, 0, template.width, template.height);
+	context.clearRect(0, 0, width, height);
 	await template.render({
 		canvas,
 		context,
-		width: template.width,
-		height: template.height,
+		width,
+		height,
 		content,
 	});
 }
@@ -68,4 +79,3 @@ export function loadTemplateImage(source: string) {
 		image.src = source;
 	});
 }
-

@@ -84,6 +84,7 @@ export type SocialGraphicTemplate = {
 	description: string;
 	width: number;
 	height: number;
+	resolveHeight?: (content: SocialGraphicContent) => number;
 	supportedKinds: SocialGraphicKind[];
 	fields?: SocialGraphicTemplateField[];
 	render: (renderContext: SocialGraphicTemplateRenderContext) => void | Promise<void>;

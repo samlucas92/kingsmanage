@@ -20,12 +20,18 @@ import {
 	getTextField,
 } from "./editorialCanvas";
 
+const UPCOMING_SPONSOR_TOP = 1330;
+const UPCOMING_LIST_BOTTOM = 1268;
+
 export const upcomingEditorialTemplate: SocialGraphicTemplate = {
 	id: "upcoming-editorial-gold",
 	name: "Editorial fixtures",
 	description: "Black and gold roundup for up to five upcoming fixtures.",
 	width: 1365,
 	height: 1651,
+	resolveHeight: (content) => content.fields.showSponsors === false
+		? UPCOMING_SPONSOR_TOP
+		: 1651,
 	supportedKinds: ["upcomingFixtures"],
 	fields: [
 		{
@@ -76,15 +82,14 @@ async function renderUpcomingEditorialTemplate({
 	}
 
 	const listTop = 432;
-	const listBottom = showSponsors ? 1268 : height - 66;
-	const maximumRowHeight = showSponsors ? 155 : 190;
+	const maximumRowHeight = 155;
 	const rowGap = fixtures.length > 3 ? 16 : 24;
 	const rowHeight = Math.min(
 		maximumRowHeight,
-		(listBottom - listTop - rowGap * (fixtures.length - 1)) / fixtures.length
+		(UPCOMING_LIST_BOTTOM - listTop - rowGap * (fixtures.length - 1)) / fixtures.length
 	);
 	const groupHeight = rowHeight * fixtures.length + rowGap * (fixtures.length - 1);
-	const firstRowTop = listTop + (listBottom - listTop - groupHeight) / 2;
+	const firstRowTop = listTop + (UPCOMING_LIST_BOTTOM - listTop - groupHeight) / 2;
 
 	for (let index = 0; index < fixtures.length; index += 1) {
 		await drawFixtureRow(
@@ -97,18 +102,17 @@ async function renderUpcomingEditorialTemplate({
 	}
 
 	if (showSponsors) {
-		const sponsorTop = 1330;
 		drawEditorialSectionTitle(
 			context,
 			getTextField(content.fields.sponsorsTitle, "Proudly sponsored by"),
-			sponsorTop,
+			UPCOMING_SPONSOR_TOP,
 			width,
 			520
 		);
 		await Promise.all([
-			drawAssetOrPlaceholder(context, content.assets.sponsors[0], 62, sponsorTop + 42, 390, 218, "SPONSOR\nPLACEHOLDER", { contain: true }),
-			drawAssetOrPlaceholder(context, content.assets.sponsors[1], 487, sponsorTop + 42, 390, 218, "SPONSOR\nPLACEHOLDER", { contain: true }),
-			drawAssetOrPlaceholder(context, content.assets.sponsors[2], 912, sponsorTop + 42, 390, 218, "SPONSOR\nPLACEHOLDER", { contain: true }),
+			drawAssetOrPlaceholder(context, content.assets.sponsors[0], 62, UPCOMING_SPONSOR_TOP + 42, 390, 218, "SPONSOR\nPLACEHOLDER", { contain: true }),
+			drawAssetOrPlaceholder(context, content.assets.sponsors[1], 487, UPCOMING_SPONSOR_TOP + 42, 390, 218, "SPONSOR\nPLACEHOLDER", { contain: true }),
+			drawAssetOrPlaceholder(context, content.assets.sponsors[2], 912, UPCOMING_SPONSOR_TOP + 42, 390, 218, "SPONSOR\nPLACEHOLDER", { contain: true }),
 		]);
 	}
 
