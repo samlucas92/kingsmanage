@@ -156,9 +156,9 @@ async function renderResultEditorialTemplate({
 		const sponsorsTitle = getTextField(content.fields.sponsorsTitle, "Proudly sponsored by");
 		drawDividerTitle(context, sponsorsTitle.toUpperCase(), RESULT_SPONSOR_TOP);
 		await Promise.all([
-			drawSponsorSlot(context, content.assets.sponsors[0], 52, RESULT_SPONSOR_TOP + 52),
-			drawSponsorSlot(context, content.assets.sponsors[1], 487, RESULT_SPONSOR_TOP + 52),
-			drawSponsorSlot(context, content.assets.sponsors[2], 922, RESULT_SPONSOR_TOP + 52),
+			drawSponsorSlot(context, content.assets.sponsors[0], 52, RESULT_SPONSOR_TOP + 72),
+			drawSponsorSlot(context, content.assets.sponsors[1], 487, RESULT_SPONSOR_TOP + 72),
+			drawSponsorSlot(context, content.assets.sponsors[2], 922, RESULT_SPONSOR_TOP + 72),
 		]);
 	}
 
@@ -333,7 +333,7 @@ async function drawSponsorSlot(
 	y: number
 ) {
 	const width = 395;
-	const height = 230;
+	const height = 210;
 	drawRoundedFrame(context, x, y, width, height, 20);
 
 	if (!asset) {

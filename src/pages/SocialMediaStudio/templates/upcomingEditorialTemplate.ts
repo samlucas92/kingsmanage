@@ -110,9 +110,9 @@ async function renderUpcomingEditorialTemplate({
 			520
 		);
 		await Promise.all([
-			drawAssetOrPlaceholder(context, content.assets.sponsors[0], 62, UPCOMING_SPONSOR_TOP + 42, 390, 218, "SPONSOR\nPLACEHOLDER", { contain: true }),
-			drawAssetOrPlaceholder(context, content.assets.sponsors[1], 487, UPCOMING_SPONSOR_TOP + 42, 390, 218, "SPONSOR\nPLACEHOLDER", { contain: true }),
-			drawAssetOrPlaceholder(context, content.assets.sponsors[2], 912, UPCOMING_SPONSOR_TOP + 42, 390, 218, "SPONSOR\nPLACEHOLDER", { contain: true }),
+			drawAssetOrPlaceholder(context, content.assets.sponsors[0], 62, UPCOMING_SPONSOR_TOP + 56, 390, 204, "SPONSOR\nPLACEHOLDER", { contain: true }),
+			drawAssetOrPlaceholder(context, content.assets.sponsors[1], 487, UPCOMING_SPONSOR_TOP + 56, 390, 204, "SPONSOR\nPLACEHOLDER", { contain: true }),
+			drawAssetOrPlaceholder(context, content.assets.sponsors[2], 912, UPCOMING_SPONSOR_TOP + 56, 390, 204, "SPONSOR\nPLACEHOLDER", { contain: true }),
 		]);
 	}
 
