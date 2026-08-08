@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuthStore } from "../../stores/auth";
@@ -12,10 +13,26 @@ type NavigationItem = {
 	to: string;
 	end?: boolean;
 	roles: NavigationRole[];
+	group?: NavigationGroupId;
 	tenantRoles?: string[];
 	mobileOnly?: boolean;
 	platformOnly?: boolean;
 };
+
+type NavigationGroupId = "insights" | "manage-club" | "community";
+
+type NavigationGroup = {
+	id: NavigationGroupId;
+	label: string;
+	iconPath: string;
+	mobileOnly?: boolean;
+};
+
+const navigationGroups: NavigationGroup[] = [
+	{ id: "insights", label: "Insights", iconPath: "/reports" },
+	{ id: "manage-club", label: "Manage club", iconPath: "/organization" },
+	{ id: "community", label: "Community", iconPath: "/?tab=messages", mobileOnly: true },
+];
 
 const navigationItems: NavigationItem[] = [
 	{
@@ -30,23 +47,13 @@ const navigationItems: NavigationItem[] = [
 		roles: ["Admin", "Coach"],
 	},
 	{
-		label: "Social Media",
-		to: "/social-media",
-		roles: ["Admin", "Coach"],
-	},
-	{
 		label: "Players",
 		to: "/players",
 		roles: ["Admin", "Coach"],
 	},
 	{
-		label: "Finances",
-		to: "/finance",
-		roles: ["Admin"],
-	},
-	{
-		label: "Reports",
-		to: "/reports",
+		label: "Training",
+		to: "/training",
 		roles: ["Admin", "Coach"],
 	},
 	{
@@ -55,53 +62,73 @@ const navigationItems: NavigationItem[] = [
 		roles: ["Admin", "Coach", "Player"],
 	},
 	{
-		label: "Training",
-		to: "/training",
+		label: "Social Media",
+		to: "/social-media",
 		roles: ["Admin", "Coach"],
+	},
+	{
+		label: "Reports",
+		to: "/reports",
+		roles: ["Admin", "Coach"],
+		group: "insights",
 	},
 	{
 		label: "Stats",
 		to: "/stats",
 		roles: ["Admin", "Coach"],
+		group: "insights",
 	},
 	{
 		label: "Historical Stats",
 		to: "/historical-stats",
 		roles: ["Admin", "Coach"],
+		group: "insights",
+	},
+	{
+		label: "Finances",
+		to: "/finance",
+		roles: ["Admin"],
+		group: "manage-club",
 	},
 	{
 		label: "Seasons",
 		to: "/seasons",
 		roles: ["Admin"],
+		group: "manage-club",
 	},
 	{
 		label: "Organizations",
 		to: "/platform/organizations",
 		roles: ["Admin"],
+		group: "manage-club",
 		platformOnly: true,
 	},
 	{
 		label: "Organization",
 		to: "/organization",
 		roles: ["Admin"],
+		group: "manage-club",
 		tenantRoles: ["OrganizationAdmin", "ClubAdmin"],
 	},
 	{
 		label: "Events",
 		to: "/?tab=events",
 		roles: ["Admin", "Coach", "Player"],
+		group: "community",
 		mobileOnly: true,
 	},
 	{
 		label: "Posts",
 		to: "/?tab=posts",
 		roles: ["Admin", "Coach", "Player"],
+		group: "community",
 		mobileOnly: true,
 	},
 	{
 		label: "Messages",
 		to: "/?tab=messages",
 		roles: ["Admin", "Coach", "Player"],
+		group: "community",
 		mobileOnly: true,
 	},
 ];
@@ -152,6 +179,7 @@ export default function Sidebar({
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 	const navigate = useNavigate();
+	const location = useLocation();
 
 	const currentUser = useAuthStore((state) => state.currentUser);
 	const logout = useAuthStore((state) => state.logout);
@@ -167,6 +195,32 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 			(!item.platformOnly || currentUser?.isPlatformAdmin) &&
 			(!item.tenantRoles || (currentUser?.tenantRole && item.tenantRoles.includes(currentUser.tenantRole)));
 	});
+	const primaryNavigationItems = visibleNavigationItems.filter((item) => !item.group);
+	const visibleNavigationGroups = navigationGroups
+		.map((group) => ({
+			...group,
+			items: visibleNavigationItems.filter((item) => item.group === group.id),
+		}))
+		.filter((group) => group.items.length > 0);
+	const standardNavigationGroups = visibleNavigationGroups.filter((group) => !group.mobileOnly);
+	const mobileNavigationGroups = visibleNavigationGroups.filter((group) => group.mobileOnly);
+	const activeGroupId = visibleNavigationGroups.find((group) => (
+		group.items.some((item) => isNavigationItemActive(item.to, location.pathname, location.search))
+	))?.id;
+	const [openGroupId, setOpenGroupId] = useState<NavigationGroupId>();
+	const [collapsedActiveGroupId, setCollapsedActiveGroupId] = useState<NavigationGroupId>();
+	const isGroupOpen = (groupId: NavigationGroupId) => activeGroupId === groupId
+		? collapsedActiveGroupId !== groupId
+		: openGroupId === groupId;
+	const toggleGroup = (groupId: NavigationGroupId) => {
+		if (activeGroupId === groupId) {
+			setCollapsedActiveGroupId((current) => current === groupId ? undefined : groupId);
+			return;
+		}
+
+		setCollapsedActiveGroupId(activeGroupId);
+		setOpenGroupId((current) => current === groupId ? undefined : groupId);
+	};
 
 	const handleSignOut = () => {
 		logout();
@@ -177,7 +231,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 	return (
 		<div className="flex min-h-0 flex-1 flex-col">
 			<nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-5" aria-label="Primary navigation">
-				{visibleNavigationItems.map((item) => (
+				{primaryNavigationItems.map((item) => (
 					<SidebarItem
 						key={item.to}
 						label={item.label}
@@ -186,6 +240,36 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 						onClick={onNavigate}
 					/>
 				))}
+
+				{standardNavigationGroups.length > 0 && (
+					<div className="mt-3 space-y-1 border-t border-white/10 pt-3">
+						{standardNavigationGroups.map((group) => (
+							<SidebarNavigationGroup
+								key={group.id}
+								group={group}
+								isOpen={isGroupOpen(group.id)}
+								isActive={activeGroupId === group.id}
+								onToggle={() => toggleGroup(group.id)}
+								onNavigate={onNavigate}
+							/>
+						))}
+					</div>
+				)}
+
+				{mobileNavigationGroups.length > 0 && (
+					<div className="mt-3 space-y-1 border-t border-white/10 pt-3 lg:hidden">
+						{mobileNavigationGroups.map((group) => (
+							<SidebarNavigationGroup
+								key={group.id}
+								group={group}
+								isOpen={isGroupOpen(group.id)}
+								isActive={activeGroupId === group.id}
+								onToggle={() => toggleGroup(group.id)}
+								onNavigate={onNavigate}
+							/>
+						))}
+					</div>
+				)}
 			</nav>
 
 			<div className="shrink-0 space-y-3 border-t border-white/10 p-3 lg:hidden">
@@ -206,31 +290,87 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 	);
 }
 
+function SidebarNavigationGroup({
+	group,
+	isOpen,
+	isActive,
+	onToggle,
+	onNavigate,
+}: {
+	group: NavigationGroup & { items: NavigationItem[] };
+	isOpen: boolean;
+	isActive: boolean;
+	onToggle: () => void;
+	onNavigate?: () => void;
+}) {
+	return (
+		<div className={group.mobileOnly ? "lg:hidden" : undefined}>
+			<button
+				type="button"
+				onClick={onToggle}
+				className={`group flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${
+					isActive || isOpen
+						? "bg-white/8 text-white"
+						: "text-yepset-100 hover:bg-white/8 hover:text-white"
+				}`}
+				aria-expanded={isOpen}
+			>
+				<NavigationIcon path={group.iconPath} />
+				<span className="min-w-0 flex-1 truncate">{group.label}</span>
+				<svg
+					viewBox="0 0 20 20"
+					fill="none"
+					stroke="currentColor"
+					strokeWidth="1.8"
+					className={`h-4 w-4 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
+					aria-hidden="true"
+				>
+					<path d="m5 7.5 5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+				</svg>
+			</button>
+
+			{isOpen && (
+				<div className="ml-5 mt-1 space-y-1 border-l border-white/10 pl-2">
+					{group.items.map((item) => (
+						<SidebarItem
+							key={item.to}
+							label={item.label}
+							to={item.to}
+							mobileOnly={item.mobileOnly}
+							nested
+							onClick={onNavigate}
+						/>
+					))}
+				</div>
+			)}
+		</div>
+	);
+}
+
 function SidebarItem({
 	label,
 	to,
 	mobileOnly = false,
+	nested = false,
 	onClick,
 }: {
 	label: string;
 	to: string;
 	mobileOnly?: boolean;
+	nested?: boolean;
 	onClick?: () => void;
 }) {
 	const location = useLocation();
-	const isActive =
-		to === "/"
-			? location.pathname === "/" && !location.search
-			: to.includes("?")
-				? `${location.pathname}${location.search}` === to
-				: location.pathname === to || location.pathname.startsWith(`${to}/`);
+	const isActive = isNavigationItemActive(to, location.pathname, location.search);
 
 	return (
 		<Link
 			to={to}
 			onClick={onClick}
-			className={`group min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition ${
+			className={`group items-center gap-3 rounded-xl px-3 font-bold transition ${
 					mobileOnly ? "flex lg:hidden" : "flex"
+				} ${
+					nested ? "min-h-10 py-2 text-[13px]" : "min-h-11 py-2.5 text-sm"
 				} ${
 					isActive
 						? "bg-kick-400 text-yepset-950 shadow-[0_8px_20px_rgba(190,242,100,.12)]"
@@ -242,6 +382,15 @@ function SidebarItem({
 			<span>{label}</span>
 		</Link>
 	);
+}
+
+function isNavigationItemActive(to: string, pathname: string, search: string) {
+	if (to === "/") return pathname === "/" && !search;
+	if (to.includes("?")) {
+		const tab = new URLSearchParams(to.split("?")[1]).get("tab");
+		return `${pathname}${search}` === to || Boolean(tab && pathname.startsWith(`/${tab}/`));
+	}
+	return pathname === to || pathname.startsWith(`${to}/`);
 }
 
 function NavigationIcon({ path }: { path: string }) {

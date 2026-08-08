@@ -41,6 +41,10 @@ export default function MobileBottomNavigation({
 						{ label: "Posts", to: "/?tab=posts", icon: "posts" },
 						{ label: "Messages", to: "/?tab=messages", icon: "messages" },
 					];
+	const hasActivePrimaryItem = items.some((item) => (
+		isMobileItemActive(item.to, location.pathname, location.search)
+	));
+	const isMoreActive = isMoreOpen || !hasActivePrimaryItem;
 
 	return (
 		<nav className="mobile-bottom-nav lg:hidden" aria-label="Mobile navigation">
@@ -62,7 +66,7 @@ export default function MobileBottomNavigation({
 			<button
 				type="button"
 				onClick={onOpenMore}
-				className={`mobile-bottom-nav__item ${isMoreOpen ? "mobile-bottom-nav__item--active" : ""}`}
+				className={`mobile-bottom-nav__item ${isMoreActive ? "mobile-bottom-nav__item--active" : ""}`}
 				aria-expanded={isMoreOpen}
 				aria-label="Open more navigation options"
 			>
@@ -79,7 +83,8 @@ function isMobileItemActive(to: string, pathname: string, search: string) {
 	}
 
 	if (to.includes("?")) {
-		return `${pathname}${search}` === to;
+		const tab = new URLSearchParams(to.split("?")[1]).get("tab");
+		return `${pathname}${search}` === to || Boolean(tab && pathname.startsWith(`/${tab}/`));
 	}
 
 	return pathname === to || pathname.startsWith(`${to}/`);
