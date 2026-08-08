@@ -38,6 +38,7 @@ const placeholderAssetId = "__placeholder__";
 
 export default function SocialMediaStudio() {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
+	const temporaryAssetsRef = useRef<Record<string, SocialGraphicAsset>>({});
 	const matches = useMatchStore((state) => state.matches);
 	const isLoadingMatches = useMatchStore((state) => state.isLoadingMatches);
 	const matchLoadError = useMatchStore((state) => state.matchLoadError);
@@ -68,6 +69,7 @@ export default function SocialMediaStudio() {
 	const [featuredImageId, setFeaturedImageId] = useState("");
 	const [sponsorIds, setSponsorIds] = useState(["", "", ""]);
 	const [fixtureOverrides, setFixtureOverrides] = useState<Record<string, SocialFixtureOverride>>({});
+	const [temporaryAssets, setTemporaryAssets] = useState<Record<string, SocialGraphicAsset>>({});
 	const [isRendering, setIsRendering] = useState(false);
 	const [actionMessage, setActionMessage] = useState("");
 	const [actionError, setActionError] = useState("");
@@ -81,6 +83,16 @@ export default function SocialMediaStudio() {
 		void loadTeamProfiles();
 		void loadPlayers();
 	}, [loadSeasons, loadTeamProfiles, loadPlayers]);
+
+	useEffect(() => {
+		temporaryAssetsRef.current = temporaryAssets;
+	}, [temporaryAssets]);
+
+	useEffect(() => () => {
+		Object.values(temporaryAssetsRef.current).forEach((asset) => {
+			URL.revokeObjectURL(asset.source);
+		});
+	}, []);
 
 	useEffect(() => {
 		if (activeSeasonId) {
@@ -155,26 +167,35 @@ export default function SocialMediaStudio() {
 		homeTeamLogo: findSelectedAsset(
 			socialGraphicAssetManifest.teamLogos,
 			homeTeamLogoId,
-			0
+			0,
+			temporaryAssets.homeTeamLogo
 		),
 		awayTeamLogo: findSelectedAsset(
 			socialGraphicAssetManifest.teamLogos,
 			awayTeamLogoId,
-			1
+			1,
+			temporaryAssets.awayTeamLogo
 		),
-		fixtureLogos: fixtureLogoIds.map((id) => findSelectedAsset(
+		fixtureLogos: fixtureLogoIds.map((id, index) => findSelectedAsset(
 			socialGraphicAssetManifest.teamLogos,
 			id,
-			-1
+			-1,
+			temporaryAssets[`fixtureLogo:${index}`]
 		)),
 		featuredImage: findSelectedAsset(
 			socialGraphicAssetManifest.featuredImages,
 			featuredImageId,
-			0
+			0,
+			temporaryAssets.featuredImage
 		),
 		sponsors: showSponsors
 			? sponsorIds
-				.map((id, index) => findSelectedAsset(socialGraphicAssetManifest.sponsors, id, index))
+				.map((id, index) => findSelectedAsset(
+					socialGraphicAssetManifest.sponsors,
+					id,
+					index,
+					temporaryAssets[`sponsor:${index}`]
+				))
 			: [],
 	}), [
 		homeTeamLogoId,
@@ -182,6 +203,7 @@ export default function SocialMediaStudio() {
 		fixtureLogoIds,
 		featuredImageId,
 		sponsorIds,
+		temporaryAssets,
 		showSponsors,
 	]);
 
@@ -319,6 +341,27 @@ export default function SocialMediaStudio() {
 		setFixtureLogoIds((current) => current.map((id, itemIndex) => (
 			itemIndex === index ? assetId : id
 		)));
+	}
+
+	function setTemporaryImage(
+		slotId: string,
+		file: File,
+		selectAsset: (assetId: string) => void
+	) {
+		const asset: SocialGraphicAsset = {
+			id: `temporary:${slotId}:${crypto.randomUUID()}`,
+			name: `${file.name} (this session only)`,
+			source: URL.createObjectURL(file),
+		};
+
+		setTemporaryAssets((current) => {
+			const existingAsset = current[slotId];
+			if (existingAsset) URL.revokeObjectURL(existingAsset.source);
+			const next = { ...current, [slotId]: asset };
+			temporaryAssetsRef.current = next;
+			return next;
+		});
+		selectAsset(asset.id);
 	}
 
 	async function handleCopyImage() {
@@ -508,14 +551,14 @@ export default function SocialMediaStudio() {
 								<span className="text-xs font-semibold text-slate-500">Source controlled</span>
 							</div>
 							<div className="mt-3 space-y-3">
-								<AssetPicker label={kind === "upcomingFixtures" ? "Club logo" : "Home team logo"} assets={socialGraphicAssetManifest.teamLogos} value={homeTeamLogoId} fallbackIndex={0} onChange={setHomeTeamLogoId} />
-								{kind !== "upcomingFixtures" && <AssetPicker label="Away team logo" assets={socialGraphicAssetManifest.teamLogos} value={awayTeamLogoId} fallbackIndex={1} onChange={setAwayTeamLogoId} />}
+								<AssetPicker label={kind === "upcomingFixtures" ? "Club logo" : "Home team logo"} assets={socialGraphicAssetManifest.teamLogos} value={homeTeamLogoId} fallbackIndex={0} temporaryAsset={temporaryAssets.homeTeamLogo} onChange={setHomeTeamLogoId} onTemporaryImage={(file) => setTemporaryImage("homeTeamLogo", file, setHomeTeamLogoId)} />
+								{kind !== "upcomingFixtures" && <AssetPicker label="Away team logo" assets={socialGraphicAssetManifest.teamLogos} value={awayTeamLogoId} fallbackIndex={1} temporaryAsset={temporaryAssets.awayTeamLogo} onChange={setAwayTeamLogoId} onTemporaryImage={(file) => setTemporaryImage("awayTeamLogo", file, setAwayTeamLogoId)} />}
 								{kind === "upcomingFixtures" && selectedSocialFixtures.map((fixture, index) => (
-									<AssetPicker key={fixture.id} label={`${fixture.opponent} logo`} assets={socialGraphicAssetManifest.teamLogos} value={fixtureLogoIds[index] ?? ""} fallbackIndex={-1} onChange={(assetId) => setFixtureLogoId(index, assetId)} />
+									<AssetPicker key={fixture.id} label={`${fixture.opponent} logo`} assets={socialGraphicAssetManifest.teamLogos} value={fixtureLogoIds[index] ?? ""} fallbackIndex={-1} temporaryAsset={temporaryAssets[`fixtureLogo:${index}`]} onChange={(assetId) => setFixtureLogoId(index, assetId)} onTemporaryImage={(file) => setTemporaryImage(`fixtureLogo:${index}`, file, (assetId) => setFixtureLogoId(index, assetId))} />
 								))}
-								{kind === "result" && <AssetPicker label="Player of the Match image" assets={socialGraphicAssetManifest.featuredImages} value={featuredImageId} fallbackIndex={0} onChange={setFeaturedImageId} />}
+								{kind === "result" && <AssetPicker label="Player of the Match image" assets={socialGraphicAssetManifest.featuredImages} value={featuredImageId} fallbackIndex={0} temporaryAsset={temporaryAssets.featuredImage} onChange={setFeaturedImageId} onTemporaryImage={(file) => setTemporaryImage("featuredImage", file, setFeaturedImageId)} />}
 								{showSponsors && [0, 1, 2].map((index) => (
-									<AssetPicker key={index} label={`Sponsor ${index + 1}`} assets={socialGraphicAssetManifest.sponsors} value={sponsorIds[index] ?? ""} fallbackIndex={index} onChange={(assetId) => setSponsorId(index, assetId)} />
+									<AssetPicker key={index} label={`Sponsor ${index + 1}`} assets={socialGraphicAssetManifest.sponsors} value={sponsorIds[index] ?? ""} fallbackIndex={index} temporaryAsset={temporaryAssets[`sponsor:${index}`]} onChange={(assetId) => setSponsorId(index, assetId)} onTemporaryImage={(file) => setTemporaryImage(`sponsor:${index}`, file, (assetId) => setSponsorId(index, assetId))} />
 								))}
 							</div>
 						</section>
@@ -722,40 +765,63 @@ function AssetPicker({
 	assets,
 	value,
 	fallbackIndex,
+	temporaryAsset,
 	onChange,
+	onTemporaryImage,
 }: {
 	label: string;
 	assets: SocialGraphicAsset[];
 	value: string;
 	fallbackIndex: number;
+	temporaryAsset?: SocialGraphicAsset;
 	onChange: (assetId: string) => void;
+	onTemporaryImage: (file: File) => void;
 }) {
-	const effectiveAsset = findSelectedAsset(assets, value, fallbackIndex);
+	const effectiveAsset = findSelectedAsset(assets, value, fallbackIndex, temporaryAsset);
 
 	return (
-		<label className="block text-sm font-semibold text-slate-700">
-			{label}
-			<select
-				value={effectiveAsset?.id ?? placeholderAssetId}
-				onChange={(event) => onChange(event.target.value)}
-				disabled={assets.length === 0}
-				className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
-			>
-				<option value={placeholderAssetId}>{assets.length === 0 ? "No bundled assets" : "Use placeholder"}</option>
-				{assets.map((asset) => (
-					<option key={asset.id} value={asset.id}>{asset.name}</option>
-				))}
-			</select>
-		</label>
+		<div>
+			<label className="block text-sm font-semibold text-slate-700">
+				{label}
+				<select
+					value={effectiveAsset?.id ?? placeholderAssetId}
+					onChange={(event) => onChange(event.target.value)}
+					className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm"
+				>
+					<option value={placeholderAssetId}>Use placeholder</option>
+					{temporaryAsset && (
+						<option value={temporaryAsset.id}>{temporaryAsset.name}</option>
+					)}
+					{assets.map((asset) => (
+						<option key={asset.id} value={asset.id}>{asset.name}</option>
+					))}
+				</select>
+			</label>
+			<label className="mt-1.5 inline-flex cursor-pointer items-center text-xs font-bold text-yepset-800 hover:text-yepset-950">
+				Upload for this graphic only
+				<input
+					type="file"
+					accept="image/png,image/jpeg,image/webp,image/gif"
+					className="sr-only"
+					onChange={(event) => {
+						const file = event.target.files?.[0];
+						if (file) onTemporaryImage(file);
+						event.currentTarget.value = "";
+					}}
+				/>
+			</label>
+		</div>
 	);
 }
 
 function findSelectedAsset(
 	assets: SocialGraphicAsset[],
 	selectedId: string,
-	fallbackIndex: number
+	fallbackIndex: number,
+	temporaryAsset?: SocialGraphicAsset
 ) {
 	if (selectedId === placeholderAssetId) return undefined;
+	if (temporaryAsset?.id === selectedId) return temporaryAsset;
 	return assets.find((asset) => asset.id === selectedId) ?? assets[fallbackIndex];
 }
 

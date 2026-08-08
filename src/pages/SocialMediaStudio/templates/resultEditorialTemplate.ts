@@ -66,7 +66,7 @@ async function renderResultEditorialTemplate({
 	const competition = fixture.competition || "Competition";
 
 	drawSectionTitle(context, competition, 108, 90, 950);
-	drawFittedText(context, content.headline.toUpperCase(), 62, 162, 940, 172, 166, 72, WHITE, "left");
+	drawFittedText(context, content.headline.toUpperCase(), 62, 150, 940, 204, 198, 82, WHITE, "left");
 
 	await drawAssetOrPlaceholder(
 		context,
@@ -89,11 +89,11 @@ async function renderResultEditorialTemplate({
 	await drawTeamRow({
 		context,
 		y: 505,
-		teamName: awayTeam,
-		score: fixture.result.awayGoals,
-		asset: content.assets.awayTeamLogo,
-		label: "AWAY TEAM\nLOGO",
-		scorers: fixture.venue === "away" ? fixture.scorers : [],
+		teamName: homeTeam,
+		score: fixture.result.homeGoals,
+		asset: content.assets.homeTeamLogo,
+		label: "HOME TEAM\nLOGO",
+		scorers: fixture.venue === "home" ? fixture.scorers : [],
 	});
 
 	context.strokeStyle = GOLD;
@@ -106,11 +106,11 @@ async function renderResultEditorialTemplate({
 	await drawTeamRow({
 		context,
 		y: 942,
-		teamName: homeTeam,
-		score: fixture.result.homeGoals,
-		asset: content.assets.homeTeamLogo,
-		label: "HOME TEAM\nLOGO",
-		scorers: fixture.venue === "home" ? fixture.scorers : [],
+		teamName: awayTeam,
+		score: fixture.result.awayGoals,
+		asset: content.assets.awayTeamLogo,
+		label: "AWAY TEAM\nLOGO",
+		scorers: fixture.venue === "away" ? fixture.scorers : [],
 	});
 
 	const featuredTitle = getTextField(content.fields.featuredTitle, "Player of the match");
@@ -147,9 +147,9 @@ async function renderResultEditorialTemplate({
 		const sponsorsTitle = getTextField(content.fields.sponsorsTitle, "Match sponsors");
 		drawDividerTitle(context, sponsorsTitle.toUpperCase(), sponsorTop);
 		await Promise.all([
-			drawSponsorSlot(context, content.assets.sponsors[0], 52, sponsorTop + 76),
-			drawSponsorSlot(context, content.assets.sponsors[1], 487, sponsorTop + 76),
-			drawSponsorSlot(context, content.assets.sponsors[2], 922, sponsorTop + 76),
+			drawSponsorSlot(context, content.assets.sponsors[0], 52, sponsorTop + 52),
+			drawSponsorSlot(context, content.assets.sponsors[1], 487, sponsorTop + 52),
+			drawSponsorSlot(context, content.assets.sponsors[2], 922, sponsorTop + 52),
 		]);
 	}
 
@@ -197,7 +197,7 @@ function drawSectionTitle(
 	y: number,
 	areaWidth: number
 ) {
-	drawFittedText(context, text.toUpperCase(), x + areaWidth / 2, y - 18, areaWidth * 0.48, 52, 46, 24, GOLD, "center");
+	drawFittedText(context, text.toUpperCase(), x + areaWidth / 2, y - 22, areaWidth * 0.48, 62, 55, 28, GOLD, "center");
 	context.strokeStyle = GOLD;
 	context.lineWidth = 3;
 	context.beginPath();
@@ -228,7 +228,7 @@ async function drawTeamRow({
 	await drawAssetOrPlaceholder(context, asset, 70, y, 235, 276, label, true);
 	drawFittedText(context, teamName.toUpperCase(), 340, y + 104, 310, 92, 62, 30, WHITE, "left");
 	drawScorerList(context, scorers, 340, y + 176, 310);
-	drawFittedText(context, String(score), 720, y + 50, 86, 180, 172, 70, WHITE, "center");
+	drawFittedText(context, String(score), 720, y + 34, 94, 210, 202, 82, WHITE, "center");
 }
 
 function drawScorerList(
@@ -301,7 +301,7 @@ async function drawAssetOrPlaceholder(
 	if (showFrame) drawRoundedFrame(context, x, y, width, height, 22);
 
 	if (!asset) {
-		drawMultilineText(context, placeholder, x + width / 2, y + height / 2, 32, WHITE);
+		drawMultilineText(context, placeholder, x + width / 2, y + height / 2, 38, WHITE);
 		return;
 	}
 
@@ -323,7 +323,7 @@ async function drawSponsorSlot(
 	drawRoundedFrame(context, x, y, width, height, 20);
 
 	if (!asset) {
-		drawMultilineText(context, "SPONSOR\nPLACEHOLDER", x + width / 2, y + height / 2, 30, WHITE);
+		drawMultilineText(context, "SPONSOR\nPLACEHOLDER", x + width / 2, y + height / 2, 36, WHITE);
 		return;
 	}
 
@@ -332,7 +332,7 @@ async function drawSponsorSlot(
 }
 
 function drawDividerTitle(context: CanvasRenderingContext2D, title: string, y: number) {
-	drawFittedText(context, title, 682.5, y + 4, 440, 54, 44, 24, GOLD, "center");
+	drawFittedText(context, title, 682.5, y - 2, 500, 64, 53, 28, GOLD, "center");
 	context.strokeStyle = GOLD;
 	context.lineWidth = 3;
 	context.beginPath();

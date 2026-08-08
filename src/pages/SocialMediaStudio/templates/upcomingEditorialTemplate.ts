@@ -77,20 +77,21 @@ async function renderUpcomingEditorialTemplate({
 
 	const listTop = 432;
 	const listBottom = showSponsors ? 1268 : height - 66;
-	const maximumRowHeight = showSponsors ? 155 : 215;
-	const minimumGap = 12;
+	const maximumRowHeight = showSponsors ? 155 : 190;
+	const rowGap = fixtures.length > 3 ? 16 : 24;
 	const rowHeight = Math.min(
 		maximumRowHeight,
-		(listBottom - listTop - minimumGap * (fixtures.length + 1)) / fixtures.length
+		(listBottom - listTop - rowGap * (fixtures.length - 1)) / fixtures.length
 	);
-	const gap = (listBottom - listTop - rowHeight * fixtures.length) / (fixtures.length + 1);
+	const groupHeight = rowHeight * fixtures.length + rowGap * (fixtures.length - 1);
+	const firstRowTop = listTop + (listBottom - listTop - groupHeight) / 2;
 
 	for (let index = 0; index < fixtures.length; index += 1) {
 		await drawFixtureRow(
 			context,
 			fixtures[index],
 			content.assets.fixtureLogos[index],
-			listTop + gap + index * (rowHeight + gap),
+			firstRowTop + index * (rowHeight + rowGap),
 			rowHeight
 		);
 	}
@@ -138,12 +139,12 @@ async function drawFixtureRow(
 		drawShieldPlaceholder(context, 482, y + (height - 76) / 2, 66, 76);
 	}
 	drawFittedText(context, "VS", 598, y + height * 0.35, 52, 38, 24, EDITORIAL_GOLD, "center");
-	drawFittedText(context, fixture.opponent.toUpperCase(), 660, y + height * 0.29, 290, 38, 20, EDITORIAL_WHITE);
-	drawVerticalDivider(context, 978, y + 24, height - 48);
+	drawFittedText(context, fixture.opponent.toUpperCase(), 660, y + height * 0.29, 250, 38, 20, EDITORIAL_WHITE);
+	drawVerticalDivider(context, 930, y + 24, height - 48);
 
-	drawLocationIcon(context, 1032, y + height * 0.36, 42);
-	drawFittedText(context, fixture.venue.toUpperCase(), 1080, y + height * 0.3, 165, 30, 20, EDITORIAL_GOLD);
-	drawWrappedText(context, fixture.location.toUpperCase(), 1080, y + height * 0.55, 185, 2, 19, 13, EDITORIAL_WHITE);
+	drawLocationIcon(context, 980, y + height * 0.36, 40);
+	drawFittedText(context, fixture.venue.toUpperCase(), 1030, y + height * 0.28, 220, 30, 20, EDITORIAL_GOLD);
+	drawWrappedText(context, fixture.location.toUpperCase(), 1030, y + height * 0.53, 235, 2, 20, 15, EDITORIAL_WHITE);
 }
 
 function drawVerticalDivider(
