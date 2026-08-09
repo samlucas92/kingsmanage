@@ -4,7 +4,7 @@ import type { PlatformOrganizationOnboardingRequest } from "../../types/organiza
 import {
 	generateTemporaryPassword,
 	getOnboardingStepError,
-} from "./PlatformOrganizations";
+} from "./platformOrganizationOnboarding";
 
 const validRequest: PlatformOrganizationOnboardingRequest = {
 	organizationName: "Harbour Sports",

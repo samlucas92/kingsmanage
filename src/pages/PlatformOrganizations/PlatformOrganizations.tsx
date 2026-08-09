@@ -2,16 +2,21 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { organizationApi } from "../../services/organizationApi";
 import type {
 	Organization,
+	PlatformOrganization,
 	PlatformOrganizationOnboardingRequest,
 	PlatformOrganizationOnboardingResult,
 } from "../../types/organization";
 import { sportDefinitions } from "../../constants/sports";
 import { PlatformBillingModal } from "./PlatformBillingModal";
 import ConfirmationModal from "../../components/compositions/ConfirmationModal";
+import {
+	generateTemporaryPassword,
+	getOnboardingStepError,
+} from "./platformOrganizationOnboarding";
 
 export default function PlatformOrganizations() {
-	const [organizations, setOrganizations] = useState<Organization[]>([]);
-	const [editing, setEditing] = useState<Organization | null>(null);
+	const [organizations, setOrganizations] = useState<PlatformOrganization[]>([]);
+	const [editing, setEditing] = useState<PlatformOrganization | null>(null);
 	const [isCreating, setIsCreating] = useState(false);
 	const [billingOrganization, setBillingOrganization] = useState<Organization | null>(null);
 	const [deletingOrganization, setDeletingOrganization] = useState<Organization | null>(null);
@@ -38,11 +43,14 @@ export default function PlatformOrganizations() {
 		try {
 			if (!editing) return;
 			const saved = await organizationApi.updatePlatformOrganization({
-				...editing,
+				id: editing.id,
+				isActive: editing.isActive,
+				createdAt: editing.createdAt,
+				updatedAt: editing.updatedAt,
 				...values,
 			});
 			setOrganizations((current) =>
-				current.map((item) => (item.id === saved.id ? saved : item))
+				current.map((item) => (item.id === saved.id ? { ...item, ...saved } : item))
 			);
 			setEditing(null);
 			setIsCreating(false);
@@ -60,8 +68,16 @@ export default function PlatformOrganizations() {
 	async function onboardOrganization(values: PlatformOrganizationOnboardingRequest) {
 		try {
 			const result = await organizationApi.onboardPlatformOrganization(values);
-			setOrganizations((current) => [...current, result.organization]
-				.sort((a, b) => a.name.localeCompare(b.name)));
+			setOrganizations((current) => [...current, {
+				...result.organization,
+				administrators: [{
+					organizationId: result.organization.id,
+					userId: "",
+					email: result.administratorEmail,
+					isActive: true,
+					lastLoginAt: null,
+				}],
+			}].sort((a, b) => a.name.localeCompare(b.name)));
 			setOnboardingResult(result);
 			setIsCreating(false);
 			setError("");
@@ -78,7 +94,7 @@ export default function PlatformOrganizations() {
 				!organization.isActive
 			);
 			setOrganizations((current) =>
-				current.map((item) => (item.id === updated.id ? updated : item))
+				current.map((item) => (item.id === updated.id ? { ...item, ...updated } : item))
 			);
 		} catch (reason) {
 			setError(
@@ -185,6 +201,28 @@ export default function PlatformOrganizations() {
 								{organization.isActive ? "Active" : "Archived"}
 							</span>
 						</div>
+						<div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+							<p className="text-[11px] font-black uppercase tracking-[.12em] text-slate-500">
+								Organization {organization.administrators.length === 1 ? "admin" : "admins"}
+							</p>
+							{organization.administrators.length === 0 ? (
+								<p className="mt-2 text-sm font-semibold text-amber-700">No Organization Admin account found</p>
+							) : (
+								<div className="mt-2 space-y-2">
+									{organization.administrators.map((administrator) => (
+										<div key={administrator.userId || administrator.email} className="flex min-w-0 items-center justify-between gap-3">
+											<div className="min-w-0">
+												<p className="truncate text-sm font-bold text-slate-800">{administrator.email}</p>
+												<p className="text-xs text-slate-500">{formatLastLogin(administrator.lastLoginAt)}</p>
+											</div>
+											<span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-black ${administrator.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
+												{administrator.isActive ? "Active" : "Inactive"}
+											</span>
+										</div>
+									))}
+								</div>
+							)}
+						</div>
 						<div className="mt-5 flex flex-wrap gap-2">
 							<button
 								type="button"
@@ -257,6 +295,14 @@ export default function PlatformOrganizations() {
 			/>
 		</div>
 	);
+}
+
+function formatLastLogin(lastLoginAt?: string | null) {
+	if (!lastLoginAt) return "Has not signed in yet";
+	return `Last signed in ${new Intl.DateTimeFormat(undefined, {
+		dateStyle: "medium",
+		timeStyle: "short",
+	}).format(new Date(lastLoginAt))}`;
 }
 
 const onboardingSteps = ["Organization", "First club", "Administrator", "Subscription"] as const;
@@ -457,25 +503,6 @@ function ColorInput({ label, value, onChange }: { label: string; value: string; 
 
 function ReviewItem({ label, value }: { label: string; value: string }) {
 	return <div><dt className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</dt><dd className="mt-1 font-semibold text-slate-900">{value}</dd></div>;
-}
-
-export function getOnboardingStepError(step: number, values: PlatformOrganizationOnboardingRequest, confirmPassword: string) {
-	if (step === 0 && (!values.organizationName.trim() || !values.organizationSlug)) return "Enter an organization name and slug to continue.";
-	if (step === 1 && (!values.clubName.trim() || !values.clubSlug || !values.sportKey)) return "Enter the first club details to continue.";
-	if (step === 2) {
-		if (!/^\S+@\S+\.\S+$/.test(values.administratorEmail)) return "Enter a valid administrator email.";
-		if (values.temporaryPassword.length < 8) return "The temporary password must contain at least 8 characters.";
-		if (values.temporaryPassword !== confirmPassword) return "The temporary passwords do not match.";
-	}
-	if (step === 3) {
-		if (values.clubAllowance < 1 || values.clubAllowance > 100) return "Club allowance must be between 1 and 100.";
-		if (values.billingEmail && !/^\S+@\S+\.\S+$/.test(values.billingEmail)) return "Enter a valid billing email.";
-	}
-	return "";
-}
-
-export function generateTemporaryPassword() {
-	return `Yp!${crypto.randomUUID().replaceAll("-", "").slice(0, 13)}`;
 }
 
 function OrganizationModal({

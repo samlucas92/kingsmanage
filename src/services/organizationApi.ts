@@ -4,6 +4,7 @@ import type {
 	OrganizationDashboard,
 	PlatformOrganizationOnboardingRequest,
 	PlatformOrganizationOnboardingResult,
+	PlatformOrganization,
 	SportsClub,
 } from "../types/organization";
 
@@ -24,7 +25,7 @@ export const organizationApi = {
 			`/organization/dashboard${clubId ? `?clubId=${encodeURIComponent(clubId)}` : ""}`
 		),
 	getPlatformOrganizations: () =>
-		apiClient.get<Organization[]>("/platform/organizations"),
+		apiClient.get<PlatformOrganization[]>("/platform/organizations"),
 	createPlatformOrganization: (
 		organization: Pick<Organization, "name" | "slug">
 	) => apiClient.post<Organization>("/platform/organizations", organization),

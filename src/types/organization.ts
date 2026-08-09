@@ -9,6 +9,18 @@ export type Organization = {
 	updatedAt: string;
 };
 
+export type OrganizationAdministratorAccount = {
+	organizationId: string;
+	userId: string;
+	email: string;
+	isActive: boolean;
+	lastLoginAt?: string | null;
+};
+
+export type PlatformOrganization = Organization & {
+	administrators: OrganizationAdministratorAccount[];
+};
+
 export type PlatformOrganizationOnboardingRequest = {
 	organizationName: string;
 	organizationSlug: string;
