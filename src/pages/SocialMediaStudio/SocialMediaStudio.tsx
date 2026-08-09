@@ -39,6 +39,7 @@ import type {
 } from "./types";
 import {
 	getUpcomingTemplateElements,
+	getUpcomingTemplateParentId,
 	resetUpcomingTemplateElement,
 	updateUpcomingTemplateElement,
 } from "./upcomingTemplateElements";
@@ -275,12 +276,29 @@ export default function SocialMediaStudio() {
 	);
 	const showSponsors = effectiveTemplateFields.showSponsors !== false;
 	const upcomingTemplateElements = useMemo(
-		() => getUpcomingTemplateElements(upcomingTemplateDefinition, showSponsors),
-		[upcomingTemplateDefinition, showSponsors]
+		() => getUpcomingTemplateElements(
+			upcomingTemplateDefinition,
+			showSponsors,
+			effectiveUpcomingIds.length,
+			selectedTemplateElementId
+		),
+		[
+			upcomingTemplateDefinition,
+			showSponsors,
+			effectiveUpcomingIds.length,
+			selectedTemplateElementId,
+		]
 	);
 	const selectedTemplateElement = upcomingTemplateElements.find(
 		(element) => element.id === selectedTemplateElementId
 	) ?? null;
+	const activeTemplateElementId = selectedTemplateElement?.id ?? null;
+	const selectedTemplateParentId = activeTemplateElementId
+		? getUpcomingTemplateParentId(activeTemplateElementId)
+		: null;
+	const canMoveUpTemplateHierarchy = Boolean(
+		selectedTemplateParentId || activeTemplateElementId === "fixture-list"
+	);
 	const selectedAssets = useMemo(() => ({
 		homeTeamLogo: findSelectedAsset(
 			socialGraphicAssetManifest.teamLogos,
@@ -453,7 +471,8 @@ export default function SocialMediaStudio() {
 		setUpcomingDefinition(updateUpcomingTemplateElement(
 			upcomingTemplateDefinitionRef.current,
 			elementId,
-			bounds
+			bounds,
+			effectiveUpcomingIds.length
 		));
 	}
 
@@ -508,20 +527,29 @@ export default function SocialMediaStudio() {
 		value: number
 	) {
 		if (!selectedTemplateElement || !Number.isFinite(value)) return;
+		const candidateBounds: TemplateElementBounds = {
+			x: selectedTemplateElement.x,
+			y: selectedTemplateElement.y,
+			width: selectedTemplateElement.width,
+			height: selectedTemplateElement.height,
+			[field]: value,
+		};
+		if (
+			selectedTemplateElement.resizeMode === "square" &&
+			(field === "width" || field === "height")
+		) {
+			candidateBounds.width = value;
+			candidateBounds.height = value;
+		}
 		const nextBounds = clampTemplateElementBounds(
-			{
-				x: selectedTemplateElement.x,
-				y: selectedTemplateElement.y,
-				width: selectedTemplateElement.width,
-				height: selectedTemplateElement.height,
-				[field]: value,
-			},
+			candidateBounds,
 			selectedTemplateElement.minimumWidth,
 			selectedTemplateElement.minimumHeight,
 			upcomingTemplateDefinition.canvas.width,
 			showSponsors
 				? upcomingTemplateDefinition.canvas.height
-				: upcomingTemplateDefinition.canvas.sponsorFreeHeight
+				: upcomingTemplateDefinition.canvas.sponsorFreeHeight,
+			selectedTemplateElement.constraint
 		);
 		changeVisualTemplateElement(selectedTemplateElement.id, nextBounds);
 	}
@@ -922,9 +950,22 @@ export default function SocialMediaStudio() {
 
 					{kind === "upcomingFixtures" && isCanvasEditorOpen && (
 						<div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2">
-							<p className="text-xs font-semibold text-sky-900">
-								Select an outlined region, then drag or resize it. Arrow keys nudge by 1px; hold Shift for 10px.
-							</p>
+							<div className="flex min-w-0 items-center gap-2">
+								{canMoveUpTemplateHierarchy && (
+									<button
+										type="button"
+										onClick={() => setSelectedTemplateElementId(selectedTemplateParentId)}
+										className="shrink-0 rounded-lg border border-sky-200 bg-white px-2.5 py-1.5 text-xs font-bold text-sky-900"
+									>
+										← {activeTemplateElementId === "fixture-list" ? "All elements" : "Up one level"}
+									</button>
+								)}
+								<p className="text-xs font-semibold text-sky-900">
+									{selectedTemplateElement?.drillable
+										? "Click an outlined child to drill into it. Drag the selected outline to move the shared layout."
+										: "Select an outlined region, then drag or resize it. Arrow keys nudge by 1px; hold Shift for 10px."}
+								</p>
+							</div>
 							<div className="flex gap-2">
 								<button type="button" onClick={undoVisualTemplateChange} disabled={templateHistory.past.length === 0} className="rounded-lg border border-sky-200 bg-white px-2.5 py-1.5 text-xs font-bold text-sky-900 disabled:opacity-40">
 									Undo
@@ -951,7 +992,7 @@ export default function SocialMediaStudio() {
 										canvasWidth={previewDimensions.width}
 										canvasHeight={previewDimensions.height}
 										elements={upcomingTemplateElements}
-										selectedId={selectedTemplateElementId}
+										selectedId={activeTemplateElementId}
 										onSelect={setSelectedTemplateElementId}
 										onChangeStart={beginVisualTemplateChange}
 										onChange={changeVisualTemplateElement}
@@ -975,7 +1016,10 @@ export default function SocialMediaStudio() {
 							<div className="flex flex-wrap items-center justify-between gap-2">
 								<div>
 									<p className="text-sm font-bold text-slate-900">{selectedTemplateElement.label}</p>
-									<p className="text-xs text-slate-500">Exact canvas measurements in pixels</p>
+									<p className="text-xs text-slate-500">
+										Exact canvas measurements in pixels
+										{selectedTemplateElement.sharedAcrossRows ? " · Changes apply to every fixture row" : ""}
+									</p>
 								</div>
 								<button type="button" onClick={resetSelectedTemplateElement} className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100">
 									Reset element
@@ -988,11 +1032,15 @@ export default function SocialMediaStudio() {
 										<input
 											type="number"
 											step="1"
+											disabled={
+												(field === "width" && selectedTemplateElement.resizeMode === "none") ||
+								(field === "height" && (selectedTemplateElement.resizeMode === "horizontal" || selectedTemplateElement.resizeMode === "none"))
+											}
 											value={Math.round(selectedTemplateElement[field] * 10) / 10}
 											onFocus={beginVisualTemplateChange}
 											onBlur={endVisualTemplateChange}
 											onChange={(event) => updateSelectedTemplateElementField(field, Number(event.target.value))}
-											className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm font-semibold normal-case tracking-normal text-slate-900"
+											className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm font-semibold normal-case tracking-normal text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
 										/>
 									</label>
 								))}
@@ -1271,12 +1319,17 @@ function clampTemplateElementBounds(
 	minimumWidth: number,
 	minimumHeight: number,
 	canvasWidth: number,
-	canvasHeight: number
+	canvasHeight: number,
+	constraint?: TemplateElementBounds
 ): TemplateElementBounds {
-	const x = Math.min(Math.max(bounds.x, 0), canvasWidth - minimumWidth);
-	const y = Math.min(Math.max(bounds.y, 0), canvasHeight - minimumHeight);
-	const width = Math.min(Math.max(bounds.width, minimumWidth), canvasWidth - x);
-	const height = Math.min(Math.max(bounds.height, minimumHeight), canvasHeight - y);
+	const left = constraint?.x ?? 0;
+	const top = constraint?.y ?? 0;
+	const right = constraint ? constraint.x + constraint.width : canvasWidth;
+	const bottom = constraint ? constraint.y + constraint.height : canvasHeight;
+	const x = Math.min(Math.max(bounds.x, left), right - minimumWidth);
+	const y = Math.min(Math.max(bounds.y, top), bottom - minimumHeight);
+	const width = Math.min(Math.max(bounds.width, minimumWidth), right - x);
+	const height = Math.min(Math.max(bounds.height, minimumHeight), bottom - y);
 	return {
 		x,
 		y,

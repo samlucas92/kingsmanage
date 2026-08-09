@@ -144,10 +144,12 @@ export function TemplateCanvasOverlay({
 						}`}>
 							{element.label}
 						</span>
-						{isSelected && (
+						{isSelected && element.resizeMode !== "none" && (
 							<span
 								data-resize="true"
-								className="absolute bottom-0 right-0 h-4 w-4 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm border-2 border-white bg-sky-500 shadow"
+								className={`absolute bottom-0 right-0 h-4 w-4 translate-x-1/2 translate-y-1/2 rounded-sm border-2 border-white bg-sky-500 shadow ${
+									element.resizeMode === "horizontal" ? "cursor-ew-resize" : "cursor-se-resize"
+								}`}
 								aria-hidden="true"
 							/>
 						)}
@@ -165,9 +167,31 @@ function clampMovedBounds(
 	canvasWidth: number,
 	canvasHeight: number
 ): TemplateElementBounds {
+	const left = element.constraint?.x ?? 0;
+	const top = element.constraint?.y ?? 0;
+	const right = element.constraint
+		? element.constraint.x + element.constraint.width
+		: canvasWidth;
+	const bottom = element.constraint
+		? element.constraint.y + element.constraint.height
+		: canvasHeight;
+	if (element.resizeMode === "square") {
+		const sizeDelta = Math.abs(deltaX) >= Math.abs(deltaY) ? deltaX : deltaY;
+		const size = clamp(
+			element.width + sizeDelta,
+			Math.max(element.minimumWidth, element.minimumHeight),
+			Math.min(right - element.x, bottom - element.y)
+		);
+		return {
+			x: element.x,
+			y: element.y,
+			width: size,
+			height: size,
+		};
+	}
 	return {
-		x: clamp(element.x + deltaX, 0, canvasWidth - element.width),
-		y: clamp(element.y + deltaY, 0, canvasHeight - element.height),
+		x: clamp(element.x + deltaX, left, right - element.width),
+		y: clamp(element.y + deltaY, top, bottom - element.height),
 		width: element.width,
 		height: element.height,
 	};
@@ -180,19 +204,28 @@ function clampResizedBounds(
 	canvasWidth: number,
 	canvasHeight: number
 ): TemplateElementBounds {
+	if (element.resizeMode === "none") return element;
+	const right = element.constraint
+		? element.constraint.x + element.constraint.width
+		: canvasWidth;
+	const bottom = element.constraint
+		? element.constraint.y + element.constraint.height
+		: canvasHeight;
 	return {
 		x: element.x,
 		y: element.y,
 		width: clamp(
 			element.width + deltaX,
 			element.minimumWidth,
-			canvasWidth - element.x
+			right - element.x
 		),
-		height: clamp(
-			element.height + deltaY,
-			element.minimumHeight,
-			canvasHeight - element.y
-		),
+		height: element.resizeMode === "horizontal"
+			? element.height
+			: clamp(
+				element.height + deltaY,
+				element.minimumHeight,
+				bottom - element.y
+			),
 	};
 }
 

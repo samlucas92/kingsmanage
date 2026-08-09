@@ -58,6 +58,17 @@ describe("editable upcoming fixtures template", () => {
 		)).toThrow("template.header.logoX is required.");
 	});
 
+	it("migrates browser drafts created before nested row positioning", () => {
+		const candidate = JSON.parse(upcomingEditorialDefaultSource);
+		delete candidate.fixtureRow.calendarYRatio;
+		delete candidate.fixtureRow.locationIconSize;
+
+		const definition = parseUpcomingEditorialDefinition(JSON.stringify(candidate));
+
+		expect(definition.fixtureRow.calendarYRatio).toBe(0.28);
+		expect(definition.fixtureRow.locationIconSize).toBe(40);
+	});
+
 	it("rejects unsupported schema versions and invalid colours", () => {
 		const unsupportedVersion = {
 			...upcomingEditorialDefaultDefinition,

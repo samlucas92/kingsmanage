@@ -57,19 +57,29 @@ export type UpcomingEditorialTemplateDefinition = {
 		frameWidth: number;
 		frameRadius: number;
 		calendarX: number;
+		calendarYRatio: number;
 		calendarSize: number;
 		dateX: number;
+		dateYRatio: number;
+		competitionYRatio: number;
 		dateWidth: number;
 		firstDividerX: number;
 		clubLogoX: number;
+		clubLogoCenterYRatio: number;
 		clubLogoWidth: number;
 		clubLogoHeight: number;
 		versusX: number;
+		versusYRatio: number;
 		opponentX: number;
+		opponentYRatio: number;
 		opponentWidth: number;
 		secondDividerX: number;
 		locationIconX: number;
+		locationIconYRatio: number;
+		locationIconSize: number;
 		locationX: number;
+		venueYRatio: number;
+		locationYRatio: number;
 		locationWidth: number;
 	};
 	sponsors: {
@@ -123,19 +133,29 @@ export const upcomingEditorialDefaultDefinition: UpcomingEditorialTemplateDefini
 		frameWidth: 1240,
 		frameRadius: 18,
 		calendarX: 102,
+		calendarYRatio: 0.28,
 		calendarSize: 68,
 		dateX: 205,
+		dateYRatio: 0.27,
+		competitionYRatio: 0.58,
 		dateWidth: 210,
 		firstDividerX: 410,
 		clubLogoX: 462,
+		clubLogoCenterYRatio: 0.5,
 		clubLogoWidth: 104,
 		clubLogoHeight: 102,
 		versusX: 598,
+		versusYRatio: 0.35,
 		opponentX: 660,
+		opponentYRatio: 0.29,
 		opponentWidth: 250,
 		secondDividerX: 930,
 		locationIconX: 980,
+		locationIconYRatio: 0.36,
+		locationIconSize: 40,
 		locationX: 1030,
+		venueYRatio: 0.28,
+		locationYRatio: 0.53,
 		locationWidth: 235,
 	},
 	sponsors: {
@@ -230,7 +250,7 @@ async function renderUpcomingEditorialTemplate(
 	}: SocialGraphicTemplateRenderContext,
 	definition: UpcomingEditorialTemplateDefinition
 ) {
-	const { theme, header, fixtureList, sponsors } = definition;
+	const { theme, header, sponsors } = definition;
 	const showSponsors = content.fields.showSponsors !== false;
 	const fixtures = content.fixtures.slice(0, 5);
 
@@ -287,25 +307,15 @@ async function renderUpcomingEditorialTemplate(
 		return;
 	}
 
-	const rowGap = fixtures.length > 3
-		? fixtureList.compactRowGap
-		: fixtureList.rowGap;
-	const rowHeight = Math.min(
-		fixtureList.maximumRowHeight,
-		(fixtureList.bottom - fixtureList.top - rowGap * (fixtures.length - 1)) /
-			fixtures.length
-	);
-	const groupHeight = rowHeight * fixtures.length + rowGap * (fixtures.length - 1);
-	const firstRowTop = fixtureList.top +
-		(fixtureList.bottom - fixtureList.top - groupHeight) / 2;
+	const rowLayouts = getUpcomingFixtureRowLayouts(definition, fixtures.length);
 
 	for (let index = 0; index < fixtures.length; index += 1) {
 		await drawFixtureRow(
 			context,
 			fixtures[index],
 			content.assets.homeTeamLogo,
-			firstRowTop + index * (rowHeight + rowGap),
-			rowHeight,
+			rowLayouts[index].y,
+			rowLayouts[index].height,
 			definition
 		);
 	}
@@ -362,7 +372,7 @@ async function drawFixtureRow(
 	drawCalendarIcon(
 		context,
 		row.calendarX,
-		y + height * 0.28,
+		y + height * row.calendarYRatio,
 		row.calendarSize,
 		theme.accent
 	);
@@ -375,8 +385,8 @@ async function drawFixtureRow(
 			day: "numeric",
 			month: "short",
 		}).toUpperCase();
-	drawFittedText(context, dateText, row.dateX, y + height * 0.27, row.dateWidth, 34, 20, theme.text);
-	drawFittedText(context, fixture.competition.toUpperCase(), row.dateX, y + height * 0.58, row.dateWidth, 27, 17, theme.accent);
+	drawFittedText(context, dateText, row.dateX, y + height * row.dateYRatio, row.dateWidth, 34, 20, theme.text);
+	drawFittedText(context, fixture.competition.toUpperCase(), row.dateX, y + height * row.competitionYRatio, row.dateWidth, 27, 17, theme.accent);
 	drawVerticalDivider(context, row.firstDividerX, y + 24, height - 48, theme.accent);
 
 	if (clubLogo) {
@@ -384,7 +394,7 @@ async function drawFixtureRow(
 			context,
 			clubLogo,
 			row.clubLogoX,
-			y + (height - row.clubLogoHeight) / 2,
+			y + height * row.clubLogoCenterYRatio - row.clubLogoHeight / 2,
 			row.clubLogoWidth,
 			row.clubLogoHeight,
 			"",
@@ -394,26 +404,50 @@ async function drawFixtureRow(
 		drawShieldPlaceholder(
 			context,
 			row.clubLogoX + 20,
-			y + (height - 76) / 2,
+			y + height * row.clubLogoCenterYRatio - 38,
 			66,
 			76,
 			theme.accent
 		);
 	}
-	drawFittedText(context, "VS", row.versusX, y + height * 0.35, 52, 38, 24, theme.accent, "center");
-	drawFittedText(context, fixture.opponent.toUpperCase(), row.opponentX, y + height * 0.29, row.opponentWidth, 38, 20, theme.text);
+	drawFittedText(context, "VS", row.versusX, y + height * row.versusYRatio, 52, 38, 24, theme.accent, "center");
+	drawFittedText(context, fixture.opponent.toUpperCase(), row.opponentX, y + height * row.opponentYRatio, row.opponentWidth, 38, 20, theme.text);
 	drawVerticalDivider(context, row.secondDividerX, y + 24, height - 48, theme.accent);
 
 	drawLocationIcon(
 		context,
 		row.locationIconX,
-		y + height * 0.36,
-		40,
+		y + height * row.locationIconYRatio,
+		row.locationIconSize,
 		theme.accent,
 		theme.background
 	);
-	drawFittedText(context, fixture.venue.toUpperCase(), row.locationX, y + height * 0.28, row.locationWidth, 30, 20, theme.accent);
-	drawWrappedText(context, fixture.location.toUpperCase(), row.locationX, y + height * 0.53, row.locationWidth, 2, 20, 15, theme.text);
+	drawFittedText(context, fixture.venue.toUpperCase(), row.locationX, y + height * row.venueYRatio, row.locationWidth, 30, 20, theme.accent);
+	drawWrappedText(context, fixture.location.toUpperCase(), row.locationX, y + height * row.locationYRatio, row.locationWidth, 2, 20, 15, theme.text);
+}
+
+export function getUpcomingFixtureRowLayouts(
+	definition: UpcomingEditorialTemplateDefinition,
+	fixtureCount: number
+) {
+	if (fixtureCount <= 0) return [];
+	const { fixtureList } = definition;
+	const rowGap = fixtureCount > 3
+		? fixtureList.compactRowGap
+		: fixtureList.rowGap;
+	const rowHeight = Math.min(
+		fixtureList.maximumRowHeight,
+		(fixtureList.bottom - fixtureList.top - rowGap * (fixtureCount - 1)) /
+			fixtureCount
+	);
+	const groupHeight = rowHeight * fixtureCount + rowGap * (fixtureCount - 1);
+	const firstRowTop = fixtureList.top +
+		(fixtureList.bottom - fixtureList.top - groupHeight) / 2;
+
+	return Array.from({ length: fixtureCount }, (_, index) => ({
+		y: firstRowTop + index * (rowHeight + rowGap),
+		height: rowHeight,
+	}));
 }
 
 function drawVerticalDivider(
@@ -431,13 +465,26 @@ function drawVerticalDivider(
 	context.stroke();
 }
 
+const migratedFixtureRowFields = new Set([
+	"calendarYRatio",
+	"dateYRatio",
+	"competitionYRatio",
+	"clubLogoCenterYRatio",
+	"versusYRatio",
+	"opponentYRatio",
+	"locationIconYRatio",
+	"locationIconSize",
+	"venueYRatio",
+	"locationYRatio",
+]);
+
 function normaliseDefinition(
 	candidate: unknown,
 	fallback: unknown,
 	path: string
 ): unknown {
 	if (typeof fallback === "number") {
-		const allowsZero = /(X|Y|top|bottom|Gap|Offset)$/.test(path);
+		const allowsZero = /(X|Y|top|bottom|Gap|Offset|Ratio)$/.test(path);
 		if (
 			typeof candidate !== "number" ||
 			!Number.isFinite(candidate) ||
@@ -466,6 +513,9 @@ function normaliseDefinition(
 	return Object.fromEntries(
 		Object.entries(fallback).map(([key, fallbackValue]) => {
 			if (!(key in candidate)) {
+				if (migratedFixtureRowFields.has(key) && path === "template.fixtureRow") {
+					return [key, fallbackValue];
+				}
 				throw new Error(`${path}.${key} is required.`);
 			}
 			return [
