@@ -25,8 +25,10 @@ import {
 import { socialGraphicTemplates } from "./templateRegistry";
 import {
 	createUpcomingEditorialTemplate,
+	isUpcomingFixtureRowUnlocked,
 	parseUpcomingEditorialDefinition,
 	serializeUpcomingEditorialDefinition,
+	setUpcomingFixtureRowUnlocked,
 	upcomingEditorialDefaultDefinition,
 	upcomingEditorialDefaultSource,
 } from "./templates/upcomingEditorialTemplate";
@@ -40,6 +42,7 @@ import type {
 import {
 	getUpcomingTemplateElements,
 	getUpcomingTemplateParentId,
+	getUpcomingTemplateRowIndex,
 	resetUpcomingTemplateElement,
 	updateUpcomingTemplateElement,
 } from "./upcomingTemplateElements";
@@ -299,6 +302,9 @@ export default function SocialMediaStudio() {
 	const canMoveUpTemplateHierarchy = Boolean(
 		selectedTemplateParentId || activeTemplateElementId === "fixture-list"
 	);
+	const selectedFixtureRowIndex = getUpcomingTemplateRowIndex(activeTemplateElementId);
+	const selectedFixtureRowIsUnlocked = selectedFixtureRowIndex !== null &&
+		isUpcomingFixtureRowUnlocked(upcomingTemplateDefinition, selectedFixtureRowIndex);
 	const selectedAssets = useMemo(() => ({
 		homeTeamLogo: findSelectedAsset(
 			socialGraphicAssetManifest.teamLogos,
@@ -518,6 +524,17 @@ export default function SocialMediaStudio() {
 			upcomingTemplateDefinitionRef.current,
 			upcomingEditorialDefaultDefinition,
 			selectedTemplateElementId
+		));
+		endVisualTemplateChange();
+	}
+
+	function toggleSelectedFixtureRowLock() {
+		if (selectedFixtureRowIndex === null) return;
+		beginVisualTemplateChange();
+		setUpcomingDefinition(setUpcomingFixtureRowUnlocked(
+			upcomingTemplateDefinitionRef.current,
+			selectedFixtureRowIndex,
+			!selectedFixtureRowIsUnlocked
 		));
 		endVisualTemplateChange();
 	}
@@ -961,8 +978,10 @@ export default function SocialMediaStudio() {
 									</button>
 								)}
 								<p className="text-xs font-semibold text-sky-900">
-									{selectedTemplateElement?.drillable
-										? "Click an outlined child to drill into it. Drag the selected outline to move the shared layout."
+									{activeTemplateElementId?.startsWith("fixture-row:")
+										? "Click an outlined child to edit it. Unlock row elements when this row needs different text sizing."
+										: selectedTemplateElement?.drillable
+											? "Click an outlined child to drill into it. Drag the selected outline to move the shared layout."
 										: "Select an outlined region, then drag or resize it. Arrow keys nudge by 1px; hold Shift for 10px."}
 								</p>
 							</div>
@@ -1019,11 +1038,26 @@ export default function SocialMediaStudio() {
 									<p className="text-xs text-slate-500">
 										Exact canvas measurements in pixels
 										{selectedTemplateElement.sharedAcrossRows ? " · Changes apply to every fixture row" : ""}
+										{selectedFixtureRowIsUnlocked && !selectedTemplateElement.sharedAcrossRows
+											? ` · Changes only apply to fixture row ${(selectedFixtureRowIndex ?? 0) + 1}`
+											: ""}
 									</p>
+									{selectedTemplateElement.wrapsText && (
+										<p className="mt-1 text-xs font-semibold text-sky-700">
+											Reduce the width to wrap this text onto another line.
+										</p>
+									)}
 								</div>
-								<button type="button" onClick={resetSelectedTemplateElement} className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100">
-									Reset element
-								</button>
+								<div className="flex flex-wrap gap-2">
+									{selectedFixtureRowIndex !== null && (
+										<button type="button" onClick={toggleSelectedFixtureRowLock} className="rounded-lg border border-sky-300 bg-white px-2.5 py-1.5 text-xs font-bold text-sky-800 hover:bg-sky-50">
+											{selectedFixtureRowIsUnlocked ? "Relink row elements" : "Unlock row elements"}
+										</button>
+									)}
+									<button type="button" onClick={resetSelectedTemplateElement} className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100">
+										Reset element
+									</button>
+								</div>
 							</div>
 							<div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
 								{(["x", "y", "width", "height"] as const).map((field) => (

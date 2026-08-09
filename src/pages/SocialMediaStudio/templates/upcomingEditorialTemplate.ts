@@ -18,6 +18,46 @@ import {
 	getTextField,
 } from "./editorialCanvas";
 
+export type UpcomingEditorialFixtureRowDefinition = {
+	frameX: number;
+	frameWidth: number;
+	frameRadius: number;
+	calendarX: number;
+	calendarYRatio: number;
+	calendarSize: number;
+	dateX: number;
+	dateYRatio: number;
+	dateWidth: number;
+	competitionX: number;
+	competitionYRatio: number;
+	competitionWidth: number;
+	firstDividerX: number;
+	clubLogoX: number;
+	clubLogoCenterYRatio: number;
+	clubLogoWidth: number;
+	clubLogoHeight: number;
+	versusX: number;
+	versusYRatio: number;
+	opponentX: number;
+	opponentYRatio: number;
+	opponentWidth: number;
+	secondDividerX: number;
+	locationIconX: number;
+	locationIconYRatio: number;
+	locationIconSize: number;
+	venueX: number;
+	venueYRatio: number;
+	venueWidth: number;
+	locationX: number;
+	locationYRatio: number;
+	locationWidth: number;
+};
+
+export type UpcomingEditorialFixtureRowOverride = {
+	unlocked: boolean;
+	values: Partial<UpcomingEditorialFixtureRowDefinition>;
+};
+
 export type UpcomingEditorialTemplateDefinition = {
 	version: 1;
 	canvas: {
@@ -52,36 +92,8 @@ export type UpcomingEditorialTemplateDefinition = {
 		rowGap: number;
 		compactRowGap: number;
 	};
-	fixtureRow: {
-		frameX: number;
-		frameWidth: number;
-		frameRadius: number;
-		calendarX: number;
-		calendarYRatio: number;
-		calendarSize: number;
-		dateX: number;
-		dateYRatio: number;
-		competitionYRatio: number;
-		dateWidth: number;
-		firstDividerX: number;
-		clubLogoX: number;
-		clubLogoCenterYRatio: number;
-		clubLogoWidth: number;
-		clubLogoHeight: number;
-		versusX: number;
-		versusYRatio: number;
-		opponentX: number;
-		opponentYRatio: number;
-		opponentWidth: number;
-		secondDividerX: number;
-		locationIconX: number;
-		locationIconYRatio: number;
-		locationIconSize: number;
-		locationX: number;
-		venueYRatio: number;
-		locationYRatio: number;
-		locationWidth: number;
-	};
+	fixtureRow: UpcomingEditorialFixtureRowDefinition;
+	fixtureRowOverrides: Array<UpcomingEditorialFixtureRowOverride | null>;
 	sponsors: {
 		top: number;
 		titleX: number;
@@ -137,8 +149,10 @@ export const upcomingEditorialDefaultDefinition: UpcomingEditorialTemplateDefini
 		calendarSize: 68,
 		dateX: 205,
 		dateYRatio: 0.27,
-		competitionYRatio: 0.58,
 		dateWidth: 210,
+		competitionX: 205,
+		competitionYRatio: 0.58,
+		competitionWidth: 210,
 		firstDividerX: 410,
 		clubLogoX: 462,
 		clubLogoCenterYRatio: 0.5,
@@ -153,11 +167,14 @@ export const upcomingEditorialDefaultDefinition: UpcomingEditorialTemplateDefini
 		locationIconX: 980,
 		locationIconYRatio: 0.36,
 		locationIconSize: 40,
-		locationX: 1030,
+		venueX: 1030,
 		venueYRatio: 0.28,
+		venueWidth: 235,
+		locationX: 1030,
 		locationYRatio: 0.53,
 		locationWidth: 235,
 	},
+	fixtureRowOverrides: [],
 	sponsors: {
 		top: 1330,
 		titleX: 682.5,
@@ -316,6 +333,7 @@ async function renderUpcomingEditorialTemplate(
 			content.assets.homeTeamLogo,
 			rowLayouts[index].y,
 			rowLayouts[index].height,
+			index,
 			definition
 		);
 	}
@@ -357,9 +375,11 @@ async function drawFixtureRow(
 	clubLogo: SocialGraphicTemplateRenderContext["content"]["assets"]["homeTeamLogo"],
 	y: number,
 	height: number,
+	rowIndex: number,
 	definition: UpcomingEditorialTemplateDefinition
 ) {
-	const { theme, fixtureRow: row } = definition;
+	const { theme } = definition;
+	const row = getUpcomingFixtureRowDefinition(definition, rowIndex);
 	drawRoundedFrame(
 		context,
 		row.frameX,
@@ -385,8 +405,8 @@ async function drawFixtureRow(
 			day: "numeric",
 			month: "short",
 		}).toUpperCase();
-	drawFittedText(context, dateText, row.dateX, y + height * row.dateYRatio, row.dateWidth, 34, 20, theme.text);
-	drawFittedText(context, fixture.competition.toUpperCase(), row.dateX, y + height * row.competitionYRatio, row.dateWidth, 27, 17, theme.accent);
+	drawWrappedText(context, dateText, row.dateX, y + height * row.dateYRatio, row.dateWidth, 2, 34, 18, theme.text);
+	drawWrappedText(context, fixture.competition.toUpperCase(), row.competitionX, y + height * row.competitionYRatio, row.competitionWidth, 2, 27, 15, theme.accent);
 	drawVerticalDivider(context, row.firstDividerX, y + 24, height - 48, theme.accent);
 
 	if (clubLogo) {
@@ -411,7 +431,7 @@ async function drawFixtureRow(
 		);
 	}
 	drawFittedText(context, "VS", row.versusX, y + height * row.versusYRatio, 52, 38, 24, theme.accent, "center");
-	drawFittedText(context, fixture.opponent.toUpperCase(), row.opponentX, y + height * row.opponentYRatio, row.opponentWidth, 38, 20, theme.text);
+	drawWrappedText(context, fixture.opponent.toUpperCase(), row.opponentX, y + height * row.opponentYRatio, row.opponentWidth, 2, 38, 18, theme.text);
 	drawVerticalDivider(context, row.secondDividerX, y + 24, height - 48, theme.accent);
 
 	drawLocationIcon(
@@ -422,8 +442,38 @@ async function drawFixtureRow(
 		theme.accent,
 		theme.background
 	);
-	drawFittedText(context, fixture.venue.toUpperCase(), row.locationX, y + height * row.venueYRatio, row.locationWidth, 30, 20, theme.accent);
+	drawWrappedText(context, fixture.venue.toUpperCase(), row.venueX, y + height * row.venueYRatio, row.venueWidth, 2, 30, 18, theme.accent);
 	drawWrappedText(context, fixture.location.toUpperCase(), row.locationX, y + height * row.locationYRatio, row.locationWidth, 2, 20, 15, theme.text);
+}
+
+export function getUpcomingFixtureRowDefinition(
+	definition: UpcomingEditorialTemplateDefinition,
+	rowIndex: number
+): UpcomingEditorialFixtureRowDefinition {
+	const override = definition.fixtureRowOverrides[rowIndex];
+	return override?.unlocked
+		? { ...definition.fixtureRow, ...override.values }
+		: definition.fixtureRow;
+}
+
+export function isUpcomingFixtureRowUnlocked(
+	definition: UpcomingEditorialTemplateDefinition,
+	rowIndex: number
+) {
+	return definition.fixtureRowOverrides[rowIndex]?.unlocked === true;
+}
+
+export function setUpcomingFixtureRowUnlocked(
+	definition: UpcomingEditorialTemplateDefinition,
+	rowIndex: number,
+	unlocked: boolean
+): UpcomingEditorialTemplateDefinition {
+	const fixtureRowOverrides = [...definition.fixtureRowOverrides];
+	fixtureRowOverrides[rowIndex] = {
+		unlocked,
+		values: { ...(fixtureRowOverrides[rowIndex]?.values ?? {}) },
+	};
+	return { ...definition, fixtureRowOverrides };
 }
 
 export function getUpcomingFixtureRowLayouts(
@@ -468,13 +518,17 @@ function drawVerticalDivider(
 const migratedFixtureRowFields = new Set([
 	"calendarYRatio",
 	"dateYRatio",
+	"competitionX",
 	"competitionYRatio",
+	"competitionWidth",
 	"clubLogoCenterYRatio",
 	"versusYRatio",
 	"opponentYRatio",
 	"locationIconYRatio",
 	"locationIconSize",
+	"venueX",
 	"venueYRatio",
+	"venueWidth",
 	"locationYRatio",
 ]);
 
@@ -483,6 +537,9 @@ function normaliseDefinition(
 	fallback: unknown,
 	path: string
 ): unknown {
+	if (path === "template.fixtureRowOverrides") {
+		return normaliseFixtureRowOverrides(candidate, path);
+	}
 	if (typeof fallback === "number") {
 		const allowsZero = /(X|Y|top|bottom|Gap|Offset|Ratio)$/.test(path);
 		if (
@@ -513,6 +570,9 @@ function normaliseDefinition(
 	return Object.fromEntries(
 		Object.entries(fallback).map(([key, fallbackValue]) => {
 			if (!(key in candidate)) {
+				if (key === "fixtureRowOverrides" && path === "template") {
+					return [key, fallbackValue];
+				}
 				if (migratedFixtureRowFields.has(key) && path === "template.fixtureRow") {
 					return [key, fallbackValue];
 				}
@@ -524,6 +584,35 @@ function normaliseDefinition(
 			];
 		})
 	);
+}
+
+function normaliseFixtureRowOverrides(candidate: unknown, path: string) {
+	if (!Array.isArray(candidate)) {
+		throw new Error(`${path} must be an array.`);
+	}
+	if (candidate.length > 5) {
+		throw new Error(`${path} can contain at most five row overrides.`);
+	}
+
+	return candidate.map((entry, index) => {
+		if (entry === null) return null;
+		if (!isObject(entry) || typeof entry.unlocked !== "boolean" || !isObject(entry.values)) {
+			throw new Error(`${path}.${index} must contain unlocked and values.`);
+		}
+		const values = Object.fromEntries(Object.entries(entry.values).map(([key, value]) => {
+			if (!(key in upcomingEditorialDefaultDefinition.fixtureRow)) {
+				throw new Error(`${path}.${index}.values.${key} is not supported.`);
+			}
+			const fallback = upcomingEditorialDefaultDefinition.fixtureRow[
+				key as keyof UpcomingEditorialFixtureRowDefinition
+			];
+			return [
+				key,
+				normaliseDefinition(value, fallback, `${path}.${index}.values.${key}`),
+			];
+		}));
+		return { unlocked: entry.unlocked, values };
+	});
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

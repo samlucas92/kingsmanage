@@ -62,11 +62,19 @@ describe("editable upcoming fixtures template", () => {
 		const candidate = JSON.parse(upcomingEditorialDefaultSource);
 		delete candidate.fixtureRow.calendarYRatio;
 		delete candidate.fixtureRow.locationIconSize;
+		delete candidate.fixtureRow.competitionX;
+		delete candidate.fixtureRow.competitionWidth;
+		delete candidate.fixtureRow.venueX;
+		delete candidate.fixtureRow.venueWidth;
+		delete candidate.fixtureRowOverrides;
 
 		const definition = parseUpcomingEditorialDefinition(JSON.stringify(candidate));
 
 		expect(definition.fixtureRow.calendarYRatio).toBe(0.28);
 		expect(definition.fixtureRow.locationIconSize).toBe(40);
+		expect(definition.fixtureRow.competitionX).toBe(205);
+		expect(definition.fixtureRow.venueWidth).toBe(235);
+		expect(definition.fixtureRowOverrides).toEqual([]);
 	});
 
 	it("rejects unsupported schema versions and invalid colours", () => {

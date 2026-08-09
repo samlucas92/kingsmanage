@@ -1,7 +1,12 @@
 import {
+	getUpcomingFixtureRowDefinition,
 	getUpcomingFixtureRowLayouts,
+	isUpcomingFixtureRowUnlocked,
 } from "./templates/upcomingEditorialTemplate";
-import type { UpcomingEditorialTemplateDefinition } from "./templates/upcomingEditorialTemplate";
+import type {
+	UpcomingEditorialFixtureRowDefinition,
+	UpcomingEditorialTemplateDefinition,
+} from "./templates/upcomingEditorialTemplate";
 
 export type TemplateElementBounds = {
 	x: number;
@@ -20,10 +25,12 @@ type UpcomingTopLevelElementId =
 type UpcomingFixtureChildType =
 	| "calendar"
 	| "date"
+	| "competition"
 	| "crest"
 	| "versus"
 	| "opponent"
 	| "location-icon"
+	| "venue"
 	| "location";
 
 export type UpcomingTemplateElementId =
@@ -41,6 +48,7 @@ export type UpcomingTemplateElement = TemplateElementBounds & {
 	drillable?: boolean;
 	sharedAcrossRows?: boolean;
 	constraint?: TemplateElementBounds;
+	wrapsText?: boolean;
 };
 
 export function getUpcomingTemplateElements(
@@ -50,7 +58,7 @@ export function getUpcomingTemplateElements(
 	selectedId: UpcomingTemplateElementId | null = null
 ): UpcomingTemplateElement[] {
 	const topLevelElements = getTopLevelElements(definition, includeSponsors);
-	const selectedRowIndex = getFixtureRowIndex(selectedId);
+	const selectedRowIndex = getUpcomingTemplateRowIndex(selectedId);
 
 	if (selectedRowIndex !== null) {
 		const rowElement = getFixtureRowElement(definition, fixtureCount, selectedRowIndex);
@@ -96,7 +104,7 @@ export function updateUpcomingTemplateElement(
 		);
 	}
 
-	const rowIndex = isFixtureRowId(elementId) ? getFixtureRowIndex(elementId) : null;
+	const rowIndex = isFixtureRowId(elementId) ? getUpcomingTemplateRowIndex(elementId) : null;
 	if (rowIndex !== null) {
 		const rowLayout = getUpcomingFixtureRowLayouts(definition, fixtureCount)[rowIndex];
 		if (!rowLayout) return definition;
@@ -115,6 +123,10 @@ export function updateUpcomingTemplateElement(
 				horizontalOffset,
 				bounds.x,
 				bounds.width
+			),
+			fixtureRowOverrides: shiftFixtureRowOverridesHorizontally(
+				definition,
+				horizontalOffset
 			),
 		};
 	}
@@ -171,6 +183,10 @@ export function updateUpcomingTemplateElement(
 					bounds.x,
 					bounds.width
 				),
+				fixtureRowOverrides: shiftFixtureRowOverridesHorizontally(
+					definition,
+					horizontalOffset
+				),
 			};
 		}
 		case "sponsor-section": {
@@ -206,8 +222,21 @@ export function resetUpcomingTemplateElement(
 	elementId: UpcomingTemplateElementId
 ): UpcomingEditorialTemplateDefinition {
 	const childParts = getFixtureChildParts(elementId);
-	if (childParts) return resetFixtureRowChild(definition, original, childParts.type);
+	if (childParts) {
+		return resetFixtureRowChild(
+			definition,
+			original,
+			childParts.type,
+			childParts.rowIndex
+		);
+	}
 	if (isFixtureRowId(elementId)) {
+		const rowIndex = getUpcomingTemplateRowIndex(elementId);
+		if (rowIndex !== null && isUpcomingFixtureRowUnlocked(definition, rowIndex)) {
+			const fixtureRowOverrides = [...definition.fixtureRowOverrides];
+			fixtureRowOverrides[rowIndex] = { unlocked: true, values: {} };
+			return { ...definition, fixtureRowOverrides };
+		}
 		return {
 			...definition,
 			fixtureList: { ...original.fixtureList },
@@ -340,7 +369,7 @@ function getFixtureRowElement(
 	if (!layout) return null;
 	return {
 		id: `fixture-row:${rowIndex}`,
-		label: `Fixture row ${rowIndex + 1} (shared layout)`,
+		label: `Fixture row ${rowIndex + 1}`,
 		x: definition.fixtureRow.frameX,
 		y: layout.y,
 		width: definition.fixtureRow.frameWidth,
@@ -358,14 +387,16 @@ function getFixtureRowChildren(
 	rowElement: UpcomingTemplateElement,
 	rowIndex: number
 ): UpcomingTemplateElement[] {
-	const row = definition.fixtureRow;
+	const row = getUpcomingFixtureRowDefinition(definition, rowIndex);
+	const sharedAcrossRows = !isUpcomingFixtureRowUnlocked(definition, rowIndex);
+	const scopeLabel = sharedAcrossRows ? "all rows" : `row ${rowIndex + 1}`;
 	const rowId: UpcomingTemplateElementId = `fixture-row:${rowIndex}`;
 	const shared: Pick<
 		UpcomingTemplateElement,
 		"parentId" | "sharedAcrossRows" | "constraint"
 	> = {
 		parentId: rowId,
-		sharedAcrossRows: true,
+		sharedAcrossRows,
 		constraint: {
 			x: rowElement.x,
 			y: rowElement.y,
@@ -377,7 +408,7 @@ function getFixtureRowChildren(
 		{
 			...shared,
 			id: `fixture-calendar:${rowIndex}`,
-			label: "Calendar icon (all rows)",
+			label: `Calendar icon (${scopeLabel})`,
 			x: row.calendarX,
 			y: rowElement.y + rowElement.height * row.calendarYRatio,
 			width: row.calendarSize,
@@ -389,22 +420,33 @@ function getFixtureRowChildren(
 		{
 			...shared,
 			id: `fixture-date:${rowIndex}`,
-			label: "Date and competition (all rows)",
+			label: `Date (${scopeLabel})`,
 			x: row.dateX,
 			y: rowElement.y + rowElement.height * row.dateYRatio,
 			width: row.dateWidth,
-			height: Math.max(
-				52,
-				rowElement.height * (row.competitionYRatio - row.dateYRatio) + 30
-			),
-			minimumWidth: 80,
-			minimumHeight: 52,
+			height: 40,
+			minimumWidth: 45,
+			minimumHeight: 40,
 			resizeMode: "horizontal",
+			wrapsText: true,
+		},
+		{
+			...shared,
+			id: `fixture-competition:${rowIndex}`,
+			label: `Competition (${scopeLabel})`,
+			x: row.competitionX,
+			y: rowElement.y + rowElement.height * row.competitionYRatio,
+			width: row.competitionWidth,
+			height: 38,
+			minimumWidth: 45,
+			minimumHeight: 38,
+			resizeMode: "horizontal",
+			wrapsText: true,
 		},
 		{
 			...shared,
 			id: `fixture-crest:${rowIndex}`,
-			label: "Club crest (all rows)",
+			label: `Club crest (${scopeLabel})`,
 			x: row.clubLogoX,
 			y: rowElement.y + rowElement.height * row.clubLogoCenterYRatio - row.clubLogoHeight / 2,
 			width: row.clubLogoWidth,
@@ -415,7 +457,7 @@ function getFixtureRowChildren(
 		{
 			...shared,
 			id: `fixture-versus:${rowIndex}`,
-			label: "Versus label (all rows)",
+			label: `Versus label (${scopeLabel})`,
 			x: row.versusX - 26,
 			y: rowElement.y + rowElement.height * row.versusYRatio,
 			width: 52,
@@ -427,19 +469,20 @@ function getFixtureRowChildren(
 		{
 			...shared,
 			id: `fixture-opponent:${rowIndex}`,
-			label: "Opponent (all rows)",
+			label: `Opponent (${scopeLabel})`,
 			x: row.opponentX,
 			y: rowElement.y + rowElement.height * row.opponentYRatio,
 			width: row.opponentWidth,
-			height: 42,
-			minimumWidth: 80,
-			minimumHeight: 42,
+			height: 72,
+			minimumWidth: 50,
+			minimumHeight: 48,
 			resizeMode: "horizontal",
+			wrapsText: true,
 		},
 		{
 			...shared,
 			id: `fixture-location-icon:${rowIndex}`,
-			label: "Location icon (all rows)",
+			label: `Location icon (${scopeLabel})`,
 			x: row.locationIconX - row.locationIconSize / 2,
 			y: rowElement.y + rowElement.height * row.locationIconYRatio,
 			width: row.locationIconSize,
@@ -450,18 +493,29 @@ function getFixtureRowChildren(
 		},
 		{
 			...shared,
-			id: `fixture-location:${rowIndex}`,
-			label: "Venue and location (all rows)",
-			x: row.locationX,
+			id: `fixture-venue:${rowIndex}`,
+			label: `Home/away (${scopeLabel})`,
+			x: row.venueX,
 			y: rowElement.y + rowElement.height * row.venueYRatio,
-			width: row.locationWidth,
-			height: Math.max(
-				62,
-				rowElement.height * (row.locationYRatio - row.venueYRatio) + 46
-			),
-			minimumWidth: 80,
-			minimumHeight: 62,
+			width: row.venueWidth,
+			height: 36,
+			minimumWidth: 45,
+			minimumHeight: 36,
 			resizeMode: "horizontal",
+			wrapsText: true,
+		},
+		{
+			...shared,
+			id: `fixture-location:${rowIndex}`,
+			label: `Location (${scopeLabel})`,
+			x: row.locationX,
+			y: rowElement.y + rowElement.height * row.locationYRatio,
+			width: row.locationWidth,
+			height: 58,
+			minimumWidth: 45,
+			minimumHeight: 42,
+			resizeMode: "horizontal",
+			wrapsText: true,
 		},
 	];
 }
@@ -475,30 +529,31 @@ function updateFixtureRowChild(
 ) {
 	const rowLayout = getUpcomingFixtureRowLayouts(definition, fixtureCount)[rowIndex];
 	if (!rowLayout) return definition;
-	const row = definition.fixtureRow;
 	const yRatio = (bounds.y - rowLayout.y) / rowLayout.height;
 
 	switch (type) {
 		case "calendar": {
 			const size = Math.max(1, Math.min(bounds.width, bounds.height));
-			return withFixtureRow(definition, {
+			return withFixtureRowValues(definition, rowIndex, {
 				calendarX: bounds.x,
 				calendarYRatio: yRatio,
 				calendarSize: size,
 			});
 		}
-		case "date": {
-			const currentY = rowLayout.y + rowLayout.height * row.dateYRatio;
-			const ratioOffset = (bounds.y - currentY) / rowLayout.height;
-			return withFixtureRow(definition, {
+		case "date":
+			return withFixtureRowValues(definition, rowIndex, {
 				dateX: bounds.x,
-				dateYRatio: row.dateYRatio + ratioOffset,
-				competitionYRatio: row.competitionYRatio + ratioOffset,
+				dateYRatio: yRatio,
 				dateWidth: bounds.width,
 			});
-		}
+		case "competition":
+			return withFixtureRowValues(definition, rowIndex, {
+				competitionX: bounds.x,
+				competitionYRatio: yRatio,
+				competitionWidth: bounds.width,
+			});
 		case "crest":
-			return withFixtureRow(definition, {
+			return withFixtureRowValues(definition, rowIndex, {
 				clubLogoX: bounds.x,
 				clubLogoCenterYRatio:
 					(bounds.y + bounds.height / 2 - rowLayout.y) / rowLayout.height,
@@ -506,85 +561,98 @@ function updateFixtureRowChild(
 				clubLogoHeight: bounds.height,
 			});
 		case "versus":
-			return withFixtureRow(definition, {
+			return withFixtureRowValues(definition, rowIndex, {
 				versusX: bounds.x + bounds.width / 2,
 				versusYRatio: yRatio,
 			});
 		case "opponent":
-			return withFixtureRow(definition, {
+			return withFixtureRowValues(definition, rowIndex, {
 				opponentX: bounds.x,
 				opponentYRatio: yRatio,
 				opponentWidth: bounds.width,
 			});
 		case "location-icon": {
 			const size = Math.max(1, Math.min(bounds.width, bounds.height));
-			return withFixtureRow(definition, {
+			return withFixtureRowValues(definition, rowIndex, {
 				locationIconX: bounds.x + bounds.width / 2,
 				locationIconYRatio: yRatio,
 				locationIconSize: size,
 			});
 		}
-		case "location": {
-			const currentY = rowLayout.y + rowLayout.height * row.venueYRatio;
-			const ratioOffset = (bounds.y - currentY) / rowLayout.height;
-			return withFixtureRow(definition, {
+		case "venue":
+			return withFixtureRowValues(definition, rowIndex, {
+				venueX: bounds.x,
+				venueYRatio: yRatio,
+				venueWidth: bounds.width,
+			});
+		case "location":
+			return withFixtureRowValues(definition, rowIndex, {
 				locationX: bounds.x,
-				venueYRatio: row.venueYRatio + ratioOffset,
-				locationYRatio: row.locationYRatio + ratioOffset,
+				locationYRatio: yRatio,
 				locationWidth: bounds.width,
 			});
-		}
 	}
 }
 
 function resetFixtureRowChild(
 	definition: UpcomingEditorialTemplateDefinition,
 	original: UpcomingEditorialTemplateDefinition,
-	type: UpcomingFixtureChildType
+	type: UpcomingFixtureChildType,
+	rowIndex: number
 ) {
 	const row = original.fixtureRow;
 	switch (type) {
 		case "calendar":
-			return withFixtureRow(definition, {
+			return resetFixtureRowFields(definition, rowIndex, {
 				calendarX: row.calendarX,
 				calendarYRatio: row.calendarYRatio,
 				calendarSize: row.calendarSize,
 			});
 		case "date":
-			return withFixtureRow(definition, {
+			return resetFixtureRowFields(definition, rowIndex, {
 				dateX: row.dateX,
 				dateYRatio: row.dateYRatio,
-				competitionYRatio: row.competitionYRatio,
 				dateWidth: row.dateWidth,
 			});
+		case "competition":
+			return resetFixtureRowFields(definition, rowIndex, {
+				competitionX: row.competitionX,
+				competitionYRatio: row.competitionYRatio,
+				competitionWidth: row.competitionWidth,
+			});
 		case "crest":
-			return withFixtureRow(definition, {
+			return resetFixtureRowFields(definition, rowIndex, {
 				clubLogoX: row.clubLogoX,
 				clubLogoCenterYRatio: row.clubLogoCenterYRatio,
 				clubLogoWidth: row.clubLogoWidth,
 				clubLogoHeight: row.clubLogoHeight,
 			});
 		case "versus":
-			return withFixtureRow(definition, {
+			return resetFixtureRowFields(definition, rowIndex, {
 				versusX: row.versusX,
 				versusYRatio: row.versusYRatio,
 			});
 		case "opponent":
-			return withFixtureRow(definition, {
+			return resetFixtureRowFields(definition, rowIndex, {
 				opponentX: row.opponentX,
 				opponentYRatio: row.opponentYRatio,
 				opponentWidth: row.opponentWidth,
 			});
 		case "location-icon":
-			return withFixtureRow(definition, {
+			return resetFixtureRowFields(definition, rowIndex, {
 				locationIconX: row.locationIconX,
 				locationIconYRatio: row.locationIconYRatio,
 				locationIconSize: row.locationIconSize,
 			});
-		case "location":
-			return withFixtureRow(definition, {
-				locationX: row.locationX,
+		case "venue":
+			return resetFixtureRowFields(definition, rowIndex, {
+				venueX: row.venueX,
 				venueYRatio: row.venueYRatio,
+				venueWidth: row.venueWidth,
+			});
+		case "location":
+			return resetFixtureRowFields(definition, rowIndex, {
+				locationX: row.locationX,
 				locationYRatio: row.locationYRatio,
 				locationWidth: row.locationWidth,
 			});
@@ -603,41 +671,99 @@ function shiftFixtureRowHorizontally(
 		frameWidth,
 		calendarX: row.calendarX + offset,
 		dateX: row.dateX + offset,
+		competitionX: row.competitionX + offset,
 		firstDividerX: row.firstDividerX + offset,
 		clubLogoX: row.clubLogoX + offset,
 		versusX: row.versusX + offset,
 		opponentX: row.opponentX + offset,
 		secondDividerX: row.secondDividerX + offset,
 		locationIconX: row.locationIconX + offset,
+		venueX: row.venueX + offset,
 		locationX: row.locationX + offset,
 	};
 }
 
-function withFixtureRow(
+function withFixtureRowValues(
 	definition: UpcomingEditorialTemplateDefinition,
-	fixtureRow: Partial<UpcomingEditorialTemplateDefinition["fixtureRow"]>
+	rowIndex: number,
+	values: Partial<UpcomingEditorialFixtureRowDefinition>
 ) {
+	if (isUpcomingFixtureRowUnlocked(definition, rowIndex)) {
+		const fixtureRowOverrides = [...definition.fixtureRowOverrides];
+		const current = fixtureRowOverrides[rowIndex];
+		fixtureRowOverrides[rowIndex] = {
+			unlocked: true,
+			values: { ...(current?.values ?? {}), ...values },
+		};
+		return { ...definition, fixtureRowOverrides };
+	}
 	return {
 		...definition,
 		fixtureRow: {
 			...definition.fixtureRow,
-			...fixtureRow,
+			...values,
 		},
 	};
+}
+
+function resetFixtureRowFields(
+	definition: UpcomingEditorialTemplateDefinition,
+	rowIndex: number,
+	sharedValues: Partial<UpcomingEditorialFixtureRowDefinition>
+) {
+	if (!isUpcomingFixtureRowUnlocked(definition, rowIndex)) {
+		return withFixtureRowValues(definition, rowIndex, sharedValues);
+	}
+	const fixtureRowOverrides = [...definition.fixtureRowOverrides];
+	const current = fixtureRowOverrides[rowIndex];
+	const values = { ...(current?.values ?? {}) };
+	Object.keys(sharedValues).forEach((key) => {
+		delete values[key as keyof UpcomingEditorialFixtureRowDefinition];
+	});
+	fixtureRowOverrides[rowIndex] = { unlocked: true, values };
+	return { ...definition, fixtureRowOverrides };
+}
+
+function shiftFixtureRowOverridesHorizontally(
+	definition: UpcomingEditorialTemplateDefinition,
+	offset: number
+) {
+	const horizontalFields = [
+		"calendarX",
+		"dateX",
+		"competitionX",
+		"firstDividerX",
+		"clubLogoX",
+		"versusX",
+		"opponentX",
+		"secondDividerX",
+		"locationIconX",
+		"venueX",
+		"locationX",
+	] as const;
+	return definition.fixtureRowOverrides.map((override) => {
+		if (!override) return override;
+		const values = { ...override.values };
+		horizontalFields.forEach((field) => {
+			const value = values[field];
+			if (typeof value === "number") values[field] = value + offset;
+		});
+		return { ...override, values };
+	});
 }
 
 function isFixtureRowId(elementId: UpcomingTemplateElementId) {
 	return /^fixture-row:\d+$/.test(elementId);
 }
 
-function getFixtureRowIndex(elementId: UpcomingTemplateElementId | null) {
+export function getUpcomingTemplateRowIndex(elementId: UpcomingTemplateElementId | null) {
 	if (!elementId) return null;
-	const match = elementId.match(/^fixture-(?:row|calendar|date|crest|versus|opponent|location-icon|location):(\d+)$/);
+	const match = elementId.match(/^fixture-(?:row|calendar|date|competition|crest|versus|opponent|location-icon|venue|location):(\d+)$/);
 	return match ? Number(match[1]) : null;
 }
 
 function getFixtureChildParts(elementId: UpcomingTemplateElementId) {
-	const match = elementId.match(/^fixture-(calendar|date|crest|versus|opponent|location-icon|location):(\d+)$/);
+	const match = elementId.match(/^fixture-(calendar|date|competition|crest|versus|opponent|location-icon|venue|location):(\d+)$/);
 	if (!match) return null;
 	return {
 		type: match[1] as UpcomingFixtureChildType,

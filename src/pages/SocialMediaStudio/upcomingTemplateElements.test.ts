@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { upcomingEditorialDefaultDefinition } from "./templates/upcomingEditorialTemplate";
+import {
+	getUpcomingFixtureRowDefinition,
+	parseUpcomingEditorialDefinition,
+	serializeUpcomingEditorialDefinition,
+	setUpcomingFixtureRowUnlocked,
+	upcomingEditorialDefaultDefinition,
+} from "./templates/upcomingEditorialTemplate";
 import {
 	getUpcomingTemplateElements,
 	getUpcomingTemplateParentId,
@@ -68,14 +74,64 @@ describe("upcoming fixture visual template elements", () => {
 			"fixture-row:0",
 			"fixture-calendar:0",
 			"fixture-date:0",
+			"fixture-competition:0",
 			"fixture-crest:0",
 			"fixture-versus:0",
 			"fixture-opponent:0",
 			"fixture-location-icon:0",
+			"fixture-venue:0",
 			"fixture-location:0",
 		]);
 		expect(getUpcomingTemplateParentId("fixture-opponent:0")).toBe("fixture-row:0");
 		expect(getUpcomingTemplateParentId("fixture-row:0")).toBe("fixture-list");
+	});
+
+	it("can unlock one row without changing the shared text layout", () => {
+		const unlocked = setUpcomingFixtureRowUnlocked(
+			upcomingEditorialDefaultDefinition,
+			1,
+			true
+		);
+		const opponent = getUpcomingTemplateElements(
+			unlocked,
+			true,
+			2,
+			"fixture-row:1"
+		).find((element) => element.id === "fixture-opponent:1");
+		const definition = updateUpcomingTemplateElement(
+			unlocked,
+			"fixture-opponent:1",
+			{
+				x: opponent?.x ?? 0,
+				y: opponent?.y ?? 0,
+				width: 130,
+				height: opponent?.height ?? 72,
+			},
+			2
+		);
+
+		expect(definition.fixtureRow.opponentWidth).toBe(250);
+		expect(getUpcomingFixtureRowDefinition(definition, 0).opponentWidth).toBe(250);
+		expect(getUpcomingFixtureRowDefinition(definition, 1).opponentWidth).toBe(130);
+		expect(definition.fixtureRowOverrides[1]).toMatchObject({
+			unlocked: true,
+			values: { opponentWidth: 130 },
+		});
+		const reparsed = parseUpcomingEditorialDefinition(
+			serializeUpcomingEditorialDefinition(definition)
+		);
+		expect(reparsed.fixtureRowOverrides[0]).toBeNull();
+		expect(reparsed.fixtureRowOverrides[1]).toMatchObject({ unlocked: true });
+
+		const relinked = setUpcomingFixtureRowUnlocked(definition, 1, false);
+		expect(getUpcomingFixtureRowDefinition(relinked, 1).opponentWidth).toBe(250);
+		expect(relinked.fixtureRowOverrides[1]?.values.opponentWidth).toBe(130);
+		expect(
+			getUpcomingFixtureRowDefinition(
+				setUpcomingFixtureRowUnlocked(relinked, 1, true),
+				1
+			).opponentWidth
+		).toBe(130);
 	});
 
 	it("edits a selected row child as shared template layout", () => {
