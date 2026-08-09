@@ -7,6 +7,7 @@ import { usePlayerStore } from "../../stores/players";
 import { useSeasonStore } from "../../stores/seasons";
 import { formatDateForInput } from "../../utils/date";
 import { socialGraphicAssetManifest } from "./assetManifest";
+import { TemplateCanvasOverlay } from "./TemplateCanvasOverlay";
 import {
 	copyCanvasPng,
 	downloadCanvasPng,
@@ -36,6 +37,15 @@ import type {
 	SocialGraphicContent,
 	SocialGraphicKind,
 } from "./types";
+import {
+	getUpcomingTemplateElements,
+	resetUpcomingTemplateElement,
+	updateUpcomingTemplateElement,
+} from "./upcomingTemplateElements";
+import type {
+	TemplateElementBounds,
+	UpcomingTemplateElementId,
+} from "./upcomingTemplateElements";
 
 const graphicKinds: SocialGraphicKind[] = [
 	"upcomingFixtures",
@@ -95,6 +105,15 @@ export default function SocialMediaStudio() {
 		upcomingEditorialDefaultDefinition
 	);
 	const [templateCodeError, setTemplateCodeError] = useState("");
+	const [isCanvasEditorOpen, setIsCanvasEditorOpen] = useState(false);
+	const [selectedTemplateElementId, setSelectedTemplateElementId] = useState<UpcomingTemplateElementId | null>("headline");
+	const [templateHistory, setTemplateHistory] = useState<{
+		past: string[];
+		future: string[];
+	}>({ past: [], future: [] });
+	const upcomingTemplateSourceRef = useRef(upcomingTemplateSource);
+	const upcomingTemplateDefinitionRef = useRef(upcomingTemplateDefinition);
+	const visualChangeStartSourceRef = useRef<string | null>(null);
 
 	const currentClub = availableClubs.find((club) => club.isCurrent);
 	const clubName = currentClub?.name ?? "Your club";
@@ -110,6 +129,11 @@ export default function SocialMediaStudio() {
 	useEffect(() => {
 		temporaryAssetsRef.current = temporaryAssets;
 	}, [temporaryAssets]);
+
+	useEffect(() => {
+		upcomingTemplateSourceRef.current = upcomingTemplateSource;
+		upcomingTemplateDefinitionRef.current = upcomingTemplateDefinition;
+	}, [upcomingTemplateSource, upcomingTemplateDefinition]);
 
 	useEffect(() => () => {
 		Object.values(temporaryAssetsRef.current).forEach((asset) => {
@@ -250,6 +274,13 @@ export default function SocialMediaStudio() {
 		[selectedTemplate, templateFieldValues]
 	);
 	const showSponsors = effectiveTemplateFields.showSponsors !== false;
+	const upcomingTemplateElements = useMemo(
+		() => getUpcomingTemplateElements(upcomingTemplateDefinition, showSponsors),
+		[upcomingTemplateDefinition, showSponsors]
+	);
+	const selectedTemplateElement = upcomingTemplateElements.find(
+		(element) => element.id === selectedTemplateElementId
+	) ?? null;
 	const selectedAssets = useMemo(() => ({
 		homeTeamLogo: findSelectedAsset(
 			socialGraphicAssetManifest.teamLogos,
@@ -394,12 +425,112 @@ export default function SocialMediaStudio() {
 		}));
 	}
 
+	function setUpcomingDefinition(
+		definition: typeof upcomingEditorialDefaultDefinition
+	) {
+		const source = serializeUpcomingEditorialDefinition(definition);
+		upcomingTemplateSourceRef.current = source;
+		upcomingTemplateDefinitionRef.current = definition;
+		setUpcomingTemplateSource(source);
+		setUpcomingTemplateDefinition(definition);
+		setTemplateCodeError("");
+	}
+
+	function handleUpcomingTemplateSourceChange(source: string) {
+		upcomingTemplateSourceRef.current = source;
+		setUpcomingTemplateSource(source);
+		setTemplateHistory({ past: [], future: [] });
+	}
+
+	function beginVisualTemplateChange() {
+		visualChangeStartSourceRef.current ??= upcomingTemplateSourceRef.current;
+	}
+
+	function changeVisualTemplateElement(
+		elementId: UpcomingTemplateElementId,
+		bounds: TemplateElementBounds
+	) {
+		setUpcomingDefinition(updateUpcomingTemplateElement(
+			upcomingTemplateDefinitionRef.current,
+			elementId,
+			bounds
+		));
+	}
+
+	function endVisualTemplateChange() {
+		const startingSource = visualChangeStartSourceRef.current;
+		visualChangeStartSourceRef.current = null;
+		if (!startingSource || startingSource === upcomingTemplateSourceRef.current) return;
+
+		setTemplateHistory((current) => ({
+			past: [...current.past.slice(-49), startingSource],
+			future: [],
+		}));
+	}
+
+	function undoVisualTemplateChange() {
+		const previousSource = templateHistory.past.at(-1);
+		if (!previousSource) return;
+		const definition = parseUpcomingEditorialDefinition(previousSource);
+		const currentSource = upcomingTemplateSourceRef.current;
+		setUpcomingDefinition(definition);
+		setTemplateHistory((current) => ({
+			past: current.past.slice(0, -1),
+			future: [currentSource, ...current.future.slice(0, 49)],
+		}));
+	}
+
+	function redoVisualTemplateChange() {
+		const nextSource = templateHistory.future[0];
+		if (!nextSource) return;
+		const definition = parseUpcomingEditorialDefinition(nextSource);
+		const currentSource = upcomingTemplateSourceRef.current;
+		setUpcomingDefinition(definition);
+		setTemplateHistory((current) => ({
+			past: [...current.past.slice(-49), currentSource],
+			future: current.future.slice(1),
+		}));
+	}
+
+	function resetSelectedTemplateElement() {
+		if (!selectedTemplateElementId) return;
+		beginVisualTemplateChange();
+		setUpcomingDefinition(resetUpcomingTemplateElement(
+			upcomingTemplateDefinitionRef.current,
+			upcomingEditorialDefaultDefinition,
+			selectedTemplateElementId
+		));
+		endVisualTemplateChange();
+	}
+
+	function updateSelectedTemplateElementField(
+		field: keyof TemplateElementBounds,
+		value: number
+	) {
+		if (!selectedTemplateElement || !Number.isFinite(value)) return;
+		const nextBounds = clampTemplateElementBounds(
+			{
+				x: selectedTemplateElement.x,
+				y: selectedTemplateElement.y,
+				width: selectedTemplateElement.width,
+				height: selectedTemplateElement.height,
+				[field]: value,
+			},
+			selectedTemplateElement.minimumWidth,
+			selectedTemplateElement.minimumHeight,
+			upcomingTemplateDefinition.canvas.width,
+			showSponsors
+				? upcomingTemplateDefinition.canvas.height
+				: upcomingTemplateDefinition.canvas.sponsorFreeHeight
+		);
+		changeVisualTemplateElement(selectedTemplateElement.id, nextBounds);
+	}
+
 	function formatUpcomingTemplateSource() {
 		try {
 			const definition = parseUpcomingEditorialDefinition(upcomingTemplateSource);
-			setUpcomingTemplateSource(serializeUpcomingEditorialDefinition(definition));
-			setUpcomingTemplateDefinition(definition);
-			setTemplateCodeError("");
+			setUpcomingDefinition(definition);
+			setTemplateHistory({ past: [], future: [] });
 		} catch (error) {
 			setTemplateCodeError(
 				error instanceof Error ? error.message : "Template JSON is invalid."
@@ -412,6 +543,8 @@ export default function SocialMediaStudio() {
 			const definition = parseUpcomingEditorialDefinition(upcomingTemplateSource);
 			const normalisedSource = serializeUpcomingEditorialDefinition(definition);
 			localStorage.setItem(upcomingTemplateStorageKey, normalisedSource);
+			upcomingTemplateSourceRef.current = normalisedSource;
+			upcomingTemplateDefinitionRef.current = definition;
 			setUpcomingTemplateSource(normalisedSource);
 			setSavedUpcomingTemplateSource(normalisedSource);
 			setUpcomingTemplateDefinition(definition);
@@ -434,6 +567,9 @@ export default function SocialMediaStudio() {
 		setUpcomingTemplateSource(upcomingEditorialDefaultSource);
 		setSavedUpcomingTemplateSource(upcomingEditorialDefaultSource);
 		setUpcomingTemplateDefinition(upcomingEditorialDefaultDefinition);
+		upcomingTemplateSourceRef.current = upcomingEditorialDefaultSource;
+		upcomingTemplateDefinitionRef.current = upcomingEditorialDefaultDefinition;
+		setTemplateHistory({ past: [], future: [] });
 		setTemplateCodeError("");
 		setActionError("");
 		setActionMessage("The original Upcoming Fixtures template has been restored.");
@@ -639,7 +775,7 @@ export default function SocialMediaStudio() {
 								)}>
 									<TemplateCodeEditor
 										value={upcomingTemplateSource}
-										onChange={setUpcomingTemplateSource}
+										onChange={handleUpcomingTemplateSourceChange}
 									/>
 								</Suspense>
 							</div>
@@ -763,16 +899,66 @@ export default function SocialMediaStudio() {
 				</aside>
 
 				<section className="surface-card p-4">
-					<div className="flex items-center justify-between gap-3">
+					<div className="flex flex-wrap items-center justify-between gap-3">
 						<h2 className="text-base font-bold text-slate-900">Preview</h2>
-						<span className="text-xs font-semibold text-slate-500">
-							{previewDimensions ? `${previewDimensions.width} × ${previewDimensions.height}` : "Waiting for template"}
-						</span>
+						<div className="flex flex-wrap items-center justify-end gap-2">
+							<span className="text-xs font-semibold text-slate-500">
+								{previewDimensions ? `${previewDimensions.width} × ${previewDimensions.height}` : "Waiting for template"}
+							</span>
+							{kind === "upcomingFixtures" && selectedTemplate && (
+								<button
+									type="button"
+									onClick={() => {
+										setIsCanvasEditorOpen((current) => !current);
+										setSelectedTemplateElementId((current) => current ?? "headline");
+									}}
+									className={isCanvasEditorOpen ? "btn-primary px-3 py-2 text-xs" : "btn-secondary px-3 py-2 text-xs"}
+								>
+									{isCanvasEditorOpen ? "Finish canvas editing" : "Edit canvas"}
+								</button>
+							)}
+						</div>
 					</div>
 
+					{kind === "upcomingFixtures" && isCanvasEditorOpen && (
+						<div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2">
+							<p className="text-xs font-semibold text-sky-900">
+								Select an outlined region, then drag or resize it. Arrow keys nudge by 1px; hold Shift for 10px.
+							</p>
+							<div className="flex gap-2">
+								<button type="button" onClick={undoVisualTemplateChange} disabled={templateHistory.past.length === 0} className="rounded-lg border border-sky-200 bg-white px-2.5 py-1.5 text-xs font-bold text-sky-900 disabled:opacity-40">
+									Undo
+								</button>
+								<button type="button" onClick={redoVisualTemplateChange} disabled={templateHistory.future.length === 0} className="rounded-lg border border-sky-200 bg-white px-2.5 py-1.5 text-xs font-bold text-sky-900 disabled:opacity-40">
+									Redo
+								</button>
+							</div>
+						</div>
+					)}
+
 					<div className="mt-3 grid min-h-[24rem] place-items-center rounded-2xl border border-slate-200 bg-[linear-gradient(45deg,#e2e8f0_25%,transparent_25%),linear-gradient(-45deg,#e2e8f0_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#e2e8f0_75%),linear-gradient(-45deg,transparent_75%,#e2e8f0_75%)] bg-[length:20px_20px] bg-[position:0_0,0_10px,10px_-10px,-10px_0] p-4">
-						{selectedTemplate ? (
-							<canvas ref={canvasRef} className="h-auto max-h-[42rem] w-full max-w-[42rem] bg-white shadow-2xl" aria-label="Generated social media graphic preview" />
+						{selectedTemplate && previewDimensions ? (
+							<div
+								className="relative w-full bg-white shadow-2xl"
+								style={{
+									aspectRatio: `${previewDimensions.width} / ${previewDimensions.height}`,
+									maxWidth: `${Math.min(42, 42 * previewDimensions.width / previewDimensions.height)}rem`,
+								}}
+							>
+								<canvas ref={canvasRef} className="absolute inset-0 h-full w-full bg-white" aria-label="Generated social media graphic preview" />
+								{kind === "upcomingFixtures" && isCanvasEditorOpen && (
+									<TemplateCanvasOverlay
+										canvasWidth={previewDimensions.width}
+										canvasHeight={previewDimensions.height}
+										elements={upcomingTemplateElements}
+										selectedId={selectedTemplateElementId}
+										onSelect={setSelectedTemplateElementId}
+										onChangeStart={beginVisualTemplateChange}
+										onChange={changeVisualTemplateElement}
+										onChangeEnd={endVisualTemplateChange}
+									/>
+								)}
+							</div>
 						) : (
 							<div className="max-w-sm rounded-2xl border border-dashed border-slate-300 bg-white/95 p-6 text-center shadow-sm">
 								<div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-yepset-100 text-2xl text-yepset-800">◇</div>
@@ -783,6 +969,36 @@ export default function SocialMediaStudio() {
 							</div>
 						)}
 					</div>
+
+					{kind === "upcomingFixtures" && isCanvasEditorOpen && selectedTemplateElement && (
+						<div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+							<div className="flex flex-wrap items-center justify-between gap-2">
+								<div>
+									<p className="text-sm font-bold text-slate-900">{selectedTemplateElement.label}</p>
+									<p className="text-xs text-slate-500">Exact canvas measurements in pixels</p>
+								</div>
+								<button type="button" onClick={resetSelectedTemplateElement} className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100">
+									Reset element
+								</button>
+							</div>
+							<div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+								{(["x", "y", "width", "height"] as const).map((field) => (
+									<label key={field} className="text-xs font-bold uppercase tracking-wide text-slate-600">
+										{field}
+										<input
+											type="number"
+											step="1"
+											value={Math.round(selectedTemplateElement[field] * 10) / 10}
+											onFocus={beginVisualTemplateChange}
+											onBlur={endVisualTemplateChange}
+											onChange={(event) => updateSelectedTemplateElementField(field, Number(event.target.value))}
+											className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm font-semibold normal-case tracking-normal text-slate-900"
+										/>
+									</label>
+								))}
+							</div>
+						</div>
+					)}
 
 					<div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
 						<button type="button" onClick={handleCopyImage} disabled={exportDisabled} className="btn-secondary disabled:cursor-not-allowed disabled:opacity-45">Copy image</button>
@@ -1048,6 +1264,25 @@ function formatFixtureDate(value: string) {
 		hour: "2-digit",
 		minute: "2-digit",
 	});
+}
+
+function clampTemplateElementBounds(
+	bounds: TemplateElementBounds,
+	minimumWidth: number,
+	minimumHeight: number,
+	canvasWidth: number,
+	canvasHeight: number
+): TemplateElementBounds {
+	const x = Math.min(Math.max(bounds.x, 0), canvasWidth - minimumWidth);
+	const y = Math.min(Math.max(bounds.y, 0), canvasHeight - minimumHeight);
+	const width = Math.min(Math.max(bounds.width, minimumWidth), canvasWidth - x);
+	const height = Math.min(Math.max(bounds.height, minimumHeight), canvasHeight - y);
+	return {
+		x,
+		y,
+		width,
+		height,
+	};
 }
 
 function toFilenamePart(value: string) {

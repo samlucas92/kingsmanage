@@ -32,6 +32,7 @@ export type UpcomingEditorialTemplateDefinition = {
 	};
 	header: {
 		sectionTitle: string;
+		sectionX: number;
 		sectionY: number;
 		sectionWidth: number;
 		headlineX: number;
@@ -73,6 +74,7 @@ export type UpcomingEditorialTemplateDefinition = {
 	};
 	sponsors: {
 		top: number;
+		titleX: number;
 		titleWidth: number;
 		cardX: number;
 		cardTopOffset: number;
@@ -96,6 +98,7 @@ export const upcomingEditorialDefaultDefinition: UpcomingEditorialTemplateDefini
 	},
 	header: {
 		sectionTitle: "Upcoming",
+		sectionX: 682.5,
 		sectionY: 88,
 		sectionWidth: 430,
 		headlineX: 66,
@@ -137,6 +140,7 @@ export const upcomingEditorialDefaultDefinition: UpcomingEditorialTemplateDefini
 	},
 	sponsors: {
 		top: 1330,
+		titleX: 682.5,
 		titleWidth: 520,
 		cardX: 62,
 		cardTopOffset: 56,
@@ -242,7 +246,8 @@ async function renderUpcomingEditorialTemplate(
 		header.sectionY,
 		width,
 		header.sectionWidth,
-		theme.accent
+		theme.accent,
+		header.sectionX
 	);
 	drawFittedText(
 		context,
@@ -312,7 +317,8 @@ async function renderUpcomingEditorialTemplate(
 			sponsors.top,
 			width,
 			sponsors.titleWidth,
-			theme.accent
+			theme.accent,
+			sponsors.titleX
 		);
 		await Promise.all(content.assets.sponsors.slice(0, 3).map((asset, index) => (
 			drawAssetOrPlaceholder(
@@ -431,7 +437,13 @@ function normaliseDefinition(
 	path: string
 ): unknown {
 	if (typeof fallback === "number") {
-		if (typeof candidate !== "number" || !Number.isFinite(candidate) || candidate <= 0 || candidate > 4000) {
+		const allowsZero = /(X|Y|top|bottom|Gap|Offset)$/.test(path);
+		if (
+			typeof candidate !== "number" ||
+			!Number.isFinite(candidate) ||
+			candidate < (allowsZero ? 0 : 0.1) ||
+			candidate > 4000
+		) {
 			throw new Error(`${path} must be a number between 0 and 4000.`);
 		}
 		return candidate;

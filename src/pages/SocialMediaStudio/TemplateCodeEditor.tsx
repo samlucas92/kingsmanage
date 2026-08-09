@@ -13,6 +13,7 @@ export function TemplateCodeEditor({ value, onChange }: TemplateCodeEditorProps)
 	const editorRef = useRef<EditorView>(null);
 	const onChangeRef = useRef(onChange);
 	const initialValueRef = useRef(value);
+	const externalUpdateRef = useRef(false);
 
 	useEffect(() => {
 		onChangeRef.current = onChange;
@@ -48,7 +49,7 @@ export function TemplateCodeEditor({ value, onChange }: TemplateCodeEditorProps)
 					},
 				}),
 				EditorView.updateListener.of((update) => {
-					if (update.docChanged) {
+					if (update.docChanged && !externalUpdateRef.current) {
 						onChangeRef.current(update.state.doc.toString());
 					}
 				}),
@@ -68,6 +69,7 @@ export function TemplateCodeEditor({ value, onChange }: TemplateCodeEditorProps)
 		const currentValue = editor.state.doc.toString();
 		if (currentValue === value) return;
 
+		externalUpdateRef.current = true;
 		editor.dispatch({
 			changes: {
 				from: 0,
@@ -75,6 +77,7 @@ export function TemplateCodeEditor({ value, onChange }: TemplateCodeEditorProps)
 				insert: value,
 			},
 		});
+		externalUpdateRef.current = false;
 	}, [value]);
 
 	return (

@@ -64,15 +64,16 @@ export function drawEditorialSectionTitle(
 	y: number,
 	width: number,
 	maxTextWidth = 520,
-	colour = EDITORIAL_GOLD
+	colour = EDITORIAL_GOLD,
+	centerX = width / 2
 ) {
-	drawFittedText(context, text.toUpperCase(), width / 2, y - 26, maxTextWidth, 50, 24, colour, "center");
+	drawFittedText(context, text.toUpperCase(), centerX, y - 26, maxTextWidth, 50, 24, colour, "center");
 	context.strokeStyle = colour;
 	context.lineWidth = 3;
 	context.beginPath();
 	context.moveTo(88, y);
-	context.lineTo(width / 2 - maxTextWidth / 2 - 35, y);
-	context.moveTo(width / 2 + maxTextWidth / 2 + 35, y);
+	context.lineTo(centerX - maxTextWidth / 2 - 35, y);
+	context.moveTo(centerX + maxTextWidth / 2 + 35, y);
 	context.lineTo(width - 88, y);
 	context.stroke();
 }
