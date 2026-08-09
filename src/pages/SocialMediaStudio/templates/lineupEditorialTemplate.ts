@@ -204,11 +204,11 @@ function drawStarter(
 	);
 
 	context.fillStyle = "rgba(5,6,6,.9)";
-	context.fillRect(x - 82, y + 33, 164, 37);
+	context.fillRect(x - 95, y + 33, 190, 42);
 	const label = player.position.trim()
 		? `${player.name} · ${player.position}`
 		: player.name;
-	drawFittedText(context, label.toUpperCase(), x, y + 40, 150, 20, 11, EDITORIAL_WHITE, "center");
+	drawFittedText(context, label.toUpperCase(), x, y + 40, 176, 24, 13, EDITORIAL_WHITE, "center");
 }
 
 function drawBench(
