@@ -1576,10 +1576,15 @@ export default function SocialMediaStudio() {
 										canvasHeight={previewDimensions.height}
 										elements={upcomingTemplateElements}
 										selectedId={activeTemplateElementId}
-										onSelect={setSelectedTemplateElementId}
+										onSelect={(elementId) => setSelectedTemplateElementId(
+											elementId as UpcomingTemplateElementId
+										)}
 										onNavigateUp={navigateUpTemplateHierarchy}
 										onChangeStart={beginVisualTemplateChange}
-										onChange={changeVisualTemplateElement}
+										onChange={(elementId, bounds) => changeVisualTemplateElement(
+											elementId as UpcomingTemplateElementId,
+											bounds
+										)}
 										onChangeEnd={endVisualTemplateChange}
 									/>
 								)}

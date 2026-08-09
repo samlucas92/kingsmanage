@@ -112,6 +112,7 @@ async function renderResultEditorialTemplate({
 		context.restore();
 		return;
 	}
+	const result = fixture.result;
 
 	const homeTeam = fixture.venue === "home" ? fixture.teamName : fixture.opponent;
 	const awayTeam = fixture.venue === "away" ? fixture.teamName : fixture.opponent;
@@ -138,14 +139,14 @@ async function renderResultEditorialTemplate({
 		context.moveTo(810, 448);
 		context.lineTo(810, RESULT_CONTENT_BOTTOM);
 		context.stroke();
-		await drawTeamRow({ context, y: 505, teamName: homeTeam, score: fixture.result.homeGoals, asset: content.assets.homeTeamLogo, label: "HOME TEAM\nLOGO", scorers: fixture.venue === "home" ? fixture.scorers : [] });
+		await drawTeamRow({ context, y: 505, teamName: homeTeam, score: result.homeGoals, asset: content.assets.homeTeamLogo, label: "HOME TEAM\nLOGO", scorers: fixture.venue === "home" ? fixture.scorers : [] });
 		context.strokeStyle = GOLD;
 		context.lineWidth = 3;
 		context.beginPath();
 		context.moveTo(66, 866);
 		context.lineTo(756, 866);
 		context.stroke();
-		await drawTeamRow({ context, y: 942, teamName: awayTeam, score: fixture.result.awayGoals, asset: content.assets.awayTeamLogo, label: "AWAY TEAM\nLOGO", scorers: fixture.venue === "away" ? fixture.scorers : [] });
+		await drawTeamRow({ context, y: 942, teamName: awayTeam, score: result.awayGoals, asset: content.assets.awayTeamLogo, label: "AWAY TEAM\nLOGO", scorers: fixture.venue === "away" ? fixture.scorers : [] });
 	});
 
 	await withElementTransformAsync(context, resultEditorialDefaultDefinition.elements["featured-area"], definition.elements["featured-area"], async () => {
