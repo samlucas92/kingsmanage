@@ -14,6 +14,16 @@ export function formatDateForInput(date: string) {
 	return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
+export function toUtcIsoString(date: string) {
+	const parsedDate = new Date(date);
+
+	if (Number.isNaN(parsedDate.getTime())) {
+		throw new Error("Date and time is invalid.");
+	}
+
+	return parsedDate.toISOString();
+}
+
 export function formatDisplayDate(date: string) {
 	const parsedDate = new Date(date);
 

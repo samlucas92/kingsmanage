@@ -13,6 +13,7 @@ import type {
 	SelectedPlayer,
 } from "../stores/match";
 import { FIRST_TEAM_ID, SECOND_TEAM_ID, normaliseLegacyTeamId } from "../stores/clubTeams";
+import { toUtcIsoString } from "../utils/date";
 
 type MatchVenue = Match["venue"];
 
@@ -318,6 +319,7 @@ function toApiMatch(match: Match): ApiMatch {
 
 	return {
 		...matchToSave,
+		date: toUtcIsoString(match.date),
 		team: toApiClubTeam(match.team),
 		teamId: normaliseLegacyTeamId(match.team),
 		venue: toApiVenue(match.venue),
@@ -333,6 +335,7 @@ function toApiMatch(match: Match): ApiMatch {
 function toApiMatchFixture(match: MatchFixtureInput): ApiMatchFixtureInput {
 	return {
 		...match,
+		date: toUtcIsoString(match.date),
 		team: toApiClubTeam(match.team),
 		teamId: normaliseLegacyTeamId(match.team),
 		venue: toApiVenue(match.venue),
@@ -465,7 +468,10 @@ export const matchApi = {
 	) => {
 		const updatedMatch = await apiClient.post<ApiMatch>(
 			`/matches/${id}/postpone`,
-			input
+			{
+				...input,
+				newDate: toUtcIsoString(input.newDate),
+			}
 		);
 		return fromApiMatch(updatedMatch);
 	},
