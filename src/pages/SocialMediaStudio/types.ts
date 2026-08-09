@@ -1,6 +1,6 @@
 import type { MatchResult } from "../../stores/match";
 
-export type SocialGraphicKind = "upcomingFixtures" | "fixture" | "result";
+export type SocialGraphicKind = "upcomingFixtures" | "fixture" | "lineup" | "result";
 
 export type SocialGraphicAsset = {
 	id: string;
@@ -59,6 +59,22 @@ export type SocialScorer = {
 	goals: number;
 };
 
+export type SocialLineupPlayer = {
+	playerId: string;
+	name: string;
+	number?: number;
+	position: string;
+	role: "starter" | "substitute";
+	x?: number;
+	y?: number;
+};
+
+export type SocialLineup = {
+	formationKey: string;
+	formationName: string;
+	players: SocialLineupPlayer[];
+};
+
 export type SocialGraphicContent = {
 	kind: SocialGraphicKind;
 	clubName: string;
@@ -66,6 +82,7 @@ export type SocialGraphicContent = {
 	headline: string;
 	footer: string;
 	fixtures: SocialFixture[];
+	lineup?: SocialLineup;
 	fields: Record<string, string | boolean>;
 	assets: SocialGraphicAssetSelection;
 };

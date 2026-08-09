@@ -1,10 +1,14 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 
+import { getClubSportDefinition } from "../../constants/sports";
+import type { SportFormation } from "../../constants/sports";
 import { useAuthStore } from "../../stores/auth";
 import { useClubTeamStore } from "../../stores/clubTeams";
 import { useMatchStore } from "../../stores/match";
 import { usePlayerStore } from "../../stores/players";
+import type { Player } from "../../stores/players";
 import { useSeasonStore } from "../../stores/seasons";
+import { socialGraphicTemplatesApi } from "../../services/socialGraphicTemplatesApi";
 import { formatDateForInput } from "../../utils/date";
 import { socialGraphicAssetManifest } from "./assetManifest";
 import { TemplateCanvasOverlay } from "./TemplateCanvasOverlay";
@@ -21,6 +25,7 @@ import {
 	getGraphicKindLabel,
 	getOpponentScore,
 	toSocialFixture,
+	toSocialLineup,
 } from "./socialGraphicModel";
 import { socialGraphicTemplates } from "./templateRegistry";
 import {
@@ -38,6 +43,8 @@ import type {
 	SocialGraphicAsset,
 	SocialGraphicContent,
 	SocialGraphicKind,
+	SocialLineup,
+	SocialLineupPlayer,
 } from "./types";
 import {
 	getUpcomingTemplateElements,
@@ -54,9 +61,11 @@ import type {
 const graphicKinds: SocialGraphicKind[] = [
 	"upcomingFixtures",
 	"fixture",
+	"lineup",
 	"result",
 ];
 const placeholderAssetId = "__placeholder__";
+const upcomingTemplateId = "upcoming-editorial-gold";
 const upcomingTemplateStoragePrefix = "kingsmanage:social-template:upcoming-editorial-gold:v1";
 const TemplateCodeEditor = lazy(() => import("./TemplateCodeEditor").then(
 	(module) => ({ default: module.TemplateCodeEditor })
@@ -84,6 +93,7 @@ export default function SocialMediaStudio() {
 	const [selectedTemplateId, setSelectedTemplateId] = useState("");
 	const [selectedUpcomingIds, setSelectedUpcomingIds] = useState<string[]>([]);
 	const [selectedFixtureId, setSelectedFixtureId] = useState("");
+	const [selectedLineupId, setSelectedLineupId] = useState("");
 	const [selectedResultId, setSelectedResultId] = useState("");
 	const [headline, setHeadline] = useState(getDefaultHeadline(kind));
 	const [footer, setFooter] = useState("");
@@ -94,6 +104,7 @@ export default function SocialMediaStudio() {
 	const [featuredImageId, setFeaturedImageId] = useState("");
 	const [sponsorIds, setSponsorIds] = useState(["", "", ""]);
 	const [fixtureOverrides, setFixtureOverrides] = useState<Record<string, SocialFixtureOverride>>({});
+	const [lineupOverrides, setLineupOverrides] = useState<Record<string, SocialLineup>>({});
 	const [temporaryAssets, setTemporaryAssets] = useState<Record<string, SocialGraphicAsset>>({});
 	const [isRendering, setIsRendering] = useState(false);
 	const [actionMessage, setActionMessage] = useState("");
@@ -109,6 +120,10 @@ export default function SocialMediaStudio() {
 		upcomingEditorialDefaultDefinition
 	);
 	const [templateCodeError, setTemplateCodeError] = useState("");
+	const [templatePersistenceError, setTemplatePersistenceError] = useState("");
+	const [upcomingTemplateRevision, setUpcomingTemplateRevision] = useState(0);
+	const [isLoadingUpcomingTemplate, setIsLoadingUpcomingTemplate] = useState(false);
+	const [isSavingUpcomingTemplate, setIsSavingUpcomingTemplate] = useState(false);
 	const [isCanvasEditorOpen, setIsCanvasEditorOpen] = useState(false);
 	const [selectedTemplateElementId, setSelectedTemplateElementId] = useState<UpcomingTemplateElementId | null>("headline");
 	const [templateHistory, setTemplateHistory] = useState<{
@@ -121,6 +136,10 @@ export default function SocialMediaStudio() {
 
 	const currentClub = availableClubs.find((club) => club.isCurrent);
 	const clubName = currentClub?.name ?? "Your club";
+	const clubSportDefinition = useMemo(
+		() => getClubSportDefinition(currentClub?.sportKey, currentClub?.customFormations),
+		[currentClub?.sportKey, currentClub?.customFormations]
+	);
 	const activeSeason = seasons.find((season) => season.id === activeSeasonId);
 	const upcomingTemplateStorageKey = `${upcomingTemplateStoragePrefix}:${currentClub?.id ?? "default"}`;
 
@@ -152,33 +171,76 @@ export default function SocialMediaStudio() {
 	}, [activeSeasonId, loadMatches]);
 
 	useEffect(() => {
-		const storedSource = localStorage.getItem(upcomingTemplateStorageKey);
 		let cancelled = false;
 
-		queueMicrotask(() => {
-			if (cancelled) return;
-			if (!storedSource) {
-				setUpcomingTemplateSource(upcomingEditorialDefaultSource);
-				setSavedUpcomingTemplateSource(upcomingEditorialDefaultSource);
-				setUpcomingTemplateDefinition(upcomingEditorialDefaultDefinition);
-				setTemplateCodeError("");
-				return;
-			}
+		async function loadTemplate() {
+			setIsLoadingUpcomingTemplate(true);
+			setUpcomingTemplateRevision(0);
+			setTemplatePersistenceError("");
 
 			try {
-				const definition = parseUpcomingEditorialDefinition(storedSource);
-				const normalisedSource = serializeUpcomingEditorialDefinition(definition);
-				setUpcomingTemplateSource(normalisedSource);
-				setSavedUpcomingTemplateSource(normalisedSource);
-				setUpcomingTemplateDefinition(definition);
-				setTemplateCodeError("");
-			} catch {
+				const response = await socialGraphicTemplatesApi.get(upcomingTemplateId);
+				if (cancelled) return;
+
+				if (response.customization) {
+					setUpcomingTemplateRevision(response.customization.revision);
+					try {
+						const definition = parseUpcomingEditorialDefinition(
+							response.customization.definitionJson
+						);
+						const normalisedSource = serializeUpcomingEditorialDefinition(definition);
+						setUpcomingTemplateSource(normalisedSource);
+						setSavedUpcomingTemplateSource(normalisedSource);
+						setUpcomingTemplateDefinition(definition);
+						setTemplateCodeError("");
+						localStorage.removeItem(upcomingTemplateStorageKey);
+					} catch {
+						setUpcomingTemplateSource(upcomingEditorialDefaultSource);
+						setSavedUpcomingTemplateSource(upcomingEditorialDefaultSource);
+						setUpcomingTemplateDefinition(upcomingEditorialDefaultDefinition);
+						setTemplatePersistenceError(
+							"The stored club template is incompatible. The bundled original is shown; restore it before editing."
+						);
+					}
+					return;
+				}
+
+				const storedSource = localStorage.getItem(upcomingTemplateStorageKey);
+				if (storedSource) {
+					try {
+						const definition = parseUpcomingEditorialDefinition(storedSource);
+						const normalisedSource = serializeUpcomingEditorialDefinition(definition);
+						setUpcomingTemplateSource(normalisedSource);
+						setSavedUpcomingTemplateSource(upcomingEditorialDefaultSource);
+						setUpcomingTemplateDefinition(definition);
+						setTemplateCodeError("");
+						setActionMessage("Your browser draft is ready to save as the club template.");
+						return;
+					} catch {
+						localStorage.removeItem(upcomingTemplateStorageKey);
+						setTemplateCodeError("The saved browser draft was invalid, so the original template is active.");
+					}
+				}
+
 				setUpcomingTemplateSource(upcomingEditorialDefaultSource);
 				setSavedUpcomingTemplateSource(upcomingEditorialDefaultSource);
 				setUpcomingTemplateDefinition(upcomingEditorialDefaultDefinition);
-				setTemplateCodeError("The saved browser draft was invalid, so the original template is active.");
+			} catch (error) {
+				if (cancelled) return;
+				setUpcomingTemplateSource(upcomingEditorialDefaultSource);
+				setSavedUpcomingTemplateSource(upcomingEditorialDefaultSource);
+				setUpcomingTemplateDefinition(upcomingEditorialDefaultDefinition);
+				setTemplatePersistenceError(
+					error instanceof Error
+						? `The club template could not be loaded: ${error.message}`
+						: "The club template could not be loaded."
+				);
+			} finally {
+				if (!cancelled) setIsLoadingUpcomingTemplate(false);
 			}
-		});
+		}
+
+		void loadTemplate();
 
 		return () => {
 			cancelled = true;
@@ -231,21 +293,31 @@ export default function SocialMediaStudio() {
 	const effectiveFixtureId = upcomingMatches.some((match) => match.id === selectedFixtureId)
 		? selectedFixtureId
 		: upcomingMatches[0]?.id ?? "";
+	const effectiveLineupId = upcomingMatches.some((match) => match.id === selectedLineupId)
+		? selectedLineupId
+		: upcomingMatches[0]?.id ?? "";
 	const effectiveResultId = completedMatches.some((match) => match.id === selectedResultId)
 		? selectedResultId
 		: completedMatches[0]?.id ?? "";
-	const selectedSingleMatch = kind === "fixture"
-		? upcomingMatches.find((match) => match.id === effectiveFixtureId)
-		: completedMatches.find((match) => match.id === effectiveResultId);
-	const clubLogoIsHome = kind === "upcomingFixtures" || selectedSingleMatch?.venue !== "away";
+	const selectedSingleMatch = kind === "result"
+		? completedMatches.find((match) => match.id === effectiveResultId)
+		: kind === "lineup"
+			? upcomingMatches.find((match) => match.id === effectiveLineupId)
+			: kind === "fixture"
+				? upcomingMatches.find((match) => match.id === effectiveFixtureId)
+				: undefined;
+	const clubLogoIsHome = kind === "upcomingFixtures" || kind === "lineup" || selectedSingleMatch?.venue !== "away";
 	const homeTeamLogoFallbackIndex = clubLogoIsHome ? 0 : -1;
 	const awayTeamLogoFallbackIndex = clubLogoIsHome ? -1 : 0;
 
 	useEffect(() => {
-		if (kind !== "result" || !effectiveResultId) return;
-		const selectedResult = matches.find((match) => match.id === effectiveResultId);
-		if (!selectedResult?.isDetailLoaded) void loadMatch(effectiveResultId);
-	}, [kind, effectiveResultId, matches, loadMatch]);
+		const matchId = kind === "result"
+			? effectiveResultId
+			: kind === "lineup" ? effectiveLineupId : "";
+		if (!matchId) return;
+		const selectedMatch = matches.find((match) => match.id === matchId);
+		if (!selectedMatch?.isDetailLoaded) void loadMatch(matchId);
+	}, [kind, effectiveLineupId, effectiveResultId, matches, loadMatch]);
 
 	const editableUpcomingTemplate = useMemo(
 		() => createUpcomingEditorialTemplate(upcomingTemplateDefinition),
@@ -350,13 +422,16 @@ export default function SocialMediaStudio() {
 			return upcomingMatches.filter((match) => selectedIds.has(match.id));
 		}
 
-		const selectedId = kind === "fixture" ? effectiveFixtureId : effectiveResultId;
+		const selectedId = kind === "fixture"
+			? effectiveFixtureId
+			: kind === "lineup" ? effectiveLineupId : effectiveResultId;
 		return seasonMatches.filter((match) => match.id === selectedId);
 	}, [
 		kind,
 		effectiveUpcomingIds,
 		upcomingMatches,
 		effectiveFixtureId,
+		effectiveLineupId,
 		effectiveResultId,
 		seasonMatches,
 	]);
@@ -368,6 +443,14 @@ export default function SocialMediaStudio() {
 		)),
 		[selectedMatches, teamProfiles, players, fixtureOverrides]
 	);
+	const selectedLineup = useMemo(() => {
+		if (kind !== "lineup" || !selectedSingleMatch) return undefined;
+		return lineupOverrides[selectedSingleMatch.id] ?? toSocialLineup(
+			selectedSingleMatch,
+			players,
+			clubSportDefinition.formations
+		);
+	}, [kind, selectedSingleMatch, lineupOverrides, players, clubSportDefinition.formations]);
 
 	const content = useMemo<SocialGraphicContent>(() => ({
 		kind,
@@ -376,6 +459,7 @@ export default function SocialMediaStudio() {
 		headline: headline.trim() || getDefaultHeadline(kind),
 		footer: footer.trim() || `Come on, ${clubName}!`,
 		fixtures: selectedSocialFixtures,
+		lineup: selectedLineup,
 		fields: effectiveTemplateFields,
 		assets: selectedAssets,
 	}), [
@@ -385,6 +469,7 @@ export default function SocialMediaStudio() {
 		headline,
 		footer,
 		selectedSocialFixtures,
+		selectedLineup,
 		effectiveTemplateFields,
 		selectedAssets,
 	]);
@@ -587,41 +672,65 @@ export default function SocialMediaStudio() {
 		}
 	}
 
-	function saveUpcomingTemplateDraft() {
+	async function saveUpcomingTemplateDraft() {
 		try {
 			const definition = parseUpcomingEditorialDefinition(upcomingTemplateSource);
 			const normalisedSource = serializeUpcomingEditorialDefinition(definition);
-			localStorage.setItem(upcomingTemplateStorageKey, normalisedSource);
+			setIsSavingUpcomingTemplate(true);
+			const customization = await socialGraphicTemplatesApi.save(upcomingTemplateId, {
+				schemaVersion: definition.version,
+				definitionJson: normalisedSource,
+				expectedRevision: upcomingTemplateRevision,
+			});
+			localStorage.removeItem(upcomingTemplateStorageKey);
 			upcomingTemplateSourceRef.current = normalisedSource;
 			upcomingTemplateDefinitionRef.current = definition;
 			setUpcomingTemplateSource(normalisedSource);
 			setSavedUpcomingTemplateSource(normalisedSource);
 			setUpcomingTemplateDefinition(definition);
+			setUpcomingTemplateRevision(customization.revision);
 			setTemplateCodeError("");
+			setTemplatePersistenceError("");
 			setActionError("");
-			setActionMessage("Template draft saved in this browser.");
+			setActionMessage(`Club template saved as revision ${customization.revision}.`);
 		} catch (error) {
-			setTemplateCodeError(
-				error instanceof Error ? error.message : "Template JSON is invalid."
-			);
+			const message = error instanceof Error ? error.message : "The template could not be saved.";
+			setActionError(message);
+			if (message.toLowerCase().includes("json")) setTemplateCodeError(message);
+		} finally {
+			setIsSavingUpcomingTemplate(false);
 		}
 	}
 
-	function restoreUpcomingTemplateOriginal() {
-		if (!window.confirm("Restore the original template and remove the browser draft?")) {
+	async function restoreUpcomingTemplateOriginal() {
+		if (!window.confirm("Restore the bundled original template for this club? Revision history will be retained.")) {
 			return;
 		}
 
-		localStorage.removeItem(upcomingTemplateStorageKey);
-		setUpcomingTemplateSource(upcomingEditorialDefaultSource);
-		setSavedUpcomingTemplateSource(upcomingEditorialDefaultSource);
-		setUpcomingTemplateDefinition(upcomingEditorialDefaultDefinition);
-		upcomingTemplateSourceRef.current = upcomingEditorialDefaultSource;
-		upcomingTemplateDefinitionRef.current = upcomingEditorialDefaultDefinition;
-		setTemplateHistory({ past: [], future: [] });
-		setTemplateCodeError("");
-		setActionError("");
-		setActionMessage("The original Upcoming Fixtures template has been restored.");
+		try {
+			setIsSavingUpcomingTemplate(true);
+			if (upcomingTemplateRevision > 0) {
+				await socialGraphicTemplatesApi.reset(upcomingTemplateId, upcomingTemplateRevision);
+			}
+			localStorage.removeItem(upcomingTemplateStorageKey);
+			setUpcomingTemplateSource(upcomingEditorialDefaultSource);
+			setSavedUpcomingTemplateSource(upcomingEditorialDefaultSource);
+			setUpcomingTemplateDefinition(upcomingEditorialDefaultDefinition);
+			setUpcomingTemplateRevision(0);
+			upcomingTemplateSourceRef.current = upcomingEditorialDefaultSource;
+			upcomingTemplateDefinitionRef.current = upcomingEditorialDefaultDefinition;
+			setTemplateHistory({ past: [], future: [] });
+			setTemplateCodeError("");
+			setTemplatePersistenceError("");
+			setActionError("");
+			setActionMessage("The bundled Upcoming Fixtures template is active again.");
+		} catch (error) {
+			setActionError(
+				error instanceof Error ? error.message : "The original template could not be restored."
+			);
+		} finally {
+			setIsSavingUpcomingTemplate(false);
+		}
 	}
 
 	function setFixtureOverride<Field extends keyof SocialFixtureOverride>(
@@ -642,6 +751,21 @@ export default function SocialMediaStudio() {
 		setFixtureOverrides((current) => {
 			const next = { ...current };
 			delete next[fixtureId];
+			return next;
+		});
+	}
+
+	function setLineupOverride(matchId: string, lineup: SocialLineup) {
+		setLineupOverrides((current) => ({
+			...current,
+			[matchId]: lineup,
+		}));
+	}
+
+	function resetLineupOverride(matchId: string) {
+		setLineupOverrides((current) => {
+			const next = { ...current };
+			delete next[matchId];
 			return next;
 		});
 	}
@@ -719,7 +843,7 @@ export default function SocialMediaStudio() {
 				</span>
 			</header>
 
-			<div className="grid grid-cols-3 gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm" role="tablist" aria-label="Graphic type">
+			<div className="grid grid-cols-2 gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm sm:grid-cols-4" role="tablist" aria-label="Graphic type">
 				{graphicKinds.map((graphicKind) => (
 					<button
 						key={graphicKind}
@@ -793,9 +917,14 @@ export default function SocialMediaStudio() {
 								>
 									{isTemplateEditorOpen ? "Close template code" : "Edit template code"}
 								</button>
-								{savedUpcomingTemplateSource !== upcomingEditorialDefaultSource && (
+								{upcomingTemplateRevision > 0 && (
 									<span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-800">
-										Browser override active
+										Club override · Revision {upcomingTemplateRevision}
+									</span>
+								)}
+								{upcomingTemplateRevision === 0 && upcomingTemplateSource !== upcomingEditorialDefaultSource && (
+									<span className="rounded-full bg-sky-100 px-2.5 py-1 text-[11px] font-bold text-sky-800">
+										Browser draft ready to migrate
 									</span>
 								)}
 							</div>
@@ -812,7 +941,13 @@ export default function SocialMediaStudio() {
 									</p>
 								</div>
 								<span className="rounded-full bg-sky-100 px-2.5 py-1 text-[11px] font-bold text-sky-800">
-									Local pilot
+									{isLoadingUpcomingTemplate
+										? "Loading club template…"
+										: upcomingTemplateRevision > 0
+											? `Club template · Revision ${upcomingTemplateRevision}`
+											: upcomingTemplateSource !== upcomingEditorialDefaultSource
+												? "Browser draft"
+												: "Bundled original"}
 								</span>
 							</div>
 
@@ -838,20 +973,30 @@ export default function SocialMediaStudio() {
 									Valid template{upcomingTemplateSource !== savedUpcomingTemplateSource ? " · Unsaved changes" : " · Saved"}
 								</p>
 							)}
+							{templatePersistenceError && (
+								<p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-800">
+									{templatePersistenceError}
+								</p>
+							)}
 
 							<div className="mt-3 flex flex-wrap gap-2">
 								<button
 									type="button"
-									onClick={saveUpcomingTemplateDraft}
-									disabled={Boolean(templateCodeError)}
+									onClick={() => void saveUpcomingTemplateDraft()}
+									disabled={Boolean(templateCodeError) || Boolean(templatePersistenceError) || isLoadingUpcomingTemplate || isSavingUpcomingTemplate}
 									className="btn-primary px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-45"
 								>
-									Save browser draft
+									{isSavingUpcomingTemplate ? "Saving…" : "Save club template"}
 								</button>
 								<button type="button" onClick={formatUpcomingTemplateSource} className="btn-secondary px-3 py-2 text-xs">
 									Format JSON
 								</button>
-								<button type="button" onClick={restoreUpcomingTemplateOriginal} className="rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50">
+								<button
+									type="button"
+									onClick={() => void restoreUpcomingTemplateOriginal()}
+									disabled={isLoadingUpcomingTemplate || isSavingUpcomingTemplate}
+									className="rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-45"
+								>
 									Restore original
 								</button>
 							</div>
@@ -875,10 +1020,10 @@ export default function SocialMediaStudio() {
 								/>
 							) : (
 								<SingleMatchPicker
-									label={kind === "fixture" ? "Fixture" : "Result"}
-									fixtures={(kind === "fixture" ? upcomingMatches : completedMatches).map((match) => toSocialFixture(match, teamProfiles, players))}
-									selectedId={kind === "fixture" ? effectiveFixtureId : effectiveResultId}
-									onChange={kind === "fixture" ? setSelectedFixtureId : setSelectedResultId}
+									label={kind === "fixture" ? "Fixture" : kind === "lineup" ? "Lineup match" : "Result"}
+									fixtures={(kind === "result" ? completedMatches : upcomingMatches).map((match) => toSocialFixture(match, teamProfiles, players))}
+									selectedId={kind === "fixture" ? effectiveFixtureId : kind === "lineup" ? effectiveLineupId : effectiveResultId}
+									onChange={kind === "fixture" ? setSelectedFixtureId : kind === "lineup" ? setSelectedLineupId : setSelectedResultId}
 								/>
 							)}
 
@@ -893,6 +1038,17 @@ export default function SocialMediaStudio() {
 									onReset={() => resetFixtureOverride(fixture.id)}
 								/>
 							))}
+
+							{kind === "lineup" && selectedSingleMatch && selectedLineup && (
+								<LineupCopyEditor
+									lineup={selectedLineup}
+									players={players}
+									formations={clubSportDefinition.formations}
+									hasOverride={Boolean(lineupOverrides[selectedSingleMatch.id])}
+									onChange={(lineup) => setLineupOverride(selectedSingleMatch.id, lineup)}
+									onReset={() => resetLineupOverride(selectedSingleMatch.id)}
+								/>
+							)}
 
 							<label className="block text-sm font-semibold text-slate-700">
 								Headline
@@ -936,8 +1092,8 @@ export default function SocialMediaStudio() {
 								<span className="text-xs font-semibold text-slate-500">Source controlled</span>
 							</div>
 							<div className="mt-3 space-y-3">
-								<AssetPicker label={kind === "upcomingFixtures" ? "Club logo" : "Home team logo"} assets={socialGraphicAssetManifest.teamLogos} value={homeTeamLogoId} fallbackIndex={homeTeamLogoFallbackIndex} temporaryAsset={temporaryAssets.homeTeamLogo} onChange={setHomeTeamLogoId} onTemporaryImage={(file) => setTemporaryImage("homeTeamLogo", file, setHomeTeamLogoId)} />
-								{kind !== "upcomingFixtures" && <AssetPicker label="Away team logo" assets={socialGraphicAssetManifest.teamLogos} value={awayTeamLogoId} fallbackIndex={awayTeamLogoFallbackIndex} temporaryAsset={temporaryAssets.awayTeamLogo} onChange={setAwayTeamLogoId} onTemporaryImage={(file) => setTemporaryImage("awayTeamLogo", file, setAwayTeamLogoId)} />}
+								<AssetPicker label={kind === "upcomingFixtures" || kind === "lineup" ? "Club logo" : "Home team logo"} assets={socialGraphicAssetManifest.teamLogos} value={homeTeamLogoId} fallbackIndex={homeTeamLogoFallbackIndex} temporaryAsset={temporaryAssets.homeTeamLogo} onChange={setHomeTeamLogoId} onTemporaryImage={(file) => setTemporaryImage("homeTeamLogo", file, setHomeTeamLogoId)} />
+								{kind !== "upcomingFixtures" && kind !== "lineup" && <AssetPicker label="Away team logo" assets={socialGraphicAssetManifest.teamLogos} value={awayTeamLogoId} fallbackIndex={awayTeamLogoFallbackIndex} temporaryAsset={temporaryAssets.awayTeamLogo} onChange={setAwayTeamLogoId} onTemporaryImage={(file) => setTemporaryImage("awayTeamLogo", file, setAwayTeamLogoId)} />}
 								{kind === "result" && <AssetPicker label="Player of the Match image" assets={socialGraphicAssetManifest.featuredImages} value={featuredImageId} fallbackIndex={0} temporaryAsset={temporaryAssets.featuredImage} onChange={setFeaturedImageId} onTemporaryImage={(file) => setTemporaryImage("featuredImage", file, setFeaturedImageId)} />}
 								{showSponsors && [0, 1, 2].map((index) => (
 									<AssetPicker key={index} label={`Sponsor ${index + 1}`} assets={socialGraphicAssetManifest.sponsors} value={sponsorIds[index] ?? ""} fallbackIndex={index} temporaryAsset={temporaryAssets[`sponsor:${index}`]} onChange={(assetId) => setSponsorId(index, assetId)} onTemporaryImage={(file) => setTemporaryImage(`sponsor:${index}`, file, (assetId) => setSponsorId(index, assetId))} />
@@ -1099,6 +1255,190 @@ export default function SocialMediaStudio() {
 	);
 }
 
+function LineupCopyEditor({
+	lineup,
+	players,
+	formations,
+	hasOverride,
+	onChange,
+	onReset,
+}: {
+	lineup: SocialLineup;
+	players: Player[];
+	formations: SportFormation[];
+	hasOverride: boolean;
+	onChange: (lineup: SocialLineup) => void;
+	onReset: () => void;
+}) {
+	const [isOpen, setIsOpen] = useState(true);
+	const [playerToAdd, setPlayerToAdd] = useState("");
+	const selectedPlayerIds = new Set(lineup.players.map((player) => player.playerId));
+	const availablePlayers = players.filter((player) => !selectedPlayerIds.has(player.id));
+	const effectivePlayerToAdd = availablePlayers.some((player) => player.id === playerToAdd)
+		? playerToAdd
+		: availablePlayers[0]?.id ?? "";
+	const selectedFormation = formations.find((formation) => formation.key === lineup.formationKey)
+		?? formations[0];
+	const inputClassName = "mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-900 shadow-sm";
+
+	function updatePlayer(index: number, patch: Partial<SocialLineupPlayer>) {
+		onChange({
+			...lineup,
+			players: lineup.players.map((player, playerIndex) =>
+				playerIndex === index ? { ...player, ...patch } : player
+			),
+		});
+	}
+
+	function changePlayerRole(index: number, role: SocialLineupPlayer["role"]) {
+		const player = lineup.players[index];
+		if (!player || player.role === role) return;
+		if (role === "substitute") {
+			updatePlayer(index, { role, x: undefined, y: undefined });
+			return;
+		}
+
+		const starterCount = lineup.players.filter((candidate) => candidate.role === "starter").length;
+		const slot = selectedFormation?.slots[starterCount];
+		updatePlayer(index, {
+			role,
+			x: slot?.x ?? 50,
+			y: slot?.y ?? 50,
+			position: player.position || slot?.label || "",
+		});
+	}
+
+	function changeFormation(formationKey: string) {
+		const formation = formations.find((candidate) => candidate.key === formationKey);
+		if (!formation) return;
+		let starterIndex = 0;
+		onChange({
+			...lineup,
+			formationKey: formation.key,
+			formationName: formation.name,
+			players: lineup.players.map((player) => {
+				if (player.role !== "starter") return player;
+				const slot = formation.slots[starterIndex];
+				starterIndex += 1;
+				return {
+					...player,
+					x: slot?.x ?? player.x ?? 50,
+					y: slot?.y ?? player.y ?? 50,
+					position: slot?.label ?? player.position,
+				};
+			}),
+		});
+	}
+
+	function addPlayer(role: SocialLineupPlayer["role"]) {
+		const player = players.find((candidate) => candidate.id === effectivePlayerToAdd);
+		if (!player) return;
+		const starterCount = lineup.players.filter((candidate) => candidate.role === "starter").length;
+		const slot = role === "starter" ? selectedFormation?.slots[starterCount] : undefined;
+		onChange({
+			...lineup,
+			players: [
+				...lineup.players,
+				{
+					playerId: player.id,
+					name: player.name,
+					number: player.number,
+					position: slot?.label ?? player.positions[0] ?? "",
+					role,
+					x: slot?.x,
+					y: slot?.y,
+				},
+			],
+		});
+		setPlayerToAdd("");
+	}
+
+	return (
+		<details
+			open={isOpen}
+			onToggle={(event) => setIsOpen(event.currentTarget.open)}
+			className="rounded-xl border border-slate-200 bg-slate-50"
+		>
+			<summary className="cursor-pointer px-3 py-2.5 text-sm font-bold text-slate-800">
+				Graphic lineup · {lineup.players.filter((player) => player.role === "starter").length} starters
+			</summary>
+			<div className="space-y-3 border-t border-slate-200 p-3">
+				<p className="text-xs leading-5 text-slate-500">
+					Seeded from the selected match. These changes only affect this image.
+				</p>
+				<label className="block text-sm font-semibold text-slate-700">
+					Formation
+					<select value={lineup.formationKey} onChange={(event) => changeFormation(event.target.value)} className={inputClassName}>
+						{formations.map((formation) => (
+							<option key={formation.key} value={formation.key}>{formation.name}</option>
+						))}
+					</select>
+				</label>
+
+				<div className="space-y-2">
+					{lineup.players.map((player, index) => (
+						<div key={`${player.playerId}:${index}`} className="rounded-xl border border-slate-200 bg-white p-2.5">
+							<div className="grid gap-2 sm:grid-cols-[5rem_minmax(0,1fr)_7rem]">
+								<label className="text-xs font-bold text-slate-600">
+									Number
+									<input type="number" min="0" value={player.number ?? ""} onChange={(event) => updatePlayer(index, { number: parseOptionalNumber(event.target.value) })} className={inputClassName} />
+								</label>
+								<label className="text-xs font-bold text-slate-600">
+									Player name
+									<input value={player.name} onChange={(event) => updatePlayer(index, { name: event.target.value })} className={inputClassName} />
+								</label>
+								<label className="text-xs font-bold text-slate-600">
+									Role
+									<select value={player.role} onChange={(event) => changePlayerRole(index, event.target.value as SocialLineupPlayer["role"])} className={inputClassName}>
+										<option value="starter">Starter</option>
+										<option value="substitute">Substitute</option>
+									</select>
+								</label>
+							</div>
+							<div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_5rem_5rem_auto] sm:items-end">
+								<label className="text-xs font-bold text-slate-600">
+									Position label
+									<input value={player.position} onChange={(event) => updatePlayer(index, { position: event.target.value })} className={inputClassName} />
+								</label>
+								<label className="text-xs font-bold text-slate-600">
+									Pitch X %
+									<input type="number" min="0" max="100" disabled={player.role === "substitute"} value={player.x ?? ""} onChange={(event) => updatePlayer(index, { x: parseOptionalPercentage(event.target.value) })} className={`${inputClassName} disabled:bg-slate-100`} />
+								</label>
+								<label className="text-xs font-bold text-slate-600">
+									Pitch Y %
+									<input type="number" min="0" max="100" disabled={player.role === "substitute"} value={player.y ?? ""} onChange={(event) => updatePlayer(index, { y: parseOptionalPercentage(event.target.value) })} className={`${inputClassName} disabled:bg-slate-100`} />
+								</label>
+								<button type="button" onClick={() => onChange({ ...lineup, players: lineup.players.filter((_candidate, playerIndex) => playerIndex !== index) })} className="rounded-lg border border-rose-200 px-2.5 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50">
+									Remove
+								</button>
+							</div>
+						</div>
+					))}
+				</div>
+
+				{availablePlayers.length > 0 && (
+					<div className="flex flex-col gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-2.5 sm:flex-row sm:items-end">
+						<label className="min-w-0 flex-1 text-xs font-bold text-slate-600">
+							Add a club player
+							<select value={effectivePlayerToAdd} onChange={(event) => setPlayerToAdd(event.target.value)} className={inputClassName}>
+								{availablePlayers.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}
+							</select>
+						</label>
+						<button type="button" onClick={() => addPlayer("starter")} className="btn-secondary px-3 py-2 text-xs">Add starter</button>
+						<button type="button" onClick={() => addPlayer("substitute")} className="btn-secondary px-3 py-2 text-xs">Add substitute</button>
+					</div>
+				)}
+
+				{hasOverride && (
+					<button type="button" onClick={onReset} className="text-xs font-bold text-yepset-800 hover:text-yepset-950">
+						Reset to match lineup
+					</button>
+				)}
+			</div>
+		</details>
+	);
+}
+
 function FixtureCopyEditor({
 	fixture,
 	showScores,
@@ -1196,6 +1536,18 @@ function parseOptionalScore(value: string) {
 	if (!value.trim()) return undefined;
 	const score = Number.parseInt(value, 10);
 	return Number.isNaN(score) ? undefined : Math.max(0, score);
+}
+
+function parseOptionalNumber(value: string) {
+	if (!value.trim()) return undefined;
+	const parsed = Number.parseInt(value, 10);
+	return Number.isNaN(parsed) ? undefined : Math.max(0, parsed);
+}
+
+function parseOptionalPercentage(value: string) {
+	if (!value.trim()) return undefined;
+	const parsed = Number(value);
+	return Number.isFinite(parsed) ? Math.min(100, Math.max(0, parsed)) : undefined;
 }
 
 function UpcomingFixturePicker({

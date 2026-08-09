@@ -44,6 +44,12 @@ describe("social graphic template registry", () => {
 				supportedKinds: ["fixture"],
 			}),
 			expect.objectContaining({
+				id: "lineup-editorial-gold",
+				width: 1365,
+				height: 1651,
+				supportedKinds: ["lineup"],
+			}),
+			expect.objectContaining({
 				id: "result-editorial-gold",
 				width: 1365,
 				height: 1651,
@@ -71,6 +77,7 @@ describe("social graphic template registry", () => {
 		["result-editorial-gold", 1651, 1302],
 		["upcoming-editorial-gold", 1651, 1330],
 		["matchday-editorial-gold", 1365, 1122],
+		["lineup-editorial-gold", 1651, 1370],
 	])("crops only the sponsor strip from %s", (templateId, sponsorHeight, sponsorFreeHeight) => {
 		const template = socialGraphicTemplates.find((item) => item.id === templateId);
 		expect(template).toBeDefined();

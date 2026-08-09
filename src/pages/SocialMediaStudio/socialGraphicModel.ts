@@ -2,10 +2,13 @@ import type { ClubTeamProfile } from "../../stores/clubTeams";
 import { getClubTeamLabel } from "../../stores/clubTeams";
 import type { Match } from "../../stores/match";
 import type { Player } from "../../stores/players";
+import type { SportFormation } from "../../constants/sports";
+import { resolveLineupPosition } from "../../utils/lineupPosition";
 import type {
 	SocialFixture,
 	SocialFixtureOverride,
 	SocialGraphicKind,
+	SocialLineup,
 } from "./types";
 
 export function toSocialFixture(
@@ -50,6 +53,49 @@ export function aggregateScorers(match: Match, players: Player[]) {
 			goals,
 		}))
 		.sort((first, second) => second.goals - first.goals || first.name.localeCompare(second.name));
+}
+
+export function toSocialLineup(
+	match: Match,
+	players: Player[],
+	formations: SportFormation[]
+): SocialLineup {
+	const formation = formations.find((candidate) => candidate.key === match.selectedFormation)
+		?? formations[0];
+	const playersById = new Map(players.map((player) => [player.id, player]));
+
+	return {
+		formationKey: formation?.key ?? match.selectedFormation,
+		formationName: formation?.name ?? (match.selectedFormation || "Lineup"),
+		players: [...match.selectedPlayers]
+			.sort((first, second) => {
+				if (first.area !== second.area) return first.area === "pitch" ? -1 : 1;
+				const firstIndex = first.positionIndex ?? formation?.slots.findIndex(
+					(slot) => slot.key === first.positionKey
+				) ?? -1;
+				const secondIndex = second.positionIndex ?? formation?.slots.findIndex(
+					(slot) => slot.key === second.positionKey
+				) ?? -1;
+				return (firstIndex < 0 ? Number.MAX_SAFE_INTEGER : firstIndex) -
+					(secondIndex < 0 ? Number.MAX_SAFE_INTEGER : secondIndex);
+			})
+			.map((selectedPlayer) => {
+				const player = playersById.get(selectedPlayer.playerId);
+				const resolvedPosition = resolveLineupPosition(
+					selectedPlayer,
+					formation?.slots ?? []
+				);
+				return {
+					playerId: selectedPlayer.playerId,
+					name: player?.name ?? "Unknown player",
+					number: player?.number,
+					position: resolvedPosition.slot?.label ?? player?.positions[0] ?? "",
+					role: selectedPlayer.area === "pitch" ? "starter" as const : "substitute" as const,
+					x: selectedPlayer.area === "pitch" ? resolvedPosition.x : undefined,
+					y: selectedPlayer.area === "pitch" ? resolvedPosition.y : undefined,
+				};
+			}),
+	};
 }
 
 export function applySocialFixtureOverride(
@@ -100,6 +146,8 @@ export function getDefaultHeadline(kind: SocialGraphicKind) {
 			return "Matchday";
 		case "result":
 			return "Full time";
+		case "lineup":
+			return "Team lineup";
 		case "upcomingFixtures":
 		default:
 			return "Fixtures";
@@ -112,6 +160,8 @@ export function getGraphicKindLabel(kind: SocialGraphicKind) {
 			return "Single fixture";
 		case "result":
 			return "Result";
+		case "lineup":
+			return "Match lineup";
 		case "upcomingFixtures":
 		default:
 			return "Upcoming fixtures";

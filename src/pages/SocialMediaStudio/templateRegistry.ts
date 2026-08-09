@@ -1,5 +1,6 @@
 import type { SocialGraphicTemplate } from "./types";
 import { matchdayEditorialTemplate } from "./templates/matchdayEditorialTemplate";
+import { lineupEditorialTemplate } from "./templates/lineupEditorialTemplate";
 import { resultEditorialTemplate } from "./templates/resultEditorialTemplate";
 import { upcomingEditorialTemplate } from "./templates/upcomingEditorialTemplate";
 
@@ -8,5 +9,6 @@ import { upcomingEditorialTemplate } from "./templates/upcomingEditorialTemplate
 export const socialGraphicTemplates: SocialGraphicTemplate[] = [
 	upcomingEditorialTemplate,
 	matchdayEditorialTemplate,
+	lineupEditorialTemplate,
 	resultEditorialTemplate,
 ];

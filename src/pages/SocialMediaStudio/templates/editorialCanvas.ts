@@ -29,13 +29,15 @@ export function drawEditorialBackground(
 	context.fillStyle = glow;
 	context.fillRect(0, 0, width, height);
 
-	context.fillStyle = colours.accent ?? "rgba(215,166,0,.12)";
-	context.globalAlpha = colours.accent ? 0.12 : 1;
-	for (let row = 0; row < 18; row += 1) {
-		for (let column = 0; column < 8; column += 1) {
-			const radius = Math.max(1.1, 5.7 - column * 0.68);
+	const dotFadeWidth = width * 0.5;
+	const dotSpacing = 26;
+	context.fillStyle = colours.accent ?? EDITORIAL_GOLD;
+	for (let y = 48; y < height - 40; y += dotSpacing) {
+		for (let x = 28; x < dotFadeWidth; x += dotSpacing) {
+			const fade = Math.max(0, 1 - x / dotFadeWidth);
+			context.globalAlpha = 0.14 * fade * fade;
 			context.beginPath();
-			context.arc(28 + column * 18, 145 + row * 20, radius, 0, Math.PI * 2);
+			context.arc(x, y, 3.8, 0, Math.PI * 2);
 			context.fill();
 		}
 	}

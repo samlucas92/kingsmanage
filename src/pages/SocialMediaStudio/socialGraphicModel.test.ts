@@ -10,6 +10,7 @@ import {
 	getDefaultHeadline,
 	getOpponentScore,
 	toSocialFixture,
+	toSocialLineup,
 } from "./socialGraphicModel";
 
 const teamProfiles: ClubTeamProfile[] = [
@@ -122,6 +123,40 @@ describe("social graphic model", () => {
 		]);
 	});
 
+	it("generates an ordered editable lineup from the saved match formation", () => {
+		const players: Player[] = [
+			{ id: "keeper", name: "Sam Keeper", positions: ["GK"], appearances: 0, number: 1, isActive: true },
+			{ id: "forward", name: "Alex Forward", positions: ["ST"], appearances: 0, number: 9, isActive: true },
+			{ id: "sub", name: "Jamie Sub", positions: ["CM"], appearances: 0, number: 14, isActive: true },
+		];
+		const match = createMatch({
+			selectedFormation: "test-formation",
+			selectedPlayers: [
+				{ playerId: "forward", area: "pitch", positionIndex: 1 },
+				{ playerId: "sub", area: "bench" },
+				{ playerId: "keeper", area: "pitch", positionKey: "gk" },
+			],
+		});
+		const lineup = toSocialLineup(match, players, [{
+			key: "test-formation",
+			name: "Test formation",
+			slots: [
+				{ key: "gk", label: "GK", x: 50, y: 88 },
+				{ key: "st", label: "ST", x: 50, y: 20 },
+			],
+		}]);
+
+		expect(lineup).toEqual({
+			formationKey: "test-formation",
+			formationName: "Test formation",
+			players: [
+				{ playerId: "keeper", name: "Sam Keeper", number: 1, position: "GK", role: "starter", x: 50, y: 88 },
+				{ playerId: "forward", name: "Alex Forward", number: 9, position: "ST", role: "starter", x: 50, y: 20 },
+				{ playerId: "sub", name: "Jamie Sub", number: 14, position: "CM", role: "substitute", x: undefined, y: undefined },
+			],
+		});
+	});
+
 	it("presents completed scores from the club perspective", () => {
 		const homeFixture = toSocialFixture(
 			createMatch({ result: { homeGoals: 3, awayGoals: 1 } }),
@@ -141,6 +176,7 @@ describe("social graphic model", () => {
 	it("provides stable default headlines for every graphic type", () => {
 		expect(getDefaultHeadline("upcomingFixtures")).toBe("Fixtures");
 		expect(getDefaultHeadline("fixture")).toBe("Matchday");
+		expect(getDefaultHeadline("lineup")).toBe("Team lineup");
 		expect(getDefaultHeadline("result")).toBe("Full time");
 	});
 });

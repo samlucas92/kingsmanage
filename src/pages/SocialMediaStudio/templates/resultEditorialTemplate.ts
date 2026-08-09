@@ -1,5 +1,8 @@
 import { loadTemplateImage } from "../socialGraphicCanvas";
-import { drawImageContain as drawContainedImage } from "./editorialCanvas";
+import {
+	drawEditorialBackground,
+	drawImageContain as drawContainedImage,
+} from "./editorialCanvas";
 import type {
 	SocialGraphicAsset,
 	SocialScorer,
@@ -9,7 +12,6 @@ import type {
 
 const GOLD = "#d7a600";
 const WHITE = "#f4f4f2";
-const BLACK = "#050606";
 const RESULT_CONTENT_BOTTOM = 1242;
 const RESULT_SPONSOR_TOP = 1302;
 
@@ -56,7 +58,7 @@ async function renderResultEditorialTemplate({
 	const showSponsors = content.fields.showSponsors !== false;
 
 	context.save();
-	drawBackground(context, width, height);
+	drawEditorialBackground(context, width, height);
 	drawBorder(context, width, height);
 
 	if (!fixture?.result) {
@@ -163,34 +165,6 @@ async function renderResultEditorialTemplate({
 	}
 
 	context.restore();
-}
-
-function drawBackground(context: CanvasRenderingContext2D, width: number, height: number) {
-	context.fillStyle = BLACK;
-	context.fillRect(0, 0, width, height);
-
-	const glow = context.createRadialGradient(width * 0.46, height * 0.42, 30, width * 0.46, height * 0.42, 770);
-	glow.addColorStop(0, "rgba(38,38,34,.22)");
-	glow.addColorStop(1, "rgba(0,0,0,0)");
-	context.fillStyle = glow;
-	context.fillRect(0, 0, width, height);
-
-	context.fillStyle = "rgba(215,166,0,.13)";
-	for (let row = 0; row < 17; row += 1) {
-		for (let column = 0; column < 7; column += 1) {
-			const radius = Math.max(1.2, 5.8 - column * 0.72);
-			context.beginPath();
-			context.arc(28 + column * 18, 190 + row * 20, radius, 0, Math.PI * 2);
-			context.fill();
-		}
-	}
-
-	context.fillStyle = "rgba(255,255,255,.025)";
-	for (let index = 0; index < 220; index += 1) {
-		const x = (index * 83) % width;
-		const y = (index * 137) % height;
-		context.fillRect(x, y, 2, 2);
-	}
 }
 
 function drawBorder(context: CanvasRenderingContext2D, width: number, height: number) {
