@@ -46,6 +46,8 @@ export type ClubAccess = {
 	id: string;
 	name: string;
 	sportKey: string;
+	primaryColor: string;
+	secondaryColor: string;
 	customFormations: SportFormation[];
 	isCurrent: boolean;
 };

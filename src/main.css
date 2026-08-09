@@ -35,8 +35,8 @@ body {
 	min-width: 320px;
 	min-height: 100vh;
 	background:
-		radial-gradient(circle at 80% -10%, rgb(178 237 221 / 35%), transparent 30rem),
-		#f3f6f5;
+		radial-gradient(circle at 80% -10%, color-mix(in srgb, var(--color-yepset-200) 35%, transparent), transparent 30rem),
+		var(--color-canvas);
 }
 
 button,
@@ -52,7 +52,7 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-	outline: 3px solid rgb(67 195 170 / 35%);
+	outline: 3px solid color-mix(in srgb, var(--color-yepset-400) 35%, transparent);
 	outline-offset: 2px;
 }
 
@@ -69,7 +69,7 @@ textarea:focus-visible {
 	align-items: center;
 	justify-content: center;
 	border-radius: .75rem;
-	background: #17695f;
+	background: var(--color-yepset-700);
 	padding: .625rem 1rem;
 	font-size: .875rem;
 	font-weight: 700;
@@ -78,8 +78,8 @@ textarea:focus-visible {
 }
 
 .btn-primary:hover {
-	background: #17534d;
-	box-shadow: 0 8px 20px rgb(23 105 95 / 18%);
+	background: var(--color-yepset-800);
+	box-shadow: 0 8px 20px color-mix(in srgb, var(--color-yepset-700) 18%, transparent);
 	transform: translateY(-1px);
 }
 
@@ -99,8 +99,8 @@ textarea:focus-visible {
 }
 
 .btn-secondary:hover {
-	border-color: #7bdcc6;
-	background: #effcf8;
+	border-color: var(--color-yepset-300);
+	background: var(--color-yepset-50);
 }
 
 /* Prevent mobile browsers from auto-zooming focused form controls. */
@@ -154,7 +154,7 @@ textarea {
 }
 
 .mobile-bottom-nav__item--active {
-	color: #17695f;
+	color: var(--color-yepset-700);
 }
 
 @media (min-width: 1024px) {

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { authApi } from "../services/authApi";
 import { clearStoredAuthToken, getStoredAuthToken, setStoredAuthToken } from "../services/apiClient";
 import type { AuthUser, ClubAccess } from "../types/auth";
+import { resetTenantStores } from "./tenantStoreReset";
 
 const AUTH_SESSION_STORAGE_KEY = "yepset.authSession";
 
@@ -44,6 +45,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 		const token = getStoredAuthToken();
 
 		if (!token) {
+			resetTenantStores();
 			set({
 				currentUser: null,
 				token: null,
@@ -88,6 +90,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
 			clearStoredAuthToken();
 			clearCachedAuthSession();
+			resetTenantStores();
 
 			set({
 				currentUser: null,
@@ -105,6 +108,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
 		try {
 			const response = await authApi.login({ email, password });
+			resetTenantStores();
 			setStoredAuthToken(response.token);
 			const availableClubs = await authApi.getAvailableClubs();
 
@@ -120,6 +124,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 		} catch (error) {
 			clearStoredAuthToken();
 			clearCachedAuthSession();
+			resetTenantStores();
 
 			set({
 				currentUser: null,
@@ -143,6 +148,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 		set({ isSwitchingClub: true, error: null });
 		try {
 			const response = await authApi.switchClub(clubId);
+			resetTenantStores();
 			setStoredAuthToken(response.token);
 			const availableClubs = get().availableClubs.map((club) => ({
 				...club,
@@ -162,6 +168,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 	logout: () => {
 		clearStoredAuthToken();
 		clearCachedAuthSession();
+		resetTenantStores();
 
 		set({
 			currentUser: null,

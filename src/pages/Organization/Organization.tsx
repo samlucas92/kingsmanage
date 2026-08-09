@@ -50,7 +50,7 @@ export default function Organization() {
 		}
 	}
 
-	async function saveClub(values: Pick<SportsClub, "name" | "slug" | "sportKey">) {
+	async function saveClub(values: Pick<SportsClub, "name" | "slug" | "sportKey" | "primaryColor" | "secondaryColor">) {
 		try {
 			if (editingClub) {
 				const updated = await organizationApi.updateClub({
@@ -216,16 +216,22 @@ export default function Organization() {
 	);
 }
 
-function ClubModal({ club, onClose, onManageFormations, onSave }: { club: SportsClub | null; onClose: () => void; onManageFormations?: () => void; onSave: (values: Pick<SportsClub, "name" | "slug" | "sportKey">) => Promise<void> }) {
+function ClubModal({ club, onClose, onManageFormations, onSave }: { club: SportsClub | null; onClose: () => void; onManageFormations?: () => void; onSave: (values: Pick<SportsClub, "name" | "slug" | "sportKey" | "primaryColor" | "secondaryColor">) => Promise<void> }) {
 	const [name, setName] = useState(club?.name ?? "");
 	const [slug, setSlug] = useState(club?.slug ?? "");
 	const [sportKey, setSportKey] = useState(club?.sportKey ?? "football");
+	const [primaryColor, setPrimaryColor] = useState(club?.primaryColor ?? "#0f766e");
+	const [secondaryColor, setSecondaryColor] = useState(club?.secondaryColor ?? "#d9f99d");
 	const [saving, setSaving] = useState(false);
-	return <div className="fixed inset-0 z-50 grid place-items-center bg-yepset-950/55 p-4 backdrop-blur-sm"><form onSubmit={(event) => { event.preventDefault(); setSaving(true); void onSave({ name: name.trim(), slug: slugify(slug), sportKey }).finally(() => setSaving(false)); }} className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-5 shadow-2xl"><div className="flex justify-between"><div><h2 className="text-xl font-bold">{club ? "Edit club" : "Add club"}</h2><p className="text-sm text-slate-500">Configure the club’s identity and sport.</p></div><button type="button" onClick={onClose}>✕</button></div><Field label="Name" value={name} onChange={(value) => { setName(value); if (!club) setSlug(slugify(value)); }} /><Field label="Slug" value={slug} onChange={(value) => setSlug(slugify(value))} /><label className="block text-sm font-semibold text-slate-700">Sport<select value={sportKey} onChange={(event) => setSportKey(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">{sports.map((sport) => <option key={sport} value={sport}>{labelSport(sport)}</option>)}</select></label>{onManageFormations && <button type="button" onClick={onManageFormations} className="btn-secondary w-full justify-center">Manage formations</button>}<div className="flex flex-wrap justify-end gap-2 border-t pt-4"><button type="button" onClick={onClose} className="btn-secondary">Cancel</button><button disabled={saving || !name.trim() || !slug} className="btn-primary disabled:opacity-50">{saving ? "Saving..." : "Save club"}</button></div></form></div>;
+	return <div className="fixed inset-0 z-50 grid place-items-center bg-yepset-950/55 p-4 backdrop-blur-sm"><form onSubmit={(event) => { event.preventDefault(); setSaving(true); void onSave({ name: name.trim(), slug: slugify(slug), sportKey, primaryColor, secondaryColor }).finally(() => setSaving(false)); }} className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-5 shadow-2xl"><div className="flex justify-between"><div><h2 className="text-xl font-bold">{club ? "Edit club" : "Add club"}</h2><p className="text-sm text-slate-500">Configure the club’s identity, colours and sport.</p></div><button type="button" onClick={onClose}>✕</button></div><Field label="Name" value={name} onChange={(value) => { setName(value); if (!club) setSlug(slugify(value)); }} /><Field label="Slug" value={slug} onChange={(value) => setSlug(slugify(value))} /><label className="block text-sm font-semibold text-slate-700">Sport<select value={sportKey} onChange={(event) => setSportKey(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">{sports.map((sport) => <option key={sport} value={sport}>{labelSport(sport)}</option>)}</select></label><div className="grid gap-4 sm:grid-cols-2"><ColorField label="Primary colour" value={primaryColor} onChange={setPrimaryColor} /><ColorField label="Secondary colour" value={secondaryColor} onChange={setSecondaryColor} /></div>{onManageFormations && <button type="button" onClick={onManageFormations} className="btn-secondary w-full justify-center">Manage formations</button>}<div className="flex flex-wrap justify-end gap-2 border-t pt-4"><button type="button" onClick={onClose} className="btn-secondary">Cancel</button><button disabled={saving || !name.trim() || !slug} className="btn-primary disabled:opacity-50">{saving ? "Saving..." : "Save club"}</button></div></form></div>;
 }
 
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
 	return <label className="block text-sm font-semibold text-slate-700">{label}<input value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-yepset-500 focus:ring-2 focus:ring-yepset-100" /></label>;
+}
+
+function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+	return <label className="block text-sm font-semibold text-slate-700">{label}<span className="mt-1 flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-2 py-1.5"><input type="color" value={value} onChange={(event) => onChange(event.target.value)} className="h-9 w-11 cursor-pointer rounded border-0 bg-transparent p-0" /><span className="font-mono text-xs uppercase text-slate-600">{value}</span></span></label>;
 }
 
 function slugify(value: string) { return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
@@ -239,6 +245,8 @@ function updateClubAccess(club: SportsClub) {
 						...item,
 						name: club.name,
 						sportKey: club.sportKey,
+						primaryColor: club.primaryColor,
+						secondaryColor: club.secondaryColor,
 						customFormations: club.customFormations,
 					}
 				: item
