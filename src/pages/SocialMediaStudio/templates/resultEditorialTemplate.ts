@@ -9,21 +9,60 @@ import type {
 	SocialGraphicTemplate,
 	SocialGraphicTemplateRenderContext,
 } from "../types";
+import {
+	parseEditableTemplateLayout,
+	serializeEditableTemplateLayout,
+	withElementTransform,
+	withElementTransformAsync,
+} from "./editableTemplateLayout";
+import type { EditableTemplateLayout } from "./editableTemplateLayout";
 
 const GOLD = "#d7a600";
 const WHITE = "#f4f4f2";
 const RESULT_CONTENT_BOTTOM = 1242;
 const RESULT_SPONSOR_TOP = 1302;
 
-export const resultEditorialTemplate: SocialGraphicTemplate = {
+export type ResultEditorialElementId =
+	| "section-heading"
+	| "headline"
+	| "club-crest"
+	| "score-panel"
+	| "featured-area"
+	| "sponsor-section";
+
+export type ResultEditorialTemplateDefinition = EditableTemplateLayout<ResultEditorialElementId>;
+
+export const resultEditorialDefaultDefinition: ResultEditorialTemplateDefinition = {
+	version: 1,
+	canvas: { width: 1365, height: 1651, sponsorFreeHeight: RESULT_SPONSOR_TOP },
+	elements: {
+		"section-heading": { x: 108, y: 46, width: 950, height: 72 },
+		headline: { x: 62, y: 150, width: 940, height: 204 },
+		"club-crest": { x: 1005, y: 55, width: 280, height: 340 },
+		"score-panel": { x: 66, y: 448, width: 744, height: 794 },
+		"featured-area": { x: 864, y: 448, width: 430, height: 794 },
+		"sponsor-section": { x: 52, y: RESULT_SPONSOR_TOP - 34, width: 1265, height: 315 },
+	},
+};
+
+export const resultEditorialDefaultSource = serializeEditableTemplateLayout(
+	resultEditorialDefaultDefinition
+);
+
+export const resultEditorialTemplate = createResultEditorialTemplate();
+
+export function createResultEditorialTemplate(
+	definition = resultEditorialDefaultDefinition
+): SocialGraphicTemplate {
+	return {
 	id: "result-editorial-gold",
 	name: "Editorial result",
 	description: "Black and gold result layout with optional featured and sponsor imagery.",
-	width: 1365,
-	height: 1651,
+	width: definition.canvas.width,
+	height: definition.canvas.height,
 	resolveHeight: (content) => content.fields.showSponsors === false
-		? RESULT_SPONSOR_TOP
-		: 1651,
+		? definition.canvas.sponsorFreeHeight
+		: definition.canvas.height,
 	supportedKinds: ["result"],
 	fields: [
 		{
@@ -45,15 +84,22 @@ export const resultEditorialTemplate: SocialGraphicTemplate = {
 			defaultValue: "Proudly sponsored by",
 		},
 	],
-	render: renderResultEditorialTemplate,
-};
+	render: (context) => renderResultEditorialTemplate(context, definition),
+	};
+}
+
+export function parseResultEditorialDefinition(source: string) {
+	return parseEditableTemplateLayout(source, resultEditorialDefaultDefinition);
+}
+
+export const serializeResultEditorialDefinition = serializeEditableTemplateLayout;
 
 async function renderResultEditorialTemplate({
 	context,
 	width,
 	height,
 	content,
-}: SocialGraphicTemplateRenderContext) {
+}: SocialGraphicTemplateRenderContext, definition: ResultEditorialTemplateDefinition) {
 	const fixture = content.fixtures[0];
 	const showSponsors = content.fields.showSponsors !== false;
 
@@ -74,94 +120,56 @@ async function renderResultEditorialTemplate({
 		: content.assets.awayTeamLogo;
 	const competition = fixture.competition || "Competition";
 
-	drawSectionTitle(context, competition, 108, 90, 950);
-	drawFittedText(context, content.headline.toUpperCase(), 62, 150, 940, 204, 198, 82, WHITE, "left");
-
-	await drawAssetOrPlaceholder(
-		context,
-		clubLogo,
-		1005,
-		55,
-		280,
-		340,
-		"YOUR TEAM\nLOGO",
-		false,
-		true
-	);
-
-	context.strokeStyle = GOLD;
-	context.lineWidth = 5;
-	context.beginPath();
-	context.moveTo(810, 448);
-	context.lineTo(810, RESULT_CONTENT_BOTTOM);
-	context.stroke();
-
-	await drawTeamRow({
-		context,
-		y: 505,
-		teamName: homeTeam,
-		score: fixture.result.homeGoals,
-		asset: content.assets.homeTeamLogo,
-		label: "HOME TEAM\nLOGO",
-		scorers: fixture.venue === "home" ? fixture.scorers : [],
+	withElementTransform(context, resultEditorialDefaultDefinition.elements["section-heading"], definition.elements["section-heading"], () => {
+		drawSectionTitle(context, competition, 108, 90, 950);
+	});
+	withElementTransform(context, resultEditorialDefaultDefinition.elements.headline, definition.elements.headline, () => {
+		drawFittedText(context, content.headline.toUpperCase(), 62, 150, 940, 204, 198, 82, WHITE, "left");
 	});
 
-	context.strokeStyle = GOLD;
-	context.lineWidth = 3;
-	context.beginPath();
-	context.moveTo(66, 866);
-	context.lineTo(756, 866);
-	context.stroke();
+	await withElementTransformAsync(context, resultEditorialDefaultDefinition.elements["club-crest"], definition.elements["club-crest"], () => drawAssetOrPlaceholder(
+		context, clubLogo, 1005, 55, 280, 340, "YOUR TEAM\nLOGO", false, true
+	));
 
-	await drawTeamRow({
-		context,
-		y: 942,
-		teamName: awayTeam,
-		score: fixture.result.awayGoals,
-		asset: content.assets.awayTeamLogo,
-		label: "AWAY TEAM\nLOGO",
-		scorers: fixture.venue === "away" ? fixture.scorers : [],
+	await withElementTransformAsync(context, resultEditorialDefaultDefinition.elements["score-panel"], definition.elements["score-panel"], async () => {
+		context.strokeStyle = GOLD;
+		context.lineWidth = 5;
+		context.beginPath();
+		context.moveTo(810, 448);
+		context.lineTo(810, RESULT_CONTENT_BOTTOM);
+		context.stroke();
+		await drawTeamRow({ context, y: 505, teamName: homeTeam, score: fixture.result.homeGoals, asset: content.assets.homeTeamLogo, label: "HOME TEAM\nLOGO", scorers: fixture.venue === "home" ? fixture.scorers : [] });
+		context.strokeStyle = GOLD;
+		context.lineWidth = 3;
+		context.beginPath();
+		context.moveTo(66, 866);
+		context.lineTo(756, 866);
+		context.stroke();
+		await drawTeamRow({ context, y: 942, teamName: awayTeam, score: fixture.result.awayGoals, asset: content.assets.awayTeamLogo, label: "AWAY TEAM\nLOGO", scorers: fixture.venue === "away" ? fixture.scorers : [] });
 	});
 
-	const featuredTitle = getTextField(content.fields.featuredTitle, "Player of the match");
-	drawFittedText(context, featuredTitle.toUpperCase(), 1079, 474, 390, 58, 46, 24, GOLD, "center");
-	await drawAssetOrPlaceholder(
-		context,
-		content.assets.featuredImage,
-		864,
-		554,
-		430,
-		RESULT_CONTENT_BOTTOM - 574,
-		"PLAYER IMAGE",
-		true,
-		false
-	);
-	if (fixture.playerOfTheMatch.trim()) {
-		const captionTop = RESULT_CONTENT_BOTTOM - 118;
-		context.fillStyle = "rgba(0,0,0,.82)";
-		context.fillRect(868, captionTop, 422, 94);
-		drawFittedText(
-			context,
-			fixture.playerOfTheMatch.toUpperCase(),
-			1079,
-			captionTop + 23,
-			378,
-			48,
-			42,
-			22,
-			WHITE,
-			"center"
-		);
-	}
+	await withElementTransformAsync(context, resultEditorialDefaultDefinition.elements["featured-area"], definition.elements["featured-area"], async () => {
+		const featuredTitle = getTextField(content.fields.featuredTitle, "Player of the match");
+		drawFittedText(context, featuredTitle.toUpperCase(), 1079, 474, 390, 58, 46, 24, GOLD, "center");
+		await drawAssetOrPlaceholder(context, content.assets.featuredImage, 864, 554, 430, RESULT_CONTENT_BOTTOM - 574, "PLAYER IMAGE", true, false);
+		if (fixture.playerOfTheMatch.trim()) {
+			const captionTop = RESULT_CONTENT_BOTTOM - 118;
+			context.fillStyle = "rgba(0,0,0,.82)";
+			context.fillRect(868, captionTop, 422, 94);
+			drawFittedText(context, fixture.playerOfTheMatch.toUpperCase(), 1079, captionTop + 23, 378, 48, 42, 22, WHITE, "center");
+		}
+	});
 
 	if (showSponsors) {
 		const sponsorsTitle = getTextField(content.fields.sponsorsTitle, "Proudly sponsored by");
-		drawDividerTitle(context, sponsorsTitle.toUpperCase(), RESULT_SPONSOR_TOP);
-		await Promise.all([
-			drawSponsorSlot(context, content.assets.sponsors[0], 52, RESULT_SPONSOR_TOP + 72),
-			drawSponsorSlot(context, content.assets.sponsors[1], 487, RESULT_SPONSOR_TOP + 72),
-			drawSponsorSlot(context, content.assets.sponsors[2], 922, RESULT_SPONSOR_TOP + 72),
-		]);
+		await withElementTransformAsync(context, resultEditorialDefaultDefinition.elements["sponsor-section"], definition.elements["sponsor-section"], async () => {
+			drawDividerTitle(context, sponsorsTitle.toUpperCase(), RESULT_SPONSOR_TOP);
+			await Promise.all([
+				drawSponsorSlot(context, content.assets.sponsors[0], 52, RESULT_SPONSOR_TOP + 72),
+				drawSponsorSlot(context, content.assets.sponsors[1], 487, RESULT_SPONSOR_TOP + 72),
+				drawSponsorSlot(context, content.assets.sponsors[2], 922, RESULT_SPONSOR_TOP + 72),
+			]);
+		});
 	}
 
 	context.restore();

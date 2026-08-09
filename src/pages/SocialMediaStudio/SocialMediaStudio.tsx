@@ -11,6 +11,11 @@ import { useSeasonStore } from "../../stores/seasons";
 import { socialGraphicTemplatesApi } from "../../services/socialGraphicTemplatesApi";
 import { formatDateForInput } from "../../utils/date";
 import { socialGraphicAssetManifest } from "./assetManifest";
+import {
+	staticEditableTemplateAdapters,
+	staticEditableTemplateAdaptersById,
+} from "./editableTemplateAdapters";
+import type { StaticEditableTemplateDefinition } from "./editableTemplateAdapters";
 import { TemplateCanvasOverlay } from "./TemplateCanvasOverlay";
 import {
 	copyCanvasPng,
@@ -28,6 +33,11 @@ import {
 	toSocialLineup,
 } from "./socialGraphicModel";
 import { socialGraphicTemplates } from "./templateRegistry";
+import {
+	getStaticTemplateElements,
+	resetStaticTemplateElement,
+	updateStaticTemplateElement,
+} from "./staticTemplateElements";
 import {
 	createUpcomingEditorialTemplate,
 	isUpcomingFixtureRowUnlocked,
@@ -70,6 +80,32 @@ const upcomingTemplateStoragePrefix = "kingsmanage:social-template:upcoming-edit
 const TemplateCodeEditor = lazy(() => import("./TemplateCodeEditor").then(
 	(module) => ({ default: module.TemplateCodeEditor })
 ));
+
+type StaticTemplateEditorState = {
+	source: string;
+	savedSource: string;
+	definition: StaticEditableTemplateDefinition;
+	revision: number;
+	isLoading: boolean;
+	isSaving: boolean;
+	codeError: string;
+	persistenceError: string;
+	history: { past: string[]; future: string[] };
+};
+
+const initialStaticTemplateStates = Object.fromEntries(
+	staticEditableTemplateAdapters.map((adapter) => [adapter.id, {
+		source: adapter.defaultSource,
+		savedSource: adapter.defaultSource,
+		definition: adapter.defaultDefinition,
+		revision: 0,
+		isLoading: false,
+		isSaving: false,
+		codeError: "",
+		persistenceError: "",
+		history: { past: [], future: [] },
+	}])
+) as Record<string, StaticTemplateEditorState>;
 
 export default function SocialMediaStudio() {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -133,6 +169,12 @@ export default function SocialMediaStudio() {
 	const upcomingTemplateSourceRef = useRef(upcomingTemplateSource);
 	const upcomingTemplateDefinitionRef = useRef(upcomingTemplateDefinition);
 	const visualChangeStartSourceRef = useRef<string | null>(null);
+	const [staticTemplateStates, setStaticTemplateStates] = useState(
+		initialStaticTemplateStates
+	);
+	const [selectedStaticTemplateElementId, setSelectedStaticTemplateElementId] = useState<string | null>("headline");
+	const staticTemplateStatesRef = useRef(staticTemplateStates);
+	const staticVisualChangeStartSourceRef = useRef<string | null>(null);
 
 	const currentClub = availableClubs.find((club) => club.isCurrent);
 	const clubName = currentClub?.name ?? "Your club";
@@ -157,6 +199,10 @@ export default function SocialMediaStudio() {
 		upcomingTemplateSourceRef.current = upcomingTemplateSource;
 		upcomingTemplateDefinitionRef.current = upcomingTemplateDefinition;
 	}, [upcomingTemplateSource, upcomingTemplateDefinition]);
+
+	useEffect(() => {
+		staticTemplateStatesRef.current = staticTemplateStates;
+	}, [staticTemplateStates]);
 
 	useEffect(() => () => {
 		Object.values(temporaryAssetsRef.current).forEach((asset) => {
@@ -248,6 +294,58 @@ export default function SocialMediaStudio() {
 	}, [upcomingTemplateStorageKey]);
 
 	useEffect(() => {
+		let cancelled = false;
+
+		async function loadStaticTemplates() {
+			setStaticTemplateStates((current) => Object.fromEntries(
+				Object.entries(current).map(([id, state]) => [id, {
+					...state,
+					isLoading: true,
+					persistenceError: "",
+				}])
+			) as Record<string, StaticTemplateEditorState>);
+
+			await Promise.all(staticEditableTemplateAdapters.map(async (adapter) => {
+				try {
+					const response = await socialGraphicTemplatesApi.get(adapter.id);
+					if (cancelled) return;
+					const definition = response.customization
+						? adapter.parse(response.customization.definitionJson)
+						: adapter.defaultDefinition;
+					const source = adapter.serialize(definition);
+					setStaticTemplateStates((current) => ({
+						...current,
+						[adapter.id]: {
+							...current[adapter.id],
+							source,
+							savedSource: source,
+							definition,
+							revision: response.customization?.revision ?? 0,
+							isLoading: false,
+							codeError: "",
+						},
+					}));
+				} catch (error) {
+					if (cancelled) return;
+					setStaticTemplateStates((current) => ({
+						...current,
+						[adapter.id]: {
+							...current[adapter.id],
+							isLoading: false,
+							persistenceError: error instanceof Error
+								? `The club template could not be loaded: ${error.message}`
+								: "The club template could not be loaded.",
+						},
+					}));
+				}
+			}));
+		}
+
+		void loadStaticTemplates();
+		return () => { cancelled = true; };
+	}, [currentClub?.id]);
+
+	useEffect(() => {
 		const timeout = window.setTimeout(() => {
 			try {
 				const definition = parseUpcomingEditorialDefinition(upcomingTemplateSource);
@@ -323,13 +421,20 @@ export default function SocialMediaStudio() {
 		() => createUpcomingEditorialTemplate(upcomingTemplateDefinition),
 		[upcomingTemplateDefinition]
 	);
+	const editableStaticTemplates = useMemo(
+		() => Object.fromEntries(staticEditableTemplateAdapters.map((adapter) => [
+			adapter.id,
+			adapter.create(staticTemplateStates[adapter.id].definition),
+		])),
+		[staticTemplateStates]
+	);
 	const availableTemplates = useMemo(
 		() => socialGraphicTemplates
 			.map((template) => template.id === editableUpcomingTemplate.id
 				? editableUpcomingTemplate
-				: template)
+				: editableStaticTemplates[template.id] ?? template)
 			.filter((template) => template.supportedKinds.includes(kind)),
-		[kind, editableUpcomingTemplate]
+		[kind, editableUpcomingTemplate, editableStaticTemplates]
 	);
 
 	const effectiveTemplateId = availableTemplates.some(
@@ -340,6 +445,37 @@ export default function SocialMediaStudio() {
 	const selectedTemplate = availableTemplates.find(
 		(template) => template.id === effectiveTemplateId
 	);
+	const selectedStaticTemplateAdapter = staticEditableTemplateAdaptersById[effectiveTemplateId];
+	const selectedStaticTemplateState = selectedStaticTemplateAdapter
+		? staticTemplateStates[effectiveTemplateId]
+		: undefined;
+	const isEditableTemplate = effectiveTemplateId === upcomingTemplateId || Boolean(selectedStaticTemplateAdapter);
+	const selectedStaticTemplateSource = selectedStaticTemplateState?.source;
+	const selectedStaticTemplateDefinition = selectedStaticTemplateState?.definition;
+
+	useEffect(() => {
+		if (!selectedStaticTemplateAdapter || !selectedStaticTemplateSource) return;
+		const templateId = selectedStaticTemplateAdapter.id;
+		const source = selectedStaticTemplateSource;
+		const timeout = window.setTimeout(() => {
+			try {
+				const definition = selectedStaticTemplateAdapter.parse(source);
+				setStaticTemplateStates((current) => ({
+					...current,
+					[templateId]: { ...current[templateId], definition, codeError: "" },
+				}));
+			} catch (error) {
+				setStaticTemplateStates((current) => ({
+					...current,
+					[templateId]: {
+						...current[templateId],
+						codeError: error instanceof Error ? error.message : "Template JSON is invalid.",
+					},
+				}));
+			}
+		}, 250);
+		return () => window.clearTimeout(timeout);
+	}, [selectedStaticTemplateAdapter, selectedStaticTemplateSource]);
 	const effectiveTemplateFields = useMemo<Record<string, string | boolean>>(
 		() => Object.fromEntries(
 			(selectedTemplate?.fields ?? []).map((field) => [
@@ -366,6 +502,19 @@ export default function SocialMediaStudio() {
 	);
 	const selectedTemplateElement = upcomingTemplateElements.find(
 		(element) => element.id === selectedTemplateElementId
+	) ?? null;
+	const staticTemplateElements = useMemo(
+		() => selectedStaticTemplateDefinition
+			? getStaticTemplateElements(
+				effectiveTemplateId,
+				selectedStaticTemplateDefinition,
+				showSponsors
+			)
+			: [],
+		[effectiveTemplateId, selectedStaticTemplateDefinition, showSponsors]
+	);
+	const selectedStaticTemplateElement = staticTemplateElements.find(
+		(element) => element.id === selectedStaticTemplateElementId
 	) ?? null;
 	const activeTemplateElementId = selectedTemplateElement?.id ?? null;
 	const selectedTemplateParentId = activeTemplateElementId
@@ -733,6 +882,216 @@ export default function SocialMediaStudio() {
 		}
 	}
 
+	function updateStaticTemplateState(
+		templateId: string,
+		update: (state: StaticTemplateEditorState) => StaticTemplateEditorState
+	) {
+		const current = staticTemplateStatesRef.current;
+		const next = { ...current, [templateId]: update(current[templateId]) };
+		staticTemplateStatesRef.current = next;
+		setStaticTemplateStates(next);
+	}
+
+	function setStaticDefinition(
+		templateId: string,
+		definition: StaticEditableTemplateDefinition
+	) {
+		const adapter = staticEditableTemplateAdaptersById[templateId];
+		if (!adapter) return;
+		const source = adapter.serialize(definition);
+		updateStaticTemplateState(templateId, (state) => ({
+			...state,
+			source,
+			definition,
+			codeError: "",
+		}));
+	}
+
+	function handleStaticTemplateSourceChange(templateId: string, source: string) {
+		updateStaticTemplateState(templateId, (state) => ({
+			...state,
+			source,
+			history: { past: [], future: [] },
+		}));
+	}
+
+	function beginStaticVisualTemplateChange() {
+		if (!selectedStaticTemplateAdapter) return;
+		staticVisualChangeStartSourceRef.current ??=
+			staticTemplateStatesRef.current[selectedStaticTemplateAdapter.id].source;
+	}
+
+	function changeStaticVisualTemplateElement(
+		elementId: string,
+		bounds: TemplateElementBounds
+	) {
+		if (!selectedStaticTemplateAdapter) return;
+		const state = staticTemplateStatesRef.current[selectedStaticTemplateAdapter.id];
+		setStaticDefinition(
+			selectedStaticTemplateAdapter.id,
+			updateStaticTemplateElement(state.definition, elementId, bounds)
+		);
+	}
+
+	function endStaticVisualTemplateChange() {
+		if (!selectedStaticTemplateAdapter) return;
+		const templateId = selectedStaticTemplateAdapter.id;
+		const startingSource = staticVisualChangeStartSourceRef.current;
+		staticVisualChangeStartSourceRef.current = null;
+		const currentSource = staticTemplateStatesRef.current[templateId].source;
+		if (!startingSource || startingSource === currentSource) return;
+		updateStaticTemplateState(templateId, (state) => ({
+			...state,
+			history: {
+				past: [...state.history.past.slice(-49), startingSource],
+				future: [],
+			},
+		}));
+	}
+
+	function undoStaticVisualTemplateChange() {
+		if (!selectedStaticTemplateAdapter) return;
+		const templateId = selectedStaticTemplateAdapter.id;
+		const state = staticTemplateStatesRef.current[templateId];
+		const previousSource = state.history.past.at(-1);
+		if (!previousSource) return;
+		const definition = selectedStaticTemplateAdapter.parse(previousSource);
+		updateStaticTemplateState(templateId, (current) => ({
+			...current,
+			source: previousSource,
+			definition,
+			codeError: "",
+			history: {
+				past: current.history.past.slice(0, -1),
+				future: [current.source, ...current.history.future.slice(0, 49)],
+			},
+		}));
+	}
+
+	function redoStaticVisualTemplateChange() {
+		if (!selectedStaticTemplateAdapter) return;
+		const templateId = selectedStaticTemplateAdapter.id;
+		const state = staticTemplateStatesRef.current[templateId];
+		const nextSource = state.history.future[0];
+		if (!nextSource) return;
+		const definition = selectedStaticTemplateAdapter.parse(nextSource);
+		updateStaticTemplateState(templateId, (current) => ({
+			...current,
+			source: nextSource,
+			definition,
+			codeError: "",
+			history: {
+				past: [...current.history.past.slice(-49), current.source],
+				future: current.history.future.slice(1),
+			},
+		}));
+	}
+
+	function resetSelectedStaticTemplateElement() {
+		if (!selectedStaticTemplateAdapter || !selectedStaticTemplateElementId) return;
+		const templateId = selectedStaticTemplateAdapter.id;
+		const state = staticTemplateStatesRef.current[templateId];
+		beginStaticVisualTemplateChange();
+		setStaticDefinition(templateId, resetStaticTemplateElement(
+			state.definition,
+			selectedStaticTemplateAdapter.defaultDefinition,
+			selectedStaticTemplateElementId
+		));
+		endStaticVisualTemplateChange();
+	}
+
+	function updateSelectedStaticTemplateElementField(
+		field: keyof TemplateElementBounds,
+		value: number
+	) {
+		if (!selectedStaticTemplateElement || !selectedStaticTemplateState || !Number.isFinite(value)) return;
+		const nextBounds = clampTemplateElementBounds(
+			{ ...selectedStaticTemplateElement, [field]: value },
+			selectedStaticTemplateElement.minimumWidth,
+			selectedStaticTemplateElement.minimumHeight,
+			selectedStaticTemplateState.definition.canvas.width,
+			showSponsors
+				? selectedStaticTemplateState.definition.canvas.height
+				: selectedStaticTemplateState.definition.canvas.sponsorFreeHeight
+		);
+		changeStaticVisualTemplateElement(selectedStaticTemplateElement.id, nextBounds);
+	}
+
+	function formatStaticTemplateSource() {
+		if (!selectedStaticTemplateAdapter || !selectedStaticTemplateState) return;
+		try {
+			const definition = selectedStaticTemplateAdapter.parse(selectedStaticTemplateState.source);
+			setStaticDefinition(selectedStaticTemplateAdapter.id, definition);
+			updateStaticTemplateState(selectedStaticTemplateAdapter.id, (state) => ({
+				...state,
+				history: { past: [], future: [] },
+			}));
+		} catch (error) {
+			updateStaticTemplateState(selectedStaticTemplateAdapter.id, (state) => ({
+				...state,
+				codeError: error instanceof Error ? error.message : "Template JSON is invalid.",
+			}));
+		}
+	}
+
+	async function saveStaticTemplateDraft() {
+		if (!selectedStaticTemplateAdapter || !selectedStaticTemplateState) return;
+		const templateId = selectedStaticTemplateAdapter.id;
+		try {
+			const definition = selectedStaticTemplateAdapter.parse(selectedStaticTemplateState.source);
+			const source = selectedStaticTemplateAdapter.serialize(definition);
+			updateStaticTemplateState(templateId, (state) => ({ ...state, isSaving: true }));
+			const customization = await socialGraphicTemplatesApi.save(templateId, {
+				schemaVersion: definition.version,
+				definitionJson: source,
+				expectedRevision: selectedStaticTemplateState.revision,
+			});
+			updateStaticTemplateState(templateId, (state) => ({
+				...state,
+				source,
+				savedSource: source,
+				definition,
+				revision: customization.revision,
+				isSaving: false,
+				codeError: "",
+				persistenceError: "",
+			}));
+			setActionError("");
+			setActionMessage(`Club template saved as revision ${customization.revision}.`);
+		} catch (error) {
+			updateStaticTemplateState(templateId, (state) => ({ ...state, isSaving: false }));
+			setActionError(error instanceof Error ? error.message : "The template could not be saved.");
+		}
+	}
+
+	async function restoreStaticTemplateOriginal() {
+		if (!selectedStaticTemplateAdapter || !selectedStaticTemplateState) return;
+		if (!window.confirm("Restore the bundled original template for this club? Revision history will be retained.")) return;
+		const templateId = selectedStaticTemplateAdapter.id;
+		try {
+			updateStaticTemplateState(templateId, (state) => ({ ...state, isSaving: true }));
+			if (selectedStaticTemplateState.revision > 0) {
+				await socialGraphicTemplatesApi.reset(templateId, selectedStaticTemplateState.revision);
+			}
+			updateStaticTemplateState(templateId, (state) => ({
+				...state,
+				source: selectedStaticTemplateAdapter.defaultSource,
+				savedSource: selectedStaticTemplateAdapter.defaultSource,
+				definition: selectedStaticTemplateAdapter.defaultDefinition,
+				revision: 0,
+				isSaving: false,
+				codeError: "",
+				persistenceError: "",
+				history: { past: [], future: [] },
+			}));
+			setActionError("");
+			setActionMessage("The bundled original template is active again.");
+		} catch (error) {
+			updateStaticTemplateState(templateId, (state) => ({ ...state, isSaving: false }));
+			setActionError(error instanceof Error ? error.message : "The original template could not be restored.");
+		}
+	}
+
 	function setFixtureOverride<Field extends keyof SocialFixtureOverride>(
 		fixtureId: string,
 		field: Field,
@@ -828,6 +1187,29 @@ export default function SocialMediaStudio() {
 
 	const hasRequiredMatch = content.fixtures.length > 0;
 	const exportDisabled = !selectedTemplate || !hasRequiredMatch || isRendering;
+	const isUpcomingTemplateSelected = effectiveTemplateId === upcomingTemplateId;
+	const activeTemplateSource = isUpcomingTemplateSelected
+		? upcomingTemplateSource
+		: selectedStaticTemplateState?.source ?? "";
+	const activeSavedTemplateSource = isUpcomingTemplateSelected
+		? savedUpcomingTemplateSource
+		: selectedStaticTemplateState?.savedSource ?? "";
+	const activeTemplateRevision = isUpcomingTemplateSelected
+		? upcomingTemplateRevision
+		: selectedStaticTemplateState?.revision ?? 0;
+	const activeTemplateCodeError = isUpcomingTemplateSelected
+		? templateCodeError
+		: selectedStaticTemplateState?.codeError ?? "";
+	const activeTemplatePersistenceError = isUpcomingTemplateSelected
+		? templatePersistenceError
+		: selectedStaticTemplateState?.persistenceError ?? "";
+	const isLoadingActiveTemplate = isUpcomingTemplateSelected
+		? isLoadingUpcomingTemplate
+		: selectedStaticTemplateState?.isLoading ?? false;
+	const isSavingActiveTemplate = isUpcomingTemplateSelected
+		? isSavingUpcomingTemplate
+		: selectedStaticTemplateState?.isSaving ?? false;
+	const activeStaticHistory = selectedStaticTemplateState?.history ?? { past: [], future: [] };
 
 	return (
 		<div className="space-y-4 lg:space-y-6">
@@ -868,11 +1250,11 @@ export default function SocialMediaStudio() {
 				</div>
 			)}
 
-			<div className={`grid gap-4 ${isTemplateEditorOpen && kind === "upcomingFixtures"
+			<div className={`grid gap-4 ${isTemplateEditorOpen && isEditableTemplate
 				? "xl:grid-cols-[minmax(28rem,1fr)_minmax(28rem,1.1fr)]"
 				: "xl:grid-cols-[minmax(19rem,0.78fr)_minmax(28rem,1.22fr)]"
 			}`}>
-				<aside className="surface-card h-fit p-4">
+				<aside className="surface-card order-2 h-fit p-4 xl:order-1">
 					<section>
 						<div className="flex items-center justify-between gap-3">
 							<h2 className="text-base font-bold text-slate-900">Template</h2>
@@ -908,7 +1290,7 @@ export default function SocialMediaStudio() {
 							</div>
 						)}
 
-						{kind === "upcomingFixtures" && (
+						{isEditableTemplate && (
 							<div className="mt-3 flex flex-wrap items-center gap-2">
 								<button
 									type="button"
@@ -917,12 +1299,12 @@ export default function SocialMediaStudio() {
 								>
 									{isTemplateEditorOpen ? "Close template code" : "Edit template code"}
 								</button>
-								{upcomingTemplateRevision > 0 && (
+								{activeTemplateRevision > 0 && (
 									<span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-800">
-										Club override · Revision {upcomingTemplateRevision}
+										Club override · Revision {activeTemplateRevision}
 									</span>
 								)}
-								{upcomingTemplateRevision === 0 && upcomingTemplateSource !== upcomingEditorialDefaultSource && (
+								{isUpcomingTemplateSelected && activeTemplateRevision === 0 && activeTemplateSource !== upcomingEditorialDefaultSource && (
 									<span className="rounded-full bg-sky-100 px-2.5 py-1 text-[11px] font-bold text-sky-800">
 										Browser draft ready to migrate
 									</span>
@@ -931,7 +1313,7 @@ export default function SocialMediaStudio() {
 						)}
 					</section>
 
-					{kind === "upcomingFixtures" && isTemplateEditorOpen && (
+					{isEditableTemplate && isTemplateEditorOpen && (
 						<section className="mt-5 border-t border-slate-200 pt-5">
 							<div className="flex flex-wrap items-start justify-between gap-2">
 								<div>
@@ -941,11 +1323,11 @@ export default function SocialMediaStudio() {
 									</p>
 								</div>
 								<span className="rounded-full bg-sky-100 px-2.5 py-1 text-[11px] font-bold text-sky-800">
-									{isLoadingUpcomingTemplate
+									{isLoadingActiveTemplate
 										? "Loading club template…"
-										: upcomingTemplateRevision > 0
-											? `Club template · Revision ${upcomingTemplateRevision}`
-											: upcomingTemplateSource !== upcomingEditorialDefaultSource
+										: activeTemplateRevision > 0
+											? `Club template · Revision ${activeTemplateRevision}`
+											: isUpcomingTemplateSelected && activeTemplateSource !== upcomingEditorialDefaultSource
 												? "Browser draft"
 												: "Bundled original"}
 								</span>
@@ -958,43 +1340,45 @@ export default function SocialMediaStudio() {
 									</div>
 								)}>
 									<TemplateCodeEditor
-										value={upcomingTemplateSource}
-										onChange={handleUpcomingTemplateSourceChange}
+										value={activeTemplateSource}
+										onChange={(source) => isUpcomingTemplateSelected
+											? handleUpcomingTemplateSourceChange(source)
+											: handleStaticTemplateSourceChange(effectiveTemplateId, source)}
 									/>
 								</Suspense>
 							</div>
 
-							{templateCodeError ? (
+							{activeTemplateCodeError ? (
 								<p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold leading-5 text-rose-700">
-									{templateCodeError} The last valid preview remains active.
+									{activeTemplateCodeError} The last valid preview remains active.
 								</p>
 							) : (
 								<p className="mt-2 text-xs font-semibold text-emerald-700">
-									Valid template{upcomingTemplateSource !== savedUpcomingTemplateSource ? " · Unsaved changes" : " · Saved"}
+									Valid template{activeTemplateSource !== activeSavedTemplateSource ? " · Unsaved changes" : " · Saved"}
 								</p>
 							)}
-							{templatePersistenceError && (
+							{activeTemplatePersistenceError && (
 								<p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-800">
-									{templatePersistenceError}
+									{activeTemplatePersistenceError}
 								</p>
 							)}
 
 							<div className="mt-3 flex flex-wrap gap-2">
 								<button
 									type="button"
-									onClick={() => void saveUpcomingTemplateDraft()}
-									disabled={Boolean(templateCodeError) || Boolean(templatePersistenceError) || isLoadingUpcomingTemplate || isSavingUpcomingTemplate}
+									onClick={() => void (isUpcomingTemplateSelected ? saveUpcomingTemplateDraft() : saveStaticTemplateDraft())}
+									disabled={Boolean(activeTemplateCodeError) || Boolean(activeTemplatePersistenceError) || isLoadingActiveTemplate || isSavingActiveTemplate}
 									className="btn-primary px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-45"
 								>
-									{isSavingUpcomingTemplate ? "Saving…" : "Save club template"}
+									{isSavingActiveTemplate ? "Saving…" : "Save club template"}
 								</button>
-								<button type="button" onClick={formatUpcomingTemplateSource} className="btn-secondary px-3 py-2 text-xs">
+								<button type="button" onClick={isUpcomingTemplateSelected ? formatUpcomingTemplateSource : formatStaticTemplateSource} className="btn-secondary px-3 py-2 text-xs">
 									Format JSON
 								</button>
 								<button
 									type="button"
-									onClick={() => void restoreUpcomingTemplateOriginal()}
-									disabled={isLoadingUpcomingTemplate || isSavingUpcomingTemplate}
+									onClick={() => void (isUpcomingTemplateSelected ? restoreUpcomingTemplateOriginal() : restoreStaticTemplateOriginal())}
+									disabled={isLoadingActiveTemplate || isSavingActiveTemplate}
 									className="rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-45"
 								>
 									Restore original
@@ -1103,19 +1487,23 @@ export default function SocialMediaStudio() {
 					)}
 				</aside>
 
-				<section className="surface-card p-4">
-					<div className="flex flex-wrap items-center justify-between gap-3">
+				<section className="surface-card order-1 flex flex-col p-4 xl:order-2">
+					<div className="order-2 mt-3 flex flex-wrap items-center justify-between gap-3 xl:order-1 xl:mt-0">
 						<h2 className="text-base font-bold text-slate-900">Preview</h2>
 						<div className="flex flex-wrap items-center justify-end gap-2">
 							<span className="text-xs font-semibold text-slate-500">
 								{previewDimensions ? `${previewDimensions.width} × ${previewDimensions.height}` : "Waiting for template"}
 							</span>
-							{kind === "upcomingFixtures" && selectedTemplate && (
+							{isEditableTemplate && selectedTemplate && (
 								<button
 									type="button"
 									onClick={() => {
 										setIsCanvasEditorOpen((current) => !current);
-										setSelectedTemplateElementId((current) => current ?? "headline");
+										if (isUpcomingTemplateSelected) {
+											setSelectedTemplateElementId((current) => current ?? "headline");
+										} else {
+											setSelectedStaticTemplateElementId((current) => current ?? "headline");
+										}
 									}}
 									className={isCanvasEditorOpen ? "btn-primary px-3 py-2 text-xs" : "btn-secondary px-3 py-2 text-xs"}
 								>
@@ -1126,7 +1514,7 @@ export default function SocialMediaStudio() {
 					</div>
 
 					{kind === "upcomingFixtures" && isCanvasEditorOpen && (
-						<div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2">
+						<div className="order-3 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 xl:order-2">
 							<div className="flex min-w-0 items-center gap-2">
 								{canMoveUpTemplateHierarchy && (
 									<button
@@ -1156,7 +1544,23 @@ export default function SocialMediaStudio() {
 						</div>
 					)}
 
-					<div className="mt-3 grid min-h-[24rem] place-items-center rounded-2xl border border-slate-200 bg-[linear-gradient(45deg,#e2e8f0_25%,transparent_25%),linear-gradient(-45deg,#e2e8f0_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#e2e8f0_75%),linear-gradient(-45deg,transparent_75%,#e2e8f0_75%)] bg-[length:20px_20px] bg-[position:0_0,0_10px,10px_-10px,-10px_0] p-4">
+					{!isUpcomingTemplateSelected && isEditableTemplate && isCanvasEditorOpen && (
+						<div className="order-3 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 xl:order-2">
+							<p className="text-xs font-semibold text-sky-900">
+								Select an outlined region, then drag or resize it. Click empty space to clear the selection.
+							</p>
+							<div className="flex gap-2">
+								<button type="button" onClick={undoStaticVisualTemplateChange} disabled={activeStaticHistory.past.length === 0} className="rounded-lg border border-sky-200 bg-white px-2.5 py-1.5 text-xs font-bold text-sky-900 disabled:opacity-40">
+									Undo
+								</button>
+								<button type="button" onClick={redoStaticVisualTemplateChange} disabled={activeStaticHistory.future.length === 0} className="rounded-lg border border-sky-200 bg-white px-2.5 py-1.5 text-xs font-bold text-sky-900 disabled:opacity-40">
+									Redo
+								</button>
+							</div>
+						</div>
+					)}
+
+					<div className="order-1 grid min-h-[24rem] place-items-center rounded-2xl border border-slate-200 bg-[linear-gradient(45deg,#e2e8f0_25%,transparent_25%),linear-gradient(-45deg,#e2e8f0_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#e2e8f0_75%),linear-gradient(-45deg,transparent_75%,#e2e8f0_75%)] bg-[length:20px_20px] bg-[position:0_0,0_10px,10px_-10px,-10px_0] p-4 xl:order-3 xl:mt-3">
 						{selectedTemplate && previewDimensions ? (
 							<div
 								className="relative w-full bg-white shadow-2xl"
@@ -1179,6 +1583,19 @@ export default function SocialMediaStudio() {
 										onChangeEnd={endVisualTemplateChange}
 									/>
 								)}
+								{!isUpcomingTemplateSelected && isEditableTemplate && isCanvasEditorOpen && (
+									<TemplateCanvasOverlay
+										canvasWidth={previewDimensions.width}
+										canvasHeight={previewDimensions.height}
+										elements={staticTemplateElements}
+										selectedId={selectedStaticTemplateElement?.id ?? null}
+										onSelect={setSelectedStaticTemplateElementId}
+										onNavigateUp={() => setSelectedStaticTemplateElementId(null)}
+										onChangeStart={beginStaticVisualTemplateChange}
+										onChange={changeStaticVisualTemplateElement}
+										onChangeEnd={endStaticVisualTemplateChange}
+									/>
+								)}
 							</div>
 						) : (
 							<div className="max-w-sm rounded-2xl border border-dashed border-slate-300 bg-white/95 p-6 text-center shadow-sm">
@@ -1192,7 +1609,7 @@ export default function SocialMediaStudio() {
 					</div>
 
 					{kind === "upcomingFixtures" && isCanvasEditorOpen && selectedTemplateElement && (
-						<div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+						<div className="order-4 mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
 							<div className="flex flex-wrap items-center justify-between gap-2">
 								<div>
 									<p className="text-sm font-bold text-slate-900">{selectedTemplateElement.label}</p>
@@ -1243,12 +1660,42 @@ export default function SocialMediaStudio() {
 						</div>
 					)}
 
-					<div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+					{!isUpcomingTemplateSelected && isEditableTemplate && isCanvasEditorOpen && selectedStaticTemplateElement && (
+						<div className="order-4 mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+							<div className="flex flex-wrap items-center justify-between gap-2">
+								<div>
+									<p className="text-sm font-bold text-slate-900">{selectedStaticTemplateElement.label}</p>
+									<p className="text-xs text-slate-500">Exact canvas measurements in pixels</p>
+								</div>
+								<button type="button" onClick={resetSelectedStaticTemplateElement} className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100">
+									Reset element
+								</button>
+							</div>
+							<div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+								{(["x", "y", "width", "height"] as const).map((field) => (
+									<label key={field} className="text-xs font-bold uppercase tracking-wide text-slate-600">
+										{field}
+										<input
+											type="number"
+											step="1"
+											value={Math.round(selectedStaticTemplateElement[field] * 10) / 10}
+											onFocus={beginStaticVisualTemplateChange}
+											onBlur={endStaticVisualTemplateChange}
+											onChange={(event) => updateSelectedStaticTemplateElementField(field, Number(event.target.value))}
+											className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm font-semibold normal-case tracking-normal text-slate-900"
+										/>
+									</label>
+								))}
+							</div>
+						</div>
+					)}
+
+					<div className="order-5 mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
 						<button type="button" onClick={handleCopyImage} disabled={exportDisabled} className="btn-secondary disabled:cursor-not-allowed disabled:opacity-45">Copy image</button>
 						<button type="button" onClick={handleDownloadImage} disabled={exportDisabled} className="btn-primary disabled:cursor-not-allowed disabled:opacity-45">Download PNG</button>
 					</div>
-					{actionMessage && <p className="mt-2 text-right text-sm font-semibold text-yepset-700">{actionMessage}</p>}
-					{actionError && <p className="mt-2 text-right text-sm font-semibold text-rose-700">{actionError}</p>}
+					{actionMessage && <p className="order-6 mt-2 text-right text-sm font-semibold text-yepset-700">{actionMessage}</p>}
+					{actionError && <p className="order-6 mt-2 text-right text-sm font-semibold text-rose-700">{actionError}</p>}
 				</section>
 			</div>
 		</div>

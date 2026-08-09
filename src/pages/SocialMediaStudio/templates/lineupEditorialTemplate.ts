@@ -15,20 +15,61 @@ import {
 	EDITORIAL_WHITE,
 	getTextField,
 } from "./editorialCanvas";
+import {
+	parseEditableTemplateLayout,
+	serializeEditableTemplateLayout,
+	withElementTransform,
+	withElementTransformAsync,
+} from "./editableTemplateLayout";
+import type { EditableTemplateLayout } from "./editableTemplateLayout";
 
 const LINEUP_SPONSOR_TOP = 1400;
 const LINEUP_SPONSOR_FREE_HEIGHT = 1400;
 const PITCH = { x: 78, y: 400, width: 1209, height: 730 };
 
-export const lineupEditorialTemplate: SocialGraphicTemplate = {
+export type LineupEditorialElementId =
+	| "section-heading"
+	| "headline"
+	| "club-crest"
+	| "match-label"
+	| "pitch"
+	| "substitutes"
+	| "sponsor-section";
+
+export type LineupEditorialTemplateDefinition = EditableTemplateLayout<LineupEditorialElementId>;
+
+export const lineupEditorialDefaultDefinition: LineupEditorialTemplateDefinition = {
+	version: 1,
+	canvas: { width: 1365, height: 1651, sponsorFreeHeight: LINEUP_SPONSOR_FREE_HEIGHT },
+	elements: {
+		"section-heading": { x: 397, y: 54, width: 570, height: 68 },
+		headline: { x: 62, y: 126, width: 970, height: 194 },
+		"club-crest": { x: 1034, y: 50, width: 250, height: 300 },
+		"match-label": { x: 102, y: 337, width: 1160, height: 42 },
+		pitch: { ...PITCH },
+		substitutes: { x: 78, y: 1158, width: 1209, height: 162 },
+		"sponsor-section": { x: 64, y: LINEUP_SPONSOR_TOP - 34, width: 1236, height: 270 },
+	},
+};
+
+export const lineupEditorialDefaultSource = serializeEditableTemplateLayout(
+	lineupEditorialDefaultDefinition
+);
+
+export const lineupEditorialTemplate = createLineupEditorialTemplate();
+
+export function createLineupEditorialTemplate(
+	definition = lineupEditorialDefaultDefinition
+): SocialGraphicTemplate {
+	return {
 	id: "lineup-editorial-gold",
 	name: "Editorial match lineup",
 	description: "Black and gold formation graphic generated from a match lineup.",
-	width: 1365,
-	height: 1651,
+	width: definition.canvas.width,
+	height: definition.canvas.height,
 	resolveHeight: (content) => content.fields.showSponsors === false
-		? LINEUP_SPONSOR_FREE_HEIGHT
-		: 1651,
+		? definition.canvas.sponsorFreeHeight
+		: definition.canvas.height,
 	supportedKinds: ["lineup"],
 	fields: [
 		{
@@ -44,15 +85,22 @@ export const lineupEditorialTemplate: SocialGraphicTemplate = {
 			defaultValue: "Proudly sponsored by",
 		},
 	],
-	render: renderLineupEditorialTemplate,
-};
+	render: (context) => renderLineupEditorialTemplate(context, definition),
+	};
+}
+
+export function parseLineupEditorialDefinition(source: string) {
+	return parseEditableTemplateLayout(source, lineupEditorialDefaultDefinition);
+}
+
+export const serializeLineupEditorialDefinition = serializeEditableTemplateLayout;
 
 async function renderLineupEditorialTemplate({
 	context,
 	width,
 	height,
 	content,
-}: SocialGraphicTemplateRenderContext) {
+}: SocialGraphicTemplateRenderContext, definition: LineupEditorialTemplateDefinition) {
 	const fixture = content.fixtures[0];
 	const lineup = content.lineup;
 	const showSponsors = content.fields.showSponsors !== false;
@@ -61,33 +109,15 @@ async function renderLineupEditorialTemplate({
 	drawEditorialBackground(context, width, height);
 	drawEditorialBorder(context, width, height);
 
-	drawEditorialSectionTitle(
-		context,
-		fixture?.competition || "Match lineup",
-		88,
-		width,
-		570
-	);
-	drawFittedText(
-		context,
-		content.headline.toUpperCase(),
-		62,
-		126,
-		970,
-		194,
-		78,
-		EDITORIAL_WHITE
-	);
-	await drawAssetOrPlaceholder(
-		context,
-		content.assets.homeTeamLogo,
-		1034,
-		50,
-		250,
-		300,
-		"YOUR\nLOGO",
-		{ frame: false, contain: true }
-	);
+	withElementTransform(context, lineupEditorialDefaultDefinition.elements["section-heading"], definition.elements["section-heading"], () => {
+		drawEditorialSectionTitle(context, fixture?.competition || "Match lineup", 88, width, 570);
+	});
+	withElementTransform(context, lineupEditorialDefaultDefinition.elements.headline, definition.elements.headline, () => {
+		drawFittedText(context, content.headline.toUpperCase(), 62, 126, 970, 194, 78, EDITORIAL_WHITE);
+	});
+	await withElementTransformAsync(context, lineupEditorialDefaultDefinition.elements["club-crest"], definition.elements["club-crest"], () => drawAssetOrPlaceholder(
+		context, content.assets.homeTeamLogo, 1034, 50, 250, 300, "YOUR\nLOGO", { frame: false, contain: true }
+	));
 
 	if (!fixture) {
 		drawMultilineText(context, "SELECT AN UPCOMING\nMATCH", width / 2, height / 2, 54, EDITORIAL_WHITE);
@@ -95,43 +125,35 @@ async function renderLineupEditorialTemplate({
 		return;
 	}
 
-	drawFittedText(
-		context,
-		`${fixture.teamName} · ${fixture.venue === "home" ? "VS" : "AT"} ${fixture.opponent}`.toUpperCase(),
-		width / 2,
-		337,
-		1160,
-		42,
-		24,
-		EDITORIAL_GOLD,
-		"center"
-	);
+	withElementTransform(context, lineupEditorialDefaultDefinition.elements["match-label"], definition.elements["match-label"], () => {
+		drawFittedText(context, `${fixture.teamName} · ${fixture.venue === "home" ? "VS" : "AT"} ${fixture.opponent}`.toUpperCase(), width / 2, 337, 1160, 42, 24, EDITORIAL_GOLD, "center");
+	});
 
-	drawPitch(context);
-	const starters = lineup?.players.filter((player) => player.role === "starter") ?? [];
-	if (starters.length === 0) {
-		drawMultilineText(context, "NO STARTING LINEUP\nSELECTED", width / 2, PITCH.y + PITCH.height / 2, 42, EDITORIAL_WHITE);
-	} else {
-		const layout = getStarterLayout(starters);
-		starters.forEach((player, index) => drawStarter(context, player, layout[index]));
-	}
+	withElementTransform(context, lineupEditorialDefaultDefinition.elements.pitch, definition.elements.pitch, () => {
+		drawPitch(context);
+		const starters = lineup?.players.filter((player) => player.role === "starter") ?? [];
+		if (starters.length === 0) {
+			drawMultilineText(context, "NO STARTING LINEUP\nSELECTED", width / 2, PITCH.y + PITCH.height / 2, 42, EDITORIAL_WHITE);
+		} else {
+			const layout = getStarterLayout(starters);
+			starters.forEach((player, index) => drawStarter(context, player, layout[index]));
+		}
+	});
 
 	const substitutes = lineup?.players.filter((player) => player.role === "substitute") ?? [];
-	drawBench(context, substitutes, lineup?.formationName || "Formation TBC");
+	withElementTransform(context, lineupEditorialDefaultDefinition.elements.substitutes, definition.elements.substitutes, () => {
+		drawBench(context, substitutes, lineup?.formationName || "Formation TBC");
+	});
 
 	if (showSponsors) {
-		drawEditorialSectionTitle(
-			context,
-			getTextField(content.fields.sponsorsTitle, "Proudly sponsored by"),
-			LINEUP_SPONSOR_TOP,
-			width,
-			530
-		);
-		await Promise.all([
-			drawAssetOrPlaceholder(context, content.assets.sponsors[0], 64, LINEUP_SPONSOR_TOP + 55, 390, 155, "SPONSOR\nPLACEHOLDER", { contain: true }),
-			drawAssetOrPlaceholder(context, content.assets.sponsors[1], 487, LINEUP_SPONSOR_TOP + 55, 390, 155, "SPONSOR\nPLACEHOLDER", { contain: true }),
-			drawAssetOrPlaceholder(context, content.assets.sponsors[2], 910, LINEUP_SPONSOR_TOP + 55, 390, 155, "SPONSOR\nPLACEHOLDER", { contain: true }),
-		]);
+		await withElementTransformAsync(context, lineupEditorialDefaultDefinition.elements["sponsor-section"], definition.elements["sponsor-section"], async () => {
+			drawEditorialSectionTitle(context, getTextField(content.fields.sponsorsTitle, "Proudly sponsored by"), LINEUP_SPONSOR_TOP, width, 530);
+			await Promise.all([
+				drawAssetOrPlaceholder(context, content.assets.sponsors[0], 64, LINEUP_SPONSOR_TOP + 55, 390, 155, "SPONSOR\nPLACEHOLDER", { contain: true }),
+				drawAssetOrPlaceholder(context, content.assets.sponsors[1], 487, LINEUP_SPONSOR_TOP + 55, 390, 155, "SPONSOR\nPLACEHOLDER", { contain: true }),
+				drawAssetOrPlaceholder(context, content.assets.sponsors[2], 910, LINEUP_SPONSOR_TOP + 55, 390, 155, "SPONSOR\nPLACEHOLDER", { contain: true }),
+			]);
+		});
 	}
 
 	context.restore();

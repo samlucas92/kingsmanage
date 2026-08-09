@@ -19,44 +19,82 @@ import {
 	EDITORIAL_WHITE,
 	getTextField,
 } from "./editorialCanvas";
+import {
+	parseEditableTemplateLayout,
+	serializeEditableTemplateLayout,
+	withElementTransform,
+	withElementTransformAsync,
+} from "./editableTemplateLayout";
+import type { EditableTemplateLayout } from "./editableTemplateLayout";
 
 const MATCHDAY_SPONSOR_TOP = 1122;
 const MATCHDAY_DETAIL_HEIGHT = 175;
 const MATCHDAY_SPONSOR_FREE_HEIGHT = 1122;
 
-export const matchdayEditorialTemplate: SocialGraphicTemplate = {
-	id: "matchday-editorial-gold",
-	name: "Editorial matchday",
-	description: "Square black and gold fixture announcement with optional sponsors.",
-	width: 1365,
-	height: 1365,
-	resolveHeight: (content) => content.fields.showSponsors === false
-		? MATCHDAY_SPONSOR_FREE_HEIGHT
-		: 1365,
-	supportedKinds: ["fixture"],
-	fields: [
-		{
-			id: "showSponsors",
-			label: "Show sponsors area",
-			type: "boolean",
-			defaultValue: true,
-		},
-		{
-			id: "sponsorsTitle",
-			label: "Sponsors title",
-			type: "text",
-			defaultValue: "Proudly sponsored by",
-		},
-	],
-	render: renderMatchdayEditorialTemplate,
+export type MatchdayEditorialElementId =
+	| "section-heading"
+	| "headline"
+	| "home-team"
+	| "versus"
+	| "away-team"
+	| "match-details"
+	| "sponsor-section";
+
+export type MatchdayEditorialTemplateDefinition = EditableTemplateLayout<MatchdayEditorialElementId>;
+
+export const matchdayEditorialDefaultDefinition: MatchdayEditorialTemplateDefinition = {
+	version: 1,
+	canvas: { width: 1365, height: 1365, sponsorFreeHeight: MATCHDAY_SPONSOR_FREE_HEIGHT },
+	elements: {
+		"section-heading": { x: 402, y: 38, width: 560, height: 72 },
+		headline: { x: 68, y: 112, width: 1230, height: 210 },
+		"home-team": { x: 155, y: 405, width: 430, height: 471 },
+		versus: { x: 610, y: 530, width: 145, height: 160 },
+		"away-team": { x: 853, y: 405, width: 430, height: 471 },
+		"match-details": { x: 64, y: 895, width: 1237, height: MATCHDAY_DETAIL_HEIGHT },
+		"sponsor-section": { x: 64, y: MATCHDAY_SPONSOR_TOP - 34, width: 1237, height: 260 },
+	},
 };
+
+export const matchdayEditorialDefaultSource = serializeEditableTemplateLayout(
+	matchdayEditorialDefaultDefinition
+);
+
+export const matchdayEditorialTemplate = createMatchdayEditorialTemplate();
+
+export function createMatchdayEditorialTemplate(
+	definition = matchdayEditorialDefaultDefinition
+): SocialGraphicTemplate {
+	return {
+		id: "matchday-editorial-gold",
+		name: "Editorial matchday",
+		description: "Square black and gold fixture announcement with optional sponsors.",
+		width: definition.canvas.width,
+		height: definition.canvas.height,
+		resolveHeight: (content) => content.fields.showSponsors === false
+			? definition.canvas.sponsorFreeHeight
+			: definition.canvas.height,
+		supportedKinds: ["fixture"],
+		fields: [
+			{ id: "showSponsors", label: "Show sponsors area", type: "boolean", defaultValue: true },
+			{ id: "sponsorsTitle", label: "Sponsors title", type: "text", defaultValue: "Proudly sponsored by" },
+		],
+		render: (context) => renderMatchdayEditorialTemplate(context, definition),
+	};
+}
+
+export function parseMatchdayEditorialDefinition(source: string) {
+	return parseEditableTemplateLayout(source, matchdayEditorialDefaultDefinition);
+}
+
+export const serializeMatchdayEditorialDefinition = serializeEditableTemplateLayout;
 
 async function renderMatchdayEditorialTemplate({
 	context,
 	width,
 	height,
 	content,
-}: SocialGraphicTemplateRenderContext) {
+}: SocialGraphicTemplateRenderContext, definition: MatchdayEditorialTemplateDefinition) {
 	const fixture = content.fixtures[0];
 	const showSponsors = content.fields.showSponsors !== false;
 
@@ -70,48 +108,50 @@ async function renderMatchdayEditorialTemplate({
 		return;
 	}
 
-	drawEditorialSectionTitle(context, fixture.competition || "Fixture", 72, width, 560);
-	drawFittedText(context, content.headline.toUpperCase(), width / 2, 112, 1230, 210, 88, EDITORIAL_WHITE, "center");
+	withElementTransform(context, matchdayEditorialDefaultDefinition.elements["section-heading"], definition.elements["section-heading"], () => {
+		drawEditorialSectionTitle(context, fixture.competition || "Fixture", 72, width, 560);
+	});
+	withElementTransform(context, matchdayEditorialDefaultDefinition.elements.headline, definition.elements.headline, () => {
+		drawFittedText(context, content.headline.toUpperCase(), width / 2, 112, 1230, 210, 88, EDITORIAL_WHITE, "center");
+	});
 
 	const homeTeam = fixture.venue === "home" ? fixture.teamName : fixture.opponent;
 	const awayTeam = fixture.venue === "away" ? fixture.teamName : fixture.opponent;
 
-	await Promise.all([
-		drawTeam(context, content.assets.homeTeamLogo, homeTeam, "HOME", 190, 425),
-		drawTeam(context, content.assets.awayTeamLogo, awayTeam, "AWAY", 888, 425),
-	]);
+	await withElementTransformAsync(context, matchdayEditorialDefaultDefinition.elements["home-team"], definition.elements["home-team"], () => drawTeam(context, content.assets.homeTeamLogo, homeTeam, "HOME", 190, 425));
+	await withElementTransformAsync(context, matchdayEditorialDefaultDefinition.elements["away-team"], definition.elements["away-team"], () => drawTeam(context, content.assets.awayTeamLogo, awayTeam, "AWAY", 888, 425));
 
-	context.save();
-	context.translate(width / 2, 610);
-	context.rotate(-0.18);
-	context.strokeStyle = EDITORIAL_GOLD;
-	context.lineWidth = 4;
-	context.beginPath();
-	context.moveTo(-70, -68);
-	context.lineTo(72, -68);
-	context.moveTo(-72, 76);
-	context.lineTo(70, 76);
-	context.stroke();
-	drawFittedText(context, "VS", 0, -48, 132, 100, 62, EDITORIAL_GOLD, "center");
-	context.restore();
+	withElementTransform(context, matchdayEditorialDefaultDefinition.elements.versus, definition.elements.versus, () => {
+		context.save();
+		context.translate(width / 2, 610);
+		context.rotate(-0.18);
+		context.strokeStyle = EDITORIAL_GOLD;
+		context.lineWidth = 4;
+		context.beginPath();
+		context.moveTo(-70, -68);
+		context.lineTo(72, -68);
+		context.moveTo(-72, 76);
+		context.lineTo(70, 76);
+		context.stroke();
+		drawFittedText(context, "VS", 0, -48, 132, 100, 62, EDITORIAL_GOLD, "center");
+		context.restore();
+	});
 
 	const detailTop = 895;
-	drawRoundedFrame(context, 64, detailTop, 1237, MATCHDAY_DETAIL_HEIGHT, 20);
-	drawMatchDetails(context, fixture.date, fixture.location, detailTop, MATCHDAY_DETAIL_HEIGHT);
+	withElementTransform(context, matchdayEditorialDefaultDefinition.elements["match-details"], definition.elements["match-details"], () => {
+		drawRoundedFrame(context, 64, detailTop, 1237, MATCHDAY_DETAIL_HEIGHT, 20);
+		drawMatchDetails(context, fixture.date, fixture.location, detailTop, MATCHDAY_DETAIL_HEIGHT);
+	});
 
 	if (showSponsors) {
-		drawEditorialSectionTitle(
-			context,
-			getTextField(content.fields.sponsorsTitle, "Proudly sponsored by"),
-			MATCHDAY_SPONSOR_TOP,
-			width,
-			530
-		);
-		await Promise.all([
-			drawAssetOrPlaceholder(context, content.assets.sponsors[0], 64, MATCHDAY_SPONSOR_TOP + 48, 390, 160, "SPONSOR\nPLACEHOLDER", { contain: true }),
-			drawAssetOrPlaceholder(context, content.assets.sponsors[1], 487, MATCHDAY_SPONSOR_TOP + 48, 390, 160, "SPONSOR\nPLACEHOLDER", { contain: true }),
-			drawAssetOrPlaceholder(context, content.assets.sponsors[2], 910, MATCHDAY_SPONSOR_TOP + 48, 390, 160, "SPONSOR\nPLACEHOLDER", { contain: true }),
-		]);
+		await withElementTransformAsync(context, matchdayEditorialDefaultDefinition.elements["sponsor-section"], definition.elements["sponsor-section"], async () => {
+			drawEditorialSectionTitle(context, getTextField(content.fields.sponsorsTitle, "Proudly sponsored by"), MATCHDAY_SPONSOR_TOP, width, 530);
+			await Promise.all([
+				drawAssetOrPlaceholder(context, content.assets.sponsors[0], 64, MATCHDAY_SPONSOR_TOP + 48, 390, 160, "SPONSOR\nPLACEHOLDER", { contain: true }),
+				drawAssetOrPlaceholder(context, content.assets.sponsors[1], 487, MATCHDAY_SPONSOR_TOP + 48, 390, 160, "SPONSOR\nPLACEHOLDER", { contain: true }),
+				drawAssetOrPlaceholder(context, content.assets.sponsors[2], 910, MATCHDAY_SPONSOR_TOP + 48, 390, 160, "SPONSOR\nPLACEHOLDER", { contain: true }),
+			]);
+		});
 	}
 
 	context.restore();

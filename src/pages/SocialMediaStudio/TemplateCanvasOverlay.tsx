@@ -2,27 +2,34 @@ import { useRef } from "react";
 
 import type {
 	TemplateElementBounds,
-	UpcomingTemplateElement,
-	UpcomingTemplateElementId,
 } from "./upcomingTemplateElements";
+
+type CanvasTemplateElement = TemplateElementBounds & {
+	id: string;
+	label: string;
+	minimumWidth: number;
+	minimumHeight: number;
+	resizeMode?: "both" | "horizontal" | "square" | "none";
+	constraint?: TemplateElementBounds;
+};
 
 type TemplateCanvasOverlayProps = {
 	canvasWidth: number;
 	canvasHeight: number;
-	elements: UpcomingTemplateElement[];
-	selectedId: UpcomingTemplateElementId | null;
-	onSelect: (elementId: UpcomingTemplateElementId) => void;
+	elements: CanvasTemplateElement[];
+	selectedId: string | null;
+	onSelect: (elementId: string) => void;
 	onNavigateUp: () => void;
 	onChangeStart: () => void;
 	onChange: (
-		elementId: UpcomingTemplateElementId,
+		elementId: string,
 		bounds: TemplateElementBounds
 	) => void;
 	onChangeEnd: () => void;
 };
 
 type DragState = {
-	element: UpcomingTemplateElement;
+	element: CanvasTemplateElement;
 	mode: "move" | "resize";
 	startClientX: number;
 	startClientY: number;
@@ -45,7 +52,7 @@ export function TemplateCanvasOverlay({
 
 	function handlePointerDown(
 		event: React.PointerEvent<HTMLDivElement>,
-		element: UpcomingTemplateElement
+		element: CanvasTemplateElement
 	) {
 		if (event.button !== 0) return;
 		const overlay = event.currentTarget.parentElement;
@@ -91,7 +98,7 @@ export function TemplateCanvasOverlay({
 
 	function handleKeyDown(
 		event: React.KeyboardEvent<HTMLDivElement>,
-		element: UpcomingTemplateElement
+		element: CanvasTemplateElement
 	) {
 		const direction = getArrowDirection(event.key);
 		if (!direction) return;
@@ -168,7 +175,7 @@ export function TemplateCanvasOverlay({
 }
 
 function clampMovedBounds(
-	element: UpcomingTemplateElement,
+	element: CanvasTemplateElement,
 	deltaX: number,
 	deltaY: number,
 	canvasWidth: number,
@@ -191,7 +198,7 @@ function clampMovedBounds(
 }
 
 function clampResizedBounds(
-	element: UpcomingTemplateElement,
+	element: CanvasTemplateElement,
 	deltaX: number,
 	deltaY: number,
 	canvasWidth: number,
