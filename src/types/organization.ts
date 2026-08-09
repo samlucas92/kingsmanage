@@ -9,6 +9,29 @@ export type Organization = {
 	updatedAt: string;
 };
 
+export type PlatformOrganizationOnboardingRequest = {
+	organizationName: string;
+	organizationSlug: string;
+	clubName: string;
+	clubSlug: string;
+	sportKey: string;
+	primaryColor: string;
+	secondaryColor: string;
+	clubContactEmail: string;
+	administratorEmail: string;
+	temporaryPassword: string;
+	clubAllowance: number;
+	billingEmail: string;
+	subscriptionStatus: "Trialing" | "Active";
+};
+
+export type PlatformOrganizationOnboardingResult = {
+	organization: Organization;
+	club: SportsClub;
+	administratorEmail: string;
+	subscription: import("./billing").OrganizationSubscription;
+};
+
 export type SportsClub = {
 	id: string;
 	organizationId: string;

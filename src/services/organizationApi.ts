@@ -2,6 +2,8 @@ import { apiClient } from "./apiClient";
 import type {
 	Organization,
 	OrganizationDashboard,
+	PlatformOrganizationOnboardingRequest,
+	PlatformOrganizationOnboardingResult,
 	SportsClub,
 } from "../types/organization";
 
@@ -26,6 +28,11 @@ export const organizationApi = {
 	createPlatformOrganization: (
 		organization: Pick<Organization, "name" | "slug">
 	) => apiClient.post<Organization>("/platform/organizations", organization),
+	onboardPlatformOrganization: (request: PlatformOrganizationOnboardingRequest) =>
+		apiClient.post<PlatformOrganizationOnboardingResult>(
+			"/platform/organizations/onboard",
+			request
+		),
 	updatePlatformOrganization: (organization: Organization) =>
 		apiClient.put<Organization>(
 			`/platform/organizations/${organization.id}`,
