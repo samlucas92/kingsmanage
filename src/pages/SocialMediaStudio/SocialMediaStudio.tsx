@@ -539,6 +539,10 @@ export default function SocialMediaStudio() {
 		endVisualTemplateChange();
 	}
 
+	function navigateUpTemplateHierarchy() {
+		setSelectedTemplateElementId(selectedTemplateParentId);
+	}
+
 	function updateSelectedTemplateElementField(
 		field: keyof TemplateElementBounds,
 		value: number
@@ -971,7 +975,7 @@ export default function SocialMediaStudio() {
 								{canMoveUpTemplateHierarchy && (
 									<button
 										type="button"
-										onClick={() => setSelectedTemplateElementId(selectedTemplateParentId)}
+										onClick={navigateUpTemplateHierarchy}
 										className="shrink-0 rounded-lg border border-sky-200 bg-white px-2.5 py-1.5 text-xs font-bold text-sky-900"
 									>
 										← {activeTemplateElementId === "fixture-list" ? "All elements" : "Up one level"}
@@ -979,10 +983,10 @@ export default function SocialMediaStudio() {
 								)}
 								<p className="text-xs font-semibold text-sky-900">
 									{activeTemplateElementId?.startsWith("fixture-row:")
-										? "Click an outlined child to edit it. Unlock row elements when this row needs different text sizing."
+										? "Click an outlined child to edit it. Unlock row elements for different text sizing; click empty space to go back."
 										: selectedTemplateElement?.drillable
-											? "Click an outlined child to drill into it. Drag the selected outline to move the shared layout."
-										: "Select an outlined region, then drag or resize it. Arrow keys nudge by 1px; hold Shift for 10px."}
+											? "Click an outlined child to drill into it. Drag the selected outline to move it; click empty space to go back."
+										: "Select an outlined region, then drag or resize it. Click empty space to clear the selection."}
 								</p>
 							</div>
 							<div className="flex gap-2">
@@ -1013,6 +1017,7 @@ export default function SocialMediaStudio() {
 										elements={upcomingTemplateElements}
 										selectedId={activeTemplateElementId}
 										onSelect={setSelectedTemplateElementId}
+										onNavigateUp={navigateUpTemplateHierarchy}
 										onChangeStart={beginVisualTemplateChange}
 										onChange={changeVisualTemplateElement}
 										onChangeEnd={endVisualTemplateChange}

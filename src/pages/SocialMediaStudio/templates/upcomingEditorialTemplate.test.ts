@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
 	createUpcomingEditorialTemplate,
+	getUpcomingFixtureRowLayouts,
 	parseUpcomingEditorialDefinition,
 	serializeUpcomingEditorialDefinition,
 	upcomingEditorialDefaultDefinition,
@@ -47,6 +48,33 @@ describe("editable upcoming fixtures template", () => {
 			fields: { showSponsors: false },
 			assets: { sponsors: [] },
 		})).toBe(1350);
+	});
+
+	it("distributes fixture rows evenly for each selected fixture count", () => {
+		const twoRows = getUpcomingFixtureRowLayouts(
+			upcomingEditorialDefaultDefinition,
+			2
+		);
+		const fiveRows = getUpcomingFixtureRowLayouts(
+			upcomingEditorialDefaultDefinition,
+			5
+		);
+		const fixtureList = upcomingEditorialDefaultDefinition.fixtureList;
+
+		const twoRowTopGap = twoRows[0].y - fixtureList.top;
+		const twoRowMiddleGap = twoRows[1].y -
+			(twoRows[0].y + twoRows[0].height);
+		const twoRowBottomGap = fixtureList.bottom -
+			(twoRows[1].y + twoRows[1].height);
+		expect(twoRowTopGap).toBeCloseTo(twoRowMiddleGap);
+		expect(twoRowTopGap).toBeCloseTo(twoRowBottomGap);
+
+		const fiveRowTopGap = fiveRows[0].y - fixtureList.top;
+		const fiveRowBottomGap = fixtureList.bottom -
+			(fiveRows[4].y + fiveRows[4].height);
+		expect(fiveRowTopGap).toBeCloseTo(fixtureList.compactRowGap);
+		expect(fiveRowBottomGap).toBeCloseTo(fiveRowTopGap);
+		expect(twoRowTopGap).toBeGreaterThan(fiveRowTopGap);
 	});
 
 	it("rejects missing required layout values", () => {

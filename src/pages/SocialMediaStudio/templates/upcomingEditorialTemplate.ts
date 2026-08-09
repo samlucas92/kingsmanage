@@ -482,17 +482,22 @@ export function getUpcomingFixtureRowLayouts(
 ) {
 	if (fixtureCount <= 0) return [];
 	const { fixtureList } = definition;
-	const rowGap = fixtureCount > 3
+	const minimumGap = fixtureCount > 3
 		? fixtureList.compactRowGap
 		: fixtureList.rowGap;
+	const availableHeight = fixtureList.bottom - fixtureList.top;
 	const rowHeight = Math.min(
 		fixtureList.maximumRowHeight,
-		(fixtureList.bottom - fixtureList.top - rowGap * (fixtureCount - 1)) /
-			fixtureCount
+		Math.max(
+			1,
+			(availableHeight - minimumGap * (fixtureCount + 1)) / fixtureCount
+		)
 	);
-	const groupHeight = rowHeight * fixtureCount + rowGap * (fixtureCount - 1);
-	const firstRowTop = fixtureList.top +
-		(fixtureList.bottom - fixtureList.top - groupHeight) / 2;
+	const rowGap = Math.max(
+		0,
+		(availableHeight - rowHeight * fixtureCount) / (fixtureCount + 1)
+	);
+	const firstRowTop = fixtureList.top + rowGap;
 
 	return Array.from({ length: fixtureCount }, (_, index) => ({
 		y: firstRowTop + index * (rowHeight + rowGap),

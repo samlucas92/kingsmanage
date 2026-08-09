@@ -12,6 +12,7 @@ type TemplateCanvasOverlayProps = {
 	elements: UpcomingTemplateElement[];
 	selectedId: UpcomingTemplateElementId | null;
 	onSelect: (elementId: UpcomingTemplateElementId) => void;
+	onNavigateUp: () => void;
 	onChangeStart: () => void;
 	onChange: (
 		elementId: UpcomingTemplateElementId,
@@ -35,6 +36,7 @@ export function TemplateCanvasOverlay({
 	elements,
 	selectedId,
 	onSelect,
+	onNavigateUp,
 	onChangeStart,
 	onChange,
 	onChangeEnd,
@@ -112,6 +114,11 @@ export function TemplateCanvasOverlay({
 		<div
 			className="absolute inset-0 z-10 overflow-hidden"
 			aria-label="Editable template elements"
+			onPointerDown={(event) => {
+				if (event.button !== 0 || event.target !== event.currentTarget) return;
+				event.preventDefault();
+				onNavigateUp();
+			}}
 		>
 			{elements.map((element) => {
 				const isSelected = selectedId === element.id;
@@ -175,20 +182,6 @@ function clampMovedBounds(
 	const bottom = element.constraint
 		? element.constraint.y + element.constraint.height
 		: canvasHeight;
-	if (element.resizeMode === "square") {
-		const sizeDelta = Math.abs(deltaX) >= Math.abs(deltaY) ? deltaX : deltaY;
-		const size = clamp(
-			element.width + sizeDelta,
-			Math.max(element.minimumWidth, element.minimumHeight),
-			Math.min(right - element.x, bottom - element.y)
-		);
-		return {
-			x: element.x,
-			y: element.y,
-			width: size,
-			height: size,
-		};
-	}
 	return {
 		x: clamp(element.x + deltaX, left, right - element.width),
 		y: clamp(element.y + deltaY, top, bottom - element.height),
@@ -211,6 +204,20 @@ function clampResizedBounds(
 	const bottom = element.constraint
 		? element.constraint.y + element.constraint.height
 		: canvasHeight;
+	if (element.resizeMode === "square") {
+		const sizeDelta = Math.abs(deltaX) >= Math.abs(deltaY) ? deltaX : deltaY;
+		const size = clamp(
+			element.width + sizeDelta,
+			Math.max(element.minimumWidth, element.minimumHeight),
+			Math.min(right - element.x, bottom - element.y)
+		);
+		return {
+			x: element.x,
+			y: element.y,
+			width: size,
+			height: size,
+		};
+	}
 	return {
 		x: element.x,
 		y: element.y,
