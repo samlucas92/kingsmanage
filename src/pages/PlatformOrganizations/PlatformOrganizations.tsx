@@ -137,7 +137,7 @@ export default function PlatformOrganizations() {
 					}}
 					className="btn-primary"
 				>
-					Add organization
+					Create organization
 				</button>
 			</header>
 
@@ -510,7 +510,7 @@ function OrganizationModal({
 				<div className="flex items-start justify-between">
 					<div>
 						<h2 className="text-xl font-bold">
-							{organization ? "Edit organization" : "Add organization"}
+							{organization ? "Edit organization" : "Create organization"}
 						</h2>
 						<p className="text-sm text-slate-500">
 							Configure the customer organization identity.
