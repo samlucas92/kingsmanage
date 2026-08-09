@@ -112,7 +112,8 @@ async function renderLineupEditorialTemplate({
 	if (starters.length === 0) {
 		drawMultilineText(context, "NO STARTING LINEUP\nSELECTED", width / 2, PITCH.y + PITCH.height / 2, 42, EDITORIAL_WHITE);
 	} else {
-		starters.forEach((player, index) => drawStarter(context, player, index, starters.length));
+		const layout = getStarterLayout(starters);
+		starters.forEach((player, index) => drawStarter(context, player, layout[index]));
 	}
 
 	const substitutes = lineup?.players.filter((player) => player.role === "substitute") ?? [];
@@ -173,19 +174,13 @@ function drawPitch(context: CanvasRenderingContext2D) {
 function drawStarter(
 	context: CanvasRenderingContext2D,
 	player: SocialLineupPlayer,
-	index: number,
-	total: number
+	layout: { x: number; y: number }
 ) {
-	const fallbackColumns = Math.min(4, Math.max(1, total));
-	const fallbackRow = Math.floor(index / fallbackColumns);
-	const fallbackColumn = index % fallbackColumns;
-	const xRatio = player.x ?? ((fallbackColumn + 1) * 100 / (fallbackColumns + 1));
-	const yRatio = player.y ?? (22 + fallbackRow * 20);
-	const x = PITCH.x + 70 + Math.min(100, Math.max(0, xRatio)) / 100 * (PITCH.width - 140);
-	const y = PITCH.y + 62 + Math.min(100, Math.max(0, yRatio)) / 100 * (PITCH.height - 124);
+	const x = PITCH.x + 120 + layout.x * (PITCH.width - 240);
+	const y = PITCH.y + 45 + layout.y * (PITCH.height - 135);
 
 	context.beginPath();
-	context.arc(x, y, 28, 0, Math.PI * 2);
+	context.arc(x, y, 33, 0, Math.PI * 2);
 	context.fillStyle = EDITORIAL_GOLD;
 	context.fill();
 	context.lineWidth = 3;
@@ -195,20 +190,41 @@ function drawStarter(
 		context,
 		player.number === undefined ? "–" : String(player.number),
 		x,
-		y - 19,
-		44,
-		34,
-		22,
+		y - 22,
+		50,
+		40,
+		24,
 		"#050606",
 		"center"
 	);
 
 	context.fillStyle = "rgba(5,6,6,.9)";
-	context.fillRect(x - 95, y + 33, 190, 42);
+	context.fillRect(x - 110, y + 39, 220, 46);
 	const label = player.position.trim()
 		? `${player.name} · ${player.position}`
 		: player.name;
-	drawFittedText(context, label.toUpperCase(), x, y + 40, 176, 24, 13, EDITORIAL_WHITE, "center");
+	drawFittedText(context, label.toUpperCase(), x, y + 47, 204, 28, 14, EDITORIAL_WHITE, "center");
+}
+
+function getStarterLayout(players: SocialLineupPlayer[]) {
+	const fallbackColumns = Math.min(4, Math.max(1, players.length));
+	const rawPositions = players.map((player, index) => ({
+		x: player.x ?? ((index % fallbackColumns) + 1) * 100 / (fallbackColumns + 1),
+		y: player.y ?? (20 + Math.floor(index / fallbackColumns) * 22),
+	}));
+	const xValues = rawPositions.map((position) => position.x);
+	const yValues = rawPositions.map((position) => position.y);
+	const minX = Math.min(...xValues);
+	const maxX = Math.max(...xValues);
+	const minY = Math.min(...yValues);
+	const maxY = Math.max(...yValues);
+	const xRange = maxX - minX;
+	const yRange = maxY - minY;
+
+	return rawPositions.map((position) => ({
+		x: xRange > 0 ? (position.x - minX) / xRange : 0.5,
+		y: yRange > 0 ? (position.y - minY) / yRange : 0.5,
+	}));
 }
 
 function drawBench(
@@ -227,13 +243,13 @@ function drawBench(
 
 	const columnCount = Math.min(4, players.length);
 	const rowCount = Math.ceil(players.length / columnCount);
-	const cellWidth = 1145 / columnCount;
+	const cellWidth = Math.min(300, 1145 / columnCount);
 	players.forEach((player, index) => {
 		const row = Math.floor(index / columnCount);
 		const column = index % columnCount;
 		const rowWidth = Math.min(columnCount, players.length - row * columnCount);
-		const rowOffset = (columnCount - rowWidth) * cellWidth / 2;
-		const x = 110 + rowOffset + column * cellWidth + cellWidth / 2;
+		const totalRowWidth = rowWidth * cellWidth;
+		const x = 682.5 - totalRowWidth / 2 + column * cellWidth + cellWidth / 2;
 		const y = rowCount === 1 ? 1243 : 1218 + row * 51;
 		drawFittedText(
 			context,
