@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuthStore } from "../../stores/auth";
 import { useClubTeamStore } from "../../stores/clubTeams";
@@ -22,6 +22,13 @@ import {
 	toSocialFixture,
 } from "./socialGraphicModel";
 import { socialGraphicTemplates } from "./templateRegistry";
+import {
+	createUpcomingEditorialTemplate,
+	parseUpcomingEditorialDefinition,
+	serializeUpcomingEditorialDefinition,
+	upcomingEditorialDefaultDefinition,
+	upcomingEditorialDefaultSource,
+} from "./templates/upcomingEditorialTemplate";
 import type {
 	SocialFixture,
 	SocialFixtureOverride,
@@ -36,6 +43,10 @@ const graphicKinds: SocialGraphicKind[] = [
 	"result",
 ];
 const placeholderAssetId = "__placeholder__";
+const upcomingTemplateStoragePrefix = "kingsmanage:social-template:upcoming-editorial-gold:v1";
+const TemplateCodeEditor = lazy(() => import("./TemplateCodeEditor").then(
+	(module) => ({ default: module.TemplateCodeEditor })
+));
 
 export default function SocialMediaStudio() {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -73,10 +84,22 @@ export default function SocialMediaStudio() {
 	const [isRendering, setIsRendering] = useState(false);
 	const [actionMessage, setActionMessage] = useState("");
 	const [actionError, setActionError] = useState("");
+	const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
+	const [upcomingTemplateSource, setUpcomingTemplateSource] = useState(
+		upcomingEditorialDefaultSource
+	);
+	const [savedUpcomingTemplateSource, setSavedUpcomingTemplateSource] = useState(
+		upcomingEditorialDefaultSource
+	);
+	const [upcomingTemplateDefinition, setUpcomingTemplateDefinition] = useState(
+		upcomingEditorialDefaultDefinition
+	);
+	const [templateCodeError, setTemplateCodeError] = useState("");
 
 	const currentClub = availableClubs.find((club) => club.isCurrent);
 	const clubName = currentClub?.name ?? "Your club";
 	const activeSeason = seasons.find((season) => season.id === activeSeasonId);
+	const upcomingTemplateStorageKey = `${upcomingTemplateStoragePrefix}:${currentClub?.id ?? "default"}`;
 
 	useEffect(() => {
 		void loadSeasons();
@@ -99,6 +122,56 @@ export default function SocialMediaStudio() {
 			void loadMatches(activeSeasonId);
 		}
 	}, [activeSeasonId, loadMatches]);
+
+	useEffect(() => {
+		const storedSource = localStorage.getItem(upcomingTemplateStorageKey);
+		let cancelled = false;
+
+		queueMicrotask(() => {
+			if (cancelled) return;
+			if (!storedSource) {
+				setUpcomingTemplateSource(upcomingEditorialDefaultSource);
+				setSavedUpcomingTemplateSource(upcomingEditorialDefaultSource);
+				setUpcomingTemplateDefinition(upcomingEditorialDefaultDefinition);
+				setTemplateCodeError("");
+				return;
+			}
+
+			try {
+				const definition = parseUpcomingEditorialDefinition(storedSource);
+				const normalisedSource = serializeUpcomingEditorialDefinition(definition);
+				setUpcomingTemplateSource(normalisedSource);
+				setSavedUpcomingTemplateSource(normalisedSource);
+				setUpcomingTemplateDefinition(definition);
+				setTemplateCodeError("");
+			} catch {
+				setUpcomingTemplateSource(upcomingEditorialDefaultSource);
+				setSavedUpcomingTemplateSource(upcomingEditorialDefaultSource);
+				setUpcomingTemplateDefinition(upcomingEditorialDefaultDefinition);
+				setTemplateCodeError("The saved browser draft was invalid, so the original template is active.");
+			}
+		});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [upcomingTemplateStorageKey]);
+
+	useEffect(() => {
+		const timeout = window.setTimeout(() => {
+			try {
+				const definition = parseUpcomingEditorialDefinition(upcomingTemplateSource);
+				setUpcomingTemplateDefinition(definition);
+				setTemplateCodeError("");
+			} catch (error) {
+				setTemplateCodeError(
+					error instanceof Error ? error.message : "Template JSON is invalid."
+				);
+			}
+		}, 250);
+
+		return () => window.clearTimeout(timeout);
+	}, [upcomingTemplateSource]);
 
 	const seasonMatches = useMemo(
 		() => matches.filter((match) => !activeSeasonId || match.seasonId === activeSeasonId),
@@ -146,9 +219,17 @@ export default function SocialMediaStudio() {
 		if (!selectedResult?.isDetailLoaded) void loadMatch(effectiveResultId);
 	}, [kind, effectiveResultId, matches, loadMatch]);
 
+	const editableUpcomingTemplate = useMemo(
+		() => createUpcomingEditorialTemplate(upcomingTemplateDefinition),
+		[upcomingTemplateDefinition]
+	);
 	const availableTemplates = useMemo(
-		() => socialGraphicTemplates.filter((template) => template.supportedKinds.includes(kind)),
-		[kind]
+		() => socialGraphicTemplates
+			.map((template) => template.id === editableUpcomingTemplate.id
+				? editableUpcomingTemplate
+				: template)
+			.filter((template) => template.supportedKinds.includes(kind)),
+		[kind, editableUpcomingTemplate]
 	);
 
 	const effectiveTemplateId = availableTemplates.some(
@@ -313,6 +394,51 @@ export default function SocialMediaStudio() {
 		}));
 	}
 
+	function formatUpcomingTemplateSource() {
+		try {
+			const definition = parseUpcomingEditorialDefinition(upcomingTemplateSource);
+			setUpcomingTemplateSource(serializeUpcomingEditorialDefinition(definition));
+			setUpcomingTemplateDefinition(definition);
+			setTemplateCodeError("");
+		} catch (error) {
+			setTemplateCodeError(
+				error instanceof Error ? error.message : "Template JSON is invalid."
+			);
+		}
+	}
+
+	function saveUpcomingTemplateDraft() {
+		try {
+			const definition = parseUpcomingEditorialDefinition(upcomingTemplateSource);
+			const normalisedSource = serializeUpcomingEditorialDefinition(definition);
+			localStorage.setItem(upcomingTemplateStorageKey, normalisedSource);
+			setUpcomingTemplateSource(normalisedSource);
+			setSavedUpcomingTemplateSource(normalisedSource);
+			setUpcomingTemplateDefinition(definition);
+			setTemplateCodeError("");
+			setActionError("");
+			setActionMessage("Template draft saved in this browser.");
+		} catch (error) {
+			setTemplateCodeError(
+				error instanceof Error ? error.message : "Template JSON is invalid."
+			);
+		}
+	}
+
+	function restoreUpcomingTemplateOriginal() {
+		if (!window.confirm("Restore the original template and remove the browser draft?")) {
+			return;
+		}
+
+		localStorage.removeItem(upcomingTemplateStorageKey);
+		setUpcomingTemplateSource(upcomingEditorialDefaultSource);
+		setSavedUpcomingTemplateSource(upcomingEditorialDefaultSource);
+		setUpcomingTemplateDefinition(upcomingEditorialDefaultDefinition);
+		setTemplateCodeError("");
+		setActionError("");
+		setActionMessage("The original Upcoming Fixtures template has been restored.");
+	}
+
 	function setFixtureOverride<Field extends keyof SocialFixtureOverride>(
 		fixtureId: string,
 		field: Field,
@@ -433,7 +559,10 @@ export default function SocialMediaStudio() {
 				</div>
 			)}
 
-			<div className="grid gap-4 xl:grid-cols-[minmax(19rem,0.78fr)_minmax(28rem,1.22fr)]">
+			<div className={`grid gap-4 ${isTemplateEditorOpen && kind === "upcomingFixtures"
+				? "xl:grid-cols-[minmax(28rem,1fr)_minmax(28rem,1.1fr)]"
+				: "xl:grid-cols-[minmax(19rem,0.78fr)_minmax(28rem,1.22fr)]"
+			}`}>
 				<aside className="surface-card h-fit p-4">
 					<section>
 						<div className="flex items-center justify-between gap-3">
@@ -469,7 +598,80 @@ export default function SocialMediaStudio() {
 								</p>
 							</div>
 						)}
+
+						{kind === "upcomingFixtures" && (
+							<div className="mt-3 flex flex-wrap items-center gap-2">
+								<button
+									type="button"
+									onClick={() => setIsTemplateEditorOpen((current) => !current)}
+									className="btn-secondary px-3 py-2 text-xs"
+								>
+									{isTemplateEditorOpen ? "Close template code" : "Edit template code"}
+								</button>
+								{savedUpcomingTemplateSource !== upcomingEditorialDefaultSource && (
+									<span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-800">
+										Browser override active
+									</span>
+								)}
+							</div>
+						)}
 					</section>
+
+					{kind === "upcomingFixtures" && isTemplateEditorOpen && (
+						<section className="mt-5 border-t border-slate-200 pt-5">
+							<div className="flex flex-wrap items-start justify-between gap-2">
+								<div>
+									<h2 className="text-base font-bold text-slate-900">Template code</h2>
+									<p className="mt-1 text-xs leading-5 text-slate-600">
+										Edit the JSON to change colours, spacing, sizing and positions. Valid changes update the preview automatically.
+									</p>
+								</div>
+								<span className="rounded-full bg-sky-100 px-2.5 py-1 text-[11px] font-bold text-sky-800">
+									Local pilot
+								</span>
+							</div>
+
+							<div className="mt-3">
+								<Suspense fallback={(
+									<div className="grid h-[30rem] place-items-center rounded-xl border border-slate-300 bg-slate-50 text-sm font-semibold text-slate-500">
+										Loading code editor…
+									</div>
+								)}>
+									<TemplateCodeEditor
+										value={upcomingTemplateSource}
+										onChange={setUpcomingTemplateSource}
+									/>
+								</Suspense>
+							</div>
+
+							{templateCodeError ? (
+								<p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold leading-5 text-rose-700">
+									{templateCodeError} The last valid preview remains active.
+								</p>
+							) : (
+								<p className="mt-2 text-xs font-semibold text-emerald-700">
+									Valid template{upcomingTemplateSource !== savedUpcomingTemplateSource ? " · Unsaved changes" : " · Saved"}
+								</p>
+							)}
+
+							<div className="mt-3 flex flex-wrap gap-2">
+								<button
+									type="button"
+									onClick={saveUpcomingTemplateDraft}
+									disabled={Boolean(templateCodeError)}
+									className="btn-primary px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-45"
+								>
+									Save browser draft
+								</button>
+								<button type="button" onClick={formatUpcomingTemplateSource} className="btn-secondary px-3 py-2 text-xs">
+									Format JSON
+								</button>
+								<button type="button" onClick={restoreUpcomingTemplateOriginal} className="rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50">
+									Restore original
+								</button>
+							</div>
+						</section>
+					)}
 
 					<section className="mt-5 border-t border-slate-200 pt-5">
 						<div className="flex items-center justify-between gap-3">

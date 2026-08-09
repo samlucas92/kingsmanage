@@ -15,81 +15,284 @@ import {
 	drawRoundedFrame,
 	drawShieldPlaceholder,
 	drawWrappedText,
-	EDITORIAL_GOLD,
-	EDITORIAL_WHITE,
 	getTextField,
 } from "./editorialCanvas";
 
-const UPCOMING_SPONSOR_TOP = 1330;
-const UPCOMING_LIST_BOTTOM = 1268;
-
-export const upcomingEditorialTemplate: SocialGraphicTemplate = {
-	id: "upcoming-editorial-gold",
-	name: "Editorial fixtures",
-	description: "Black and gold roundup for up to five upcoming fixtures.",
-	width: 1365,
-	height: 1651,
-	resolveHeight: (content) => content.fields.showSponsors === false
-		? UPCOMING_SPONSOR_TOP
-		: 1651,
-	supportedKinds: ["upcomingFixtures"],
-	fields: [
-		{
-			id: "showSponsors",
-			label: "Show sponsors area",
-			type: "boolean",
-			defaultValue: true,
-		},
-		{
-			id: "sponsorsTitle",
-			label: "Sponsors title",
-			type: "text",
-			defaultValue: "Proudly sponsored by",
-		},
-	],
-	render: renderUpcomingEditorialTemplate,
+export type UpcomingEditorialTemplateDefinition = {
+	version: 1;
+	canvas: {
+		width: number;
+		height: number;
+		sponsorFreeHeight: number;
+	};
+	theme: {
+		background: string;
+		accent: string;
+		text: string;
+	};
+	header: {
+		sectionTitle: string;
+		sectionY: number;
+		sectionWidth: number;
+		headlineX: number;
+		headlineY: number;
+		headlineWidth: number;
+		headlineMaxFontSize: number;
+		headlineMinFontSize: number;
+		logoX: number;
+		logoY: number;
+		logoWidth: number;
+		logoHeight: number;
+	};
+	fixtureList: {
+		top: number;
+		bottom: number;
+		maximumRowHeight: number;
+		rowGap: number;
+		compactRowGap: number;
+	};
+	fixtureRow: {
+		frameX: number;
+		frameWidth: number;
+		frameRadius: number;
+		calendarX: number;
+		calendarSize: number;
+		dateX: number;
+		dateWidth: number;
+		firstDividerX: number;
+		clubLogoX: number;
+		clubLogoWidth: number;
+		clubLogoHeight: number;
+		versusX: number;
+		opponentX: number;
+		opponentWidth: number;
+		secondDividerX: number;
+		locationIconX: number;
+		locationX: number;
+		locationWidth: number;
+	};
+	sponsors: {
+		top: number;
+		titleWidth: number;
+		cardX: number;
+		cardTopOffset: number;
+		cardWidth: number;
+		cardHeight: number;
+		cardGap: number;
+	};
 };
 
-async function renderUpcomingEditorialTemplate({
-	context,
-	width,
-	height,
-	content,
-}: SocialGraphicTemplateRenderContext) {
+export const upcomingEditorialDefaultDefinition: UpcomingEditorialTemplateDefinition = {
+	version: 1,
+	canvas: {
+		width: 1365,
+		height: 1651,
+		sponsorFreeHeight: 1330,
+	},
+	theme: {
+		background: "#050606",
+		accent: "#d7a600",
+		text: "#f4f4f2",
+	},
+	header: {
+		sectionTitle: "Upcoming",
+		sectionY: 88,
+		sectionWidth: 430,
+		headlineX: 66,
+		headlineY: 126,
+		headlineWidth: 970,
+		headlineMaxFontSize: 212,
+		headlineMinFontSize: 82,
+		logoX: 1000,
+		logoY: 45,
+		logoWidth: 285,
+		logoHeight: 345,
+	},
+	fixtureList: {
+		top: 432,
+		bottom: 1268,
+		maximumRowHeight: 155,
+		rowGap: 24,
+		compactRowGap: 16,
+	},
+	fixtureRow: {
+		frameX: 62,
+		frameWidth: 1240,
+		frameRadius: 18,
+		calendarX: 102,
+		calendarSize: 68,
+		dateX: 205,
+		dateWidth: 210,
+		firstDividerX: 410,
+		clubLogoX: 462,
+		clubLogoWidth: 104,
+		clubLogoHeight: 102,
+		versusX: 598,
+		opponentX: 660,
+		opponentWidth: 250,
+		secondDividerX: 930,
+		locationIconX: 980,
+		locationX: 1030,
+		locationWidth: 235,
+	},
+	sponsors: {
+		top: 1330,
+		titleWidth: 520,
+		cardX: 62,
+		cardTopOffset: 56,
+		cardWidth: 390,
+		cardHeight: 204,
+		cardGap: 35,
+	},
+};
+
+export const upcomingEditorialDefaultSource = serializeUpcomingEditorialDefinition(
+	upcomingEditorialDefaultDefinition
+);
+
+export const upcomingEditorialTemplate = createUpcomingEditorialTemplate();
+
+export function createUpcomingEditorialTemplate(
+	definition = upcomingEditorialDefaultDefinition
+): SocialGraphicTemplate {
+	return {
+		id: "upcoming-editorial-gold",
+		name: "Editorial fixtures",
+		description: "Black and gold roundup for up to five upcoming fixtures.",
+		width: definition.canvas.width,
+		height: definition.canvas.height,
+		resolveHeight: (content) => content.fields.showSponsors === false
+			? definition.canvas.sponsorFreeHeight
+			: definition.canvas.height,
+		supportedKinds: ["upcomingFixtures"],
+		fields: [
+			{
+				id: "showSponsors",
+				label: "Show sponsors area",
+				type: "boolean",
+				defaultValue: true,
+			},
+			{
+				id: "sponsorsTitle",
+				label: "Sponsors title",
+				type: "text",
+				defaultValue: "Proudly sponsored by",
+			},
+		],
+		render: (renderContext) => renderUpcomingEditorialTemplate(
+			renderContext,
+			definition
+		),
+	};
+}
+
+export function parseUpcomingEditorialDefinition(source: string) {
+	let candidate: unknown;
+
+	try {
+		candidate = JSON.parse(source);
+	} catch (error) {
+		throw new Error(
+			error instanceof SyntaxError ? error.message : "Template JSON is invalid.",
+			{ cause: error }
+		);
+	}
+
+	const definition = normaliseDefinition(
+		candidate,
+		upcomingEditorialDefaultDefinition,
+		"template"
+	) as UpcomingEditorialTemplateDefinition;
+
+	if (definition.version !== 1) {
+		throw new Error("template.version must be 1.");
+	}
+
+	return definition;
+}
+
+export function serializeUpcomingEditorialDefinition(
+	definition: UpcomingEditorialTemplateDefinition
+) {
+	return JSON.stringify(definition, null, 2);
+}
+
+async function renderUpcomingEditorialTemplate(
+	{
+		context,
+		width,
+		height,
+		content,
+	}: SocialGraphicTemplateRenderContext,
+	definition: UpcomingEditorialTemplateDefinition
+) {
+	const { theme, header, fixtureList, sponsors } = definition;
 	const showSponsors = content.fields.showSponsors !== false;
 	const fixtures = content.fixtures.slice(0, 5);
 
 	context.save();
-	drawEditorialBackground(context, width, height);
-	drawEditorialBorder(context, width, height);
-	drawEditorialSectionTitle(context, "Upcoming", 88, width, 430);
-	drawFittedText(context, content.headline.toUpperCase(), 66, 126, 970, 212, 82, EDITORIAL_WHITE);
+	drawEditorialBackground(context, width, height, {
+		background: theme.background,
+		accent: theme.accent,
+	});
+	drawEditorialBorder(context, width, height, theme.accent);
+	drawEditorialSectionTitle(
+		context,
+		header.sectionTitle,
+		header.sectionY,
+		width,
+		header.sectionWidth,
+		theme.accent
+	);
+	drawFittedText(
+		context,
+		content.headline.toUpperCase(),
+		header.headlineX,
+		header.headlineY,
+		header.headlineWidth,
+		header.headlineMaxFontSize,
+		header.headlineMinFontSize,
+		theme.text
+	);
 	await drawAssetOrPlaceholder(
 		context,
 		content.assets.homeTeamLogo,
-		1000,
-		45,
-		285,
-		345,
+		header.logoX,
+		header.logoY,
+		header.logoWidth,
+		header.logoHeight,
 		"YOUR\nLOGO\nHERE",
-		{ frame: false, contain: true }
+		{
+			frame: false,
+			contain: true,
+			placeholderColour: theme.text,
+		}
 	);
 
 	if (fixtures.length === 0) {
-		drawMultilineText(context, "SELECT UPCOMING\nFIXTURES", width / 2, height / 2, 54, EDITORIAL_WHITE);
+		drawMultilineText(
+			context,
+			"SELECT UPCOMING\nFIXTURES",
+			width / 2,
+			height / 2,
+			54,
+			theme.text
+		);
 		context.restore();
 		return;
 	}
 
-	const listTop = 432;
-	const maximumRowHeight = 155;
-	const rowGap = fixtures.length > 3 ? 16 : 24;
+	const rowGap = fixtures.length > 3
+		? fixtureList.compactRowGap
+		: fixtureList.rowGap;
 	const rowHeight = Math.min(
-		maximumRowHeight,
-		(UPCOMING_LIST_BOTTOM - listTop - rowGap * (fixtures.length - 1)) / fixtures.length
+		fixtureList.maximumRowHeight,
+		(fixtureList.bottom - fixtureList.top - rowGap * (fixtures.length - 1)) /
+			fixtures.length
 	);
 	const groupHeight = rowHeight * fixtures.length + rowGap * (fixtures.length - 1);
-	const firstRowTop = listTop + (UPCOMING_LIST_BOTTOM - listTop - groupHeight) / 2;
+	const firstRowTop = fixtureList.top +
+		(fixtureList.bottom - fixtureList.top - groupHeight) / 2;
 
 	for (let index = 0; index < fixtures.length; index += 1) {
 		await drawFixtureRow(
@@ -97,7 +300,8 @@ async function renderUpcomingEditorialTemplate({
 			fixtures[index],
 			content.assets.homeTeamLogo,
 			firstRowTop + index * (rowHeight + rowGap),
-			rowHeight
+			rowHeight,
+			definition
 		);
 	}
 
@@ -105,15 +309,27 @@ async function renderUpcomingEditorialTemplate({
 		drawEditorialSectionTitle(
 			context,
 			getTextField(content.fields.sponsorsTitle, "Proudly sponsored by"),
-			UPCOMING_SPONSOR_TOP,
+			sponsors.top,
 			width,
-			520
+			sponsors.titleWidth,
+			theme.accent
 		);
-		await Promise.all([
-			drawAssetOrPlaceholder(context, content.assets.sponsors[0], 62, UPCOMING_SPONSOR_TOP + 56, 390, 204, "SPONSOR\nPLACEHOLDER", { contain: true }),
-			drawAssetOrPlaceholder(context, content.assets.sponsors[1], 487, UPCOMING_SPONSOR_TOP + 56, 390, 204, "SPONSOR\nPLACEHOLDER", { contain: true }),
-			drawAssetOrPlaceholder(context, content.assets.sponsors[2], 912, UPCOMING_SPONSOR_TOP + 56, 390, 204, "SPONSOR\nPLACEHOLDER", { contain: true }),
-		]);
+		await Promise.all(content.assets.sponsors.slice(0, 3).map((asset, index) => (
+			drawAssetOrPlaceholder(
+				context,
+				asset,
+				sponsors.cardX + index * (sponsors.cardWidth + sponsors.cardGap),
+				sponsors.top + sponsors.cardTopOffset,
+				sponsors.cardWidth,
+				sponsors.cardHeight,
+				"SPONSOR\nPLACEHOLDER",
+				{
+					contain: true,
+					frameColour: theme.accent,
+					placeholderColour: theme.text,
+				}
+			)
+		)));
 	}
 
 	context.restore();
@@ -124,43 +340,130 @@ async function drawFixtureRow(
 	fixture: SocialFixture,
 	clubLogo: SocialGraphicTemplateRenderContext["content"]["assets"]["homeTeamLogo"],
 	y: number,
-	height: number
+	height: number,
+	definition: UpcomingEditorialTemplateDefinition
 ) {
-	drawRoundedFrame(context, 62, y, 1240, height, 18);
-	drawCalendarIcon(context, 102, y + height * 0.28, 68);
+	const { theme, fixtureRow: row } = definition;
+	drawRoundedFrame(
+		context,
+		row.frameX,
+		y,
+		row.frameWidth,
+		height,
+		row.frameRadius,
+		theme.accent
+	);
+	drawCalendarIcon(
+		context,
+		row.calendarX,
+		y + height * 0.28,
+		row.calendarSize,
+		theme.accent
+	);
 
 	const date = new Date(fixture.date);
 	const dateText = Number.isNaN(date.getTime())
 		? "DATE TBC"
-		: date.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" }).toUpperCase();
-	drawFittedText(context, dateText, 205, y + height * 0.27, 210, 34, 20, EDITORIAL_WHITE);
-	drawFittedText(context, fixture.competition.toUpperCase(), 205, y + height * 0.58, 210, 27, 17, EDITORIAL_GOLD);
-	drawVerticalDivider(context, 410, y + 24, height - 48);
+		: date.toLocaleDateString([], {
+			weekday: "short",
+			day: "numeric",
+			month: "short",
+		}).toUpperCase();
+	drawFittedText(context, dateText, row.dateX, y + height * 0.27, row.dateWidth, 34, 20, theme.text);
+	drawFittedText(context, fixture.competition.toUpperCase(), row.dateX, y + height * 0.58, row.dateWidth, 27, 17, theme.accent);
+	drawVerticalDivider(context, row.firstDividerX, y + 24, height - 48, theme.accent);
 
 	if (clubLogo) {
-		await drawAssetOrPlaceholder(context, clubLogo, 462, y + (height - 102) / 2, 104, 102, "", { frame: false, contain: true });
+		await drawAssetOrPlaceholder(
+			context,
+			clubLogo,
+			row.clubLogoX,
+			y + (height - row.clubLogoHeight) / 2,
+			row.clubLogoWidth,
+			row.clubLogoHeight,
+			"",
+			{ frame: false, contain: true }
+		);
 	} else {
-		drawShieldPlaceholder(context, 482, y + (height - 76) / 2, 66, 76);
+		drawShieldPlaceholder(
+			context,
+			row.clubLogoX + 20,
+			y + (height - 76) / 2,
+			66,
+			76,
+			theme.accent
+		);
 	}
-	drawFittedText(context, "VS", 598, y + height * 0.35, 52, 38, 24, EDITORIAL_GOLD, "center");
-	drawFittedText(context, fixture.opponent.toUpperCase(), 660, y + height * 0.29, 250, 38, 20, EDITORIAL_WHITE);
-	drawVerticalDivider(context, 930, y + 24, height - 48);
+	drawFittedText(context, "VS", row.versusX, y + height * 0.35, 52, 38, 24, theme.accent, "center");
+	drawFittedText(context, fixture.opponent.toUpperCase(), row.opponentX, y + height * 0.29, row.opponentWidth, 38, 20, theme.text);
+	drawVerticalDivider(context, row.secondDividerX, y + 24, height - 48, theme.accent);
 
-	drawLocationIcon(context, 980, y + height * 0.36, 40);
-	drawFittedText(context, fixture.venue.toUpperCase(), 1030, y + height * 0.28, 220, 30, 20, EDITORIAL_GOLD);
-	drawWrappedText(context, fixture.location.toUpperCase(), 1030, y + height * 0.53, 235, 2, 20, 15, EDITORIAL_WHITE);
+	drawLocationIcon(
+		context,
+		row.locationIconX,
+		y + height * 0.36,
+		40,
+		theme.accent,
+		theme.background
+	);
+	drawFittedText(context, fixture.venue.toUpperCase(), row.locationX, y + height * 0.28, row.locationWidth, 30, 20, theme.accent);
+	drawWrappedText(context, fixture.location.toUpperCase(), row.locationX, y + height * 0.53, row.locationWidth, 2, 20, 15, theme.text);
 }
 
 function drawVerticalDivider(
 	context: CanvasRenderingContext2D,
 	x: number,
 	y: number,
-	height: number
+	height: number,
+	colour: string
 ) {
-	context.strokeStyle = EDITORIAL_GOLD;
+	context.strokeStyle = colour;
 	context.lineWidth = 3;
 	context.beginPath();
 	context.moveTo(x, y);
 	context.lineTo(x, y + height);
 	context.stroke();
+}
+
+function normaliseDefinition(
+	candidate: unknown,
+	fallback: unknown,
+	path: string
+): unknown {
+	if (typeof fallback === "number") {
+		if (typeof candidate !== "number" || !Number.isFinite(candidate) || candidate <= 0 || candidate > 4000) {
+			throw new Error(`${path} must be a number between 0 and 4000.`);
+		}
+		return candidate;
+	}
+
+	if (typeof fallback === "string") {
+		if (typeof candidate !== "string" || !candidate.trim()) {
+			throw new Error(`${path} must be a non-empty string.`);
+		}
+		if (path.startsWith("template.theme.") && !/^#[0-9a-f]{6}$/i.test(candidate)) {
+			throw new Error(`${path} must be a six-digit hex colour.`);
+		}
+		return candidate;
+	}
+
+	if (!isObject(candidate) || !isObject(fallback)) {
+		throw new Error(`${path} must be an object.`);
+	}
+
+	return Object.fromEntries(
+		Object.entries(fallback).map(([key, fallbackValue]) => {
+			if (!(key in candidate)) {
+				throw new Error(`${path}.${key} is required.`);
+			}
+			return [
+				key,
+				normaliseDefinition(candidate[key], fallbackValue, `${path}.${key}`),
+			];
+		})
+	);
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
 }

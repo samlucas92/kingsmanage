@@ -17,9 +17,10 @@ const imageContentBoundsCache = new Map<string, ImageContentBounds>();
 export function drawEditorialBackground(
 	context: CanvasRenderingContext2D,
 	width: number,
-	height: number
+	height: number,
+	colours: { background?: string; accent?: string } = {}
 ) {
-	context.fillStyle = EDITORIAL_BLACK;
+	context.fillStyle = colours.background ?? EDITORIAL_BLACK;
 	context.fillRect(0, 0, width, height);
 
 	const glow = context.createRadialGradient(width * 0.48, height * 0.42, 20, width * 0.48, height * 0.42, width * 0.62);
@@ -28,7 +29,8 @@ export function drawEditorialBackground(
 	context.fillStyle = glow;
 	context.fillRect(0, 0, width, height);
 
-	context.fillStyle = "rgba(215,166,0,.12)";
+	context.fillStyle = colours.accent ?? "rgba(215,166,0,.12)";
+	context.globalAlpha = colours.accent ? 0.12 : 1;
 	for (let row = 0; row < 18; row += 1) {
 		for (let column = 0; column < 8; column += 1) {
 			const radius = Math.max(1.1, 5.7 - column * 0.68);
@@ -37,6 +39,7 @@ export function drawEditorialBackground(
 			context.fill();
 		}
 	}
+	context.globalAlpha = 1;
 
 	context.fillStyle = "rgba(255,255,255,.025)";
 	for (let index = 0; index < 220; index += 1) {
@@ -47,9 +50,10 @@ export function drawEditorialBackground(
 export function drawEditorialBorder(
 	context: CanvasRenderingContext2D,
 	width: number,
-	height: number
+	height: number,
+	colour = EDITORIAL_GOLD
 ) {
-	context.strokeStyle = EDITORIAL_GOLD;
+	context.strokeStyle = colour;
 	context.lineWidth = 3;
 	context.strokeRect(20, 20, width - 40, height - 40);
 }
@@ -59,10 +63,11 @@ export function drawEditorialSectionTitle(
 	text: string,
 	y: number,
 	width: number,
-	maxTextWidth = 520
+	maxTextWidth = 520,
+	colour = EDITORIAL_GOLD
 ) {
-	drawFittedText(context, text.toUpperCase(), width / 2, y - 26, maxTextWidth, 50, 24, EDITORIAL_GOLD, "center");
-	context.strokeStyle = EDITORIAL_GOLD;
+	drawFittedText(context, text.toUpperCase(), width / 2, y - 26, maxTextWidth, 50, 24, colour, "center");
+	context.strokeStyle = colour;
 	context.lineWidth = 3;
 	context.beginPath();
 	context.moveTo(88, y);
@@ -78,9 +83,10 @@ export function drawRoundedFrame(
 	y: number,
 	width: number,
 	height: number,
-	radius = 20
+	radius = 20,
+	colour = EDITORIAL_GOLD
 ) {
-	context.strokeStyle = EDITORIAL_GOLD;
+	context.strokeStyle = colour;
 	context.lineWidth = 3;
 	roundedRectPath(context, x, y, width, height, radius);
 	context.stroke();
@@ -94,12 +100,19 @@ export async function drawAssetOrPlaceholder(
 	width: number,
 	height: number,
 	placeholder: string,
-	options: { frame?: boolean; contain?: boolean } = {}
+	options: {
+		frame?: boolean;
+		contain?: boolean;
+		frameColour?: string;
+		placeholderColour?: string;
+	} = {}
 ) {
-	if (options.frame !== false) drawRoundedFrame(context, x, y, width, height);
+	if (options.frame !== false) {
+		drawRoundedFrame(context, x, y, width, height, 20, options.frameColour);
+	}
 
 	if (!asset) {
-		drawMultilineText(context, placeholder, x + width / 2, y + height / 2, Math.min(31, width / 8), EDITORIAL_WHITE);
+		drawMultilineText(context, placeholder, x + width / 2, y + height / 2, Math.min(31, width / 8), options.placeholderColour ?? EDITORIAL_WHITE);
 		return;
 	}
 
@@ -203,11 +216,12 @@ export function drawCalendarIcon(
 	context: CanvasRenderingContext2D,
 	x: number,
 	y: number,
-	size: number
+	size: number,
+	colour = EDITORIAL_GOLD
 ) {
-	context.strokeStyle = EDITORIAL_GOLD;
+	context.strokeStyle = colour;
 	context.lineWidth = Math.max(3, size * 0.07);
-	drawRoundedFrame(context, x, y + size * 0.14, size, size * 0.82, size * 0.1);
+	drawRoundedFrame(context, x, y + size * 0.14, size, size * 0.82, size * 0.1, colour);
 	context.beginPath();
 	context.moveTo(x + size * 0.22, y);
 	context.lineTo(x + size * 0.22, y + size * 0.28);
@@ -216,7 +230,7 @@ export function drawCalendarIcon(
 	context.moveTo(x, y + size * 0.42);
 	context.lineTo(x + size, y + size * 0.42);
 	context.stroke();
-	context.fillStyle = EDITORIAL_GOLD;
+	context.fillStyle = colour;
 	for (let row = 0; row < 2; row += 1) {
 		for (let column = 0; column < 3; column += 1) {
 			context.fillRect(x + size * (0.19 + column * 0.25), y + size * (0.55 + row * 0.22), size * 0.1, size * 0.1);
@@ -228,16 +242,18 @@ export function drawLocationIcon(
 	context: CanvasRenderingContext2D,
 	x: number,
 	y: number,
-	size: number
+	size: number,
+	colour = EDITORIAL_GOLD,
+	backgroundColour = EDITORIAL_BLACK
 ) {
-	context.fillStyle = EDITORIAL_GOLD;
+	context.fillStyle = colour;
 	context.beginPath();
 	context.arc(x, y, size * 0.32, Math.PI, 0);
 	context.quadraticCurveTo(x + size * 0.33, y + size * 0.46, x, y + size);
 	context.quadraticCurveTo(x - size * 0.33, y + size * 0.46, x - size * 0.32, y);
 	context.closePath();
 	context.fill();
-	context.fillStyle = EDITORIAL_BLACK;
+	context.fillStyle = backgroundColour;
 	context.beginPath();
 	context.arc(x, y, size * 0.12, 0, Math.PI * 2);
 	context.fill();
@@ -247,9 +263,10 @@ export function drawClockIcon(
 	context: CanvasRenderingContext2D,
 	x: number,
 	y: number,
-	size: number
+	size: number,
+	colour = EDITORIAL_GOLD
 ) {
-	context.strokeStyle = EDITORIAL_GOLD;
+	context.strokeStyle = colour;
 	context.lineWidth = Math.max(3, size * 0.07);
 	context.beginPath();
 	context.arc(x, y, size / 2, 0, Math.PI * 2);
@@ -265,9 +282,10 @@ export function drawShieldPlaceholder(
 	x: number,
 	y: number,
 	width: number,
-	height: number
+	height: number,
+	colour = EDITORIAL_GOLD
 ) {
-	context.strokeStyle = EDITORIAL_GOLD;
+	context.strokeStyle = colour;
 	context.lineWidth = 5;
 	context.beginPath();
 	context.moveTo(x + width / 2, y);
