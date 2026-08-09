@@ -16,9 +16,9 @@ import {
 	getTextField,
 } from "./editorialCanvas";
 
-const LINEUP_SPONSOR_TOP = 1370;
-const LINEUP_SPONSOR_FREE_HEIGHT = 1370;
-const PITCH = { x: 78, y: 405, width: 1209, height: 750 };
+const LINEUP_SPONSOR_TOP = 1400;
+const LINEUP_SPONSOR_FREE_HEIGHT = 1400;
+const PITCH = { x: 78, y: 400, width: 1209, height: 730 };
 
 export const lineupEditorialTemplate: SocialGraphicTemplate = {
 	id: "lineup-editorial-gold",
@@ -127,9 +127,9 @@ async function renderLineupEditorialTemplate({
 			530
 		);
 		await Promise.all([
-			drawAssetOrPlaceholder(context, content.assets.sponsors[0], 64, LINEUP_SPONSOR_TOP + 48, 390, 205, "SPONSOR\nPLACEHOLDER", { contain: true }),
-			drawAssetOrPlaceholder(context, content.assets.sponsors[1], 487, LINEUP_SPONSOR_TOP + 48, 390, 205, "SPONSOR\nPLACEHOLDER", { contain: true }),
-			drawAssetOrPlaceholder(context, content.assets.sponsors[2], 910, LINEUP_SPONSOR_TOP + 48, 390, 205, "SPONSOR\nPLACEHOLDER", { contain: true }),
+			drawAssetOrPlaceholder(context, content.assets.sponsors[0], 64, LINEUP_SPONSOR_TOP + 55, 390, 155, "SPONSOR\nPLACEHOLDER", { contain: true }),
+			drawAssetOrPlaceholder(context, content.assets.sponsors[1], 487, LINEUP_SPONSOR_TOP + 55, 390, 155, "SPONSOR\nPLACEHOLDER", { contain: true }),
+			drawAssetOrPlaceholder(context, content.assets.sponsors[2], 910, LINEUP_SPONSOR_TOP + 55, 390, 155, "SPONSOR\nPLACEHOLDER", { contain: true }),
 		]);
 	}
 
@@ -185,30 +185,30 @@ function drawStarter(
 	const y = PITCH.y + 62 + Math.min(100, Math.max(0, yRatio)) / 100 * (PITCH.height - 124);
 
 	context.beginPath();
-	context.arc(x, y, 36, 0, Math.PI * 2);
+	context.arc(x, y, 28, 0, Math.PI * 2);
 	context.fillStyle = EDITORIAL_GOLD;
 	context.fill();
-	context.lineWidth = 4;
+	context.lineWidth = 3;
 	context.strokeStyle = EDITORIAL_WHITE;
 	context.stroke();
 	drawFittedText(
 		context,
 		player.number === undefined ? "–" : String(player.number),
 		x,
-		y - 24,
-		52,
-		42,
-		25,
+		y - 19,
+		44,
+		34,
+		22,
 		"#050606",
 		"center"
 	);
 
-	context.fillStyle = "rgba(5,6,6,.88)";
-	context.fillRect(x - 96, y + 43, 192, 55);
-	drawFittedText(context, player.name.toUpperCase(), x, y + 49, 178, 26, 15, EDITORIAL_WHITE, "center");
-	if (player.position.trim()) {
-		drawFittedText(context, player.position.toUpperCase(), x, y + 102, 118, 18, 12, EDITORIAL_GOLD, "center");
-	}
+	context.fillStyle = "rgba(5,6,6,.9)";
+	context.fillRect(x - 82, y + 33, 164, 37);
+	const label = player.position.trim()
+		? `${player.name} · ${player.position}`
+		: player.name;
+	drawFittedText(context, label.toUpperCase(), x, y + 40, 150, 20, 11, EDITORIAL_WHITE, "center");
 }
 
 function drawBench(
@@ -216,12 +216,35 @@ function drawBench(
 	players: SocialLineupPlayer[],
 	formationName: string
 ) {
-	drawFittedText(context, `FORMATION · ${formationName}`.toUpperCase(), 78, 1185, 420, 30, 18, EDITORIAL_GOLD);
-	drawFittedText(context, "SUBSTITUTES", 1287, 1185, 330, 34, 22, EDITORIAL_GOLD, "right");
-	drawRoundedFrame(context, 78, 1230, 1209, 94, 18);
+	drawFittedText(context, `FORMATION · ${formationName}`.toUpperCase(), 78, 1158, 420, 30, 18, EDITORIAL_GOLD);
+	drawFittedText(context, "SUBSTITUTES", 1287, 1158, 330, 34, 22, EDITORIAL_GOLD, "right");
+	drawRoundedFrame(context, 78, 1200, 1209, 120, 18);
 
-	const label = players.length > 0
-		? players.map((player) => `${player.number ?? "–"}  ${player.name}`).join("   ·   ")
-		: "No substitutes selected";
-	drawFittedText(context, label.toUpperCase(), 682.5, 1257, 1145, 30, 14, EDITORIAL_WHITE, "center");
+	if (players.length === 0) {
+		drawFittedText(context, "NO SUBSTITUTES SELECTED", 682.5, 1243, 520, 28, 17, EDITORIAL_WHITE, "center");
+		return;
+	}
+
+	const columnCount = Math.min(4, players.length);
+	const rowCount = Math.ceil(players.length / columnCount);
+	const cellWidth = 1145 / columnCount;
+	players.forEach((player, index) => {
+		const row = Math.floor(index / columnCount);
+		const column = index % columnCount;
+		const rowWidth = Math.min(columnCount, players.length - row * columnCount);
+		const rowOffset = (columnCount - rowWidth) * cellWidth / 2;
+		const x = 110 + rowOffset + column * cellWidth + cellWidth / 2;
+		const y = rowCount === 1 ? 1243 : 1218 + row * 51;
+		drawFittedText(
+			context,
+			`${player.number ?? "–"}  ${player.name}`.toUpperCase(),
+			x,
+			y,
+			cellWidth - 24,
+			24,
+			13,
+			EDITORIAL_WHITE,
+			"center"
+		);
+	});
 }
