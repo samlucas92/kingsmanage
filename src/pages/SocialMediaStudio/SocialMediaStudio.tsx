@@ -1738,6 +1738,8 @@ function LineupCopyEditor({
 		: availablePlayers[0]?.id ?? "";
 	const selectedFormation = formations.find((formation) => formation.key === lineup.formationKey)
 		?? formations[0];
+	const starters = lineup.players.filter((player) => player.role === "starter");
+	const captainPlayerId = starters.find((player) => player.isCaptain)?.playerId ?? "";
 	const inputClassName = "mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-900 shadow-sm";
 
 	function updatePlayer(index: number, patch: Partial<SocialLineupPlayer>) {
@@ -1749,8 +1751,9 @@ function LineupCopyEditor({
 		});
 	}
 
-	function setCaptain(index: number, isCaptain: boolean) {
-		onChange(withLineupCaptain(lineup, index, isCaptain));
+	function setCaptain(playerId: string) {
+		const playerIndex = lineup.players.findIndex((player) => player.playerId === playerId);
+		onChange(withLineupCaptain(lineup, playerIndex, Boolean(playerId)));
 	}
 
 	function changePlayerRole(index: number, role: SocialLineupPlayer["role"]) {
@@ -1829,19 +1832,30 @@ function LineupCopyEditor({
 				<p className="text-xs leading-5 text-slate-500">
 					Seeded from the selected match. These changes only affect this image.
 				</p>
-				<label className="block text-sm font-semibold text-slate-700">
-					Formation
-					<select value={lineup.formationKey} onChange={(event) => changeFormation(event.target.value)} className={inputClassName}>
-						{formations.map((formation) => (
-							<option key={formation.key} value={formation.key}>{formation.name}</option>
-						))}
-					</select>
-				</label>
+				<div className="grid gap-3 sm:grid-cols-2">
+					<label className="block text-sm font-semibold text-slate-700">
+						Formation
+						<select value={lineup.formationKey} onChange={(event) => changeFormation(event.target.value)} className={inputClassName}>
+							{formations.map((formation) => (
+								<option key={formation.key} value={formation.key}>{formation.name}</option>
+							))}
+						</select>
+					</label>
+					<label className="block text-sm font-semibold text-slate-700">
+						Captain
+						<select value={captainPlayerId} onChange={(event) => setCaptain(event.target.value)} className={inputClassName}>
+							<option value="">No captain</option>
+							{starters.map((player) => (
+								<option key={player.playerId} value={player.playerId}>{player.name}</option>
+							))}
+						</select>
+					</label>
+				</div>
 
 				<div className="space-y-2">
 					{lineup.players.map((player, index) => (
 						<div key={`${player.playerId}:${index}`} className="rounded-xl border border-slate-200 bg-white p-2.5">
-							<div className="grid gap-2 sm:grid-cols-[5rem_minmax(0,1fr)_7rem_auto] sm:items-end">
+							<div className="grid gap-2 sm:grid-cols-[5rem_minmax(0,1fr)_7rem]">
 								<label className="text-xs font-bold text-slate-600">
 									Number
 									<input type="number" min="0" value={player.number ?? ""} onChange={(event) => updatePlayer(index, { number: parseOptionalNumber(event.target.value) })} className={inputClassName} />
@@ -1856,15 +1870,6 @@ function LineupCopyEditor({
 										<option value="starter">Starter</option>
 										<option value="substitute">Substitute</option>
 									</select>
-								</label>
-								<label className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-xs font-bold ${player.role === "starter" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-slate-200 bg-slate-100 text-slate-400"}`}>
-									<input
-										type="checkbox"
-										checked={player.isCaptain === true}
-										disabled={player.role !== "starter"}
-										onChange={(event) => setCaptain(index, event.target.checked)}
-									/>
-									Captain
 								</label>
 							</div>
 							<div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_5rem_5rem_auto] sm:items-end">
