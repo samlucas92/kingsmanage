@@ -41,12 +41,13 @@ export type SocialFixture = {
 	playerOfTheMatch: string;
 	result?: MatchResult;
 	scorers: SocialScorer[];
+	oppositionScorers: SocialScorer[];
 };
 
 export type SocialFixtureOverride = Partial<
 	Pick<
 		SocialFixture,
-		"teamName" | "opponent" | "competition" | "date" | "venue" | "location" | "playerOfTheMatch"
+		"teamName" | "opponent" | "competition" | "date" | "venue" | "location" | "playerOfTheMatch" | "oppositionScorers"
 	>
 > & {
 	homeGoals?: number;
@@ -65,6 +66,7 @@ export type SocialLineupPlayer = {
 	number?: number;
 	position: string;
 	role: "starter" | "substitute";
+	isCaptain?: boolean;
 	x?: number;
 	y?: number;
 };

@@ -6,11 +6,14 @@ import type { Player } from "../../stores/players";
 import {
 	aggregateScorers,
 	applySocialFixtureOverride,
+	formatScorersForInput,
 	getClubScore,
 	getDefaultHeadline,
 	getOpponentScore,
+	parseScorersInput,
 	toSocialFixture,
 	toSocialLineup,
+	withLineupCaptain,
 } from "./socialGraphicModel";
 
 const teamProfiles: ClubTeamProfile[] = [
@@ -59,6 +62,7 @@ describe("social graphic model", () => {
 			playerOfTheMatch: "",
 			result: undefined,
 			scorers: [],
+			oppositionScorers: [],
 		});
 	});
 
@@ -87,6 +91,9 @@ describe("social graphic model", () => {
 			date: "2026-08-10T19:30",
 			location: "Colts Ground, High Street, Kingsbridge",
 			homeGoals: 4,
+			oppositionScorers: [
+				{ playerId: "opposition-1", name: "Taylor Jones", goals: 2 },
+			],
 		});
 
 		expect(editedFixture).toMatchObject({
@@ -95,6 +102,9 @@ describe("social graphic model", () => {
 			date: "2026-08-10T19:30",
 			location: "Colts Ground, High Street, Kingsbridge",
 			result: { homeGoals: 4, awayGoals: 1 },
+			oppositionScorers: [
+				{ playerId: "opposition-1", name: "Taylor Jones", goals: 2 },
+			],
 		});
 		expect(fixture).toMatchObject({
 			opponent: "Riverside",
@@ -121,6 +131,17 @@ describe("social graphic model", () => {
 			{ playerId: "player-1", name: "Alex Smith", goals: 3 },
 			{ playerId: "player-2", name: "Jamie Jones", goals: 1 },
 		]);
+	});
+
+	it("parses editable opposition scorer lines and preserves goal totals", () => {
+		const scorers = parseScorersInput("Taylor Jones x2\nAlex Smith\nJordan Lee ×3");
+
+		expect(scorers).toEqual([
+			{ playerId: "opposition-scorer-0", name: "Taylor Jones", goals: 2 },
+			{ playerId: "opposition-scorer-1", name: "Alex Smith", goals: 1 },
+			{ playerId: "opposition-scorer-2", name: "Jordan Lee", goals: 3 },
+		]);
+		expect(formatScorersForInput(scorers)).toBe("Taylor Jones x2\nAlex Smith\nJordan Lee x3");
 	});
 
 	it("generates an ordered editable lineup from the saved match formation", () => {
@@ -155,6 +176,25 @@ describe("social graphic model", () => {
 				{ playerId: "sub", name: "Jamie Sub", number: 14, position: "CM", role: "substitute", x: undefined, y: undefined },
 			],
 		});
+	});
+
+	it("sets exactly one starting captain and clears the previous captain", () => {
+		const lineup = {
+			formationKey: "4-4-2",
+			formationName: "4-4-2",
+			players: [
+				{ playerId: "one", name: "One", position: "CM", role: "starter" as const, isCaptain: true },
+				{ playerId: "two", name: "Two", position: "ST", role: "starter" as const },
+				{ playerId: "sub", name: "Sub", position: "CM", role: "substitute" as const },
+			],
+		};
+
+		expect(withLineupCaptain(lineup, 1, true).players.map((player) => player.isCaptain)).toEqual([
+			false,
+			true,
+			false,
+		]);
+		expect(withLineupCaptain(lineup, 2, true).players.some((player) => player.isCaptain)).toBe(false);
 	});
 
 	it("presents completed scores from the club perspective", () => {

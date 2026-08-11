@@ -1,5 +1,8 @@
 import type { SocialGraphicContent, SocialGraphicTemplate } from "./types";
 
+export const SOCIAL_EXPORT_WIDTH = 1080;
+export const SOCIAL_EXPORT_HEIGHT = 1350;
+
 export function getSocialGraphicDimensions(
 	template: SocialGraphicTemplate,
 	content: SocialGraphicContent
@@ -35,8 +38,9 @@ export async function renderSocialGraphic(
 }
 
 export function canvasToPngBlob(canvas: HTMLCanvasElement) {
+	const exportCanvas = createSocialExportCanvas(canvas);
 	return new Promise<Blob>((resolve, reject) => {
-		canvas.toBlob((blob) => {
+		exportCanvas.toBlob((blob) => {
 			if (blob) {
 				resolve(blob);
 				return;
@@ -45,6 +49,25 @@ export function canvasToPngBlob(canvas: HTMLCanvasElement) {
 			reject(new Error("The browser could not create a PNG from this graphic."));
 		}, "image/png");
 	});
+}
+
+function createSocialExportCanvas(sourceCanvas: HTMLCanvasElement) {
+	if (sourceCanvas.width === SOCIAL_EXPORT_WIDTH && sourceCanvas.height === SOCIAL_EXPORT_HEIGHT) {
+		return sourceCanvas;
+	}
+
+	const exportCanvas = document.createElement("canvas");
+	exportCanvas.width = SOCIAL_EXPORT_WIDTH;
+	exportCanvas.height = SOCIAL_EXPORT_HEIGHT;
+	const context = exportCanvas.getContext("2d");
+	if (!context) {
+		throw new Error("This browser cannot resize the social graphic for export.");
+	}
+
+	context.imageSmoothingEnabled = true;
+	context.imageSmoothingQuality = "high";
+	context.drawImage(sourceCanvas, 0, 0, SOCIAL_EXPORT_WIDTH, SOCIAL_EXPORT_HEIGHT);
+	return exportCanvas;
 }
 
 export async function copyCanvasPng(canvas: HTMLCanvasElement) {

@@ -225,7 +225,23 @@ function drawStarter(
 	const label = player.position.trim()
 		? `${player.name} · ${player.position}`
 		: player.name;
-	drawFittedText(context, label.toUpperCase(), x, y + 47, 204, 28, 14, EDITORIAL_WHITE, "center");
+	const captainBadgeWidth = player.isCaptain ? 28 : 0;
+	drawFittedText(
+		context,
+		label.toUpperCase(),
+		x - captainBadgeWidth / 2,
+		y + 47,
+		204 - captainBadgeWidth - (player.isCaptain ? 6 : 0),
+		28,
+		14,
+		EDITORIAL_WHITE,
+		"center"
+	);
+	if (player.isCaptain) {
+		context.fillStyle = EDITORIAL_GOLD;
+		context.fillRect(x + 74, y + 46, captainBadgeWidth, 30);
+		drawFittedText(context, "C", x + 88, y + 49, 20, 22, 18, "#050606", "center");
+	}
 }
 
 function getStarterLayout(players: SocialLineupPlayer[]) {

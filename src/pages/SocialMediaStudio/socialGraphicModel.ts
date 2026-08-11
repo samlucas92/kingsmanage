@@ -9,6 +9,7 @@ import type {
 	SocialFixtureOverride,
 	SocialGraphicKind,
 	SocialLineup,
+	SocialScorer,
 } from "./types";
 
 export function toSocialFixture(
@@ -27,6 +28,7 @@ export function toSocialFixture(
 		playerOfTheMatch: getPlayerOfTheMatch(match, players),
 		result: match.result,
 		scorers: aggregateScorers(match, players),
+		oppositionScorers: [],
 	};
 }
 
@@ -53,6 +55,27 @@ export function aggregateScorers(match: Match, players: Player[]) {
 			goals,
 		}))
 		.sort((first, second) => second.goals - first.goals || first.name.localeCompare(second.name));
+}
+
+export function formatScorersForInput(scorers: SocialScorer[]) {
+	return scorers.map((scorer) => `${scorer.name}${scorer.goals > 1 ? ` x${scorer.goals}` : ""}`).join("\n");
+}
+
+export function parseScorersInput(value: string): SocialScorer[] {
+	return value
+		.split("\n")
+		.map((line) => line.trim())
+		.filter(Boolean)
+		.map((line, index) => {
+			const match = line.match(/^(.*?)(?:\s+[x×](\d+))?$/i);
+			const name = match?.[1]?.trim() || line;
+			const goals = Math.max(1, Number.parseInt(match?.[2] ?? "1", 10));
+			return {
+				playerId: `opposition-scorer-${index}`,
+				name,
+				goals,
+			};
+		});
 }
 
 export function toSocialLineup(
@@ -98,6 +121,20 @@ export function toSocialLineup(
 	};
 }
 
+export function withLineupCaptain(
+	lineup: SocialLineup,
+	playerIndex: number,
+	isCaptain: boolean
+): SocialLineup {
+	return {
+		...lineup,
+		players: lineup.players.map((player, index) => ({
+			...player,
+			isCaptain: isCaptain && index === playerIndex && player.role === "starter",
+		})),
+	};
+}
+
 export function applySocialFixtureOverride(
 	fixture: SocialFixture,
 	override: SocialFixtureOverride | undefined
@@ -120,6 +157,7 @@ export function applySocialFixtureOverride(
 		venue: override.venue ?? fixture.venue,
 		location: override.location ?? fixture.location,
 		playerOfTheMatch: override.playerOfTheMatch ?? fixture.playerOfTheMatch,
+		oppositionScorers: override.oppositionScorers ?? fixture.oppositionScorers,
 		result,
 	};
 }

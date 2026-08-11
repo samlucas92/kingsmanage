@@ -23,6 +23,11 @@ import type {
 	SaveClubFormRequest,
 } from "../../types/forms";
 import { formatDisplayDateTime } from "../../utils/date";
+import {
+	isChoiceOptionSelected,
+	optionRequiresTextInput,
+	removeStructuredChoiceOption,
+} from "./formChoiceOptions";
 
 const questionTypes: ClubFormQuestionType[] = [
 	"ShortText",
@@ -936,7 +941,7 @@ function FormQuestionInput({
 	const answer = value ?? { textValue: "", selectedOptions: [] };
 	const choiceOptions = getQuestionChoiceOptions(question);
 	const selectedTextOption = choiceOptions.find((option) =>
-		optionRequiresTextInput(option) && answer.selectedOptions.includes(option.value)
+		optionRequiresTextInput(option) && isChoiceOptionSelected(option, answer.selectedOptions)
 	);
 	const showOtherTextValidation = Boolean(
 		selectedTextOption &&
@@ -957,7 +962,7 @@ function FormQuestionInput({
 			? [...answer.selectedOptions, option.value]
 			: answer.selectedOptions.filter((item) => item !== option.value);
 		const hasTextOptionSelected = choiceOptions.some((choiceOption) =>
-			optionRequiresTextInput(choiceOption) && selectedOptions.includes(choiceOption.value)
+			optionRequiresTextInput(choiceOption) && isChoiceOptionSelected(choiceOption, selectedOptions)
 		);
 
 		onChange({
@@ -983,7 +988,7 @@ function FormQuestionInput({
 				<div className="mt-3 space-y-2">
 					{choiceOptions.map((option) => (
 						<label key={option.value} className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-							<input type="radio" name={question.id} checked={answer.selectedOptions[0] === option.value} onChange={() => selectSingleOption(option)} required={question.isRequired} />
+							<input type="radio" name={question.id} checked={isChoiceOptionSelected(option, answer.selectedOptions)} onChange={() => selectSingleOption(option)} required={question.isRequired} />
 							{option.label}
 						</label>
 					))}
@@ -995,7 +1000,7 @@ function FormQuestionInput({
 						<label key={option.value} className="flex items-center gap-2 text-sm font-semibold text-slate-700">
 							<input
 								type="checkbox"
-								checked={answer.selectedOptions.includes(option.value)}
+								checked={isChoiceOptionSelected(option, answer.selectedOptions)}
 								onChange={(event) => toggleMultipleOption(option, event.target.checked)}
 							/>
 							{option.label}
@@ -1201,21 +1206,7 @@ function ChoiceOptionEditor({
 	}
 
 	function removeChoiceOption(value: string) {
-		const removedOption = (question.choiceOptions ?? []).find((option) => option.value === value);
-		const choiceOptions = (question.choiceOptions ?? []).filter((option) => option.value !== value);
-		const hasPlayers = choiceOptions.some((option) => option.playerId);
-		onChange({
-			...question,
-			optionSource: hasPlayers ? question.optionSource ?? "MatchPlayers" : "Manual",
-			choiceOptions,
-			options: mergeOrderedOptionLabels(
-				question.options.filter((option) =>
-					option.toLowerCase() !== value.toLowerCase()
-					&& option.toLowerCase() !== (removedOption?.label ?? "").toLowerCase()
-				),
-				choiceOptions
-			),
-		});
+		onChange(removeStructuredChoiceOption(question, value));
 	}
 
 	return (
@@ -1241,6 +1232,10 @@ function ChoiceOptionEditor({
 					<div className="mt-1 flex min-h-28 flex-wrap content-start items-start gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 focus-within:border-yepset-500 focus-within:ring-2 focus-within:ring-yepset-100">
 						{orderedOptions.map((option) => {
 							const isPlayerOption = Boolean(option.playerId);
+							const isStructuredOption = (question.choiceOptions ?? []).some((choiceOption) =>
+								choiceOption.value.toLowerCase() === option.value.toLowerCase()
+								|| choiceOption.label.toLowerCase() === option.label.toLowerCase()
+							);
 							return (
 								<span
 									key={`${option.playerId ?? "manual"}-${option.value}`}
@@ -1253,7 +1248,7 @@ function ChoiceOptionEditor({
 									{option.label}
 									<button
 										type="button"
-										onClick={() => isPlayerOption ? removeChoiceOption(option.value) : removeManualOption(option.value)}
+										onClick={() => isStructuredOption ? removeChoiceOption(option.value) : removeManualOption(option.value)}
 										className={isPlayerOption ? "text-yepset-500 hover:text-red-600" : "text-slate-400 hover:text-red-600"}
 										aria-label={`Remove ${option.label}`}
 									>
@@ -1727,10 +1722,6 @@ function getQuestionChoiceOptions(question: ClubFormQuestion): ClubFormQuestionO
 	);
 
 	return [...orderedOptions, ...missingChoiceOptions];
-}
-
-function optionRequiresTextInput(option: ClubFormQuestionOption) {
-	return option.requiresTextInput || isOtherOption(option.value, option.label);
 }
 
 function isOtherOption(value?: string | null, label?: string | null) {

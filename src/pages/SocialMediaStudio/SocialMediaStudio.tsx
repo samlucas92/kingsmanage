@@ -22,15 +22,20 @@ import {
 	downloadCanvasPng,
 	getSocialGraphicDimensions,
 	renderSocialGraphic,
+	SOCIAL_EXPORT_HEIGHT,
+	SOCIAL_EXPORT_WIDTH,
 } from "./socialGraphicCanvas";
 import {
 	applySocialFixtureOverride,
+	formatScorersForInput,
 	getClubScore,
 	getDefaultHeadline,
 	getGraphicKindLabel,
 	getOpponentScore,
+	parseScorersInput,
 	toSocialFixture,
 	toSocialLineup,
+	withLineupCaptain,
 } from "./socialGraphicModel";
 import { socialGraphicTemplates } from "./templateRegistry";
 import {
@@ -1492,7 +1497,9 @@ export default function SocialMediaStudio() {
 						<h2 className="text-base font-bold text-slate-900">Preview</h2>
 						<div className="flex flex-wrap items-center justify-end gap-2">
 							<span className="text-xs font-semibold text-slate-500">
-								{previewDimensions ? `${previewDimensions.width} × ${previewDimensions.height}` : "Waiting for template"}
+								{previewDimensions
+									? `Template ${previewDimensions.width} × ${previewDimensions.height} · exports ${SOCIAL_EXPORT_WIDTH} × ${SOCIAL_EXPORT_HEIGHT}`
+									: "Waiting for template"}
 							</span>
 							{isEditableTemplate && selectedTemplate && (
 								<button
@@ -1742,11 +1749,15 @@ function LineupCopyEditor({
 		});
 	}
 
+	function setCaptain(index: number, isCaptain: boolean) {
+		onChange(withLineupCaptain(lineup, index, isCaptain));
+	}
+
 	function changePlayerRole(index: number, role: SocialLineupPlayer["role"]) {
 		const player = lineup.players[index];
 		if (!player || player.role === role) return;
 		if (role === "substitute") {
-			updatePlayer(index, { role, x: undefined, y: undefined });
+			updatePlayer(index, { role, isCaptain: false, x: undefined, y: undefined });
 			return;
 		}
 
@@ -1830,7 +1841,7 @@ function LineupCopyEditor({
 				<div className="space-y-2">
 					{lineup.players.map((player, index) => (
 						<div key={`${player.playerId}:${index}`} className="rounded-xl border border-slate-200 bg-white p-2.5">
-							<div className="grid gap-2 sm:grid-cols-[5rem_minmax(0,1fr)_7rem]">
+							<div className="grid gap-2 sm:grid-cols-[5rem_minmax(0,1fr)_7rem_auto] sm:items-end">
 								<label className="text-xs font-bold text-slate-600">
 									Number
 									<input type="number" min="0" value={player.number ?? ""} onChange={(event) => updatePlayer(index, { number: parseOptionalNumber(event.target.value) })} className={inputClassName} />
@@ -1845,6 +1856,15 @@ function LineupCopyEditor({
 										<option value="starter">Starter</option>
 										<option value="substitute">Substitute</option>
 									</select>
+								</label>
+								<label className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-xs font-bold ${player.role === "starter" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-slate-200 bg-slate-100 text-slate-400"}`}>
+									<input
+										type="checkbox"
+										checked={player.isCaptain === true}
+										disabled={player.role !== "starter"}
+										onChange={(event) => setCaptain(index, event.target.checked)}
+									/>
+									Captain
 								</label>
 							</div>
 							<div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_5rem_5rem_auto] sm:items-end">
@@ -1910,6 +1930,9 @@ function FixtureCopyEditor({
 	onReset: () => void;
 }) {
 	const [isOpen, setIsOpen] = useState(defaultOpen);
+	const [oppositionScorersDraft, setOppositionScorersDraft] = useState(
+		formatScorersForInput(fixture.oppositionScorers)
+	);
 	const homeTeam = fixture.venue === "home" ? fixture.teamName : fixture.opponent;
 	const awayTeam = fixture.venue === "away" ? fixture.teamName : fixture.opponent;
 	const inputClassName = "mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm";
@@ -1970,11 +1993,26 @@ function FixtureCopyEditor({
 							Away score · {awayTeam}
 							<input type="number" min="0" value={fixture.result.awayGoals} onChange={(event) => onChange("awayGoals", parseOptionalScore(event.target.value))} className={inputClassName} />
 						</label>
+						<label className="block text-sm font-semibold text-slate-700 sm:col-span-2 xl:col-span-1 2xl:col-span-2">
+							Opposition scorers
+							<textarea
+								rows={2}
+								value={oppositionScorersDraft}
+								onChange={(event) => setOppositionScorersDraft(event.target.value)}
+								onBlur={() => onChange("oppositionScorers", parseScorersInput(oppositionScorersDraft))}
+								placeholder="One per line, for example: Alex Smith x2"
+								className={`${inputClassName} resize-y`}
+							/>
+							<span className="mt-1 block text-xs font-medium text-slate-500">Add one scorer per line. Use “x2” for multiple goals.</span>
+						</label>
 					</>
 				)}
 				{hasOverride && (
 					<div className="sm:col-span-2 xl:col-span-1 2xl:col-span-2">
-						<button type="button" onClick={onReset} className="text-xs font-bold text-yepset-800 hover:text-yepset-950">
+						<button type="button" onClick={() => {
+							setOppositionScorersDraft("");
+							onReset();
+						}} className="text-xs font-bold text-yepset-800 hover:text-yepset-950">
 							Reset to match data
 						</button>
 					</div>
