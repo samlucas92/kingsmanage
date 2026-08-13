@@ -8,6 +8,7 @@ import EmptyState from "../../../../components/compositions/EmptyState";
 import StatusBadge from "../../../../components/compositions/StatusBadge";
 import FilterButton from "../../../../components/compositions/FilterButton";
 import MetricCard from "../../../../components/compositions/MetricCard";
+import { updateMotmDraft } from "./matchStatsDraft";
 
 type PlayerAreaFilter = "all" | "pitch" | "bench";
 type NumericStatField = "goals" | "assists" | "yellowCards" | "redCards" | "minutes";
@@ -116,10 +117,7 @@ export function MatchStatsCard({
 
 	function updateMotm(playerId: string, isMOTM: boolean) {
 		setSaveMessage("");
-		setDraftStats((currentStats) => currentStats.map((stat) => ({
-			...stat,
-			isMOTM: stat.playerId === playerId ? isMOTM : isMOTM ? false : stat.isMOTM,
-		})));
+		setDraftStats((currentStats) => updateMotmDraft(currentStats, playerId, isMOTM));
 	}
 
 	async function saveReport() {
