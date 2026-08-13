@@ -72,14 +72,12 @@ export default function FinanceTable({
 			</div>
 
 			<div className="hidden lg:block">
-				<DataTable minWidthClassName="min-w-[980px]">
+				<DataTable minWidthClassName="min-w-[760px]">
 					<thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
 						<tr>
 							<th className="px-4 py-3">Player</th>
-							<th className="px-4 py-3">Owed</th>
-							<th className="px-4 py-3">Paid</th>
-							<th className="px-4 py-3">Adjustments</th>
-							<th className="px-4 py-3">Outstanding</th>
+							<th className="px-4 py-3">Payment progress</th>
+							<th className="px-4 py-3">Amount due</th>
 							<th className="px-4 py-3">Status</th>
 							<th className="px-4 py-3 text-right">Actions</th>
 						</tr>
@@ -133,15 +131,14 @@ function FinanceMobileCard({
 
 				<div className="min-w-0 flex-1">
 					<h3 className="truncate text-sm font-black text-slate-950">{player.name}</h3>
-					<p className="mt-0.5 text-[10px] font-semibold text-slate-500">
-						Owed: {formatCurrency(amountOwed)} · Paid: {formatCurrency(totalPaid)}
+					<p className="mt-0.5 text-xs font-semibold text-slate-500">
+						{formatCurrency(totalPaid)} paid of {formatCurrency(amountOwed)}
 					</p>
 				</div>
 
 				<div className="shrink-0 text-right">
-					<p className="text-[9px] font-bold text-slate-400">Balance</p>
-					<p className={`text-xs font-black ${balance > 0 ? "text-red-700" : "text-yepset-700"}`}>
-						{formatCurrency(balance)}
+					<p className={`text-sm font-black ${balance > 0 ? "text-red-700" : "text-yepset-700"}`}>
+						{balance > 0 ? `${formatCurrency(balance)} due` : "Paid in full"}
 					</p>
 				</div>
 
@@ -200,7 +197,6 @@ function FinanceRow({
 	const [showTransactions, setShowTransactions] = useState(false);
 	const statusBadge = getFinanceStatusBadge(status);
 	const transactions = useDisplayTransactions(record);
-	const totalAdjustments = getTotalAdjustments(record);
 
 	return (
 		<>
@@ -211,21 +207,16 @@ function FinanceRow({
 						#{player.number} · {player.isActive ? "Active" : "Inactive"}
 					</div>
 				</td>
-				<td className="px-4 py-3 font-semibold text-slate-700">
-					{formatCurrency(amountOwed)}
-				</td>
-				<td className="px-4 py-3 font-semibold text-green-700">
-					{formatCurrency(totalPaid)}
-				</td>
-				<td className="px-4 py-3 font-semibold text-slate-700">
-					{formatCurrency(totalAdjustments)}
+				<td className="px-4 py-3">
+					<p className="font-semibold text-slate-800">{formatCurrency(totalPaid)} paid of {formatCurrency(amountOwed)}</p>
+					{getTotalAdjustments(record) !== 0 && <p className="mt-0.5 text-xs text-slate-500">Includes {formatCurrency(getTotalAdjustments(record))} adjustments</p>}
 				</td>
 				<td
 					className={`px-4 py-3 font-semibold ${
 						balance > 0 ? "text-red-700" : "text-green-700"
 					}`}
 				>
-					{formatCurrency(balance)}
+					{balance > 0 ? `${formatCurrency(balance)} due` : "Paid in full"}
 				</td>
 				<td className="px-4 py-3">
 					<StatusBadge label={statusBadge.label} tone={statusBadge.tone} />
@@ -245,7 +236,7 @@ function FinanceRow({
 			</tr>
 			{showTransactions && (
 				<tr>
-					<td colSpan={7} className="bg-slate-50 px-4 py-4">
+					<td colSpan={5} className="bg-slate-50 px-4 py-4">
 						<TransactionList
 							player={player}
 							transactions={transactions}

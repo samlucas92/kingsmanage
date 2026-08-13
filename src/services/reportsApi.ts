@@ -171,6 +171,18 @@ export type FinanceForecastScenario = {
 	completionPercentage: number;
 };
 
+export type FinanceOutstandingGroup = {
+	playerCount: number;
+	outstanding: number;
+};
+
+export type FinanceOutstandingBreakdown = {
+	unpaid: FinanceOutstandingGroup;
+	partPaid: FinanceOutstandingGroup;
+	paid: FinanceOutstandingGroup;
+	noCharge: FinanceOutstandingGroup;
+};
+
 export type FinanceReportResponse = {
 	expected: number;
 	collected: number;
@@ -189,6 +201,7 @@ export type FinanceReportResponse = {
 	last30DaysPace: number;
 	last90DaysPace: number;
 	daysRemaining: number;
+	outstandingBreakdown: FinanceOutstandingBreakdown;
 	forecastScenarios: FinanceForecastScenario[];
 	months: MonthlyFinanceBreakdown[];
 };
