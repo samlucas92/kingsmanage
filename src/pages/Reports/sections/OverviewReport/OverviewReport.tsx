@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import ReportMetricCard from "../../components/ReportMetricCard";
+import ReportAnswerCard from "../../components/ReportAnswerCard";
 import ReportPanel from "../../components/ReportPanel";
 import ReportEmptyState from "../../components/ReportEmptyState";
 import ReportPageHeader from "../../components/ReportPageHeader";
@@ -9,6 +9,7 @@ import ReportLoadState from "../../components/ReportLoadState";
 import { useReportsContext } from "../../ReportsContext";
 import { useReportResource } from "../../hooks/useReportResource";
 import { reportsApi, type OverviewReportResponse } from "../../../../services/reportsApi";
+import { formatCurrency } from "../../../../utils/format";
 
 export default function OverviewReport() {
 	const {
@@ -20,7 +21,6 @@ export default function OverviewReport() {
 		dateTo,
 		includeFriendlies,
 		canViewFinance,
-		financeSummary,
 		isLoading,
 		loadError,
 	} = useReportsContext();
@@ -59,18 +59,23 @@ export default function OverviewReport() {
 				isLoading={isLoading || isLoadingReport}
 			/>
 
-			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-				<ReportMetricCard label="Matches played" value={summary?.played ?? 0} />
-				<ReportMetricCard label="Wins" value={summary?.won ?? 0} tone="success" helper={`${summary?.winPercentage ?? 0}% win rate`} />
-				<ReportMetricCard label="Goal difference" value={formatSigned(summary?.goalDifference ?? 0)} tone={(summary?.goalDifference ?? 0) >= 0 ? "success" : "danger"} />
-				<ReportMetricCard label="Active players" value={report?.activePlayers ?? 0} />
-				<ReportMetricCard label="Goals for" value={summary?.goalsFor ?? 0} />
-				<ReportMetricCard label="Goals against" value={summary?.goalsAgainst ?? 0} />
-				<ReportMetricCard label="Availability" value={`${availabilitySummary?.availablePercentage ?? 0}%`} helper={`${availabilitySummary?.totals.available ?? 0}/${availabilitySummary?.totalResponses ?? 0} available responses`} />
-				{canViewFinance && financeSummary && (
-					<ReportMetricCard label="Outstanding finance" value="Open finance report" helper="Finance is loaded from the finance report API" />
-				)}
-			</div>
+			<ReportAnswerCard
+				eyebrow="Season at a glance"
+				value={`${summary?.won ?? 0} wins from ${summary?.played ?? 0}`}
+				description={`${summary?.winPercentage ?? 0}% win rate across the selected matches.`}
+				tone={(summary?.won ?? 0) > (summary?.lost ?? 0) ? "success" : "default"}
+				stats={[
+					{ label: "Goals for", value: summary?.goalsFor ?? 0, tone: "success" },
+					{ label: "Goals against", value: summary?.goalsAgainst ?? 0, tone: (summary?.goalsAgainst ?? 0) > (summary?.goalsFor ?? 0) ? "danger" : "default" },
+					{ label: "Goal difference", value: formatSigned(summary?.goalDifference ?? 0), tone: (summary?.goalDifference ?? 0) >= 0 ? "success" : "danger" },
+					{ label: "Availability", value: `${availabilitySummary?.availablePercentage ?? 0}%` },
+				]}
+			>
+				<div className="flex flex-wrap gap-x-4 gap-y-2 text-xs font-bold text-slate-500">
+					<span>{report?.activePlayers ?? 0} active players</span>
+					{canViewFinance && report?.finance && <Link to="/reports/finance" className="text-yepset-700 hover:text-yepset-900">{formatCurrency(report.finance.outstanding)} still to collect ›</Link>}
+				</div>
+			</ReportAnswerCard>
 
 			<div className="grid gap-5 xl:grid-cols-[1fr_.8fr]">
 				<ReportPanel title="Recent form" description="Latest completed matches in the selected season.">

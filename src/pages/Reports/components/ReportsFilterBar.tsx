@@ -59,8 +59,8 @@ export default function ReportsFilterBar({
 		.filter((player) => player.isActive)
 		.sort((firstPlayer, secondPlayer) => firstPlayer.name.localeCompare(secondPlayer.name));
 
-	return (
-		<div className="flex flex-wrap items-end gap-2">
+	const filterControls = (
+		<>
 			<SeasonSelector
 				label="Season"
 				selectedSeasonId={selectedSeasonId}
@@ -173,6 +173,16 @@ export default function ReportsFilterBar({
 					/>
 				</label>
 			)}
-		</div>
+		</>
+	);
+
+	return (
+		<>
+			<details className="w-full rounded-xl border border-slate-200 bg-white sm:hidden">
+				<summary className="cursor-pointer list-none px-3 py-2.5 text-sm font-black text-slate-700">Report filters</summary>
+				<div className="flex flex-col items-stretch gap-2 border-t border-slate-100 p-3 [&>*]:min-w-0">{filterControls}</div>
+			</details>
+			<div className="hidden flex-wrap items-end gap-2 sm:flex">{filterControls}</div>
+		</>
 	);
 }

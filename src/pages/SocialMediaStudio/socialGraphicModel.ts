@@ -25,18 +25,21 @@ export function toSocialFixture(
 		date: match.date,
 		venue: match.venue,
 		location: match.location?.trim() || "Venue to be confirmed",
-		playerOfTheMatch: getPlayerOfTheMatch(match, players),
+		playerOfTheMatch: getPlayersOfTheMatch(match, players).join("\n"),
 		result: match.result,
 		scorers: aggregateScorers(match, players),
 		oppositionScorers: [],
 	};
 }
 
-export function getPlayerOfTheMatch(match: Match, players: Player[]) {
-	const playerOfTheMatchId = match.playerStats?.find((stat) => stat.isMOTM)?.playerId;
-	if (!playerOfTheMatchId) return "";
+export function getPlayersOfTheMatch(match: Match, players: Player[]) {
+	const playerNames = new Map(players.map((player) => [player.id, player.name]));
 
-	return players.find((player) => player.id === playerOfTheMatchId)?.name ?? "";
+	return (match.playerStats ?? [])
+		.filter((stat) => stat.isMOTM)
+		.map((stat) => playerNames.get(stat.playerId) ?? "")
+		.filter(Boolean)
+		.slice(0, 2);
 }
 
 export function aggregateScorers(match: Match, players: Player[]) {

@@ -22,6 +22,7 @@ import {
 	withElementTransformAsync,
 } from "./editableTemplateLayout";
 import type { EditableTemplateLayout } from "./editableTemplateLayout";
+import { getSponsorSlots } from "./sponsorLayout";
 
 const LINEUP_SPONSOR_TOP = 1400;
 const LINEUP_SPONSOR_FREE_HEIGHT = 1400;
@@ -148,11 +149,17 @@ async function renderLineupEditorialTemplate({
 	if (showSponsors) {
 		await withElementTransformAsync(context, lineupEditorialDefaultDefinition.elements["sponsor-section"], definition.elements["sponsor-section"], async () => {
 			drawEditorialSectionTitle(context, getTextField(content.fields.sponsorsTitle, "Proudly sponsored by"), LINEUP_SPONSOR_TOP, width, 530);
-			await Promise.all([
-				drawAssetOrPlaceholder(context, content.assets.sponsors[0], 64, LINEUP_SPONSOR_TOP + 55, 390, 155, "SPONSOR\nPLACEHOLDER", { contain: true }),
-				drawAssetOrPlaceholder(context, content.assets.sponsors[1], 487, LINEUP_SPONSOR_TOP + 55, 390, 155, "SPONSOR\nPLACEHOLDER", { contain: true }),
-				drawAssetOrPlaceholder(context, content.assets.sponsors[2], 910, LINEUP_SPONSOR_TOP + 55, 390, 155, "SPONSOR\nPLACEHOLDER", { contain: true }),
-			]);
+			const sponsorSlots = getSponsorSlots(content.assets.sponsors, 64, 1236, 33);
+			await Promise.all(sponsorSlots.map((slot) => drawAssetOrPlaceholder(
+				context,
+				slot.asset,
+				slot.x,
+				LINEUP_SPONSOR_TOP + 55,
+				slot.width,
+				155,
+				"SPONSOR\nPLACEHOLDER",
+				{ contain: true }
+			)));
 		});
 	}
 

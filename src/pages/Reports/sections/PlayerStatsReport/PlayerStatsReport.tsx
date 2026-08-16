@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import ReportBarChart from "../../components/charts/ReportBarChart";
 import ReportChartContainer from "../../components/charts/ReportChartContainer";
-import ReportMetricCard from "../../components/ReportMetricCard";
+import ReportAnswerCard from "../../components/ReportAnswerCard";
+import ReportDetails from "../../components/ReportDetails";
 import ReportPageHeader from "../../components/ReportPageHeader";
 import ReportPanel from "../../components/ReportPanel";
 import ReportLoadState from "../../components/ReportLoadState";
@@ -36,6 +37,7 @@ export default function PlayerStatsReport() {
 			}),
 	});
 	const rankingRows = getRankingRows(report?.topContributors ?? [], rankingMode);
+	const leadingPlayer = report?.topContributors[0];
 
 	return (
 		<div className="space-y-5">
@@ -50,12 +52,18 @@ export default function PlayerStatsReport() {
 				isLoading={isLoadingReport}
 				loadingMessage="Loading player reports..."
 			/>
-			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-				<ReportMetricCard label="Active players" value={report?.summary.activePlayers ?? 0} />
-				<ReportMetricCard label="Appearances" value={report?.summary.appearances ?? 0} />
-				<ReportMetricCard label="Goals" value={report?.summary.goals ?? 0} tone={(report?.summary.goals ?? 0) > 0 ? "success" : "default"} />
-				<ReportMetricCard label="Goal contributions" value={report?.summary.contributions ?? 0} helper={`${report?.summary.assists ?? 0} assists`} />
-			</div>
+			<ReportAnswerCard
+				eyebrow="Who is leading the way?"
+				value={leadingPlayer ? leadingPlayer.playerName : "No player stats yet"}
+				description={leadingPlayer ? `${leadingPlayer.contributions} goal contributions from ${leadingPlayer.appearances} appearances.` : "Record match player stats to build useful rankings."}
+				tone={leadingPlayer ? "success" : "default"}
+				stats={[
+					{ label: "Goals", value: report?.summary.goals ?? 0, tone: "success" },
+					{ label: "Assists", value: report?.summary.assists ?? 0 },
+					{ label: "Appearances", value: report?.summary.appearances ?? 0 },
+					{ label: "Active players", value: report?.summary.activePlayers ?? 0 },
+				]}
+			/>
 			<ReportChartContainer
 				title="Top player rankings"
 				description="Switch between goals, assists, appearances and combined contributions."
@@ -103,6 +111,8 @@ export default function PlayerStatsReport() {
 					/>
 				</div>
 			</ReportChartContainer>
+			<ReportDetails title="Awards and contributor detail" description="Award leaders and the underlying goals, assists and appearances.">
+			<div className="space-y-4">
 			<ReportPanel
 				title="Player awards"
 				description="Top 5 from closed player-award forms."
@@ -122,7 +132,15 @@ export default function PlayerStatsReport() {
 				</div>
 			</ReportPanel>
 			<ReportPanel title="Top contributors" description="Goals plus assists, with appearances for context.">
-				<div className="divide-y divide-slate-100 rounded-2xl border border-slate-200">
+				<div className="sm:hidden">
+					<ReportMobileRankedList items={(report?.topContributors ?? []).slice(0, 8).map((player) => ({
+						id: player.playerId,
+						label: player.playerName,
+						value: player.contributions,
+						helper: `${player.goals} goals · ${player.assists} assists · ${player.appearances} apps`,
+					}))} />
+				</div>
+				<div className="hidden divide-y divide-slate-100 rounded-2xl border border-slate-200 sm:block">
 					{(report?.topContributors ?? []).slice(0, 8).map((player, index) => (
 						<div key={player.playerId} className="grid grid-cols-[2rem_1fr_repeat(4,4rem)] items-center gap-2 px-4 py-3 text-sm">
 							<span className="font-black text-slate-400">{index + 1}</span>
@@ -135,6 +153,8 @@ export default function PlayerStatsReport() {
 					))}
 				</div>
 			</ReportPanel>
+			</div>
+			</ReportDetails>
 		</div>
 	);
 }

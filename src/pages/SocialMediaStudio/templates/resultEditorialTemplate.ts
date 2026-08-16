@@ -16,6 +16,7 @@ import {
 	withElementTransformAsync,
 } from "./editableTemplateLayout";
 import type { EditableTemplateLayout } from "./editableTemplateLayout";
+import { getSponsorSlots } from "./sponsorLayout";
 
 const GOLD = "#d7a600";
 const WHITE = "#f4f4f2";
@@ -102,6 +103,11 @@ async function renderResultEditorialTemplate({
 }: SocialGraphicTemplateRenderContext, definition: ResultEditorialTemplateDefinition) {
 	const fixture = content.fixtures[0];
 	const showSponsors = content.fields.showSponsors !== false;
+	const playerOfTheMatchNames = fixture?.playerOfTheMatch
+		.split("\n")
+		.map((name) => name.trim())
+		.filter(Boolean)
+		.slice(0, 2) ?? [];
 
 	context.save();
 	drawEditorialBackground(context, width, height);
@@ -150,14 +156,23 @@ async function renderResultEditorialTemplate({
 	});
 
 	await withElementTransformAsync(context, resultEditorialDefaultDefinition.elements["featured-area"], definition.elements["featured-area"], async () => {
-		const featuredTitle = getTextField(content.fields.featuredTitle, "Player of the match");
+		const configuredTitle = getTextField(content.fields.featuredTitle, "Player of the match");
+		const featuredTitle = playerOfTheMatchNames.length > 1 && configuredTitle.toLowerCase() === "player of the match"
+			? "Players of the match"
+			: configuredTitle;
 		drawFittedText(context, featuredTitle.toUpperCase(), 1079, 474, 390, 58, 46, 24, GOLD, "center");
 		await drawAssetOrPlaceholder(context, content.assets.featuredImage, 864, 554, 430, RESULT_CONTENT_BOTTOM - 574, "PLAYER IMAGE", true, false);
-		if (fixture.playerOfTheMatch.trim()) {
-			const captionTop = RESULT_CONTENT_BOTTOM - 118;
+		if (playerOfTheMatchNames.length > 0) {
+			const captionHeight = playerOfTheMatchNames.length > 1 ? 136 : 94;
+			const captionTop = RESULT_CONTENT_BOTTOM - captionHeight - 24;
 			context.fillStyle = "rgba(0,0,0,.82)";
-			context.fillRect(868, captionTop, 422, 94);
-			drawFittedText(context, fixture.playerOfTheMatch.toUpperCase(), 1079, captionTop + 23, 378, 48, 42, 22, WHITE, "center");
+			context.fillRect(868, captionTop, 422, captionHeight);
+			playerOfTheMatchNames.forEach((name, index) => {
+				const nameTop = playerOfTheMatchNames.length === 1
+					? captionTop + 23
+					: captionTop + 18 + index * 54;
+				drawFittedText(context, name.toUpperCase(), 1079, nameTop, 378, 42, 36, 20, WHITE, "center");
+			});
 		}
 	});
 
@@ -165,11 +180,14 @@ async function renderResultEditorialTemplate({
 		const sponsorsTitle = getTextField(content.fields.sponsorsTitle, "Proudly sponsored by");
 		await withElementTransformAsync(context, resultEditorialDefaultDefinition.elements["sponsor-section"], definition.elements["sponsor-section"], async () => {
 			drawDividerTitle(context, sponsorsTitle.toUpperCase(), RESULT_SPONSOR_TOP);
-			await Promise.all([
-				drawSponsorSlot(context, content.assets.sponsors[0], 52, RESULT_SPONSOR_TOP + 72),
-				drawSponsorSlot(context, content.assets.sponsors[1], 487, RESULT_SPONSOR_TOP + 72),
-				drawSponsorSlot(context, content.assets.sponsors[2], 922, RESULT_SPONSOR_TOP + 72),
-			]);
+			const sponsorSlots = getSponsorSlots(content.assets.sponsors, 52, 1265, 40);
+			await Promise.all(sponsorSlots.map((slot) => drawSponsorSlot(
+				context,
+				slot.asset,
+				slot.x,
+				RESULT_SPONSOR_TOP + 72,
+				slot.width
+			)));
 		});
 	}
 
@@ -313,9 +331,9 @@ async function drawSponsorSlot(
 	context: CanvasRenderingContext2D,
 	asset: SocialGraphicAsset | undefined,
 	x: number,
-	y: number
+	y: number,
+	width: number
 ) {
-	const width = 395;
 	const height = 210;
 	drawRoundedFrame(context, x, y, width, height, 20);
 

@@ -26,6 +26,7 @@ import {
 	withElementTransformAsync,
 } from "./editableTemplateLayout";
 import type { EditableTemplateLayout } from "./editableTemplateLayout";
+import { getSponsorSlots } from "./sponsorLayout";
 
 const MATCHDAY_SPONSOR_TOP = 1122;
 const MATCHDAY_DETAIL_HEIGHT = 175;
@@ -146,11 +147,17 @@ async function renderMatchdayEditorialTemplate({
 	if (showSponsors) {
 		await withElementTransformAsync(context, matchdayEditorialDefaultDefinition.elements["sponsor-section"], definition.elements["sponsor-section"], async () => {
 			drawEditorialSectionTitle(context, getTextField(content.fields.sponsorsTitle, "Proudly sponsored by"), MATCHDAY_SPONSOR_TOP, width, 530);
-			await Promise.all([
-				drawAssetOrPlaceholder(context, content.assets.sponsors[0], 64, MATCHDAY_SPONSOR_TOP + 48, 390, 160, "SPONSOR\nPLACEHOLDER", { contain: true }),
-				drawAssetOrPlaceholder(context, content.assets.sponsors[1], 487, MATCHDAY_SPONSOR_TOP + 48, 390, 160, "SPONSOR\nPLACEHOLDER", { contain: true }),
-				drawAssetOrPlaceholder(context, content.assets.sponsors[2], 910, MATCHDAY_SPONSOR_TOP + 48, 390, 160, "SPONSOR\nPLACEHOLDER", { contain: true }),
-			]);
+			const sponsorSlots = getSponsorSlots(content.assets.sponsors, 64, 1236, 33);
+			await Promise.all(sponsorSlots.map((slot) => drawAssetOrPlaceholder(
+				context,
+				slot.asset,
+				slot.x,
+				MATCHDAY_SPONSOR_TOP + 48,
+				slot.width,
+				160,
+				"SPONSOR\nPLACEHOLDER",
+				{ contain: true }
+			)));
 		});
 	}
 

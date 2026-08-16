@@ -17,6 +17,7 @@ import {
 	drawWrappedText,
 	getTextField,
 } from "./editorialCanvas";
+import { getSponsorSlots } from "./sponsorLayout";
 
 export type UpcomingEditorialFixtureRowDefinition = {
 	frameX: number;
@@ -348,13 +349,20 @@ async function renderUpcomingEditorialTemplate(
 			theme.accent,
 			sponsors.titleX
 		);
-		await Promise.all(content.assets.sponsors.slice(0, 3).map((asset, index) => (
+		const sponsorAreaWidth = sponsors.cardWidth * 3 + sponsors.cardGap * 2;
+		const sponsorSlots = getSponsorSlots(
+			content.assets.sponsors,
+			sponsors.cardX,
+			sponsorAreaWidth,
+			sponsors.cardGap
+		);
+		await Promise.all(sponsorSlots.map((slot) => (
 			drawAssetOrPlaceholder(
 				context,
-				asset,
-				sponsors.cardX + index * (sponsors.cardWidth + sponsors.cardGap),
+				slot.asset,
+				slot.x,
 				sponsors.top + sponsors.cardTopOffset,
-				sponsors.cardWidth,
+				slot.width,
 				sponsors.cardHeight,
 				"SPONSOR\nPLACEHOLDER",
 				{

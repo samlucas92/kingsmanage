@@ -1,9 +1,9 @@
 import ReportBarChart from "../../components/charts/ReportBarChart";
 import { Link } from "react-router-dom";
-import ReportDoughnutChart from "../../components/charts/ReportDoughnutChart";
 import ReportChartContainer from "../../components/charts/ReportChartContainer";
 import ReportEmptyState from "../../components/ReportEmptyState";
-import ReportMetricCard from "../../components/ReportMetricCard";
+import ReportAnswerCard from "../../components/ReportAnswerCard";
+import ReportDetails from "../../components/ReportDetails";
 import ReportPageHeader from "../../components/ReportPageHeader";
 import ReportPanel from "../../components/ReportPanel";
 import ReportLoadState from "../../components/ReportLoadState";
@@ -45,34 +45,18 @@ export default function DisciplineReport() {
 				isLoading={isLoading || isLoadingReport}
 			/>
 
-			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-				<ReportMetricCard label="Yellow cards" value={yellowCards} tone={yellowCards > 0 ? "warning" : "default"} />
-				<ReportMetricCard label="Red cards" value={redCards} tone={redCards > 0 ? "danger" : "default"} />
-				<ReportMetricCard label="Total cards" value={yellowCards + redCards} />
-				<ReportMetricCard
-					label="Most cards"
-					value={mostCardedPlayer?.playerName ?? "—"}
-					helper={mostCardedPlayer ? `${mostCardedPlayer.totalCards} cards` : "No cards recorded"}
-				/>
-			</div>
+			<ReportAnswerCard
+				eyebrow="Discipline overview"
+				value={`${yellowCards + redCards} total cards`}
+				description={mostCardedPlayer ? `${mostCardedPlayer.playerName} has the most cards with ${mostCardedPlayer.totalCards}.` : "No cards have been recorded for the selected filters."}
+				tone={redCards > 0 ? "danger" : yellowCards > 0 ? "warning" : "success"}
+				stats={[
+					{ label: "Yellow cards", value: yellowCards, tone: yellowCards > 0 ? "warning" : "default" },
+					{ label: "Red cards", value: redCards, tone: redCards > 0 ? "danger" : "default" },
+				]}
+			/>
 
-			<div className="grid gap-5 xl:grid-cols-[.8fr_1.2fr]">
-				<ReportChartContainer
-					title="Card mix"
-					description="Yellow versus red card split."
-					isEmpty={yellowCards + redCards === 0}
-				>
-					<ReportDoughnutChart
-						ariaLabel="Yellow and red card mix"
-						centerValue={yellowCards + redCards}
-						centerLabel="cards"
-						segments={[
-							{ label: "Yellow", value: yellowCards, colour: "#f59e0b" },
-							{ label: "Red", value: redCards, colour: "#dc2626" },
-						]}
-					/>
-				</ReportChartContainer>
-
+			<div>
 				<ReportChartContainer
 					title="Most carded players"
 					description="Top players by total cards."
@@ -109,12 +93,13 @@ export default function DisciplineReport() {
 				</ReportChartContainer>
 			</div>
 
+			<ReportDetails title="Player discipline detail" description="Every player with a recorded yellow or red card.">
 			<ReportPanel title="Player discipline" description="Players with yellow or red cards in the selected season.">
 				{disciplineRows.length === 0 ? (
 					<ReportEmptyState title="No discipline records" message="Cards will appear here once match player stats are recorded." />
 				) : (
 					<div className="overflow-hidden rounded-2xl border border-slate-200">
-						<div className="grid grid-cols-[1fr_5rem_5rem_5rem] gap-2 bg-slate-50 px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500">
+						<div className="hidden grid-cols-[1fr_5rem_5rem_5rem] gap-2 bg-slate-50 px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500 sm:grid">
 							<span>Player</span>
 							<span className="text-center">Yellow</span>
 							<span className="text-center">Red</span>
@@ -124,7 +109,7 @@ export default function DisciplineReport() {
 							{disciplineRows.map((playerStats) => (
 								<div
 									key={playerStats.playerId}
-									className="grid grid-cols-[1fr_5rem_5rem_5rem] items-center gap-2 px-4 py-3 text-sm"
+									className="grid grid-cols-[1fr_auto] items-center gap-2 px-4 py-3 text-sm sm:grid-cols-[1fr_5rem_5rem_5rem]"
 								>
 									<Link
 										to={`/players/${playerStats.playerId}`}
@@ -132,15 +117,17 @@ export default function DisciplineReport() {
 									>
 										{playerStats.playerName}
 									</Link>
-									<span className="text-center font-black text-amber-600">{playerStats.yellowCards}</span>
-									<span className="text-center font-black text-red-700">{playerStats.redCards}</span>
-									<span className="text-center font-black text-slate-950">{playerStats.totalCards}</span>
+									<span className="text-right text-xs font-bold text-slate-500 sm:hidden">{playerStats.yellowCards} yellow · {playerStats.redCards} red</span>
+									<span className="hidden text-center font-black text-amber-600 sm:block">{playerStats.yellowCards}</span>
+									<span className="hidden text-center font-black text-red-700 sm:block">{playerStats.redCards}</span>
+									<span className="hidden text-center font-black text-slate-950 sm:block">{playerStats.totalCards}</span>
 								</div>
 							))}
 						</div>
 					</div>
 				)}
 			</ReportPanel>
+			</ReportDetails>
 		</div>
 	);
 }

@@ -1984,8 +1984,9 @@ function FixtureCopyEditor({
 				</label>
 				{showScores && (
 					<label className="block text-sm font-semibold text-slate-700 sm:col-span-2 xl:col-span-1 2xl:col-span-2">
-						Player of the Match name
-						<input value={fixture.playerOfTheMatch} onChange={(event) => onChange("playerOfTheMatch", event.target.value)} placeholder="Selects the match award winner when available" className={inputClassName} />
+						Player of the Match names
+						<textarea rows={2} value={fixture.playerOfTheMatch} onChange={(event) => onChange("playerOfTheMatch", event.target.value)} placeholder="One award winner per line" className={`${inputClassName} resize-y`} />
+						<span className="mt-1 block text-xs font-medium text-slate-500">Add up to two players, one per line.</span>
 					</label>
 				)}
 				{showScores && fixture.result && (

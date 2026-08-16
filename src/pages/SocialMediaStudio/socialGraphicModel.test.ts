@@ -66,17 +66,19 @@ describe("social graphic model", () => {
 		});
 	});
 
-	it("uses the marked match award to seed the editable Player of the Match name", () => {
+	it("uses up to two marked match awards to seed the editable Player of the Match names", () => {
 		const players: Player[] = [
 			{ id: "player-1", name: "Alex Smith", positions: [], appearances: 0, number: 9, isActive: true },
+			{ id: "player-2", name: "Jamie Jones", positions: [], appearances: 0, number: 10, isActive: true },
 		];
 		const fixture = toSocialFixture(createMatch({
 			playerStats: [
 				{ playerId: "player-1", goals: 1, assists: 0, yellowCards: 0, redCards: 0, minutes: 90, isMOTM: true, note: "" },
+				{ playerId: "player-2", goals: 0, assists: 1, yellowCards: 0, redCards: 0, minutes: 90, isMOTM: true, note: "" },
 			],
 		}), teamProfiles, players);
 
-		expect(fixture.playerOfTheMatch).toBe("Alex Smith");
+		expect(fixture.playerOfTheMatch).toBe("Alex Smith\nJamie Jones");
 		expect(applySocialFixtureOverride(fixture, { playerOfTheMatch: "A. Smith" }).playerOfTheMatch).toBe("A. Smith");
 	});
 

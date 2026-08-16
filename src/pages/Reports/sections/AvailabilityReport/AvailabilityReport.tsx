@@ -1,9 +1,9 @@
 import ReportBarChart from "../../components/charts/ReportBarChart";
 import ReportChartContainer from "../../components/charts/ReportChartContainer";
-import ReportDoughnutChart from "../../components/charts/ReportDoughnutChart";
 import ReportLineChart from "../../components/charts/ReportLineChart";
 import ReportEmptyState from "../../components/ReportEmptyState";
-import ReportMetricCard from "../../components/ReportMetricCard";
+import ReportAnswerCard from "../../components/ReportAnswerCard";
+import ReportDetails from "../../components/ReportDetails";
 import ReportPageHeader from "../../components/ReportPageHeader";
 import ReportPanel from "../../components/ReportPanel";
 import ReportLoadState from "../../components/ReportLoadState";
@@ -40,31 +40,20 @@ export default function AvailabilityReport() {
 				isLoading={isLoading || isLoadingReport}
 			/>
 
-			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-				<ReportMetricCard label="Completed events" value={report?.completedEvents ?? 0} />
-				<ReportMetricCard label="Avg available" value={formatAverage(report?.averages.available ?? 0)} tone="success" helper="Per completed event" />
-				<ReportMetricCard label="Avg declined" value={formatAverage(report?.averages.declined ?? 0)} tone={(report?.averages.declined ?? 0) > 0 ? "warning" : "default"} helper="Per completed event" />
-				<ReportMetricCard label="Avg responses" value={formatAverage(averageResponses)} helper="Per completed event" />
-			</div>
+			<ReportAnswerCard
+				eyebrow="Are players responding?"
+				value={`${report?.availablePercentage ?? 0}% available`}
+				description={`${report?.totals.available ?? 0} available responses from ${report?.totalResponses ?? 0} player-event responses.`}
+				tone="success"
+				stats={[
+					{ label: "Completed events", value: report?.completedEvents ?? 0 },
+					{ label: "Avg available", value: formatAverage(report?.averages.available ?? 0), tone: "success" },
+					{ label: "Avg declined", value: formatAverage(report?.averages.declined ?? 0), tone: "warning" },
+					{ label: "Avg responses", value: formatAverage(averageResponses) },
+				]}
+			/>
 
-			<div className="grid gap-5 xl:grid-cols-[.8fr_1.2fr]">
-				<ReportChartContainer
-					title="Average response mix"
-					description="Average available, declined and unanswered responses per completed event."
-					isEmpty={!report || report.totalResponses === 0}
-				>
-					<ReportDoughnutChart
-						ariaLabel="Average availability response mix per completed event"
-						centerValue={formatAverage(report?.averages.available ?? 0)}
-						centerLabel="avg available"
-						segments={[
-							{ label: "Available", value: report?.averages.available ?? 0, colour: "#147764" },
-							{ label: "Declined", value: report?.averages.declined ?? 0, colour: "#f59e0b" },
-							{ label: "Unanswered", value: report?.averages.unanswered ?? 0, colour: "#dc2626" },
-						]}
-					/>
-				</ReportChartContainer>
-
+			<div>
 				<ReportChartContainer
 					title="Average availability responses"
 					description="Average responses per completed event, grouped by event type."
@@ -95,6 +84,7 @@ export default function AvailabilityReport() {
 				</ReportChartContainer>
 			</div>
 
+			<ReportDetails title="Availability trend" description="How average responses have changed month by month.">
 			<ReportChartContainer
 				title="Availability trend"
 				description="Average available, declined and unanswered responses by month."
@@ -123,6 +113,7 @@ export default function AvailabilityReport() {
 					]}
 				/>
 			</ReportChartContainer>
+			</ReportDetails>
 
 			<ReportPanel title="Event type breakdown" description="Average responses per completed event. Hover values to see raw totals.">
 				{!report || report.completedEvents === 0 ? (
@@ -133,18 +124,13 @@ export default function AvailabilityReport() {
 							const breakdown = getEventTypeBreakdown(report, type);
 
 							return (
-								<div key={type} className="grid grid-cols-[1fr_repeat(4,4.5rem)] items-center gap-2 px-4 py-3 text-sm">
-									<span className="font-black text-slate-950">{type}</span>
-									<span className="text-center font-bold text-slate-500">{breakdown.completedEvents} events</span>
-									<span className="text-center font-black text-yepset-700" title={`${breakdown.totals.available} total available`}>
-										{formatAverage(breakdown.averages.available)}
-									</span>
-									<span className="text-center font-black text-amber-600" title={`${breakdown.totals.declined} total declined`}>
-										{formatAverage(breakdown.averages.declined)}
-									</span>
-									<span className="text-center font-black text-red-700" title={`${breakdown.totals.unanswered} total unanswered`}>
-										{formatAverage(breakdown.averages.unanswered)}
-									</span>
+								<div key={type} className="px-4 py-3 text-sm">
+									<div className="flex items-center justify-between gap-3"><span className="font-black text-slate-950">{type}</span><span className="text-xs font-bold text-slate-500">{breakdown.completedEvents} events</span></div>
+									<div className="mt-3 grid grid-cols-3 gap-2 text-center">
+										<ResponseStat label="Available" value={formatAverage(breakdown.averages.available)} tone="success" />
+										<ResponseStat label="Declined" value={formatAverage(breakdown.averages.declined)} tone="warning" />
+										<ResponseStat label="No reply" value={formatAverage(breakdown.averages.unanswered)} tone="danger" />
+									</div>
 								</div>
 							);
 						})}
@@ -153,6 +139,11 @@ export default function AvailabilityReport() {
 			</ReportPanel>
 		</div>
 	);
+}
+
+function ResponseStat({ label, value, tone }: { label: string; value: string; tone: "success" | "warning" | "danger" }) {
+	const colour = tone === "success" ? "text-yepset-700" : tone === "warning" ? "text-amber-600" : "text-red-700";
+	return <div className="rounded-lg bg-slate-50 px-2 py-2"><p className={`font-black ${colour}`}>{value}</p><p className="text-[10px] font-bold text-slate-500">{label}</p></div>;
 }
 
 function formatAverage(value: number) {

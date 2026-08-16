@@ -1,4 +1,5 @@
-import ReportMetricCard from "../../components/ReportMetricCard";
+import ReportAnswerCard from "../../components/ReportAnswerCard";
+import ReportDetails from "../../components/ReportDetails";
 import ReportPanel from "../../components/ReportPanel";
 import ReportEmptyState from "../../components/ReportEmptyState";
 import ReportPageHeader from "../../components/ReportPageHeader";
@@ -74,19 +75,18 @@ export default function TeamPerformanceReport() {
 				isLoading={isLoading || isLoadingReport}
 			/>
 
-			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-				<ReportMetricCard label="Played" value={summary.played} />
-				<ReportMetricCard label="Won" value={summary.won} tone="success" />
-				<ReportMetricCard label="Win %" value={`${summary.winPercentage}%`} tone="success" />
-				<ReportMetricCard label="GD" value={formatSigned(summary.goalDifference)} tone={summary.goalDifference >= 0 ? "success" : "danger"} />
-			</div>
-
-			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-				<ReportMetricCard label="Goals for" value={summary.goalsFor} helper={`${summary.averageGoalsFor} per match`} />
-				<ReportMetricCard label="Goals against" value={summary.goalsAgainst} helper={`${summary.averageGoalsAgainst} per match`} />
-				<ReportMetricCard label="Clean sheets" value={report?.cleanSheets ?? 0} tone={(report?.cleanSheets ?? 0) > 0 ? "success" : "default"} />
-				<ReportMetricCard label="Failed to score" value={report?.failedToScore ?? 0} tone={(report?.failedToScore ?? 0) > 0 ? "warning" : "success"} />
-			</div>
+			<ReportAnswerCard
+				eyebrow="Overall record"
+				value={`${summary.won}W · ${summary.drawn}D · ${summary.lost}L`}
+				description={`${summary.winPercentage}% win rate from ${summary.played} completed matches.`}
+				tone={summary.won > summary.lost ? "success" : summary.lost > summary.won ? "danger" : "default"}
+				stats={[
+					{ label: "Goals for", value: summary.goalsFor, tone: "success" },
+					{ label: "Goals against", value: summary.goalsAgainst, tone: summary.goalsAgainst > summary.goalsFor ? "danger" : "default" },
+					{ label: "Goal difference", value: formatSigned(summary.goalDifference), tone: summary.goalDifference >= 0 ? "success" : "danger" },
+					{ label: "Clean sheets", value: report?.cleanSheets ?? 0 },
+				]}
+			/>
 
 			<div className="grid gap-5 xl:grid-cols-2">
 				<ReportChartContainer
@@ -147,6 +147,7 @@ export default function TeamPerformanceReport() {
 				</ReportPanel>
 			</div>
 
+			<ReportDetails title="More performance detail" description="Biggest results and the record in each competition.">
 			<div className="grid gap-5 xl:grid-cols-[.8fr_1.2fr]">
 				<ReportPanel title="Match highlights" description="Biggest result swings in the selected filters.">
 					<div className="grid gap-3 sm:grid-cols-2">
@@ -161,18 +162,24 @@ export default function TeamPerformanceReport() {
 					) : (
 						<div className="divide-y divide-slate-100 rounded-2xl border border-slate-200">
 							{competitions.map((item) => (
-								<div key={item.competition} className="grid grid-cols-[1fr_repeat(4,3.5rem)] items-center gap-2 px-4 py-3 text-sm">
-									<span className="min-w-0 truncate font-black text-slate-950">{item.competition}</span>
-									<span className="text-center font-bold text-slate-500">{item.summary.played}</span>
-									<span className="text-center font-black text-yepset-700">{item.summary.won}</span>
-									<span className="text-center font-black text-amber-600">{item.summary.drawn}</span>
-									<span className="text-center font-black text-red-700">{item.summary.lost}</span>
+								<div key={item.competition} className="px-4 py-3 text-sm">
+									<div className="flex items-center justify-between gap-3">
+										<span className="min-w-0 truncate font-black text-slate-950">{item.competition}</span>
+										<span className="text-xs font-bold text-slate-500">{item.summary.played} played</span>
+									</div>
+									<div className="mt-2 flex gap-3 text-xs font-black">
+										<span className="text-yepset-700">{item.summary.won} wins</span>
+										<span className="text-amber-600">{item.summary.drawn} draws</span>
+										<span className="text-red-700">{item.summary.lost} losses</span>
+									</div>
 								</div>
 							))}
 						</div>
 					)}
 				</ReportPanel>
 			</div>
+				<p className="mt-4 text-sm font-semibold text-slate-500">Failed to score in {report?.failedToScore ?? 0} matches · {summary.averageGoalsFor} scored and {summary.averageGoalsAgainst} conceded per match.</p>
+			</ReportDetails>
 		</div>
 	);
 }

@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
 import ReportBarChart from "../../components/charts/ReportBarChart";
 import ReportChartContainer from "../../components/charts/ReportChartContainer";
-import ReportDoughnutChart from "../../components/charts/ReportDoughnutChart";
 import ReportEmptyState from "../../components/ReportEmptyState";
-import ReportMetricCard from "../../components/ReportMetricCard";
+import ReportAnswerCard from "../../components/ReportAnswerCard";
+import ReportDetails from "../../components/ReportDetails";
 import ReportPageHeader from "../../components/ReportPageHeader";
 import ReportPanel from "../../components/ReportPanel";
 import ReportLoadState from "../../components/ReportLoadState";
@@ -53,6 +53,7 @@ export default function SquadUsageReport() {
 		.filter((playerStats) => playerStats.involvement > 0)
 		.sort((firstPlayer, secondPlayer) => secondPlayer.involvement - firstPlayer.involvement)
 		.slice(0, 10);
+	const mostUsedPlayer = topTenMinutes[0];
 
 	return (
 		<div className="space-y-5">
@@ -67,41 +68,20 @@ export default function SquadUsageReport() {
 				isLoading={isLoading || isLoadingReport}
 			/>
 
-			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-				<ReportMetricCard label="Total minutes" value={totalMinutes.toLocaleString("en-GB")} />
-				<ReportMetricCard label={isTeamFiltered ? "Appearances" : "Starts"} value={isTeamFiltered ? filteredAppearances : totalStarts} />
-				<ReportMetricCard label={isTeamFiltered ? "Goals" : "Bench"} value={isTeamFiltered ? filteredGoals : totalBench} />
-				<ReportMetricCard
-					label={isTeamFiltered ? "Assists" : "Unused subs"}
-					value={isTeamFiltered ? filteredAssists : totalUnused}
-					tone={!isTeamFiltered && totalUnused > 0 ? "warning" : "default"}
-				/>
-			</div>
+			<ReportAnswerCard
+				eyebrow="Who has played the most?"
+				value={mostUsedPlayer?.playerName ?? "No recorded minutes"}
+				description={mostUsedPlayer ? `${mostUsedPlayer.minutes.toLocaleString("en-GB")} minutes across ${mostUsedPlayer.appearances} appearances.` : "Save match player stats to build squad-usage insight."}
+				tone={mostUsedPlayer ? "success" : "default"}
+				stats={[
+					{ label: "Total minutes", value: totalMinutes.toLocaleString("en-GB") },
+					{ label: isTeamFiltered ? "Appearances" : "Starts", value: isTeamFiltered ? filteredAppearances : totalStarts },
+					{ label: isTeamFiltered ? "Goals" : "Bench records", value: isTeamFiltered ? filteredGoals : totalBench },
+					{ label: isTeamFiltered ? "Assists" : "Unused subs", value: isTeamFiltered ? filteredAssists : totalUnused, tone: !isTeamFiltered && totalUnused > 0 ? "warning" : "default" },
+				]}
+			/>
 
-			<div className="grid gap-5 xl:grid-cols-[.8fr_1.2fr]">
-				<ReportChartContainer
-					title={isTeamFiltered ? "Team usage mix" : "Squad status mix"}
-					description={isTeamFiltered ? "Appearances, goals and assists in this team." : "Starts, bench appearances and unused substitute records."}
-					isEmpty={isTeamFiltered ? filteredAppearances === 0 : totalStarts + totalBench + totalUnused === 0}
-				>
-					<ReportDoughnutChart
-						ariaLabel={isTeamFiltered ? "Team usage mix" : "Squad starts bench and unused mix"}
-						centerValue={isTeamFiltered ? filteredAppearances : totalStarts + totalBench + totalUnused}
-						centerLabel={isTeamFiltered ? "apps" : "records"}
-						segments={isTeamFiltered
-							? [
-									{ label: "Appearances", value: filteredAppearances, colour: "#147764" },
-									{ label: "Goals", value: filteredGoals, colour: "#2563eb" },
-									{ label: "Assists", value: filteredAssists, colour: "#8b5cf6" },
-								]
-							: [
-									{ label: "Starts", value: totalStarts, colour: "#147764" },
-									{ label: "Bench", value: totalBench, colour: "#2563eb" },
-									{ label: "Unused", value: totalUnused, colour: "#f59e0b" },
-								]}
-					/>
-				</ReportChartContainer>
-
+			<div>
 				<ReportChartContainer
 					title="Most minutes played"
 					description="Top active players by recorded minutes. On mobile this becomes top and bottom 10 lists."
@@ -143,6 +123,7 @@ export default function SquadUsageReport() {
 				</ReportChartContainer>
 			</div>
 
+			<ReportDetails title="Squad involvement detail" description="Starts, bench appearances, unused substitutes and minutes by player.">
 			<ReportPanel title="Squad involvement" description="Starts, bench appearances and unused substitute records.">
 				{topInvolvement.length === 0 ? (
 					<ReportEmptyState title="No squad usage yet" message="Usage appears after match stats have been recorded." />
@@ -191,6 +172,7 @@ export default function SquadUsageReport() {
 					</>
 				)}
 			</ReportPanel>
+			</ReportDetails>
 		</div>
 	);
 }
