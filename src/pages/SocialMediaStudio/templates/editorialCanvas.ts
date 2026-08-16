@@ -35,7 +35,7 @@ export function drawEditorialBackground(
 	for (let y = 48; y < height - 40; y += dotSpacing) {
 		for (let x = 28; x < dotFadeWidth; x += dotSpacing) {
 			const fade = Math.max(0, 1 - x / dotFadeWidth);
-			context.globalAlpha = 0.14 * fade * fade;
+			context.globalAlpha = 0.2 * fade * fade;
 			context.beginPath();
 			context.arc(x, y, 3.8, 0, Math.PI * 2);
 			context.fill();
