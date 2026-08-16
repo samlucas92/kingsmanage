@@ -15,12 +15,11 @@ export function getSponsorSlots(
 	const selectedAssets = assets.filter(
 		(asset): asset is SocialGraphicAsset => asset !== undefined
 	).slice(0, 3);
-	const visibleAssets: Array<SocialGraphicAsset | undefined> = selectedAssets.length > 0
-		? selectedAssets
-		: [undefined, undefined, undefined];
-	const slotWidth = (areaWidth - gap * (visibleAssets.length - 1)) / visibleAssets.length;
+	if (selectedAssets.length === 0) return [];
 
-	return visibleAssets.map((asset, index) => ({
+	const slotWidth = (areaWidth - gap * (selectedAssets.length - 1)) / selectedAssets.length;
+
+	return selectedAssets.map((asset, index) => ({
 		asset,
 		x: areaX + index * (slotWidth + gap),
 		width: slotWidth,

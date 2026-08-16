@@ -31,11 +31,7 @@ describe("sponsor layout", () => {
 		]);
 	});
 
-	it("shows the three placeholders when no sponsor has been selected", () => {
-		expect(getSponsorSlots([], 50, 1265, 40)).toEqual([
-			{ asset: undefined, x: 50, width: 395 },
-			{ asset: undefined, x: 485, width: 395 },
-			{ asset: undefined, x: 920, width: 395 },
-		]);
+	it("does not render placeholder cards when no sponsor has been selected", () => {
+		expect(getSponsorSlots([], 50, 1265, 40)).toEqual([]);
 	});
 });

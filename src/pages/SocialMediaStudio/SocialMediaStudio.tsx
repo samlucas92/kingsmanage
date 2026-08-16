@@ -1485,7 +1485,7 @@ export default function SocialMediaStudio() {
 								{kind !== "upcomingFixtures" && kind !== "lineup" && <AssetPicker label="Away team logo" assets={socialGraphicAssetManifest.teamLogos} value={awayTeamLogoId} fallbackIndex={awayTeamLogoFallbackIndex} temporaryAsset={temporaryAssets.awayTeamLogo} onChange={setAwayTeamLogoId} onTemporaryImage={(file) => setTemporaryImage("awayTeamLogo", file, setAwayTeamLogoId)} />}
 								{kind === "result" && <AssetPicker label="Player of the Match image" assets={socialGraphicAssetManifest.featuredImages} value={featuredImageId} fallbackIndex={0} temporaryAsset={temporaryAssets.featuredImage} onChange={setFeaturedImageId} onTemporaryImage={(file) => setTemporaryImage("featuredImage", file, setFeaturedImageId)} />}
 								{showSponsors && [0, 1, 2].map((index) => (
-									<AssetPicker key={index} label={`Sponsor ${index + 1}`} assets={socialGraphicAssetManifest.sponsors} value={sponsorIds[index] ?? ""} fallbackIndex={index} temporaryAsset={temporaryAssets[`sponsor:${index}`]} onChange={(assetId) => setSponsorId(index, assetId)} onTemporaryImage={(file) => setTemporaryImage(`sponsor:${index}`, file, (assetId) => setSponsorId(index, assetId))} />
+									<AssetPicker key={index} label={`Sponsor ${index + 1}`} emptyLabel="No sponsor" uploadLabel="Upload sponsor image" assets={socialGraphicAssetManifest.sponsors} value={sponsorIds[index] ?? ""} fallbackIndex={index} temporaryAsset={temporaryAssets[`sponsor:${index}`]} onChange={(assetId) => setSponsorId(index, assetId)} onTemporaryImage={(file) => setTemporaryImage(`sponsor:${index}`, file, (assetId) => setSponsorId(index, assetId))} />
 								))}
 							</div>
 						</section>
@@ -2114,6 +2114,8 @@ function AssetPicker({
 	value,
 	fallbackIndex,
 	temporaryAsset,
+	emptyLabel = "Use placeholder",
+	uploadLabel = "Upload for this graphic only",
 	onChange,
 	onTemporaryImage,
 }: {
@@ -2122,6 +2124,8 @@ function AssetPicker({
 	value: string;
 	fallbackIndex: number;
 	temporaryAsset?: SocialGraphicAsset;
+	emptyLabel?: string;
+	uploadLabel?: string;
 	onChange: (assetId: string) => void;
 	onTemporaryImage: (file: File) => void;
 }) {
@@ -2136,7 +2140,7 @@ function AssetPicker({
 					onChange={(event) => onChange(event.target.value)}
 					className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm"
 				>
-					<option value={placeholderAssetId}>Use placeholder</option>
+					<option value={placeholderAssetId}>{emptyLabel}</option>
 					{temporaryAsset && (
 						<option value={temporaryAsset.id}>{temporaryAsset.name}</option>
 					)}
@@ -2146,7 +2150,7 @@ function AssetPicker({
 				</select>
 			</label>
 			<label className="mt-1.5 inline-flex cursor-pointer items-center text-xs font-bold text-yepset-800 hover:text-yepset-950">
-				Upload for this graphic only
+				{uploadLabel}
 				<input
 					type="file"
 					accept="image/png,image/jpeg,image/webp,image/gif"
