@@ -34,10 +34,11 @@ export function drawEditorialBackground(
 	context.fillStyle = colours.accent ?? EDITORIAL_GOLD;
 	for (let y = 48; y < height - 40; y += dotSpacing) {
 		for (let x = 28; x < width - 28; x += dotSpacing) {
-			const fade = x <= dotFadeStart
+			const linearFade = x <= dotFadeStart
 				? 1
 				: Math.max(0, 1 - (x - dotFadeStart) / (width - dotFadeStart));
-			context.globalAlpha = 0.2 * fade;
+			const visibleFade = linearFade * linearFade;
+			context.globalAlpha = 0.2 * visibleFade;
 			context.beginPath();
 			context.arc(x, y, 3.8, 0, Math.PI * 2);
 			context.fill();

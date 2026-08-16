@@ -26,6 +26,7 @@ describe("editorial background", () => {
 		expect(dots[0].alpha).toBeGreaterThan(0.17);
 		expect(dots.find((dot) => dot.x === 132)?.alpha).toBeCloseTo(dots[0].alpha);
 		expect(dots.find((dot) => dot.x === 158)?.alpha).toBeLessThan(dots[0].alpha);
+		expect(dots.find((dot) => dot.x === 262)?.alpha).toBeLessThan(0.16);
 		expect(dots.find((dot) => dot.x === 756)?.alpha).toBeLessThan(dots[0].alpha);
 		expect(dots[0].alpha).toBeGreaterThan(dots.at(-1)?.alpha ?? 1);
 		expect(context.globalAlpha).toBe(1);
