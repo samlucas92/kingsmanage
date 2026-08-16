@@ -1485,7 +1485,7 @@ export default function SocialMediaStudio() {
 								{kind !== "upcomingFixtures" && kind !== "lineup" && <AssetPicker label="Away team logo" assets={socialGraphicAssetManifest.teamLogos} value={awayTeamLogoId} fallbackIndex={awayTeamLogoFallbackIndex} temporaryAsset={temporaryAssets.awayTeamLogo} onChange={setAwayTeamLogoId} onTemporaryImage={(file) => setTemporaryImage("awayTeamLogo", file, setAwayTeamLogoId)} />}
 								{kind === "result" && <AssetPicker label="Player of the Match image" assets={socialGraphicAssetManifest.featuredImages} value={featuredImageId} fallbackIndex={0} temporaryAsset={temporaryAssets.featuredImage} onChange={setFeaturedImageId} onTemporaryImage={(file) => setTemporaryImage("featuredImage", file, setFeaturedImageId)} />}
 								{showSponsors && [0, 1, 2].map((index) => (
-									<AssetPicker key={index} label={`Sponsor ${index + 1}`} emptyLabel="No sponsor" uploadLabel="Upload sponsor image" assets={socialGraphicAssetManifest.sponsors} value={sponsorIds[index] ?? ""} fallbackIndex={index} temporaryAsset={temporaryAssets[`sponsor:${index}`]} onChange={(assetId) => setSponsorId(index, assetId)} onTemporaryImage={(file) => setTemporaryImage(`sponsor:${index}`, file, (assetId) => setSponsorId(index, assetId))} />
+									<AssetPicker key={index} label={`Sponsor ${index + 1}`} emptyLabel="No sponsor" uploadLabel="Replace sponsor image" emptyUploadLabel="Add sponsor image" preferDirectUploadWhenEmpty assets={socialGraphicAssetManifest.sponsors} value={sponsorIds[index] ?? ""} fallbackIndex={index} temporaryAsset={temporaryAssets[`sponsor:${index}`]} onChange={(assetId) => setSponsorId(index, assetId)} onTemporaryImage={(file) => setTemporaryImage(`sponsor:${index}`, file, (assetId) => setSponsorId(index, assetId))} />
 								))}
 							</div>
 						</section>
@@ -2116,6 +2116,8 @@ function AssetPicker({
 	temporaryAsset,
 	emptyLabel = "Use placeholder",
 	uploadLabel = "Upload for this graphic only",
+	emptyUploadLabel = uploadLabel,
+	preferDirectUploadWhenEmpty = false,
 	onChange,
 	onTemporaryImage,
 }: {
@@ -2126,10 +2128,39 @@ function AssetPicker({
 	temporaryAsset?: SocialGraphicAsset;
 	emptyLabel?: string;
 	uploadLabel?: string;
+	emptyUploadLabel?: string;
+	preferDirectUploadWhenEmpty?: boolean;
 	onChange: (assetId: string) => void;
 	onTemporaryImage: (file: File) => void;
 }) {
 	const effectiveAsset = findSelectedAsset(assets, value, fallbackIndex, temporaryAsset);
+	const uploadInput = (label: string, className: string) => (
+		<label className={className}>
+			{label}
+			<input
+				type="file"
+				accept="image/png,image/jpeg,image/webp,image/gif"
+				className="sr-only"
+				onChange={(event) => {
+					const file = event.target.files?.[0];
+					if (file) onTemporaryImage(file);
+					event.currentTarget.value = "";
+				}}
+			/>
+		</label>
+	);
+
+	if (preferDirectUploadWhenEmpty && assets.length === 0 && !temporaryAsset) {
+		return (
+			<div>
+				<p className="block text-sm font-semibold text-slate-700">{label}</p>
+				{uploadInput(
+					emptyUploadLabel,
+					"mt-1.5 flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-yepset-400 bg-yepset-50 px-3 py-3 text-sm font-bold text-yepset-900 hover:bg-yepset-100"
+				)}
+			</div>
+		);
+	}
 
 	return (
 		<div>
@@ -2149,19 +2180,10 @@ function AssetPicker({
 					))}
 				</select>
 			</label>
-			<label className="mt-1.5 inline-flex cursor-pointer items-center text-xs font-bold text-yepset-800 hover:text-yepset-950">
-				{uploadLabel}
-				<input
-					type="file"
-					accept="image/png,image/jpeg,image/webp,image/gif"
-					className="sr-only"
-					onChange={(event) => {
-						const file = event.target.files?.[0];
-						if (file) onTemporaryImage(file);
-						event.currentTarget.value = "";
-					}}
-				/>
-			</label>
+			{uploadInput(
+				uploadLabel,
+				"mt-1.5 inline-flex cursor-pointer items-center text-xs font-bold text-yepset-800 hover:text-yepset-950"
+			)}
 		</div>
 	);
 }
