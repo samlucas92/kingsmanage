@@ -29,7 +29,7 @@ export function drawEditorialBackground(
 	context.fillStyle = glow;
 	context.fillRect(0, 0, width, height);
 
-	const dotFadeStart = width * 0.5;
+	const dotFadeStart = width * 0.25;
 	const dotSpacing = 26;
 	context.fillStyle = colours.accent ?? EDITORIAL_GOLD;
 	for (let y = 48; y < height - 40; y += dotSpacing) {
