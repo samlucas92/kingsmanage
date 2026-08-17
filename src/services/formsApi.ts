@@ -3,6 +3,9 @@ import type {
 	ClubForm,
 	ClubFormSubmissionReport,
 	ClubFormResults,
+	FormAnalyticsDateRange,
+	FormAnalyticsDetail,
+	FormAnalyticsOverview,
 	SaveClubFormRequest,
 	SubmitClubFormRequest,
 } from "../types/forms";
@@ -14,8 +17,7 @@ export const formsApi = {
 
 	getPublicForm: (goCode: string, anonymousSubmissionKey: string) =>
 		apiClient.get<ClubForm>(
-			`/forms/go/${encodeURIComponent(goCode)}?anonymousSubmissionKey=${encodeURIComponent(anonymousSubmissionKey)}`,
-			{ authenticated: false }
+			`/forms/go/${encodeURIComponent(goCode)}?anonymousSubmissionKey=${encodeURIComponent(anonymousSubmissionKey)}`
 		),
 
 	createForm: (request: SaveClubFormRequest) =>
@@ -48,8 +50,7 @@ export const formsApi = {
 	submitPublicForm: (goCode: string, request: SubmitClubFormRequest) =>
 		apiClient.post<ClubForm>(
 			`/forms/go/${encodeURIComponent(goCode)}/submissions`,
-			request,
-			{ authenticated: false }
+			request
 		),
 
 	getResults: (id: string) =>
@@ -57,4 +58,37 @@ export const formsApi = {
 
 	getSubmissionReport: (id: string) =>
 		apiClient.get<ClubFormSubmissionReport>(`/forms/${encodeURIComponent(id)}/submission-report`),
+
+	getAnalyticsOverview: (range: FormAnalyticsDateRange) =>
+		apiClient.get<FormAnalyticsOverview>(`/forms/analytics${toQueryString(range)}`),
+
+	getFormAnalytics: async (id: string, range: FormAnalyticsDateRange) => {
+		const response = await apiClient.get<{ analytics: FormAnalyticsDetail }>(
+			`/forms/${encodeURIComponent(id)}/analytics${toQueryString(range)}`
+		);
+		return response.analytics;
+	},
+
+	trackAnalytics: (
+		formId: string,
+		goCode: string | undefined,
+		eventName: "view" | "interaction" | "field-interaction" | "validation-error" | "duration",
+		body: { sessionId: string; fieldId?: string; engagedDurationMs?: number; errorType?: string },
+		keepalive = false
+	) => {
+		const path = goCode
+			? `/forms/go/${encodeURIComponent(goCode)}/analytics/${eventName}`
+			: `/forms/${encodeURIComponent(formId)}/analytics/${eventName}`;
+		return keepalive
+			? apiClient.postKeepalive<void>(path, body)
+			: apiClient.post<void>(path, body);
+	},
 };
+
+function toQueryString(range: FormAnalyticsDateRange) {
+	const params = new URLSearchParams();
+	if (range.from) params.set("from", range.from);
+	if (range.to) params.set("to", range.to);
+	const query = params.toString();
+	return query ? `?${query}` : "";
+}

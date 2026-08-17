@@ -77,8 +77,64 @@ export type ClubFormAnswer = {
 
 export type SubmitClubFormRequest = {
 	anonymousSubmissionKey?: string;
+	analyticsSessionId?: string;
 	answers: ClubFormAnswer[];
 };
+
+export type FormAnalyticsPerformance = {
+	formId: string;
+	formName: string;
+	views: number;
+	uniqueVisitors: number;
+	starts: number;
+	submissions: number;
+	abandoned: number;
+	completionRate: number;
+	abandonmentRate: number;
+	viewConversionRate: number;
+	averageEngagedDurationMs: number;
+	validationErrors: number;
+};
+
+export type FormAnalyticsOverview = {
+	from?: string | null;
+	to?: string | null;
+	totalViews: number;
+	uniqueVisitors: number;
+	starts: number;
+	submissions: number;
+	completionRate: number;
+	viewConversionRate: number;
+	forms: FormAnalyticsPerformance[];
+	needsAttention: FormAnalyticsPerformance[];
+};
+
+export type FormAnalyticsTrendPoint = {
+	date: string;
+	views: number;
+	starts: number;
+	submissions: number;
+	completionRate: number;
+};
+
+export type FormFieldAnalytics = {
+	fieldId: string;
+	fieldName: string;
+	isRequired: boolean;
+	interactions: number;
+	validationErrors: number;
+};
+
+export type FormAnalyticsDetail = FormAnalyticsPerformance & {
+	viewToStartRate: number;
+	medianEngagedDurationMs: number;
+	averageCompletedDurationMs: number;
+	averageAbandonedDurationMs: number;
+	trends: FormAnalyticsTrendPoint[];
+	fields: FormFieldAnalytics[];
+};
+
+export type FormAnalyticsDateRange = { from?: string; to?: string };
 
 export type ClubFormResults = {
 	formId: string;

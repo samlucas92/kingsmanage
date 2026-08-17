@@ -15,6 +15,7 @@ type RequestOptions = {
 	method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 	body?: unknown;
 	authenticated?: boolean;
+	keepalive?: boolean;
 };
 
 export function getStoredAuthToken() {
@@ -44,6 +45,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 		method: options.method ?? "GET",
 		headers,
 		body: options.body === undefined ? undefined : JSON.stringify(options.body),
+		keepalive: options.keepalive,
 	});
 
 	if (response.status === 401) {
@@ -106,6 +108,12 @@ export const apiClient = {
 		...options,
 		method: "POST",
 		body,
+	}),
+	postKeepalive: <T>(path: string, body: unknown, options?: RequestOptions) => request<T>(path, {
+		...options,
+		method: "POST",
+		body,
+		keepalive: true,
 	}),
 	put: <T>(path: string, body: unknown) => request<T>(path, {
 		method: "PUT",

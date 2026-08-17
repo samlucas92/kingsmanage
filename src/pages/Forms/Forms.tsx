@@ -20,6 +20,7 @@ import type {
 	ClubFormResults,
 	ClubFormStatus,
 	ClubFormSubmissionReport,
+	FormAnalyticsPerformance,
 	SaveClubFormRequest,
 } from "../../types/forms";
 import { formatDisplayDateTime } from "../../utils/date";
@@ -28,6 +29,8 @@ import {
 	optionRequiresTextInput,
 	removeStructuredChoiceOption,
 } from "./formChoiceOptions";
+import FormsAnalyticsPage from "./analytics/FormsAnalyticsPage";
+import { useFormAnalytics } from "./analytics/useFormAnalytics";
 
 const questionTypes: ClubFormQuestionType[] = [
 	"ShortText",
@@ -50,6 +53,7 @@ export default function Forms() {
 	const isPublicForm = Boolean(goCode);
 	const isEditorMode = location.pathname.endsWith("/edit");
 	const isReportMode = location.pathname.endsWith("/report");
+	const isInsightsMode = location.pathname.endsWith("/insights");
 	const canManageForms = !isPublicForm && (currentUser?.role === "Admin" || currentUser?.role === "Coach");
 
 	const [forms, setForms] = useState<ClubForm[]>([]);
@@ -68,6 +72,12 @@ export default function Forms() {
 	const [cleanupMatchAward, setCleanupMatchAward] = useState(false);
 	const [copyModalOpen, setCopyModalOpen] = useState(false);
 	const [selectedCopyQuestions, setSelectedCopyQuestions] = useState<Set<string>>(new Set());
+	const [listAnalytics, setListAnalytics] = useState<Record<string, FormAnalyticsPerformance>>({});
+	const analyticsTracker = useFormAnalytics({
+		formId: form?.id,
+		goCode: isPublicForm ? goCode : undefined,
+		enabled: Boolean(form && !isEditorMode && !isReportMode && !isInsightsMode && (formId || goCode)),
+	});
 
 	useEffect(() => {
 		if (goCode) {
@@ -109,8 +119,12 @@ export default function Forms() {
 		setError("");
 
 		try {
-			const loadedForms = await formsApi.getForms();
+			const [loadedForms, analytics] = await Promise.all([
+				formsApi.getForms(),
+				canManageForms ? formsApi.getAnalyticsOverview({}) : Promise.resolve(null),
+			]);
 			setForms(loadedForms);
+			setListAnalytics(Object.fromEntries((analytics?.forms ?? []).map((item) => [item.formId, item])));
 			setPage((current) => Math.min(current, Math.max(1, Math.ceil(loadedForms.length / pageSize))));
 		} catch (error) {
 			setError(error instanceof Error ? error.message : "Failed to load forms.");
@@ -257,6 +271,12 @@ export default function Forms() {
 		if (!form || !canSubmitSelectedForm) return;
 
 		if (hasMissingRequiredOtherText(form, answers)) {
+			for (const question of form.questions) {
+				const answer = answers[question.id];
+				if (getSelectedRequiredTextOption(question, answer) && !answer?.textValue.trim()) {
+					analyticsTracker.trackValidationError(question.id, "required-other-text");
+				}
+			}
 			setAnswers((currentAnswers) => markMissingRequiredOtherText(form, currentAnswers));
 			setError("You must enter a name when choosing Other.");
 			setMessage("");
@@ -271,9 +291,11 @@ export default function Forms() {
 			const submitted = isPublicForm && goCode
 				? await formsApi.submitPublicForm(goCode, {
 					anonymousSubmissionKey: getAnonymousSubmissionKey(),
+					analyticsSessionId: analyticsTracker.sessionId,
 					answers: buildSubmissionAnswers(form, answers),
 				})
 				: await formsApi.submitForm(form.id, {
+					analyticsSessionId: analyticsTracker.sessionId,
 					answers: buildSubmissionAnswers(form, answers),
 				});
 			setForm(submitted);
@@ -348,7 +370,11 @@ export default function Forms() {
 						message={message}
 						answers={answers}
 						canSubmit={Boolean(canSubmitSelectedForm)}
-						onAnswerChange={(questionId, value) => setAnswers((current) => ({ ...current, [questionId]: value }))}
+						onAnswerChange={(questionId, value) => {
+							analyticsTracker.trackInteraction(questionId);
+							setAnswers((current) => ({ ...current, [questionId]: value }));
+						}}
+						onValidationError={(questionId) => analyticsTracker.trackValidationError(questionId, "browser-validation")}
 						onSubmit={submitForm}
 					/>
 				</div>
@@ -364,17 +390,25 @@ export default function Forms() {
 					<p className="mt-1 text-sm text-slate-600">Manage club forms, match awards and response reports.</p>
 				</div>
 
-				{canManageForms && !formId && (
+				{canManageForms && !formId && !isInsightsMode && (
 					<button type="button" onClick={openCreateForm} className="btn-primary">
 						New form
 					</button>
 				)}
 			</div>
+			{canManageForms && (
+				<nav className="flex gap-1 rounded-xl bg-slate-100 p-1" aria-label="Forms sections">
+					<button type="button" onClick={() => navigate("/forms")} className={`flex-1 rounded-lg px-4 py-2 text-sm font-black sm:flex-none ${!isInsightsMode ? "bg-white text-yepset-800 shadow-sm" : "text-slate-600"}`}>Forms</button>
+					<button type="button" onClick={() => navigate("/forms/insights")} className={`flex-1 rounded-lg px-4 py-2 text-sm font-black sm:flex-none ${isInsightsMode ? "bg-white text-yepset-800 shadow-sm" : "text-slate-600"}`}>Insights</button>
+				</nav>
+			)}
 
 			{error && <Alert tone="error">{error}</Alert>}
 			{message && <Alert tone="success">{message}</Alert>}
 
-			{isEditorMode ? (
+			{isInsightsMode ? (
+				<FormsAnalyticsPage formId={formId} />
+			) : isEditorMode ? (
 				<FormEditor
 					editingForm={editingForm}
 					isSaving={isSaving}
@@ -394,6 +428,7 @@ export default function Forms() {
 					onCopy={() => setCopyModalOpen(true)}
 					onEdit={() => form && navigate(`/forms/${form.id}/edit`)}
 					onGoToForm={() => form && navigate(`/go/${form.goCode}`)}
+					onInsights={() => form && navigate(`/forms/${form.id}/insights`)}
 					onViewModeChange={setReportViewMode}
 					onResolveAwardOption={resolveAwardOption}
 					onShare={() => form && void shareForm(form)}
@@ -412,12 +447,14 @@ export default function Forms() {
 			) : (
 				<FormsList
 					forms={pageForms}
+					analytics={listAnalytics}
 					isLoading={isLoading}
 					page={page}
 					totalPages={totalPages}
 					onDelete={(form) => setDeleteTarget(form)}
 					onEdit={(form) => navigate(`/forms/${form.id}/edit`)}
 					onGoToForm={(form) => navigate(`/go/${form.goCode}`)}
+					onInsights={(form) => navigate(`/forms/${form.id}/insights`)}
 					onPageChange={setPage}
 					onReport={(form) => navigate(`/forms/${form.id}/report`)}
 					onShare={shareForm}
@@ -501,24 +538,28 @@ type DraftAnswer = {
 
 function FormsList({
 	forms,
+	analytics,
 	isLoading,
 	page,
 	totalPages,
 	onDelete,
 	onEdit,
 	onGoToForm,
+	onInsights,
 	onPageChange,
 	onReport,
 	onShare,
 	onToggleState,
 }: {
 	forms: ClubForm[];
+	analytics: Record<string, FormAnalyticsPerformance>;
 	isLoading: boolean;
 	page: number;
 	totalPages: number;
 	onDelete: (form: ClubForm) => void;
 	onEdit: (form: ClubForm) => void;
 	onGoToForm: (form: ClubForm) => void;
+	onInsights: (form: ClubForm) => void;
 	onPageChange: (page: number) => void;
 	onReport: (form: ClubForm) => void;
 	onShare: (form: ClubForm) => void | Promise<void>;
@@ -550,6 +591,7 @@ function FormsList({
 											onDelete,
 											onEdit,
 											onGoToForm,
+											onInsights,
 											onReport,
 											onShare,
 											onToggleState,
@@ -567,6 +609,12 @@ function FormsList({
 								</div>
 
 								<dl className="grid gap-2 text-sm">
+									{analytics[form.id] && (
+										<div>
+											<dt className="text-xs font-black uppercase tracking-wide text-slate-400">Performance</dt>
+											<dd className="mt-0.5 font-semibold text-slate-700">{analytics[form.id].views} views · {form.submissionCount} responses · {Math.round(analytics[form.id].viewConversionRate)}% conversion</dd>
+										</div>
+									)}
 									<div>
 										<dt className="text-xs font-black uppercase tracking-wide text-slate-400">Date created</dt>
 										<dd className="mt-0.5 font-semibold text-slate-700">{formatDisplayDateTime(form.createdAt)}</dd>
@@ -584,11 +632,12 @@ function FormsList({
 					>
 						<thead className="bg-slate-50 text-left text-xs font-black uppercase tracking-wide text-slate-500">
 							<tr>
-								<th className="w-[34%] px-4 py-3">Name</th>
-								<th className="w-[24%] px-4 py-3">Match</th>
+								<th className="w-[25%] px-4 py-3">Name</th>
+								<th className="w-[18%] px-4 py-3">Match</th>
+								<th className="w-[22%] px-4 py-3">Performance</th>
 								<th className="w-[8%] px-4 py-3">State</th>
-								<th className="w-[22%] px-4 py-3">Date created</th>
-								<th className="w-[12%] px-4 py-3 text-right">Actions</th>
+								<th className="w-[17%] px-4 py-3">Date created</th>
+								<th className="w-[10%] px-4 py-3 text-right">Actions</th>
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-slate-100">
@@ -600,6 +649,11 @@ function FormsList({
 										</button>
 									</td>
 									<td className="truncate px-4 py-3 text-slate-600">{form.sourceMatchLabel || "—"}</td>
+									<td className="px-4 py-3 text-xs font-semibold text-slate-600">
+										{analytics[form.id]
+											? <>{analytics[form.id].views} views<br />{form.submissionCount} responses · {Math.round(analytics[form.id].viewConversionRate)}%</>
+											: "No activity"}
+									</td>
 									<td className="px-4 py-3"><StatusPill status={form.status} /></td>
 									<td className="truncate px-4 py-3 text-slate-600">{formatDisplayDateTime(form.createdAt)}</td>
 									<td className="px-4 py-3">
@@ -610,6 +664,7 @@ function FormsList({
 													onDelete,
 													onEdit,
 													onGoToForm,
+													onInsights,
 													onReport,
 													onShare,
 													onToggleState,
@@ -639,6 +694,7 @@ function getFormActionItems({
 	onDelete,
 	onEdit,
 	onGoToForm,
+	onInsights,
 	onReport,
 	onShare,
 	onToggleState,
@@ -647,6 +703,7 @@ function getFormActionItems({
 	onDelete: (form: ClubForm) => void;
 	onEdit: (form: ClubForm) => void;
 	onGoToForm: (form: ClubForm) => void;
+	onInsights: (form: ClubForm) => void;
 	onReport: (form: ClubForm) => void;
 	onShare: (form: ClubForm) => void | Promise<void>;
 	onToggleState: (form: ClubForm) => void | Promise<void>;
@@ -656,6 +713,7 @@ function getFormActionItems({
 		{ label: "Edit", onClick: () => onEdit(form) },
 		{ label: form.status === "Closed" ? "Open form" : "Close form", onClick: () => void onToggleState(form) },
 		{ label: "Report", onClick: () => onReport(form) },
+		{ label: "View insights", onClick: () => onInsights(form) },
 		{ label: "Share", onClick: () => void onShare(form) },
 		{ label: "Delete", onClick: () => onDelete(form), tone: "danger" as const },
 	];
@@ -672,6 +730,7 @@ function FormReportView({
 	onDelete,
 	onEdit,
 	onGoToForm,
+	onInsights,
 	onViewModeChange,
 	onResolveAwardOption,
 	onShare,
@@ -687,6 +746,7 @@ function FormReportView({
 	onDelete: () => void;
 	onEdit: () => void;
 	onGoToForm: () => void;
+	onInsights: () => void;
 	onViewModeChange: (viewMode: ReportViewMode) => void;
 	onResolveAwardOption: (questionId: string, selectedValue: string, playerId: string) => void;
 	onShare: () => void;
@@ -718,6 +778,7 @@ function FormReportView({
 					<button type="button" onClick={onCopy} disabled={form.status !== "Closed"} className="btn-secondary disabled:opacity-50">Copy results</button>
 					<button type="button" onClick={onShare} className="btn-secondary">Share</button>
 					<button type="button" onClick={onEdit} className="btn-secondary">Edit</button>
+					<button type="button" onClick={onInsights} className="btn-secondary">Insights</button>
 					<button type="button" onClick={onToggleState} className="btn-secondary">{form.status === "Closed" ? "Open" : "Close"}</button>
 					<button type="button" onClick={onDelete} className="rounded-xl border border-red-200 px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-50">Delete</button>
 				</div>
@@ -764,6 +825,7 @@ function FormSubmissionView({
 	answers,
 	canSubmit,
 	onAnswerChange,
+	onValidationError,
 	onSubmit,
 }: {
 	error: string;
@@ -774,6 +836,7 @@ function FormSubmissionView({
 	answers: Record<string, DraftAnswer>;
 	canSubmit: boolean;
 	onAnswerChange: (questionId: string, value: DraftAnswer) => void;
+	onValidationError: (questionId: string) => void;
 	onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
 	if (isLoading) {
@@ -810,8 +873,9 @@ function FormSubmissionView({
 						<FormQuestionInput
 							key={question.id}
 							question={question}
-							value={answers[question.id]}
-							onChange={(value) => onAnswerChange(question.id, value)}
+						value={answers[question.id]}
+						onChange={(value) => onAnswerChange(question.id, value)}
+						onValidationError={() => onValidationError(question.id)}
 						/>
 					))}
 					<button type="submit" disabled={isSaving || !canSubmit} className="btn-primary disabled:cursor-not-allowed disabled:bg-slate-300">
@@ -933,10 +997,12 @@ function FormQuestionInput({
 	question,
 	value,
 	onChange,
+	onValidationError,
 }: {
 	question: ClubFormQuestion;
 	value?: DraftAnswer;
 	onChange: (value: DraftAnswer) => void;
+	onValidationError: () => void;
 }) {
 	const answer = value ?? { textValue: "", selectedOptions: [] };
 	const choiceOptions = getQuestionChoiceOptions(question);
@@ -973,7 +1039,7 @@ function FormQuestionInput({
 	}
 
 	return (
-		<div className="rounded-2xl border border-slate-200 bg-white p-4">
+		<div className="rounded-2xl border border-slate-200 bg-white p-4" onInvalid={onValidationError}>
 			<label className="block text-sm font-black text-slate-950">
 				{question.prompt}
 				{question.isRequired && <span className="ml-1 text-red-600">*</span>}

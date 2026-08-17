@@ -53,6 +53,8 @@ export default function AppRouter() {
 						<Route path="/forms" element={<Forms />} />
 						<Route path="/forms/:formId/edit" element={<Forms />} />
 						<Route path="/forms/:formId/report" element={<Forms />} />
+						<Route path="/forms/insights" element={<Forms />} />
+						<Route path="/forms/:formId/insights" element={<Forms />} />
 						<Route path="/posts/:id" element={<PostDetail />} />
 						<Route path="/notifications" element={<Notifications />} />
 						<Route path="/settings" element={<Settings />} />
