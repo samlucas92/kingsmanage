@@ -11,16 +11,17 @@ import type {
 	OrganizationDocument,
 	RoleResponsibility,
 } from "../types/handover";
+import { omitBlankId } from "../utils/apiPayload";
 
 export const handoverApi = {
 	getSnapshot: () => apiClient.get<HandoverVaultSnapshot>("/handover"),
 	getRole: (id: string) => apiClient.get<OperationalRole>(`/handover/roles/${id}`),
-	saveRole: (role: OperationalRole) => apiClient.post<OperationalRole>("/handover/roles", role),
-	saveResponsibility: (responsibility: RoleResponsibility) => apiClient.post<RoleResponsibility>("/handover/responsibilities", responsibility),
-	linkDocument: (link: HandoverDocumentLink) => apiClient.post<HandoverDocumentLink>("/handover/document-links", link),
+	saveRole: (role: OperationalRole) => apiClient.post<OperationalRole>("/handover/roles", omitBlankId(role)),
+	saveResponsibility: (responsibility: RoleResponsibility) => apiClient.post<RoleResponsibility>("/handover/responsibilities", omitBlankId(responsibility)),
+	linkDocument: (link: HandoverDocumentLink) => apiClient.post<HandoverDocumentLink>("/handover/document-links", omitBlankId(link)),
 	unlinkDocument: (id: string) => apiClient.delete<void>(`/handover/document-links/${id}`),
-	saveTask: (task: OperationalTask) => apiClient.post<OperationalTask>("/handover/tasks", task),
-	saveContact: (contact: OperationalContact) => apiClient.post<OperationalContact>("/handover/contacts", contact),
+	saveTask: (task: OperationalTask) => apiClient.post<OperationalTask>("/handover/tasks", omitBlankId(task)),
+	saveContact: (contact: OperationalContact) => apiClient.post<OperationalContact>("/handover/contacts", omitBlankId(contact)),
 	createHandover: (request: {
 		operationalRoleId: string;
 		outgoingUserId: string | null;
