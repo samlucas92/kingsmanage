@@ -1,0 +1,9 @@
+import { Link } from "react-router-dom";
+import { VaultFrame } from "./HandoverFrame";
+import { formatDate } from "./handoverFormat";
+import { useHandoverData } from "./useHandoverData";
+
+export default function HandoverRecords() {
+	const { data, error, loading } = useHandoverData();
+	return <VaultFrame><section className="surface-card p-5 sm:p-6"><h2 className="text-2xl font-black">Formal handovers</h2><p className="mt-1 text-sm text-slate-500">Auditable transfers with independent outgoing and incoming confirmation.</p></section>{error && <p className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}{loading ? <p className="text-sm text-slate-500">Loading handovers…</p> : <div className="grid gap-4 md:grid-cols-2">{data?.handovers.map((handover) => { const role = data.roles.find((item) => item.id === handover.operationalRoleId); const unresolved = handover.items.filter((item) => item.status === "Pending" || item.status === "Blocked").length; return <Link key={handover.id} to={`/handover/records/${handover.id}`} className="surface-card p-5 transition hover:border-yepset-300"><div className="flex items-start justify-between gap-3"><div><h3 className="text-lg font-black">{role?.name ?? "Operational role"}</h3><p className="mt-1 text-sm text-slate-500">Started {formatDate(handover.startedAt)}{handover.dueAt ? ` · Due ${formatDate(handover.dueAt)}` : ""}</p></div><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${handover.status === "Completed" ? "bg-green-100 text-green-700" : handover.status === "Cancelled" ? "bg-slate-200 text-slate-600" : "bg-blue-100 text-blue-700"}`}>{handover.status.replace(/([A-Z])/g, " $1").trim()}</span></div><p className="mt-4 text-sm font-semibold text-slate-600">{unresolved} unresolved of {handover.items.length} checklist items</p></Link>; })}{data?.handovers.length === 0 && <p className="text-sm text-slate-500">No formal handovers have been started.</p>}</div>}</VaultFrame>;
+}

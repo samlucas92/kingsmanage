@@ -18,6 +18,13 @@ const EventDetail = lazy(() => import("../pages/Events/EventDetail"));
 const Finance = lazy(() => import("../pages/Finance/Finance"));
 const Forms = lazy(() => import("../pages/Forms/Forms"));
 const HistoricalStats = lazy(() => import("../pages/HistoricalStats/HistoricalStats"));
+const HandoverOverview = lazy(() => import("../pages/Handover/HandoverOverview"));
+const HandoverRoles = lazy(() => import("../pages/Handover/HandoverRoles"));
+const HandoverRoleDetail = lazy(() => import("../pages/Handover/HandoverRoleDetail"));
+const HandoverTasks = lazy(() => import("../pages/Handover/HandoverTasks"));
+const HandoverRecords = lazy(() => import("../pages/Handover/HandoverRecords"));
+const HandoverRecordDetail = lazy(() => import("../pages/Handover/HandoverRecordDetail"));
+const OrganizationDocuments = lazy(() => import("../pages/Handover/OrganizationDocuments"));
 const Login = lazy(() => import("../pages/Login/Login"));
 const MatchDetail = lazy(() => import("../pages/Matches/MatchDetails"));
 const Matches = lazy(() => import("../pages/Matches/Matches"));
@@ -71,6 +78,14 @@ export default function AppRouter() {
 							<Route path="/stats" element={<Stats />} />
 							<Route path="/training" element={<Training />} />
 							<Route path="/historical-stats" element={<HistoricalStats />} />
+							<Route path="/handover" element={<HandoverOverview />} />
+							<Route path="/handover/roles" element={<HandoverRoles />} />
+							<Route path="/handover/roles/:roleId" element={<HandoverRoleDetail />} />
+							<Route path="/handover/tasks" element={<HandoverTasks />} />
+							<Route path="/handover/records" element={<HandoverRecords />} />
+							<Route path="/handover/records/:handoverId" element={<HandoverRecordDetail />} />
+							<Route path="/handover/documents" element={<OrganizationDocuments />} />
+							<Route path="/handover/documents/:documentId" element={<OrganizationDocuments />} />
 						</Route>
 
 						<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} />}>

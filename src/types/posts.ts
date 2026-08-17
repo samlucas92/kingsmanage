@@ -1,4 +1,4 @@
-export type ClubPostType = "General" | "Announcement" | "MatchInfo" | "Social";
+export type ClubPostType = "General" | "Announcement" | "MatchInfo" | "Social" | "OrganizationDocument";
 
 export type ClubPost = {
 	id: string;

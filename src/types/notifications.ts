@@ -1,5 +1,5 @@
-export type NotificationType = "NewPost" | "NewEvent" | "EventUpdated" | "NewDirectMessage";
-export type NotificationSourceType = "Post" | "Event" | "Match" | "Message" | "Finance" | "System";
+export type NotificationType = "NewPost" | "NewEvent" | "EventUpdated" | "NewDirectMessage" | "OperationalRoleAssigned" | "OperationalTaskAssigned" | "OperationalTaskDue" | "OperationalTaskOverdue" | "HandoverStarted" | "HandoverActionRequired" | "HandoverReadyForReview" | "HandoverCompleted" | "OrganizationDocumentUnavailable";
+export type NotificationSourceType = "Post" | "Event" | "Match" | "Message" | "Finance" | "System" | "Handover" | "OperationalTask" | "OperationalRole" | "OrganizationDocument";
 export type NotificationStatus = "Unread" | "Read";
 
 export type ClubNotification = {

@@ -91,6 +91,12 @@ const navigationItems: NavigationItem[] = [
 		group: "manage-club",
 	},
 	{
+		label: "Handover Vault",
+		to: "/handover",
+		roles: ["Admin", "Coach"],
+		group: "manage-club",
+	},
+	{
 		label: "Seasons",
 		to: "/seasons",
 		roles: ["Admin"],
