@@ -216,6 +216,7 @@ describe("social graphic model", () => {
 	});
 
 	it("provides stable default headlines for every graphic type", () => {
+		expect(getDefaultHeadline("blank")).toBe("");
 		expect(getDefaultHeadline("upcomingFixtures")).toBe("Fixtures");
 		expect(getDefaultHeadline("fixture")).toBe("Matchday");
 		expect(getDefaultHeadline("lineup")).toBe("Team lineup");

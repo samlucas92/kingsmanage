@@ -183,6 +183,8 @@ export function getOpponentScore(fixture: SocialFixture) {
 
 export function getDefaultHeadline(kind: SocialGraphicKind) {
 	switch (kind) {
+		case "blank":
+			return "";
 		case "fixture":
 			return "Matchday";
 		case "result":
@@ -197,6 +199,8 @@ export function getDefaultHeadline(kind: SocialGraphicKind) {
 
 export function getGraphicKindLabel(kind: SocialGraphicKind) {
 	switch (kind) {
+		case "blank":
+			return "Blank canvas";
 		case "fixture":
 			return "Single fixture";
 		case "result":

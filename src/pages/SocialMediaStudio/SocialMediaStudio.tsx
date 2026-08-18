@@ -74,6 +74,7 @@ import type {
 } from "./upcomingTemplateElements";
 
 const graphicKinds: SocialGraphicKind[] = [
+	"blank",
 	"upcomingFixtures",
 	"fixture",
 	"lineup",
@@ -571,6 +572,8 @@ export default function SocialMediaStudio() {
 	]);
 
 	const selectedMatches = useMemo(() => {
+		if (kind === "blank") return [];
+
 		if (kind === "upcomingFixtures") {
 			const selectedIds = new Set(effectiveUpcomingIds);
 			return upcomingMatches.filter((match) => selectedIds.has(match.id));
@@ -677,6 +680,7 @@ export default function SocialMediaStudio() {
 	function handleKindChange(nextKind: SocialGraphicKind) {
 		setKind(nextKind);
 		setHeadline(getDefaultHeadline(nextKind));
+		setTemplateFieldValues({});
 		setActionMessage("");
 		setActionError("");
 	}
@@ -1190,7 +1194,7 @@ export default function SocialMediaStudio() {
 		}
 	}
 
-	const hasRequiredMatch = content.fixtures.length > 0;
+	const hasRequiredMatch = kind === "blank" || content.fixtures.length > 0;
 	const exportDisabled = !selectedTemplate || !hasRequiredMatch || isRendering;
 	const isUpcomingTemplateSelected = effectiveTemplateId === upcomingTemplateId;
 	const activeTemplateSource = isUpcomingTemplateSelected
@@ -1230,7 +1234,7 @@ export default function SocialMediaStudio() {
 				</span>
 			</header>
 
-			<div className="grid grid-cols-2 gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm sm:grid-cols-4" role="tablist" aria-label="Graphic type">
+			<div className="grid grid-cols-2 gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm sm:grid-cols-5" role="tablist" aria-label="Graphic type">
 				{graphicKinds.map((graphicKind) => (
 					<button
 						key={graphicKind}
@@ -1401,7 +1405,11 @@ export default function SocialMediaStudio() {
 						</div>
 
 						<div className="mt-3 space-y-3">
-							{kind === "upcomingFixtures" ? (
+							{kind === "blank" ? (
+								<p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 text-xs leading-5 text-slate-600">
+									Start with the branded background, then add only the text and images you need below.
+								</p>
+							) : kind === "upcomingFixtures" ? (
 								<UpcomingFixturePicker
 									fixtures={upcomingMatches.map((match) => toSocialFixture(match, teamProfiles, players))}
 									selectedIds={effectiveUpcomingIds}
@@ -1439,18 +1447,22 @@ export default function SocialMediaStudio() {
 								/>
 							)}
 
-							<label className="block text-sm font-semibold text-slate-700">
-								Headline
-								<input value={headline} onChange={(event) => setHeadline(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm" />
-							</label>
-							<label className="block text-sm font-semibold text-slate-700">
-								Club handle
-								<input value={clubHandle} onChange={(event) => setClubHandle(event.target.value)} placeholder="@yourclub" className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm" />
-							</label>
-							<label className="block text-sm font-semibold text-slate-700">
-								Footer
-								<input value={footer || `Come on, ${clubName}!`} onChange={(event) => setFooter(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm" />
-							</label>
+							{kind !== "blank" && (
+								<>
+									<label className="block text-sm font-semibold text-slate-700">
+										Headline
+										<input value={headline} onChange={(event) => setHeadline(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm" />
+									</label>
+									<label className="block text-sm font-semibold text-slate-700">
+										Club handle
+										<input value={clubHandle} onChange={(event) => setClubHandle(event.target.value)} placeholder="@yourclub" className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm" />
+									</label>
+									<label className="block text-sm font-semibold text-slate-700">
+										Footer
+										<input value={footer || `Come on, ${clubName}!`} onChange={(event) => setFooter(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm" />
+									</label>
+								</>
+							)}
 
 							{selectedTemplate?.fields?.map((field) => {
 								if (field.id === "sponsorsTitle" && !showSponsors) return null;
@@ -1464,7 +1476,12 @@ export default function SocialMediaStudio() {
 									);
 								}
 
-								return (
+								return field.type === "textarea" ? (
+									<label key={field.id} className="block text-sm font-semibold text-slate-700">
+										{field.label}
+										<textarea value={String(effectiveTemplateFields[field.id] ?? "")} onChange={(event) => setTemplateField(field.id, event.target.value)} placeholder={field.placeholder} rows={4} className="mt-1.5 w-full resize-y rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm" />
+									</label>
+								) : (
 									<label key={field.id} className="block text-sm font-semibold text-slate-700">
 										{field.label}
 										<input value={String(effectiveTemplateFields[field.id] ?? "")} onChange={(event) => setTemplateField(field.id, event.target.value)} placeholder={field.placeholder} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm" />
@@ -1481,9 +1498,9 @@ export default function SocialMediaStudio() {
 								<span className="text-xs font-semibold text-slate-500">Source controlled</span>
 							</div>
 							<div className="mt-3 space-y-3">
-								<AssetPicker label={kind === "upcomingFixtures" || kind === "lineup" ? "Club logo" : "Home team logo"} assets={socialGraphicAssetManifest.teamLogos} value={homeTeamLogoId} fallbackIndex={homeTeamLogoFallbackIndex} temporaryAsset={temporaryAssets.homeTeamLogo} onChange={setHomeTeamLogoId} onTemporaryImage={(file) => setTemporaryImage("homeTeamLogo", file, setHomeTeamLogoId)} />
-								{kind !== "upcomingFixtures" && kind !== "lineup" && <AssetPicker label="Away team logo" assets={socialGraphicAssetManifest.teamLogos} value={awayTeamLogoId} fallbackIndex={awayTeamLogoFallbackIndex} temporaryAsset={temporaryAssets.awayTeamLogo} onChange={setAwayTeamLogoId} onTemporaryImage={(file) => setTemporaryImage("awayTeamLogo", file, setAwayTeamLogoId)} />}
-								{kind === "result" && <AssetPicker label="Player of the Match image" assets={socialGraphicAssetManifest.featuredImages} value={featuredImageId} fallbackIndex={0} temporaryAsset={temporaryAssets.featuredImage} onChange={setFeaturedImageId} onTemporaryImage={(file) => setTemporaryImage("featuredImage", file, setFeaturedImageId)} />}
+								<AssetPicker label={kind === "blank" || kind === "upcomingFixtures" || kind === "lineup" ? "Club logo" : "Home team logo"} assets={socialGraphicAssetManifest.teamLogos} value={homeTeamLogoId} fallbackIndex={homeTeamLogoFallbackIndex} temporaryAsset={temporaryAssets.homeTeamLogo} onChange={setHomeTeamLogoId} onTemporaryImage={(file) => setTemporaryImage("homeTeamLogo", file, setHomeTeamLogoId)} />
+								{kind !== "blank" && kind !== "upcomingFixtures" && kind !== "lineup" && <AssetPicker label="Away team logo" assets={socialGraphicAssetManifest.teamLogos} value={awayTeamLogoId} fallbackIndex={awayTeamLogoFallbackIndex} temporaryAsset={temporaryAssets.awayTeamLogo} onChange={setAwayTeamLogoId} onTemporaryImage={(file) => setTemporaryImage("awayTeamLogo", file, setAwayTeamLogoId)} />}
+								{(kind === "blank" || kind === "result") && <AssetPicker label={kind === "blank" ? "Main image" : "Player of the Match image"} assets={socialGraphicAssetManifest.featuredImages} value={featuredImageId} fallbackIndex={0} temporaryAsset={temporaryAssets.featuredImage} onChange={setFeaturedImageId} onTemporaryImage={(file) => setTemporaryImage("featuredImage", file, setFeaturedImageId)} />}
 								{showSponsors && [0, 1, 2].map((index) => (
 									<AssetPicker key={index} label={`Sponsor ${index + 1}`} emptyLabel="No sponsor" uploadLabel="Replace sponsor image" emptyUploadLabel="Add sponsor image" preferDirectUploadWhenEmpty assets={socialGraphicAssetManifest.sponsors} value={sponsorIds[index] ?? ""} fallbackIndex={index} temporaryAsset={temporaryAssets[`sponsor:${index}`]} onChange={(assetId) => setSponsorId(index, assetId)} onTemporaryImage={(file) => setTemporaryImage(`sponsor:${index}`, file, (assetId) => setSponsorId(index, assetId))} />
 								))}

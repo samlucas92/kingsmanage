@@ -1,5 +1,13 @@
 import type { SocialGraphicTemplate } from "./types";
 import {
+	blankEditorialDefaultDefinition,
+	blankEditorialDefaultSource,
+	createBlankEditorialTemplate,
+	parseBlankEditorialDefinition,
+	serializeBlankEditorialDefinition,
+} from "./templates/blankEditorialTemplate";
+import type { BlankEditorialTemplateDefinition } from "./templates/blankEditorialTemplate";
+import {
 	createLineupEditorialTemplate,
 	lineupEditorialDefaultDefinition,
 	lineupEditorialDefaultSource,
@@ -25,6 +33,7 @@ import {
 import type { ResultEditorialTemplateDefinition } from "./templates/resultEditorialTemplate";
 
 export type StaticEditableTemplateDefinition =
+	| BlankEditorialTemplateDefinition
 	| MatchdayEditorialTemplateDefinition
 	| ResultEditorialTemplateDefinition
 	| LineupEditorialTemplateDefinition;
@@ -39,6 +48,18 @@ export type StaticEditableTemplateAdapter = {
 };
 
 export const staticEditableTemplateAdapters: StaticEditableTemplateAdapter[] = [
+	{
+		id: "blank-editorial-gold",
+		defaultDefinition: blankEditorialDefaultDefinition,
+		defaultSource: blankEditorialDefaultSource,
+		parse: parseBlankEditorialDefinition,
+		serialize: (definition) => serializeBlankEditorialDefinition(
+			definition as BlankEditorialTemplateDefinition
+		),
+		create: (definition) => createBlankEditorialTemplate(
+			definition as BlankEditorialTemplateDefinition
+		),
+	},
 	{
 		id: "matchday-editorial-gold",
 		defaultDefinition: matchdayEditorialDefaultDefinition,

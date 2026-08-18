@@ -9,6 +9,14 @@ export type StaticTemplateElement = EditableTemplateBounds & {
 };
 
 const labelsByTemplate: Record<string, Record<string, string>> = {
+	"blank-editorial-gold": {
+		headline: "Title",
+		"club-crest": "Club logo",
+		"featured-area": "Main image",
+		"supporting-text": "Supporting text",
+		footer: "Footer",
+		"sponsor-section": "Sponsor section",
+	},
 	"matchday-editorial-gold": {
 		"section-heading": "Competition heading",
 		headline: "Matchday headline",

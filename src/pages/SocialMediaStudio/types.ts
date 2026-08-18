@@ -1,6 +1,6 @@
 import type { MatchResult } from "../../stores/match";
 
-export type SocialGraphicKind = "upcomingFixtures" | "fixture" | "lineup" | "result";
+export type SocialGraphicKind = "blank" | "upcomingFixtures" | "fixture" | "lineup" | "result";
 
 export type SocialGraphicAsset = {
 	id: string;
@@ -19,7 +19,7 @@ export type SocialGraphicTemplateField =
 	| {
 		id: string;
 		label: string;
-		type: "text";
+		type: "text" | "textarea";
 		defaultValue: string;
 		placeholder?: string;
 	}

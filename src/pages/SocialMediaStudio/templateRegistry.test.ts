@@ -29,8 +29,14 @@ describe("social graphic template registry", () => {
 		});
 	});
 
-	it("registers one editorial template for every initial graphic type", () => {
+	it("registers one editorial template for every graphic type", () => {
 		expect(socialGraphicTemplates).toEqual(expect.arrayContaining([
+			expect.objectContaining({
+				id: "blank-editorial-gold",
+				width: 1365,
+				height: 1651,
+				supportedKinds: ["blank"],
+			}),
 			expect.objectContaining({
 				id: "upcoming-editorial-gold",
 				width: 1365,
@@ -59,7 +65,7 @@ describe("social graphic template registry", () => {
 	});
 
 	it("makes the complete sponsor area optional", () => {
-		socialGraphicTemplates.forEach((template) => {
+		socialGraphicTemplates.filter((template) => template.id !== "blank-editorial-gold").forEach((template) => {
 			const sponsorToggle = template.fields?.find(
 				(field) => field.id === "showSponsors"
 			);
@@ -71,6 +77,24 @@ describe("social graphic template registry", () => {
 				defaultValue: true,
 			});
 		});
+	});
+
+	it("keeps the blank template empty until optional content is enabled", () => {
+		const template = socialGraphicTemplates.find(
+			(item) => item.id === "blank-editorial-gold"
+		);
+
+		expect(template?.fields).toEqual(expect.arrayContaining([
+			expect.objectContaining({ id: "title", defaultValue: "" }),
+			expect.objectContaining({ id: "showClubLogo", defaultValue: false }),
+			expect.objectContaining({ id: "showFeaturedImage", defaultValue: false }),
+			expect.objectContaining({ id: "showSponsors", defaultValue: false }),
+		]));
+		expect(getSocialGraphicDimensions(template!, {
+			...content,
+			kind: "blank",
+			fields: { showSponsors: false },
+		})).toEqual({ width: 1365, height: 1365 });
 	});
 
 	it.each([
