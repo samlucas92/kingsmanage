@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { getClubSportDefinition } from "../../constants/sports";
 import type { SportFormation } from "../../constants/sports";
@@ -1237,9 +1238,12 @@ export default function SocialMediaStudio() {
 						Turn club fixtures and results into ready-to-post artwork.
 					</p>
 				</div>
-				<span className="w-fit rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm">
-					{activeSeason?.name ?? (isLoadingSeasons ? "Loading season…" : "No active season")}
-				</span>
+				<div className="flex flex-wrap items-center gap-2">
+					<Link to="/social-media/insights" className="btn-secondary">View Meta insights</Link>
+					<span className="w-fit rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm">
+						{activeSeason?.name ?? (isLoadingSeasons ? "Loading season…" : "No active season")}
+					</span>
+				</div>
 			</header>
 
 			<div className="grid grid-cols-2 gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm sm:grid-cols-5" role="tablist" aria-label="Graphic type">

@@ -69,3 +69,34 @@ export type SocialPublication = {
 	updatedAt: string;
 	publishedAt?: string | null;
 };
+
+export type SocialAccountInsights = {
+	platform: SocialPlatform;
+	name: string;
+	username?: string | null;
+	followerCount?: number | null;
+	postCount?: number | null;
+};
+
+export type SocialPostInsightsSummary = {
+	platform: SocialPlatform;
+	id: string;
+	caption: string;
+	mediaType?: string | null;
+	createdAt: string;
+	permalink?: string | null;
+	thumbnailUrl?: string | null;
+	likeCount?: number | null;
+	commentCount?: number | null;
+	shareCount?: number | null;
+};
+
+export type SocialPostInsightsDetail = SocialPostInsightsSummary & {
+	metrics: Record<string, number>;
+};
+
+export type SocialInsightsOverview = {
+	generatedAt: string;
+	accounts: SocialAccountInsights[];
+	posts: SocialPostInsightsSummary[];
+};

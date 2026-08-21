@@ -41,6 +41,7 @@ const ReportsPage = lazyWithRetry(() => import("../pages/Reports/ReportsPage"));
 const Seasons = lazyWithRetry(() => import("../pages/Seasons/Seasons"));
 const Settings = lazyWithRetry(() => import("../pages/Settings/Settings"));
 const SocialMediaStudio = lazyWithRetry(() => import("../pages/SocialMediaStudio/SocialMediaStudio"));
+const SocialInsights = lazyWithRetry(() => import("../pages/SocialMediaStudio/SocialInsights"));
 const Stats = lazyWithRetry(() => import("../pages/Stats/Stats"));
 const Training = lazyWithRetry(() => import("../pages/Training/Training"));
 const Users = lazyWithRetry(() => import("../pages/Users/Users"));
@@ -78,6 +79,8 @@ export default function AppRouter() {
 							<Route path="/players/:id" element={<Player />} />
 							<Route path="/reports/*" element={<ReportsPage />} />
 							<Route path="/social-media" element={<SocialMediaStudio />} />
+							<Route path="/social-media/insights" element={<SocialInsights />} />
+							<Route path="/social-media/insights/:platform/:postId" element={<SocialInsights />} />
 							<Route path="/stats" element={<Stats />} />
 							<Route path="/training" element={<Training />} />
 							<Route path="/historical-stats" element={<HistoricalStats />} />

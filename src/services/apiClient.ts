@@ -75,10 +75,14 @@ async function getErrorMessage(response: Response) {
 		}
 
 		try {
-			const parsed = JSON.parse(text) as { message?: string; title?: string; errors?: Record<string, string[]> };
+			const parsed = JSON.parse(text) as { message?: string; detail?: string; title?: string; errors?: Record<string, string[]> };
 
 			if (parsed.message) {
 				return parsed.message;
+			}
+
+			if (parsed.detail) {
+				return parsed.detail;
 			}
 
 			if (parsed.title) {
