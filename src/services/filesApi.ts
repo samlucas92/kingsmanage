@@ -24,6 +24,9 @@ export const filesApi = {
 	markUploaded: (id: string) =>
 		apiClient.post<ClubFile>(`/files/${id}/mark-uploaded`, {}),
 
+	uploadContent: (id: string, file: Blob, contentType: string) =>
+		apiClient.putRaw<ClubFile>(`/files/${id}/content`, file, contentType),
+
 	getDownloadUrl: (id: string) =>
 		apiClient.get<FileDownloadUrlResponse>(`/files/${id}/download-url`),
 

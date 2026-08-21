@@ -14,6 +14,8 @@ export function getRealtimeHubUrl() {
 type RequestOptions = {
 	method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 	body?: unknown;
+	rawBody?: BodyInit;
+	contentType?: string;
 	authenticated?: boolean;
 	keepalive?: boolean;
 };
@@ -32,7 +34,7 @@ export function clearStoredAuthToken() {
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
 	const headers: Record<string, string> = {
-		"Content-Type": "application/json",
+		"Content-Type": options.contentType ?? "application/json",
 	};
 
 	const token = getStoredAuthToken();
@@ -44,7 +46,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 	const response = await fetch(`${API_BASE_URL}${path}`, {
 		method: options.method ?? "GET",
 		headers,
-		body: options.body === undefined ? undefined : JSON.stringify(options.body),
+		body: options.rawBody ?? (options.body === undefined ? undefined : JSON.stringify(options.body)),
 		keepalive: options.keepalive,
 	});
 
@@ -122,6 +124,11 @@ export const apiClient = {
 	put: <T>(path: string, body: unknown) => request<T>(path, {
 		method: "PUT",
 		body,
+	}),
+	putRaw: <T>(path: string, body: BodyInit, contentType: string) => request<T>(path, {
+		method: "PUT",
+		rawBody: body,
+		contentType,
 	}),
 	patch: <T>(path: string, body: unknown) => request<T>(path, {
 		method: "PATCH",

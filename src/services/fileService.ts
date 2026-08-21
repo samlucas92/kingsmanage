@@ -139,19 +139,24 @@ export async function uploadLinkedFile({
 		throw new Error("The file upload URL was not provided.");
 	}
 
-	const uploadResult = await fetch(uploadResponse.uploadUrl, {
-		method: "PUT",
-		headers: {
-			"Content-Type": contentType,
-		},
-		body: file,
-	});
+	try {
+		const uploadResult = await fetch(uploadResponse.uploadUrl, {
+			method: "PUT",
+			headers: {
+				"Content-Type": contentType,
+			},
+			body: file,
+		});
 
-	if (!uploadResult.ok) {
-		throw new Error(`File upload failed with status ${uploadResult.status}.`);
+		if (uploadResult.ok) {
+			return filesApi.markUploaded(uploadResponse.file.id);
+		}
+	} catch {
+		// A browser CORS policy can block a valid R2 presigned upload. The
+		// authenticated API proxy below provides a safe same-origin fallback.
 	}
 
-	return filesApi.markUploaded(uploadResponse.file.id);
+	return filesApi.uploadContent(uploadResponse.file.id, file, contentType);
 }
 
 export async function calculateFileHash(file: Blob) {
