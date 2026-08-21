@@ -17,6 +17,7 @@ import {
 } from "./editableTemplateAdapters";
 import type { StaticEditableTemplateDefinition } from "./editableTemplateAdapters";
 import { TemplateCanvasOverlay } from "./TemplateCanvasOverlay";
+import { SocialPublishModal } from "./SocialPublishModal";
 import {
 	copyCanvasPng,
 	downloadCanvasPng,
@@ -130,6 +131,7 @@ export default function SocialMediaStudio() {
 	const teamProfiles = useClubTeamStore((state) => state.profiles);
 	const loadTeamProfiles = useClubTeamStore((state) => state.loadProfiles);
 	const availableClubs = useAuthStore((state) => state.availableClubs);
+	const currentUser = useAuthStore((state) => state.currentUser);
 
 	const [kind, setKind] = useState<SocialGraphicKind>("upcomingFixtures");
 	const [selectedTemplateId, setSelectedTemplateId] = useState("");
@@ -151,6 +153,7 @@ export default function SocialMediaStudio() {
 	const [isRendering, setIsRendering] = useState(false);
 	const [actionMessage, setActionMessage] = useState("");
 	const [actionError, setActionError] = useState("");
+	const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
 	const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
 	const [upcomingTemplateSource, setUpcomingTemplateSource] = useState(
 		upcomingEditorialDefaultSource
@@ -1196,6 +1199,11 @@ export default function SocialMediaStudio() {
 
 	const hasRequiredMatch = kind === "blank" || content.fixtures.length > 0;
 	const exportDisabled = !selectedTemplate || !hasRequiredMatch || isRendering;
+	const canPublishToMeta = currentUser?.role === "Admin" && (
+		currentUser.isPlatformAdmin ||
+		currentUser.tenantRole === "OrganizationAdmin" ||
+		currentUser.tenantRole === "ClubAdmin"
+	);
 	const isUpcomingTemplateSelected = effectiveTemplateId === upcomingTemplateId;
 	const activeTemplateSource = isUpcomingTemplateSelected
 		? upcomingTemplateSource
@@ -1722,11 +1730,22 @@ export default function SocialMediaStudio() {
 					<div className="order-5 mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
 						<button type="button" onClick={handleCopyImage} disabled={exportDisabled} className="btn-secondary disabled:cursor-not-allowed disabled:opacity-45">Copy image</button>
 						<button type="button" onClick={handleDownloadImage} disabled={exportDisabled} className="btn-primary disabled:cursor-not-allowed disabled:opacity-45">Download PNG</button>
+						{canPublishToMeta && <button type="button" onClick={() => setIsPublishModalOpen(true)} disabled={exportDisabled} className="btn-primary bg-[#0866ff] hover:bg-[#0758d8] disabled:cursor-not-allowed disabled:opacity-45">Publish to Meta</button>}
 					</div>
 					{actionMessage && <p className="order-6 mt-2 text-right text-sm font-semibold text-yepset-700">{actionMessage}</p>}
 					{actionError && <p className="order-6 mt-2 text-right text-sm font-semibold text-rose-700">{actionError}</p>}
 				</section>
 			</div>
+			{isPublishModalOpen && canvasRef.current && (
+				<SocialPublishModal
+					canvas={canvasRef.current}
+					clubName={clubName}
+					suggestedCaption={[content.headline, content.footer].filter(Boolean).join("\n\n")}
+					canConfigure={currentUser?.isPlatformAdmin === true || currentUser?.tenantRole === "OrganizationAdmin"}
+					onClose={() => setIsPublishModalOpen(false)}
+					onPublished={(message) => { setActionError(""); setActionMessage(message); }}
+				/>
+			)}
 		</div>
 	);
 }

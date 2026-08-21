@@ -5,7 +5,8 @@ export type ClubFileLinkedEntityType =
 	| "ClubDocument"
 	| "ClubLogo"
 	| "PostTemplate"
-	| "RichTextDraft";
+	| "RichTextDraft"
+	| "SocialPublication";
 
 export type ClubFileVisibility = "AuthenticatedUsers" | "AdminAndCoach";
 

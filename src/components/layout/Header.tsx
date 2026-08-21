@@ -23,6 +23,7 @@ const pageTitles: { matcher: (pathname: string) => boolean; title: string }[] = 
 	{ matcher: (pathname) => pathname === "/users", title: "Users" },
 	{ matcher: (pathname) => pathname === "/billing", title: "Subscription" },
 	{ matcher: (pathname) => pathname === "/organization", title: "Organization" },
+	{ matcher: (pathname) => pathname.startsWith("/organization/integrations"), title: "Integrations" },
 	{ matcher: (pathname) => pathname === "/club-setup", title: "Club Setup" },
 	{ matcher: (pathname) => pathname === "/platform/organizations", title: "Organizations" },
 	{ matcher: (pathname) => pathname === "/settings", title: "Settings" },

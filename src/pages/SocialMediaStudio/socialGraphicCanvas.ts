@@ -51,6 +51,19 @@ export function canvasToPngBlob(canvas: HTMLCanvasElement) {
 	});
 }
 
+export function canvasToJpegBlob(canvas: HTMLCanvasElement, quality = 0.92) {
+	const exportCanvas = createSocialExportCanvas(canvas);
+	return new Promise<Blob>((resolve, reject) => {
+		exportCanvas.toBlob((blob) => {
+			if (blob) {
+				resolve(blob);
+				return;
+			}
+			reject(new Error("The browser could not create a JPEG from this graphic."));
+		}, "image/jpeg", quality);
+	});
+}
+
 function createSocialExportCanvas(sourceCanvas: HTMLCanvasElement) {
 	if (sourceCanvas.width === SOCIAL_EXPORT_WIDTH && sourceCanvas.height === SOCIAL_EXPORT_HEIGHT) {
 		return sourceCanvas;

@@ -31,6 +31,8 @@ const MatchDetail = lazyWithRetry(() => import("../pages/Matches/MatchDetails"))
 const Matches = lazyWithRetry(() => import("../pages/Matches/Matches"));
 const Notifications = lazyWithRetry(() => import("../pages/Notifications/Notifications"));
 const Organization = lazyWithRetry(() => import("../pages/Organization/Organization"));
+const OrganizationIntegrations = lazyWithRetry(() => import("../pages/Integrations/OrganizationIntegrations"));
+const MetaOAuthCallback = lazyWithRetry(() => import("../pages/Integrations/MetaOAuthCallback"));
 const PlatformOrganizations = lazyWithRetry(() => import("../pages/PlatformOrganizations/PlatformOrganizations"));
 const Player = lazyWithRetry(() => import("../pages/Players/Player"));
 const Players = lazyWithRetry(() => import("../pages/Players/Players"));
@@ -97,6 +99,8 @@ export default function AppRouter() {
 						<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} allowedTenantRoles={["OrganizationAdmin"]} />}>
 							<Route path="/users" element={<Users />} />
 							<Route path="/billing" element={<Billing />} />
+							<Route path="/organization/integrations" element={<OrganizationIntegrations />} />
+							<Route path="/organization/integrations/meta/callback" element={<MetaOAuthCallback />} />
 						</Route>
 						<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} allowedTenantRoles={["OrganizationAdmin", "ClubAdmin"]} />}>
 							<Route path="/organization" element={<Organization />} />

@@ -15,6 +15,7 @@ const sharedItems: OrganizationNavItem[] = [
 ];
 
 const organizationAdminItems: OrganizationNavItem[] = [
+	{ label: "Integrations", to: "/organization/integrations" },
 	{ label: "Users", to: "/users" },
 	{ label: "Subscription", to: "/billing" },
 ];
