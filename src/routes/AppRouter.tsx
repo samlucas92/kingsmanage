@@ -41,6 +41,7 @@ const ReportsPage = lazyWithRetry(() => import("../pages/Reports/ReportsPage"));
 const Seasons = lazyWithRetry(() => import("../pages/Seasons/Seasons"));
 const Settings = lazyWithRetry(() => import("../pages/Settings/Settings"));
 const SocialMediaStudio = lazyWithRetry(() => import("../pages/SocialMediaStudio/SocialMediaStudio"));
+const SocialContentLibrary = lazyWithRetry(() => import("../pages/SocialMediaStudio/SocialContentLibrary"));
 const SocialInsights = lazyWithRetry(() => import("../pages/SocialMediaStudio/SocialInsights"));
 const Stats = lazyWithRetry(() => import("../pages/Stats/Stats"));
 const Training = lazyWithRetry(() => import("../pages/Training/Training"));
@@ -106,6 +107,7 @@ export default function AppRouter() {
 							<Route path="/organization/integrations/meta/callback" element={<MetaOAuthCallback />} />
 						</Route>
 						<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} allowedTenantRoles={["OrganizationAdmin", "ClubAdmin"]} />}>
+							<Route path="/social-media/content" element={<SocialContentLibrary />} />
 							<Route path="/organization" element={<Organization />} />
 							<Route path="/club-setup" element={<ClubSetup />} />
 						</Route>

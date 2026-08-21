@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { getClubSportDefinition } from "../../constants/sports";
 import type { SportFormation } from "../../constants/sports";
@@ -10,6 +10,7 @@ import { usePlayerStore } from "../../stores/players";
 import type { Player } from "../../stores/players";
 import { useSeasonStore } from "../../stores/seasons";
 import { socialGraphicTemplatesApi } from "../../services/socialGraphicTemplatesApi";
+import { socialPublicationsApi } from "../../services/socialPublicationsApi";
 import { formatDateForInput } from "../../utils/date";
 import { socialGraphicAssetManifest } from "./assetManifest";
 import {
@@ -116,7 +117,9 @@ const initialStaticTemplateStates = Object.fromEntries(
 ) as Record<string, StaticTemplateEditorState>;
 
 export default function SocialMediaStudio() {
+	const [searchParams] = useSearchParams();
 	const canvasRef = useRef<HTMLCanvasElement>(null);
+	const loadedContentIdRef = useRef("");
 	const temporaryAssetsRef = useRef<Record<string, SocialGraphicAsset>>({});
 	const matches = useMatchStore((state) => state.matches);
 	const isLoadingMatches = useMatchStore((state) => state.isLoadingMatches);
@@ -200,6 +203,37 @@ export default function SocialMediaStudio() {
 		void loadTeamProfiles();
 		void loadPlayers();
 	}, [loadSeasons, loadTeamProfiles, loadPlayers]);
+
+	useEffect(() => {
+		const contentId = searchParams.get("contentId") ?? "";
+		if (!contentId || loadedContentIdRef.current === contentId) return;
+		loadedContentIdRef.current = contentId;
+		void socialPublicationsApi.get(contentId).then((publication) => {
+			if (!publication.editorStateJson) throw new Error("This saved item has no editable studio state. Its exported image is still available in the content library.");
+			const state = JSON.parse(publication.editorStateJson) as Record<string, unknown>;
+			if (isGraphicKind(state.kind)) setKind(state.kind);
+			if (typeof state.selectedTemplateId === "string") setSelectedTemplateId(state.selectedTemplateId);
+			if (Array.isArray(state.selectedUpcomingIds)) setSelectedUpcomingIds(state.selectedUpcomingIds.filter((id): id is string => typeof id === "string"));
+			if (typeof state.selectedFixtureId === "string") setSelectedFixtureId(state.selectedFixtureId);
+			if (typeof state.selectedLineupId === "string") setSelectedLineupId(state.selectedLineupId);
+			if (typeof state.selectedResultId === "string") setSelectedResultId(state.selectedResultId);
+			if (typeof state.headline === "string") setHeadline(state.headline);
+			if (typeof state.footer === "string") setFooter(state.footer);
+			if (typeof state.clubHandle === "string") setClubHandle(state.clubHandle);
+			if (isRecord(state.templateFieldValues)) setTemplateFieldValues(state.templateFieldValues as Record<string, string | boolean>);
+			if (typeof state.homeTeamLogoId === "string") setHomeTeamLogoId(state.homeTeamLogoId);
+			if (typeof state.awayTeamLogoId === "string") setAwayTeamLogoId(state.awayTeamLogoId);
+			if (typeof state.featuredImageId === "string") setFeaturedImageId(state.featuredImageId);
+			if (Array.isArray(state.sponsorIds)) setSponsorIds([...state.sponsorIds.filter((id): id is string => typeof id === "string"), "", "", ""].slice(0, 3));
+			if (isRecord(state.fixtureOverrides)) setFixtureOverrides(state.fixtureOverrides as Record<string, SocialFixtureOverride>);
+			if (isRecord(state.lineupOverrides)) setLineupOverrides(state.lineupOverrides as Record<string, SocialLineup>);
+			setActionError("");
+			setActionMessage(`Loaded “${publication.title}” as a new editable copy.`);
+		}).catch((loadError) => {
+			setActionMessage("");
+			setActionError(loadError instanceof Error ? loadError.message : "The saved content could not be loaded.");
+		});
+	}, [searchParams]);
 
 	useEffect(() => {
 		temporaryAssetsRef.current = temporaryAssets;
@@ -1200,6 +1234,24 @@ export default function SocialMediaStudio() {
 
 	const hasRequiredMatch = kind === "blank" || content.fixtures.length > 0;
 	const exportDisabled = !selectedTemplate || !hasRequiredMatch || isRendering;
+	const editorStateJson = JSON.stringify({
+		kind,
+		selectedTemplateId: effectiveTemplateId,
+		selectedUpcomingIds: effectiveUpcomingIds,
+		selectedFixtureId: effectiveFixtureId,
+		selectedLineupId: effectiveLineupId,
+		selectedResultId: effectiveResultId,
+		headline,
+		footer,
+		clubHandle,
+		templateFieldValues,
+		homeTeamLogoId,
+		awayTeamLogoId,
+		featuredImageId,
+		sponsorIds,
+		fixtureOverrides,
+		lineupOverrides,
+	});
 	const canPublishToMeta = currentUser?.role === "Admin" && (
 		currentUser.isPlatformAdmin ||
 		currentUser.tenantRole === "OrganizationAdmin" ||
@@ -1239,6 +1291,7 @@ export default function SocialMediaStudio() {
 					</p>
 				</div>
 				<div className="flex flex-wrap items-center gap-2">
+					{canPublishToMeta && <Link to="/social-media/content" className="btn-secondary">Content library</Link>}
 					<Link to="/social-media/insights" className="btn-secondary">View Meta insights</Link>
 					<span className="w-fit rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm">
 						{activeSeason?.name ?? (isLoadingSeasons ? "Loading season…" : "No active season")}
@@ -1734,7 +1787,7 @@ export default function SocialMediaStudio() {
 					<div className="order-5 mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
 						<button type="button" onClick={handleCopyImage} disabled={exportDisabled} className="btn-secondary disabled:cursor-not-allowed disabled:opacity-45">Copy image</button>
 						<button type="button" onClick={handleDownloadImage} disabled={exportDisabled} className="btn-primary disabled:cursor-not-allowed disabled:opacity-45">Download PNG</button>
-						{canPublishToMeta && <button type="button" onClick={() => setIsPublishModalOpen(true)} disabled={exportDisabled} className="btn-primary bg-[#0866ff] hover:bg-[#0758d8] disabled:cursor-not-allowed disabled:opacity-45">Publish to Meta</button>}
+						{canPublishToMeta && <button type="button" onClick={() => setIsPublishModalOpen(true)} disabled={exportDisabled} className="btn-primary bg-[#0866ff] hover:bg-[#0758d8] disabled:cursor-not-allowed disabled:opacity-45">Save or publish</button>}
 					</div>
 					{actionMessage && <p className="order-6 mt-2 text-right text-sm font-semibold text-yepset-700">{actionMessage}</p>}
 					{actionError && <p className="order-6 mt-2 text-right text-sm font-semibold text-rose-700">{actionError}</p>}
@@ -1745,6 +1798,10 @@ export default function SocialMediaStudio() {
 					canvas={canvasRef.current}
 					clubName={clubName}
 					suggestedCaption={[content.headline, content.footer].filter(Boolean).join("\n\n")}
+					contentTitle={content.headline || `${clubName} social post`}
+					graphicKind={kind}
+					templateId={effectiveTemplateId}
+					editorStateJson={editorStateJson}
 					canConfigure={currentUser?.isPlatformAdmin === true || currentUser?.tenantRole === "OrganizationAdmin"}
 					onClose={() => setIsPublishModalOpen(false)}
 					onPublished={(message) => { setActionError(""); setActionMessage(message); }}
@@ -2297,4 +2354,12 @@ function toFilenamePart(value: string) {
 		.toLowerCase()
 		.replace(/[^a-z0-9]+/g, "-")
 		.replace(/^-+|-+$/g, "") || "social-graphic";
+}
+
+function isGraphicKind(value: unknown): value is SocialGraphicKind {
+	return typeof value === "string" && graphicKinds.includes(value as SocialGraphicKind);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
 }

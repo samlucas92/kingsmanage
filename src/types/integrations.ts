@@ -1,7 +1,8 @@
 export type OrganizationIntegrationStatus = "NotConfigured" | "Connected" | "NeedsAttention";
 export type SocialPlatform = "Facebook" | "Instagram";
-export type SocialPublicationStatus = "Draft" | "Scheduled" | "Processing" | "Published" | "PartiallyPublished" | "Failed" | "Cancelled";
-export type SocialDeliveryStatus = "Pending" | "Processing" | "Published" | "Failed" | "Cancelled";
+export type SocialPublicationStatus = "Draft" | "Scheduled" | "Processing" | "MetaDraft" | "Published" | "PartiallyPublished" | "Failed" | "Cancelled";
+export type SocialDeliveryStatus = "Pending" | "Processing" | "Saved" | "Drafted" | "Published" | "Failed" | "Cancelled";
+export type SocialPublicationMode = "YepsetDraft" | "PublishNow" | "FacebookDraft";
 
 export type MetaInstagramAccount = {
 	id: string;
@@ -60,9 +61,14 @@ export type SocialPublicationDelivery = {
 export type SocialPublication = {
 	id: string;
 	fileId?: string | null;
+	title: string;
+	graphicKind?: string | null;
+	templateId?: string | null;
+	editorStateJson?: string | null;
 	facebookCaption: string;
 	instagramCaption: string;
 	scheduledForUtc?: string | null;
+	mode: SocialPublicationMode;
 	status: SocialPublicationStatus;
 	deliveries: SocialPublicationDelivery[];
 	createdAt: string;

@@ -231,7 +231,7 @@ function MetaSetupModal({ step, integration, clubs, mappings, timeZoneId, isSavi
 }
 
 function SetupRequirements() {
-	return <div><h3 className="text-lg font-black text-slate-950">Before you start</h3><p className="mt-2 text-sm leading-6 text-slate-600">Use a Facebook account that has full control of the Pages you want to publish to.</p><ul className="mt-4 space-y-3 text-sm font-semibold text-slate-700"><li>✓ Your Instagram account must be a professional account.</li><li>✓ It must be connected to its Facebook Page.</li><li>✓ Yepset requests publishing and insights permissions; it never receives your Facebook password.</li></ul></div>;
+	return <div><h3 className="text-lg font-black text-slate-950">Before you start</h3><p className="mt-2 text-sm leading-6 text-slate-600">Use a Facebook account that has full control of the Pages you want to publish to.</p><ul className="mt-4 space-y-3 text-sm font-semibold text-slate-700"><li>✓ Facebook-only publishing does not require an Instagram account.</li><li>✓ To publish to Instagram, Meta requires a professional Instagram account connected to its Facebook Page.</li><li>✓ Yepset requests publishing and insights permissions; it never receives your Facebook password.</li></ul></div>;
 }
 
 function ConnectStep({ isConnected, connectedName, onConnect }: { isConnected: boolean; connectedName?: string | null; onConnect: () => void }) {

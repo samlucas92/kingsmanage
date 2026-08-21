@@ -104,7 +104,7 @@ export default function SocialInsights() {
 				</button>
 			</header>
 
-			{error && <ErrorState message={error} onRetry={() => void loadOverview()} />}
+			{error && <ErrorState message={error} onRetry={() => void loadOverview()} showReconnect={needsReconnect(error)} />}
 			{isLoading && <LoadingState label="Loading Meta insights…" />}
 
 			{!isLoading && !error && overview && (
@@ -260,8 +260,12 @@ function LoadingState({ label }: { label: string }) {
 	return <div className="surface-card grid min-h-56 place-items-center p-8 text-center"><div><span className="mx-auto block h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-yepset-700" /><p className="mt-3 text-sm font-bold text-slate-600">{label}</p></div></div>;
 }
 
-function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
-	return <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5"><p className="font-black text-rose-900">Insights unavailable</p><p className="mt-1 text-sm leading-6 text-rose-800">{message}</p><button type="button" onClick={onRetry} className="btn-secondary mt-3">Try again</button></div>;
+function ErrorState({ message, onRetry, showReconnect = false }: { message: string; onRetry: () => void; showReconnect?: boolean }) {
+	return <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5"><p className="font-black text-rose-900">Insights unavailable</p><p className="mt-1 text-sm leading-6 text-rose-800">{message}</p><div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={onRetry} className="btn-secondary">Try again</button>{showReconnect && <Link to="/organization/integrations" className="btn-primary">Reconnect Meta</Link>}</div></div>;
+}
+
+function needsReconnect(message: string) {
+	return /pages_read_user_content|reconnect meta|page public content access|\(#10\)/i.test(message);
 }
 
 function SearchIcon() {

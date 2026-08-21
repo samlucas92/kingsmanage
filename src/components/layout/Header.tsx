@@ -17,6 +17,7 @@ const pageTitles: { matcher: (pathname: string) => boolean; title: string }[] = 
 	{ matcher: (pathname) => pathname === "/finance", title: "Finance" },
 	{ matcher: (pathname) => pathname.startsWith("/reports"), title: "Reports" },
 	{ matcher: (pathname) => pathname.startsWith("/social-media/insights"), title: "Social Insights" },
+	{ matcher: (pathname) => pathname === "/social-media/content", title: "Social Content" },
 	{ matcher: (pathname) => pathname === "/social-media", title: "Social Media Studio" },
 	{ matcher: (pathname) => pathname === "/forms", title: "Forms" },
 	{ matcher: (pathname) => pathname === "/stats", title: "Stats" },
