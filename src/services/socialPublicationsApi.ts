@@ -22,4 +22,5 @@ export const socialPublicationsApi = {
 	queue: (id: string, mode: Exclude<SocialPublicationMode, "YepsetDraft">) => apiClient.post<SocialPublication>(`/social-publications/${id}/queue`, { mode }),
 	cancel: (id: string) => apiClient.post<SocialPublication>(`/social-publications/${id}/cancel`, {}),
 	retry: (id: string) => apiClient.post<SocialPublication>(`/social-publications/${id}/retry`, {}),
+	delete: (id: string) => apiClient.delete<void>(`/social-publications/${id}`),
 };
