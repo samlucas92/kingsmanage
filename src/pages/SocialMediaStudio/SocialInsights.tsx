@@ -154,16 +154,15 @@ export default function SocialInsights() {
 
 function AccountCard({ account }: { account: SocialAccountInsights }) {
 	return (
-		<div className="surface-card flex items-center gap-4 p-4 sm:p-5">
+		<div className="surface-card grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-3 overflow-hidden p-4 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:gap-4 sm:p-5">
 			<PlatformMark platform={account.platform} large />
-			<div className="min-w-0 flex-1">
+			<div className="min-w-0">
 				<p className="text-xs font-black uppercase tracking-[.14em] text-slate-500">{account.platform}</p>
 				<p className="truncate text-lg font-black text-slate-950">{account.username ? `@${account.username}` : account.name}</p>
 			</div>
-			<div className="text-right">
-				<p className="text-2xl font-black tabular-nums text-slate-950">{formatNumber(account.followerCount)}</p>
-				<p className="text-xs font-bold text-slate-500">followers</p>
-				{account.postCount != null && <p className="mt-1 text-xs font-semibold text-slate-400">{formatNumber(account.postCount)} posts</p>}
+			<div className="col-span-2 flex min-w-0 items-end justify-between border-t border-slate-100 pt-3 text-left sm:col-span-1 sm:block sm:border-0 sm:pt-0 sm:text-right">
+				<div><p className="text-2xl font-black tabular-nums text-slate-950">{formatNumber(account.followerCount)}</p><p className="text-xs font-bold text-slate-500">followers</p></div>
+				{account.postCount != null && <p className="pb-0.5 text-xs font-semibold text-slate-400 sm:mt-1 sm:pb-0">{formatNumber(account.postCount)} posts</p>}
 			</div>
 		</div>
 	);
