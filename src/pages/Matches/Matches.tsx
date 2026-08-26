@@ -12,6 +12,8 @@ import { PostponeMatchModal } from "./components/match-detail/PostponeMatchModal
 import { useMatchForm } from "./hooks/useMatchForm";
 import { formatDateForInput } from "../../utils/date";
 import { useClubTeamStore } from "../../stores/clubTeams";
+import { useAuthStore } from "../../stores/auth";
+import { getClubDefaultFormationKey } from "../../constants/sports";
 
 export default function Matches() {
 	const matches = useMatchStore((state) => state.matches);
@@ -32,6 +34,9 @@ export default function Matches() {
 	const seasonLoadError = useSeasonStore((state) => state.seasonLoadError);
 	const loadSeasons = useSeasonStore((state) => state.loadSeasons);
 	const loadTeamProfiles = useClubTeamStore((state) => state.loadProfiles);
+	const activeClub = useAuthStore((state) =>
+		state.availableClubs.find((club) => club.isCurrent)
+	);
 
 	const [selectedSeasonId, setSelectedSeasonId] = useState("");
 	const [matchFilter, setMatchFilter] = useState<MatchFilter>("upcoming");
@@ -70,6 +75,11 @@ export default function Matches() {
 			await addMatch({
 				...match,
 				seasonId: selectedSeasonId,
+				formationKey: getClubDefaultFormationKey(
+					activeClub?.sportKey,
+					activeClub?.customFormations,
+					activeClub?.defaultFormationKey
+				),
 			});
 		} catch (error) {
 			setActionError(

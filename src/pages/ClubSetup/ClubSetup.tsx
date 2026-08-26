@@ -412,7 +412,7 @@ function IdentityStep({
 					Primary sport
 					<select
 						value={club.sportKey}
-						onChange={(event) => onChange({ ...club, sportKey: event.target.value, customFormations: [] })}
+						onChange={(event) => onChange({ ...club, sportKey: event.target.value, customFormations: [], defaultFormationKey: "" })}
 						className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"
 					>
 						{Object.values(sportDefinitions).map((sport) => (
@@ -766,7 +766,7 @@ function updateClubAccess(club: SportsClub) {
 	useAuthStore.setState((state) => ({
 		availableClubs: state.availableClubs.map((item) =>
 			item.id === club.id
-				? { ...item, name: club.name, sportKey: club.sportKey, customFormations: club.customFormations }
+				? { ...item, name: club.name, sportKey: club.sportKey, customFormations: club.customFormations, defaultFormationKey: club.defaultFormationKey }
 				: item
 		),
 	}));

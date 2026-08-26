@@ -96,6 +96,7 @@ export type MatchFixtureInput = {
 	venue: "home" | "away";
 	location: string;
 	competition: string;
+	formationKey?: LineupFormation;
 };
 
 type MatchStore = {

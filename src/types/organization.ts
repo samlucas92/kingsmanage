@@ -59,6 +59,7 @@ export type SportsClub = {
 	setupStep: number;
 	setupCompletedAt?: string | null;
 	customFormations: SportFormation[];
+	defaultFormationKey?: string;
 	logoFileId?: string | null;
 	isActive: boolean;
 	createdAt: string;

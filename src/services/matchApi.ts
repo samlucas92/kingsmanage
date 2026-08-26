@@ -335,6 +335,7 @@ function toApiMatch(match: Match): ApiMatch {
 function toApiMatchFixture(match: MatchFixtureInput): ApiMatchFixtureInput {
 	return {
 		...match,
+		formationKey: match.formationKey ?? "",
 		date: toUtcIsoString(match.date),
 		team: toApiClubTeam(match.team),
 		teamId: normaliseLegacyTeamId(match.team),

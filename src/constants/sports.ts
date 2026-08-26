@@ -29,6 +29,7 @@ export const sportDefinitions: Record<string, SportDefinition> = {
 		formations: [
 			{ key: "4-4-2", name: "4-4-2", slots: slots([["gk", "GK", 50, 88], ["lb", "LB", 20, 68], ["lcb", "CB", 40, 70], ["rcb", "CB", 60, 70], ["rb", "RB", 80, 68], ["lm", "LM", 20, 46], ["lcm", "CM", 40, 50], ["rcm", "CM", 60, 50], ["rm", "RM", 80, 46], ["lst", "ST", 40, 24], ["rst", "ST", 60, 24]]) },
 			{ key: "4-3-3", name: "4-3-3", slots: slots([["gk", "GK", 50, 88], ["lb", "LB", 20, 68], ["lcb", "CB", 40, 70], ["rcb", "CB", 60, 70], ["rb", "RB", 80, 68], ["lcm", "CM", 30, 48], ["cm", "CM", 50, 52], ["rcm", "CM", 70, 48], ["lw", "LW", 25, 24], ["st", "ST", 50, 20], ["rw", "RW", 75, 24]]) },
+			{ key: "4-5-1", name: "4-5-1", slots: slots([["gk", "GK", 50, 88], ["lb", "LB", 20, 68], ["lcb", "CB", 40, 70], ["rcb", "CB", 60, 70], ["rb", "RB", 80, 68], ["lm", "LM", 16, 45], ["lcm", "CM", 34, 51], ["cm", "CM", 50, 53], ["rcm", "CM", 66, 51], ["rm", "RM", 84, 45], ["st", "ST", 50, 20]]) },
 			{ key: "3-5-2", name: "3-5-2", slots: slots([["gk", "GK", 50, 88], ["lcb", "CB", 30, 70], ["cb", "CB", 50, 72], ["rcb", "CB", 70, 70], ["lwb", "LWB", 15, 48], ["lcm", "CM", 35, 52], ["cm", "CM", 50, 54], ["rcm", "CM", 65, 52], ["rwb", "RWB", 85, 48], ["lst", "ST", 40, 24], ["rst", "ST", 60, 24]]) },
 			{ key: "4-2-3-1", name: "4-2-3-1", slots: slots([["gk", "GK", 50, 88], ["lb", "LB", 20, 68], ["lcb", "CB", 40, 70], ["rcb", "CB", 60, 70], ["rb", "RB", 80, 68], ["lcdm", "CDM", 40, 53], ["rcdm", "CDM", 60, 53], ["lam", "LAM", 25, 35], ["cam", "CAM", 50, 32], ["ram", "RAM", 75, 35], ["st", "ST", 50, 18]]) },
 		],
@@ -78,4 +79,17 @@ export function getClubSportDefinition(
 		...sport,
 		formations,
 	};
+}
+
+export function getClubDefaultFormationKey(
+	key?: string | null,
+	customFormations: SportFormation[] = [],
+	defaultFormationKey?: string | null
+) {
+	const sport = getClubSportDefinition(key, customFormations);
+	return sport.formations.some(
+		(formation) => formation.key === defaultFormationKey
+	)
+		? defaultFormationKey!
+		: sport.formations[0].key;
 }

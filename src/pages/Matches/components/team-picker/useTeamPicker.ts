@@ -7,10 +7,14 @@ import { useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { usePlayerStore } from "../../../../stores/players";
 import { useMatchStore } from "../../../../stores/match";
 import { useAuthStore } from "../../../../stores/auth";
-import { getClubSportDefinition } from "../../../../constants/sports";
+import {
+	getClubDefaultFormationKey,
+	getClubSportDefinition,
+} from "../../../../constants/sports";
 import { resolveLineupPosition } from "../../../../utils/lineupPosition";
 import type { LineupFormation, SelectedPlayer } from "../../../../stores/match";
 import { isPositionCompatible } from "./PositionCompatibility";
+import { remapPitchPlayersToFormation } from "./formationRemap";
 import type { DragData, DropData, OpenPlayerMenu } from "./Types";
 
 const MENU_WIDTH = 240;
@@ -162,7 +166,11 @@ export function useTeamPicker(matchId: string) {
 	const currentMatch = match;
 	const selectedFormation = sportFormations[currentMatch.selectedFormation]
 		? currentMatch.selectedFormation
-		: sportDefinition.formations[0].key;
+		: getClubDefaultFormationKey(
+			activeClub?.sportKey,
+			activeClub?.customFormations,
+			activeClub?.defaultFormationKey
+		);
 	const isLineupLocked = currentMatch.isLineupLocked;
 	function resolvePitchPosition(player: SelectedPlayer) {
 		return resolveLineupPosition(player, sportFormations[selectedFormation]);
@@ -801,40 +809,20 @@ export function useTeamPicker(matchId: string) {
 		const pitchSelectedPlayers = currentMatch.selectedPlayers.filter(
 			(selectedPlayer) => selectedPlayer.area === "pitch"
 		);
-
+		const remappedPitchPlayers = remapPitchPlayersToFormation(
+			pitchSelectedPlayers,
+			sportFormations[selectedFormation],
+			formation,
+			getPlayerPositions
+		);
+		const remappedByPlayerId = new Map(
+			remappedPitchPlayers.map((player) => [player.playerId, player])
+		);
 		const updatedSelectedPlayers = currentMatch.selectedPlayers.map(
-			(selectedPlayer) => {
-				if (selectedPlayer.area !== "pitch") {
-					return {
-						...selectedPlayer,
-						positionIndex: undefined,
-						positionKey: undefined,
-					};
-				}
-
-				const pitchPlayerIndex = pitchSelectedPlayers.findIndex(
-					(pitchPlayer) => pitchPlayer.playerId === selectedPlayer.playerId
-				);
-
-				const formationPosition = formation[pitchPlayerIndex];
-
-				if (!formationPosition) {
-					return {
-						...selectedPlayer,
-						area: "bench" as const,
-						positionIndex: undefined,
-						positionKey: undefined,
-					};
-				}
-
-				return {
-					...selectedPlayer,
-					x: undefined,
-					y: undefined,
-					positionKey: formationPosition.key,
-					positionIndex: pitchPlayerIndex,
-				};
-			}
+			(selectedPlayer) =>
+				selectedPlayer.area === "pitch"
+					? remappedByPlayerId.get(selectedPlayer.playerId) ?? selectedPlayer
+					: selectedPlayer
 		);
 
 		setSelectedPlayers(matchId, updatedSelectedPlayers);

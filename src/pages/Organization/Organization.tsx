@@ -60,6 +60,10 @@ export default function Organization() {
 						editingClub.sportKey === values.sportKey
 							? editingClub.customFormations
 							: [],
+					defaultFormationKey:
+						editingClub.sportKey === values.sportKey
+							? editingClub.defaultFormationKey
+							: "",
 				});
 				setClubs((current) => current.map((club) => club.id === updated.id ? updated : club));
 				updateClubAccess(updated);
@@ -110,12 +114,14 @@ export default function Organization() {
 
 	async function saveClubFormations(
 		club: SportsClub,
-		customFormations: SportsClub["customFormations"]
+		customFormations: SportsClub["customFormations"],
+		defaultFormationKey: string
 	) {
 		try {
 			const updated = await organizationApi.updateClub({
 				...club,
 				customFormations,
+				defaultFormationKey,
 			});
 			setClubs((current) =>
 				current.map((item) => (item.id === updated.id ? updated : item))
@@ -194,14 +200,14 @@ export default function Organization() {
 					{clubs.map((club) => (
 						<article key={club.id} className="surface-card p-5 transition hover:border-yepset-200">
 							<div className="flex items-start justify-between gap-3"><div className="flex items-center gap-3">{club.logoFileId ? <ManagedFileImage fileId={club.logoFileId} alt={`${club.name} logo`} className="h-16 w-16 rounded-xl object-contain" /> : <div className="grid h-16 w-16 place-items-center rounded-xl bg-yepset-100 text-xl font-black text-yepset-700">{club.name.charAt(0)}</div>}<div><h3 className="font-bold text-slate-900">{club.name}</h3><p className="mt-1 text-sm text-slate-500">{labelSport(club.sportKey)} · {club.slug}</p></div></div><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${club.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>{club.isActive ? "Active" : "Archived"}</span></div>
-							<div className="mt-5 flex flex-wrap gap-2">{useAuthStore.getState().availableClubs.some((item) => item.id === club.id && item.isCurrent) && <Link to="/club-setup" className="btn-primary">Guided setup</Link>}<button onClick={() => setFormationClub(club)} className="btn-secondary w-full justify-center sm:w-auto">Manage formations</button><button onClick={() => { setEditingClub(club); setIsCreating(false); }} className="btn-secondary">Edit</button><label className="btn-secondary cursor-pointer">Change logo<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void changeClubLogo(club, file); event.target.value = ""; }} /></label>{club.logoFileId && <button onClick={() => void removeClubLogo(club)} className="btn-secondary text-red-700">Remove logo</button>}{canManageOrganization && <button onClick={() => void toggleClub(club)} className="btn-secondary">{club.isActive ? "Archive" : "Restore"}</button>}{canManageOrganization && !club.isActive && <button onClick={() => setDeletingClub(club)} className="btn-secondary border-red-200 text-red-700 hover:bg-red-50">Delete</button>}</div>
+							<div className="mt-5 flex flex-wrap gap-2">{useAuthStore.getState().availableClubs.some((item) => item.id === club.id && item.isCurrent) && <Link to="/club-setup" className="btn-primary">Guided setup</Link>}<button onClick={() => setFormationClub(club)} className="btn-secondary w-full justify-center sm:w-auto">Formations &amp; default</button><button onClick={() => { setEditingClub(club); setIsCreating(false); }} className="btn-secondary">Edit</button><label className="btn-secondary cursor-pointer">Change logo<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void changeClubLogo(club, file); event.target.value = ""; }} /></label>{club.logoFileId && <button onClick={() => void removeClubLogo(club)} className="btn-secondary text-red-700">Remove logo</button>}{canManageOrganization && <button onClick={() => void toggleClub(club)} className="btn-secondary">{club.isActive ? "Archive" : "Restore"}</button>}{canManageOrganization && !club.isActive && <button onClick={() => setDeletingClub(club)} className="btn-secondary border-red-200 text-red-700 hover:bg-red-50">Delete</button>}</div>
 						</article>
 					))}
 				</div>
 			</section>
 
 			{(isCreating || editingClub) && <ClubModal club={editingClub} onClose={() => { setEditingClub(null); setIsCreating(false); }} onManageFormations={editingClub ? () => { setFormationClub(editingClub); setEditingClub(null); } : undefined} onSave={saveClub} />}
-			{formationClub && <FormationManagerModal club={formationClub} onClose={() => setFormationClub(null)} onSave={(formations) => saveClubFormations(formationClub, formations)} />}
+			{formationClub && <FormationManagerModal club={formationClub} onClose={() => setFormationClub(null)} onSave={(formations, defaultFormationKey) => saveClubFormations(formationClub, formations, defaultFormationKey)} />}
 			<ConfirmationModal
 				isOpen={deletingClub !== null}
 				title={`Delete ${deletingClub?.name ?? "club"}?`}
@@ -248,6 +254,7 @@ function updateClubAccess(club: SportsClub) {
 						primaryColor: club.primaryColor,
 						secondaryColor: club.secondaryColor,
 						customFormations: club.customFormations,
+						defaultFormationKey: club.defaultFormationKey,
 					}
 				: item
 		),

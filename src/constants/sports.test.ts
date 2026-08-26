@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	getClubSportDefinition,
+	getClubDefaultFormationKey,
 	getSportDefinition,
 	sportDefinitions,
 } from "./sports";
@@ -54,10 +55,24 @@ describe("sport definitions", () => {
 		}
 	});
 
-	it("retains every legacy football formation key", () => {
+	it("retains legacy football formations and includes 4-5-1", () => {
 		expect(sportDefinitions.football.formations.map((formation) => formation.key)).toEqual([
-			"4-4-2", "4-3-3", "3-5-2", "4-2-3-1",
+			"4-4-2", "4-3-3", "4-5-1", "3-5-2", "4-2-3-1",
 		]);
+	});
+
+	it("uses a valid club default and falls back safely for legacy clubs", () => {
+		expect(getClubDefaultFormationKey("football", [], "4-5-1")).toBe("4-5-1");
+		expect(getClubDefaultFormationKey("football", [], "removed-shape")).toBe("4-4-2");
+
+		const customFormation = {
+			key: "narrow-diamond",
+			name: "Narrow diamond",
+			slots: sportDefinitions.football.formations[0].slots,
+		};
+		expect(
+			getClubDefaultFormationKey("football", [customFormation], "narrow-diamond")
+		).toBe("narrow-diamond");
 	});
 
 	it("adds club formations without allowing them to replace built-in layouts", () => {

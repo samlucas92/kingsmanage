@@ -1,5 +1,7 @@
 import { useState, type KeyboardEvent, type PointerEvent } from "react";
 import {
+	getClubDefaultFormationKey,
+	getClubSportDefinition,
 	getSportDefinition,
 	type FormationSlot,
 	type SportFormation,
@@ -11,7 +13,7 @@ import { clamp, getFormationPosition } from "./formationEditor";
 interface FormationManagerModalProps {
 	club: SportsClub;
 	onClose: () => void;
-	onSave: (formations: SportFormation[]) => Promise<void>;
+	onSave: (formations: SportFormation[], defaultFormationKey: string) => Promise<void>;
 }
 
 export function FormationManagerModal({
@@ -22,6 +24,13 @@ export function FormationManagerModal({
 	const sport = getSportDefinition(club.sportKey);
 	const [formations, setFormations] = useState<SportFormation[]>(() =>
 		structuredClone(club.customFormations ?? [])
+	);
+	const [defaultFormationKey, setDefaultFormationKey] = useState(() =>
+		getClubDefaultFormationKey(
+			club.sportKey,
+			club.customFormations,
+			club.defaultFormationKey
+		)
 	);
 	const [selectedKey, setSelectedKey] = useState(
 		club.customFormations?.[0]?.key ?? ""
@@ -121,7 +130,7 @@ export function FormationManagerModal({
 	async function save() {
 		setSaving(true);
 		try {
-			await onSave(formations);
+			await onSave(formations, defaultFormationKey);
 		} finally {
 			setSaving(false);
 		}
@@ -148,6 +157,27 @@ export function FormationManagerModal({
 
 				<div className="mt-6 grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
 					<aside className="space-y-4">
+						<div className="rounded-xl border border-yepset-200 bg-yepset-50 p-3">
+							<label className="text-sm font-semibold text-slate-700">
+								Default match formation
+								<select
+									value={defaultFormationKey}
+									onChange={(event) => setDefaultFormationKey(event.target.value)}
+									className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+								>
+									{getClubSportDefinition(club.sportKey, formations).formations.map(
+										(formation) => (
+											<option key={formation.key} value={formation.key}>
+												{formation.name}
+											</option>
+										)
+									)}
+								</select>
+							</label>
+							<p className="mt-2 text-xs text-slate-500">
+								New match lineups will start with this shape.
+							</p>
+						</div>
 						<div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
 							<label className="text-sm font-semibold text-slate-700">
 								Start from
@@ -216,6 +246,9 @@ export function FormationManagerModal({
 								<button
 									type="button"
 									onClick={() => {
+										if (defaultFormationKey === selectedKey) {
+											setDefaultFormationKey(sport.formations[0].key);
+										}
 										setFormations((current) =>
 											current.filter(
 												(formation) => formation.key !== selectedKey
