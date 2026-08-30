@@ -59,6 +59,10 @@ describe("editable upcoming fixtures template", () => {
 			upcomingEditorialDefaultDefinition,
 			5
 		);
+		const eightRows = getUpcomingFixtureRowLayouts(
+			upcomingEditorialDefaultDefinition,
+			8
+		);
 		const fixtureList = upcomingEditorialDefaultDefinition.fixtureList;
 
 		const twoRowTopGap = twoRows[0].y - fixtureList.top;
@@ -75,6 +79,16 @@ describe("editable upcoming fixtures template", () => {
 		expect(fiveRowTopGap).toBeCloseTo(fixtureList.compactRowGap);
 		expect(fiveRowBottomGap).toBeCloseTo(fiveRowTopGap);
 		expect(twoRowTopGap).toBeGreaterThan(fiveRowTopGap);
+
+		expect(eightRows).toHaveLength(8);
+		expect(eightRows.every((row) => row.height > 0)).toBe(true);
+		expect(eightRows.slice(1).every((row, index) => (
+			row.y > eightRows[index].y + eightRows[index].height
+		))).toBe(true);
+		const eightRowTopGap = eightRows[0].y - fixtureList.top;
+		const eightRowBottomGap = fixtureList.bottom -
+			(eightRows[7].y + eightRows[7].height);
+		expect(eightRowTopGap).toBeCloseTo(eightRowBottomGap);
 	});
 
 	it("rejects missing required layout values", () => {

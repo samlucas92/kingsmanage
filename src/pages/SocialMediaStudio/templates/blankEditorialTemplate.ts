@@ -146,7 +146,19 @@ async function renderBlankEditorialTemplate({
 			context,
 			blankEditorialDefaultDefinition.elements["supporting-text"],
 			definition.elements["supporting-text"],
-			() => drawWrappedText(context, supportingText, 100, 1060, 1165, 4, 46, 28, EDITORIAL_WHITE)
+			() => drawWrappedText(
+				context,
+				supportingText,
+				100,
+				1060,
+				1165,
+				4,
+				46,
+				18,
+				EDITORIAL_WHITE,
+				"left",
+				blankEditorialDefaultDefinition.elements["supporting-text"].height
+			)
 		);
 	}
 

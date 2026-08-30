@@ -19,6 +19,8 @@ import {
 } from "./editorialCanvas";
 import { getSponsorSlots } from "./sponsorLayout";
 
+export const UPCOMING_FIXTURE_LIMIT = 8;
+
 export type UpcomingEditorialFixtureRowDefinition = {
 	frameX: number;
 	frameWidth: number;
@@ -200,7 +202,7 @@ export function createUpcomingEditorialTemplate(
 	return {
 		id: "upcoming-editorial-gold",
 		name: "Editorial fixtures",
-		description: "Black and gold roundup for up to five upcoming fixtures.",
+		description: `Black and gold roundup for up to ${UPCOMING_FIXTURE_LIMIT} upcoming fixtures.`,
 		width: definition.canvas.width,
 		height: definition.canvas.height,
 		resolveHeight: (content) => content.fields.showSponsors === false
@@ -270,7 +272,7 @@ async function renderUpcomingEditorialTemplate(
 ) {
 	const { theme, header, sponsors } = definition;
 	const showSponsors = content.fields.showSponsors !== false;
-	const fixtures = content.fixtures.slice(0, 5);
+	const fixtures = content.fixtures.slice(0, UPCOMING_FIXTURE_LIMIT);
 
 	context.save();
 	drawEditorialBackground(context, width, height, {
@@ -388,20 +390,43 @@ async function drawFixtureRow(
 ) {
 	const { theme } = definition;
 	const row = getUpcomingFixtureRowDefinition(definition, rowIndex);
+	const rowPadding = Math.max(7, Math.min(24, height * 0.12));
+	const dividerPadding = Math.max(9, Math.min(24, height * 0.16));
 	drawRoundedFrame(
 		context,
 		row.frameX,
 		y,
 		row.frameWidth,
 		height,
-		row.frameRadius,
+		Math.min(row.frameRadius, height * 0.2),
 		theme.accent
+	);
+
+	context.save();
+	context.beginPath();
+	context.rect(
+		row.frameX + 3,
+		y + 3,
+		Math.max(1, row.frameWidth - 6),
+		Math.max(1, height - 6)
+	);
+	context.clip();
+
+	const calendarSize = Math.min(
+		row.calendarSize,
+		Math.max(20, height - rowPadding * 2)
+	);
+	const calendarY = clampRowElementTop(
+		height * row.calendarYRatio,
+		calendarSize,
+		height,
+		rowPadding
 	);
 	drawCalendarIcon(
 		context,
 		row.calendarX,
-		y + height * row.calendarYRatio,
-		row.calendarSize,
+		y + calendarY,
+		calendarSize,
 		theme.accent
 	);
 
@@ -413,45 +438,187 @@ async function drawFixtureRow(
 			day: "numeric",
 			month: "short",
 		}).toUpperCase();
-	drawWrappedText(context, dateText, row.dateX, y + height * row.dateYRatio, row.dateWidth, 2, 34, 18, theme.text);
-	drawWrappedText(context, fixture.competition.toUpperCase(), row.competitionX, y + height * row.competitionYRatio, row.competitionWidth, 2, 27, 15, theme.accent);
-	drawVerticalDivider(context, row.firstDividerX, y + 24, height - 48, theme.accent);
+	const dateTop = clampRowTextTop(height * row.dateYRatio, height, rowPadding);
+	const competitionTop = clampRowTextTop(
+		height * row.competitionYRatio,
+		height,
+		rowPadding
+	);
+	drawWrappedText(
+		context,
+		dateText,
+		row.dateX,
+		y + dateTop,
+		row.dateWidth,
+		2,
+		34,
+		11,
+		theme.text,
+		"left",
+		Math.max(10, competitionTop - dateTop - 4)
+	);
+	drawWrappedText(
+		context,
+		fixture.competition.toUpperCase(),
+		row.competitionX,
+		y + competitionTop,
+		row.competitionWidth,
+		2,
+		27,
+		9,
+		theme.accent,
+		"left",
+		Math.max(10, height - competitionTop - rowPadding)
+	);
+	drawVerticalDivider(
+		context,
+		row.firstDividerX,
+		y + dividerPadding,
+		Math.max(1, height - dividerPadding * 2),
+		theme.accent
+	);
 
+	const logoScale = Math.min(
+		1,
+		Math.max(0.2, (height - rowPadding * 2) / row.clubLogoHeight)
+	);
+	const clubLogoWidth = row.clubLogoWidth * logoScale;
+	const clubLogoHeight = row.clubLogoHeight * logoScale;
+	const clubLogoX = row.clubLogoX + (row.clubLogoWidth - clubLogoWidth) / 2;
 	if (clubLogo) {
 		await drawAssetOrPlaceholder(
 			context,
 			clubLogo,
-			row.clubLogoX,
-			y + height * row.clubLogoCenterYRatio - row.clubLogoHeight / 2,
-			row.clubLogoWidth,
-			row.clubLogoHeight,
+			clubLogoX,
+			y + height * row.clubLogoCenterYRatio - clubLogoHeight / 2,
+			clubLogoWidth,
+			clubLogoHeight,
 			"",
 			{ frame: false, contain: true }
 		);
 	} else {
+		const shieldWidth = 66 * logoScale;
+		const shieldHeight = 76 * logoScale;
 		drawShieldPlaceholder(
 			context,
-			row.clubLogoX + 20,
-			y + height * row.clubLogoCenterYRatio - 38,
-			66,
-			76,
+			row.clubLogoX + (row.clubLogoWidth - shieldWidth) / 2,
+			y + height * row.clubLogoCenterYRatio - shieldHeight / 2,
+			shieldWidth,
+			shieldHeight,
 			theme.accent
 		);
 	}
-	drawFittedText(context, "VS", row.versusX, y + height * row.versusYRatio, 52, 38, 24, theme.accent, "center");
-	drawWrappedText(context, fixture.opponent.toUpperCase(), row.opponentX, y + height * row.opponentYRatio, row.opponentWidth, 2, 38, 18, theme.text);
-	drawVerticalDivider(context, row.secondDividerX, y + 24, height - 48, theme.accent);
+	const versusFontSize = Math.min(38, Math.max(16, height * 0.25));
+	const versusTop = clampRowElementTop(
+		height * row.versusYRatio,
+		versusFontSize,
+		height,
+		rowPadding
+	);
+	drawFittedText(
+		context,
+		"VS",
+		row.versusX,
+		y + versusTop,
+		52,
+		versusFontSize,
+		Math.min(16, versusFontSize),
+		theme.accent,
+		"center"
+	);
+	const opponentTop = clampRowTextTop(
+		height * row.opponentYRatio,
+		height,
+		rowPadding
+	);
+	drawWrappedText(
+		context,
+		fixture.opponent.toUpperCase(),
+		row.opponentX,
+		y + opponentTop,
+		row.opponentWidth,
+		2,
+		38,
+		11,
+		theme.text,
+		"left",
+		Math.max(10, height - opponentTop - rowPadding)
+	);
+	drawVerticalDivider(
+		context,
+		row.secondDividerX,
+		y + dividerPadding,
+		Math.max(1, height - dividerPadding * 2),
+		theme.accent
+	);
 
+	const locationIconSize = Math.min(
+		row.locationIconSize,
+		Math.max(18, height * 0.28)
+	);
+	const locationIconY = clampRowElementTop(
+		height * row.locationIconYRatio,
+		locationIconSize,
+		height,
+		rowPadding
+	);
 	drawLocationIcon(
 		context,
 		row.locationIconX,
-		y + height * row.locationIconYRatio,
-		row.locationIconSize,
+		y + locationIconY,
+		locationIconSize,
 		theme.accent,
 		theme.background
 	);
-	drawWrappedText(context, fixture.venue.toUpperCase(), row.venueX, y + height * row.venueYRatio, row.venueWidth, 2, 30, 18, theme.accent);
-	drawWrappedText(context, fixture.location.toUpperCase(), row.locationX, y + height * row.locationYRatio, row.locationWidth, 2, 20, 15, theme.text);
+	const venueTop = clampRowTextTop(height * row.venueYRatio, height, rowPadding);
+	const locationTop = clampRowTextTop(
+		height * row.locationYRatio,
+		height,
+		rowPadding
+	);
+	drawWrappedText(
+		context,
+		fixture.venue.toUpperCase(),
+		row.venueX,
+		y + venueTop,
+		row.venueWidth,
+		2,
+		30,
+		10,
+		theme.accent,
+		"left",
+		Math.max(10, locationTop - venueTop - 3)
+	);
+	drawWrappedText(
+		context,
+		fixture.location.toUpperCase(),
+		row.locationX,
+		y + locationTop,
+		row.locationWidth,
+		2,
+		20,
+		9,
+		theme.text,
+		"left",
+		Math.max(10, height - locationTop - rowPadding)
+	);
+	context.restore();
+}
+
+function clampRowElementTop(
+	top: number,
+	elementHeight: number,
+	rowHeight: number,
+	padding: number
+) {
+	return Math.max(
+		padding,
+		Math.min(top, Math.max(padding, rowHeight - padding - elementHeight))
+	);
+}
+
+function clampRowTextTop(top: number, rowHeight: number, padding: number) {
+	return Math.max(padding, Math.min(top, Math.max(padding, rowHeight - padding - 10)));
 }
 
 export function getUpcomingFixtureRowDefinition(

@@ -52,6 +52,7 @@ import {
 	parseUpcomingEditorialDefinition,
 	serializeUpcomingEditorialDefinition,
 	setUpcomingFixtureRowUnlocked,
+	UPCOMING_FIXTURE_LIMIT,
 	upcomingEditorialDefaultDefinition,
 	upcomingEditorialDefaultSource,
 } from "./templates/upcomingEditorialTemplate";
@@ -709,7 +710,7 @@ export default function SocialMediaStudio() {
 					: effectiveUpcomingIds.filter((id) => id !== matchId);
 			}
 
-			return effectiveUpcomingIds.length >= 5
+			return effectiveUpcomingIds.length >= UPCOMING_FIXTURE_LIMIT
 				? effectiveUpcomingIds
 				: [...effectiveUpcomingIds, matchId];
 		});
@@ -2158,13 +2159,13 @@ function UpcomingFixturePicker({
 
 	return (
 		<fieldset>
-			<legend className="text-sm font-semibold text-slate-700">Fixtures (up to five)</legend>
+			<legend className="text-sm font-semibold text-slate-700">Fixtures (up to {UPCOMING_FIXTURE_LIMIT})</legend>
 			<div className="mt-1.5 max-h-48 space-y-1 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2">
 				{fixtures.map((fixture) => {
 					const checked = selectedIds.includes(fixture.id);
 					return (
 						<label key={fixture.id} className="flex cursor-pointer items-start gap-2 rounded-lg px-2 py-2 text-sm hover:bg-white">
-							<input type="checkbox" checked={checked} disabled={!checked && selectedIds.length >= 5} onChange={() => onToggle(fixture.id)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-yepset-700" />
+							<input type="checkbox" checked={checked} disabled={!checked && selectedIds.length >= UPCOMING_FIXTURE_LIMIT} onChange={() => onToggle(fixture.id)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-yepset-700" />
 							<span><span className="block font-semibold text-slate-900">{formatFixtureName(fixture)}</span><span className="block text-xs text-slate-500">{formatFixtureDate(fixture.date)}</span></span>
 						</label>
 					);

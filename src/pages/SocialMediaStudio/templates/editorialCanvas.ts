@@ -190,23 +190,38 @@ export function drawWrappedText(
 	maxFontSize: number,
 	minFontSize: number,
 	colour: string,
-	align: CanvasTextAlign = "left"
+	align: CanvasTextAlign = "left",
+	maxHeight?: number
 ) {
 	let fontSize = maxFontSize;
 	let lines = wrapText(context, text, maxWidth, fontSize);
-	while (lines.length > maxLines && fontSize > minFontSize) {
+	while (fontSize > minFontSize && doesWrappedTextOverflow(
+		context,
+		lines,
+		maxWidth,
+		maxLines,
+		fontSize,
+		maxHeight
+	)) {
 		fontSize -= 1;
 		lines = wrapText(context, text, maxWidth, fontSize);
 	}
 
-	if (lines.length > maxLines) {
-		lines = lines.slice(0, maxLines);
-		let finalLine = `${lines[maxLines - 1]}…`;
+	const heightLineLimit = maxHeight === undefined
+		? maxLines
+		: Math.max(
+			1,
+			Math.floor((maxHeight - fontSize) / (fontSize * 1.12)) + 1
+		);
+	const visibleLineLimit = Math.min(maxLines, heightLineLimit);
+	if (lines.length > visibleLineLimit) {
+		lines = lines.slice(0, visibleLineLimit);
+		let finalLine = `${lines[visibleLineLimit - 1]}…`;
 		context.font = `700 ${fontSize}px Impact, "Arial Narrow", sans-serif`;
 		while (finalLine.length > 1 && context.measureText(finalLine).width > maxWidth) {
 			finalLine = `${finalLine.slice(0, -2)}…`;
 		}
-		lines[maxLines - 1] = finalLine;
+		lines[visibleLineLimit - 1] = finalLine;
 	}
 
 	context.fillStyle = colour;
@@ -216,6 +231,23 @@ export function drawWrappedText(
 	lines.forEach((line, index) => {
 		context.fillText(line, x, y + index * fontSize * 1.12, maxWidth);
 	});
+}
+
+function doesWrappedTextOverflow(
+	context: CanvasRenderingContext2D,
+	lines: string[],
+	maxWidth: number,
+	maxLines: number,
+	fontSize: number,
+	maxHeight?: number
+) {
+	context.font = `700 ${fontSize}px Impact, "Arial Narrow", sans-serif`;
+	if (lines.length > maxLines) return true;
+	if (lines.some((line) => context.measureText(line).width > maxWidth)) return true;
+	if (maxHeight === undefined) return false;
+
+	const renderedHeight = fontSize + Math.max(0, lines.length - 1) * fontSize * 1.12;
+	return renderedHeight > maxHeight;
 }
 
 export function drawCalendarIcon(

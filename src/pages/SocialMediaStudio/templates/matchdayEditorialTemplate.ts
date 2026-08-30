@@ -206,7 +206,19 @@ function drawMatchDetails(
 
 	drawFittedText(context, dateLabel, 273, textTop, 280, 37, 21, EDITORIAL_WHITE, "center");
 	drawFittedText(context, timeLabel, 682, textTop, 250, 37, 21, EDITORIAL_WHITE, "center");
-	drawWrappedText(context, location.toUpperCase(), 1090, textTop, 330, 2, 32, 17, EDITORIAL_WHITE, "center");
+	drawWrappedText(
+		context,
+		location.toUpperCase(),
+		1090,
+		textTop,
+		330,
+		2,
+		32,
+		13,
+		EDITORIAL_WHITE,
+		"center",
+		Math.max(1, height - (textTop - y) - 14)
+	);
 
 	context.strokeStyle = EDITORIAL_GOLD;
 	context.lineWidth = 3;
