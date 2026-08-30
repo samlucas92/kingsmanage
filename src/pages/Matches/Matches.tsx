@@ -4,6 +4,7 @@ import { useSeasonStore } from "../../stores/seasons";
 import type { Match, MatchFixtureInput } from "../../stores/match";
 import SeasonSelector from "../../components/compositions/SeasonSelector";
 import { MatchFormModal } from "./components/MatchFormModal";
+import { BulkMatchImportModal } from "./components/BulkMatchImportModal";
 import { MatchesTable } from "./components/MatchesTable";
 import { MatchFilters } from "./components/MatchFilters";
 import type { MatchFilter, MatchTeamFilter } from "./components/MatchFilters";
@@ -14,6 +15,8 @@ import { formatDateForInput } from "../../utils/date";
 import { useClubTeamStore } from "../../stores/clubTeams";
 import { useAuthStore } from "../../stores/auth";
 import { getClubDefaultFormationKey } from "../../constants/sports";
+import { useEventStore } from "../../stores/events";
+import type { BulkMatchImportResult } from "../../services/matchApi";
 
 export default function Matches() {
 	const matches = useMatchStore((state) => state.matches);
@@ -34,6 +37,8 @@ export default function Matches() {
 	const seasonLoadError = useSeasonStore((state) => state.seasonLoadError);
 	const loadSeasons = useSeasonStore((state) => state.loadSeasons);
 	const loadTeamProfiles = useClubTeamStore((state) => state.loadProfiles);
+	const teamProfiles = useClubTeamStore((state) => state.profiles);
+	const loadEvents = useEventStore((state) => state.loadEvents);
 	const activeClub = useAuthStore((state) =>
 		state.availableClubs.find((club) => club.isCurrent)
 	);
@@ -45,6 +50,12 @@ export default function Matches() {
 	const [postponedDate, setPostponedDate] = useState("");
 	const [actionError, setActionError] = useState("");
 	const [isSavingMatchAction, setIsSavingMatchAction] = useState(false);
+	const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+	const defaultFormationKey = getClubDefaultFormationKey(
+		activeClub?.sportKey,
+		activeClub?.customFormations,
+		activeClub?.defaultFormationKey
+	);
 
 	useEffect(() => {
 		void loadSeasons();
@@ -75,17 +86,24 @@ export default function Matches() {
 			await addMatch({
 				...match,
 				seasonId: selectedSeasonId,
-				formationKey: getClubDefaultFormationKey(
-					activeClub?.sportKey,
-					activeClub?.customFormations,
-					activeClub?.defaultFormationKey
-				),
+				formationKey: defaultFormationKey,
 			});
 		} catch (error) {
 			setActionError(
 				error instanceof Error ? error.message : "Could not create match."
 			);
 			throw error;
+		}
+	}
+
+	async function handleMatchesImported(
+		_result: BulkMatchImportResult,
+		createdEvents: boolean
+	) {
+		await loadMatches(selectedSeasonId, true);
+
+		if (createdEvents) {
+			await loadEvents(true);
 		}
 	}
 
@@ -245,14 +263,24 @@ export default function Matches() {
 					</p>
 				</div>
 
-				<button
-					type="button"
-					onClick={matchForm.openAddMatchModal}
-					disabled={!selectedSeasonId}
-					className="rounded-xl bg-yepset-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-yepset-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-				>
-					+ Add match
-				</button>
+				<div className="flex flex-wrap justify-end gap-2">
+					<button
+						type="button"
+						onClick={() => setIsImportModalOpen(true)}
+						disabled={!selectedSeasonId}
+						className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-800 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+					>
+						Import CSV
+					</button>
+					<button
+						type="button"
+						onClick={matchForm.openAddMatchModal}
+						disabled={!selectedSeasonId}
+						className="rounded-xl bg-yepset-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-yepset-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+					>
+						+ Add match
+					</button>
+				</div>
 			</div>
 
 			<section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:p-4">
@@ -362,6 +390,17 @@ export default function Matches() {
 				onVenueChange={matchForm.updateVenue}
 				onLocationChange={matchForm.updateLocation}
 				onCompetitionChange={matchForm.updateCompetition}
+			/>
+
+			<BulkMatchImportModal
+				isOpen={isImportModalOpen}
+				seasonId={selectedSeasonId}
+				seasonName={selectedSeason?.name ?? ""}
+				teamProfiles={teamProfiles}
+				existingMatches={selectedSeasonMatches}
+				defaultFormationKey={defaultFormationKey}
+				onClose={() => setIsImportModalOpen(false)}
+				onImported={handleMatchesImported}
 			/>
 
 			<PostponeMatchModal

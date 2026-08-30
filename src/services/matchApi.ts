@@ -116,6 +116,26 @@ type PostponeMatchInput = {
 	reason?: string;
 };
 
+export type BulkMatchImportInput = {
+	seasonId: string;
+	createEvents: boolean;
+	matches: Array<{
+		teamId: string;
+		teamName: string;
+		opponent: string;
+		competition: string;
+		date: string;
+		venue: "home" | "away";
+		location: string;
+		formationKey: string;
+	}>;
+};
+
+export type BulkMatchImportResult = {
+	matchCount: number;
+	eventCount: number;
+};
+
 const emptyMatchNotes: MatchNotes = {
 	availability: "",
 	tactical: "",
@@ -385,6 +405,20 @@ export const matchApi = {
 			toApiMatchFixture(match)
 		);
 		return fromApiMatch(createdMatch);
+	},
+
+	bulkImportMatches: async (input: BulkMatchImportInput) => {
+		return apiClient.post<BulkMatchImportResult>("/matches/bulk-import", {
+			seasonId: input.seasonId,
+			createEvents: input.createEvents,
+			matches: input.matches.map((match) => ({
+				...match,
+				team: toApiClubTeam(match.teamId),
+				teamId: normaliseLegacyTeamId(match.teamId),
+				venue: toApiVenue(match.venue),
+				date: toUtcIsoString(match.date),
+			})),
+		});
 	},
 
 	updateMatch: async (id: string, match: Match) => {
