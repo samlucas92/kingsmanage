@@ -1,7 +1,7 @@
 import type { SocialGraphicContent, SocialGraphicTemplate } from "./types";
 
-export const SOCIAL_EXPORT_WIDTH = 1080;
-export const SOCIAL_EXPORT_HEIGHT = 1350;
+export const SOCIAL_EXPORT_MAX_WIDTH = 1080;
+export const SOCIAL_EXPORT_MAX_HEIGHT = 1350;
 
 export function getSocialGraphicDimensions(
 	template: SocialGraphicTemplate,
@@ -10,6 +10,22 @@ export function getSocialGraphicDimensions(
 	return {
 		width: template.width,
 		height: template.resolveHeight?.(content) ?? template.height,
+	};
+}
+
+export function getSocialExportDimensions(width: number, height: number) {
+	if (width <= 0 || height <= 0) {
+		return { width: SOCIAL_EXPORT_MAX_WIDTH, height: SOCIAL_EXPORT_MAX_HEIGHT };
+	}
+
+	const scale = Math.min(
+		1,
+		SOCIAL_EXPORT_MAX_WIDTH / width,
+		SOCIAL_EXPORT_MAX_HEIGHT / height
+	);
+	return {
+		width: Math.max(1, Math.round(width * scale)),
+		height: Math.max(1, Math.round(height * scale)),
 	};
 }
 
@@ -65,13 +81,20 @@ export function canvasToJpegBlob(canvas: HTMLCanvasElement, quality = 0.92) {
 }
 
 function createSocialExportCanvas(sourceCanvas: HTMLCanvasElement) {
-	if (sourceCanvas.width === SOCIAL_EXPORT_WIDTH && sourceCanvas.height === SOCIAL_EXPORT_HEIGHT) {
+	const dimensions = getSocialExportDimensions(
+		sourceCanvas.width,
+		sourceCanvas.height
+	);
+	if (
+		sourceCanvas.width === dimensions.width &&
+		sourceCanvas.height === dimensions.height
+	) {
 		return sourceCanvas;
 	}
 
 	const exportCanvas = document.createElement("canvas");
-	exportCanvas.width = SOCIAL_EXPORT_WIDTH;
-	exportCanvas.height = SOCIAL_EXPORT_HEIGHT;
+	exportCanvas.width = dimensions.width;
+	exportCanvas.height = dimensions.height;
 	const context = exportCanvas.getContext("2d");
 	if (!context) {
 		throw new Error("This browser cannot resize the social graphic for export.");
@@ -79,7 +102,7 @@ function createSocialExportCanvas(sourceCanvas: HTMLCanvasElement) {
 
 	context.imageSmoothingEnabled = true;
 	context.imageSmoothingQuality = "high";
-	context.drawImage(sourceCanvas, 0, 0, SOCIAL_EXPORT_WIDTH, SOCIAL_EXPORT_HEIGHT);
+	context.drawImage(sourceCanvas, 0, 0, dimensions.width, dimensions.height);
 	return exportCanvas;
 }
 

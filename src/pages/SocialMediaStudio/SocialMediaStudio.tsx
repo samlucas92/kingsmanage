@@ -23,10 +23,9 @@ import { SocialPublishModal } from "./SocialPublishModal";
 import {
 	copyCanvasPng,
 	downloadCanvasPng,
+	getSocialExportDimensions,
 	getSocialGraphicDimensions,
 	renderSocialGraphic,
-	SOCIAL_EXPORT_HEIGHT,
-	SOCIAL_EXPORT_WIDTH,
 } from "./socialGraphicCanvas";
 import {
 	applySocialFixtureOverride,
@@ -671,6 +670,9 @@ export default function SocialMediaStudio() {
 	]);
 	const previewDimensions = selectedTemplate
 		? getSocialGraphicDimensions(selectedTemplate, content)
+		: undefined;
+	const exportDimensions = previewDimensions
+		? getSocialExportDimensions(previewDimensions.width, previewDimensions.height)
 		: undefined;
 
 	useEffect(() => {
@@ -1581,7 +1583,7 @@ export default function SocialMediaStudio() {
 						<div className="flex flex-wrap items-center justify-end gap-2">
 							<span className="text-xs font-semibold text-slate-500">
 								{previewDimensions
-									? `Template ${previewDimensions.width} × ${previewDimensions.height} · exports ${SOCIAL_EXPORT_WIDTH} × ${SOCIAL_EXPORT_HEIGHT}`
+									? `Template ${previewDimensions.width} × ${previewDimensions.height} · exports ${exportDimensions?.width} × ${exportDimensions?.height}`
 									: "Waiting for template"}
 							</span>
 							{isEditableTemplate && selectedTemplate && (
