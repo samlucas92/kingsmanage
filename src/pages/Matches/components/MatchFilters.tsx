@@ -1,10 +1,9 @@
-import type { MatchState, ClubTeam } from "../../../stores/match";
 import PanelCard from "../../../components/compositions/PanelCard";
 import FilterButton from "../../../components/compositions/FilterButton";
 import { useClubTeamStore } from "../../../stores/clubTeams";
+import type { MatchFilter, MatchTeamFilter } from "./matchFilterState";
 
-export type MatchFilter = "all" | "upcoming" | "completed" | "postponed";
-export type MatchTeamFilter = "all" | ClubTeam;
+export type { MatchFilter, MatchTeamFilter } from "./matchFilterState";
 
 interface MatchFiltersProps {
 	activeFilter: MatchFilter;
@@ -139,19 +138,4 @@ export function MatchFilters({
 		</PanelCard>
 		</>
 	);
-}
-
-export function getMatchFilterFromState(
-	state: MatchState,
-	isCompleted: boolean
-): MatchFilter {
-	if (state === "postponed") {
-		return "postponed";
-	}
-
-	if (isCompleted) {
-		return "completed";
-	}
-
-	return "upcoming";
 }

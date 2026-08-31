@@ -39,8 +39,9 @@ export default function Training() {
 	const activeSeasonId = useSeasonStore((state) => state.activeSeasonId);
 	const loadSeasons = useSeasonStore((state) => state.loadSeasons);
 
-	const [selectedSeasonId, setSelectedSeasonId] = useState("");
+	const [selectedSeasonSelection, setSelectedSeasonId] = useState("");
 	const [selectedEventId, setSelectedEventId] = useState("");
+	const [planEventId, setPlanEventId] = useState("");
 	const [selectedPlayerId, setSelectedPlayerId] = useState("");
 	const [isEditorOpen, setIsEditorOpen] = useState(false);
 	const [assessments, setAssessments] = useState<TrainingAssessment[]>([]);
@@ -50,6 +51,9 @@ export default function Training() {
 	const [isSaving, setIsSaving] = useState(false);
 	const [isSavingPlan, setIsSavingPlan] = useState(false);
 	const [trainingError, setTrainingError] = useState("");
+	const selectedSeasonId = seasons.some((season) => season.id === selectedSeasonSelection)
+		? selectedSeasonSelection
+		: activeSeasonId || seasons[0]?.id || "";
 
 	useEffect(() => {
 		void loadEvents(true);
@@ -57,18 +61,18 @@ export default function Training() {
 		void loadSeasons();
 	}, [loadEvents, loadPlayers, loadSeasons]);
 
-	useEffect(() => {
-		if (selectedSeasonId && seasons.some((season) => season.id === selectedSeasonId)) return;
-
-		setSelectedSeasonId(activeSeasonId || seasons[0]?.id || "");
-	}, [activeSeasonId, seasons, selectedSeasonId]);
-
 	const selectedSeason = seasons.find((season) => season.id === selectedSeasonId);
 	const trainingEvents = useMemo(
 		() => getTrainingEventsForSeason(events, selectedSeason?.startDate, selectedSeason?.endDate),
 		[events, selectedSeason]
 	);
 	const selectedEvent = trainingEvents.find((event) => event.id === selectedEventId) ?? trainingEvents[0];
+	const activeEventId = selectedEvent?.id ?? "";
+	if (activeEventId !== planEventId) {
+		setPlanEventId(activeEventId);
+		setPlanDrills(selectedEvent?.trainingPlanDrills ?? []);
+		if (!activeEventId) setAssessments([]);
+	}
 	const activePlayers = useMemo(
 		() => [...players].filter((player) => player.isActive).sort((firstPlayer, secondPlayer) => firstPlayer.name.localeCompare(secondPlayer.name)),
 		[players]
@@ -86,19 +90,7 @@ export default function Training() {
 	);
 
 	useEffect(() => {
-		if (!selectedEvent?.id) {
-			setSelectedEventId("");
-			setAssessments([]);
-			setPlanDrills([]);
-			return;
-		}
-
-		setSelectedEventId(selectedEvent.id);
-		setPlanDrills(selectedEvent.trainingPlanDrills ?? []);
-	}, [selectedEvent?.id, selectedEvent?.trainingPlanDrills]);
-
-	useEffect(() => {
-		if (!selectedEvent?.id) return;
+		if (!activeEventId) return;
 
 		let isMounted = true;
 
@@ -107,7 +99,7 @@ export default function Training() {
 			setTrainingError("");
 
 			try {
-				const eventAssessments = await trainingApi.getEventAssessments(selectedEvent!.id);
+				const eventAssessments = await trainingApi.getEventAssessments(activeEventId);
 				if (isMounted) setAssessments(eventAssessments);
 			} catch (error) {
 				if (isMounted) {
@@ -124,11 +116,10 @@ export default function Training() {
 		return () => {
 			isMounted = false;
 		};
-	}, [selectedEvent?.id]);
+	}, [activeEventId]);
 
 	useEffect(() => {
 		if (!selectedPlayer || !isEditorOpen) {
-			setDraft(null);
 			return;
 		}
 

@@ -7,7 +7,7 @@ import ReportChartContainer from "../../components/charts/ReportChartContainer";
 import ReportBarChart from "../../components/charts/ReportBarChart";
 import ReportLineChart from "../../components/charts/ReportLineChart";
 import ReportLoadState from "../../components/ReportLoadState";
-import { useReportsContext } from "../../ReportsContext";
+import { useReportsContext } from "../../useReportsContext";
 import { useReportResource } from "../../hooks/useReportResource";
 import {
 	reportsApi,

@@ -169,7 +169,10 @@ export default function Stats({
 	const [searchTerm, setSearchTerm] = useState("");
 	const [copyStatus, setCopyStatus] = useState("");
 	const [internalSelectedSeasonId, setInternalSelectedSeasonId] = useState("");
-	const selectedSeasonId = controlledSelectedSeasonId ?? internalSelectedSeasonId;
+	const requestedSeasonId = controlledSelectedSeasonId ?? internalSelectedSeasonId;
+	const selectedSeasonId = seasons.some((season) => season.id === requestedSeasonId)
+		? requestedSeasonId
+		: activeSeasonId || seasons[0]?.id || "";
 	const setSelectedSeasonId = onSeasonChange ?? setInternalSelectedSeasonId;
 
 	const selectedSeason = seasons.find((season) => season.id === selectedSeasonId);
@@ -178,14 +181,6 @@ export default function Stats({
 	useEffect(() => {
 		void loadSeasons();
 	}, [loadSeasons]);
-
-	useEffect(() => {
-		if (selectedSeasonId && seasons.some((season) => season.id === selectedSeasonId)) {
-			return;
-		}
-
-		setSelectedSeasonId(activeSeasonId || seasons[0]?.id || "");
-	}, [activeSeasonId, seasons, selectedSeasonId]);
 
 	useEffect(() => {
 		if (!selectedSeasonId) {

@@ -22,35 +22,35 @@ export function useReportResource<TReport>({
 	const [reportError, setReportError] = useState("");
 
 	useEffect(() => {
-		if (!canLoad) {
-			setReport(null);
-			setIsLoadingReport(false);
-			setReportError("");
-			return;
-		}
-
 		let isCurrent = true;
+		async function refreshReport() {
+			if (!canLoad) {
+				setReport(null);
+				setIsLoadingReport(false);
+				setReportError("");
+				return;
+			}
 
-		setIsLoadingReport(true);
-		setReportError("");
-
-		load()
-			.then((response) => {
+			setIsLoadingReport(true);
+			setReportError("");
+			try {
+				const response = await load();
 				if (isCurrent) {
 					setReport(response);
 				}
-			})
-			.catch((error) => {
+			} catch (error) {
 				if (isCurrent) {
 					setReportError(error instanceof Error ? error.message : errorMessage);
 					setReport(null);
 				}
-			})
-			.finally(() => {
+			} finally {
 				if (isCurrent) {
 					setIsLoadingReport(false);
 				}
-			});
+			}
+		}
+
+		void refreshReport();
 
 		return () => {
 			isCurrent = false;

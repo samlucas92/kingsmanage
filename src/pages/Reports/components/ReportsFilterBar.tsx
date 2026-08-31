@@ -2,7 +2,7 @@ import SeasonSelector from "../../../components/compositions/SeasonSelector";
 import { useClubTeamStore } from "../../../stores/clubTeams";
 import { useMatchStore } from "../../../stores/match";
 import { usePlayerStore } from "../../../stores/players";
-import { useReportsContext } from "../ReportsContext";
+import { useReportsContext } from "../useReportsContext";
 
 type ReportsFilterBarProps = {
 	showTeamFilter?: boolean;

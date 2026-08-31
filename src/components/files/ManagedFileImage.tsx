@@ -9,35 +9,52 @@ type Props = {
 };
 
 export default function ManagedFileImage({ fileId, alt, className = "" }: Props) {
-	const [url, setUrl] = useState("");
-	const [failed, setFailed] = useState(false);
-	const [hasRetried, setHasRetried] = useState(false);
+	const [imageState, setImageState] = useState({
+		fileId: "",
+		url: "",
+		failed: false,
+		hasRetried: false,
+	});
+	const currentImage = imageState.fileId === fileId
+		? imageState
+		: { fileId, url: "", failed: false, hasRetried: false };
 
-	const loadUrl = useCallback(async () => {
+	const loadUrl = useCallback(async (hasRetried: boolean) => {
 		const response = await filesApi.getDownloadUrl(fileId);
-		setUrl(response.downloadUrl);
+		setImageState({
+			fileId,
+			url: response.downloadUrl,
+			failed: false,
+			hasRetried,
+		});
 	}, [fileId]);
 
 	useEffect(() => {
 		let active = true;
-		setUrl("");
-		setFailed(false);
-		setHasRetried(false);
 
-		void loadUrl()
-			.then(() => {
-				if (!active) return;
+		void filesApi.getDownloadUrl(fileId)
+			.then((response) => {
+				if (active) {
+					setImageState({
+						fileId,
+						url: response.downloadUrl,
+						failed: false,
+						hasRetried: false,
+					});
+				}
 			})
 			.catch(() => {
-				if (active) setFailed(true);
+				if (active) {
+					setImageState({ fileId, url: "", failed: true, hasRetried: false });
+				}
 			});
 
 		return () => {
 			active = false;
 		};
-	}, [fileId, loadUrl]);
+	}, [fileId]);
 
-	if (failed) {
+	if (currentImage.failed) {
 		return (
 			<div className={`grid min-h-24 place-items-center rounded-xl bg-slate-100 px-4 text-sm text-slate-500 ${className}`}>
 				Image unavailable
@@ -45,22 +62,24 @@ export default function ManagedFileImage({ fileId, alt, className = "" }: Props)
 		);
 	}
 
-	if (!url) {
+	if (!currentImage.url) {
 		return <div className={`min-h-24 animate-pulse rounded-xl bg-slate-100 ${className}`} />;
 	}
 
 	return (
 		<img
-			src={url}
+			src={currentImage.url}
 			alt={alt}
 			className={className}
 			onError={() => {
-				if (hasRetried) {
-					setFailed(true);
+				if (currentImage.hasRetried) {
+					setImageState({ ...currentImage, failed: true });
 					return;
 				}
-				setHasRetried(true);
-				void loadUrl().catch(() => setFailed(true));
+				setImageState({ ...currentImage, hasRetried: true });
+				void loadUrl(true).catch(() => {
+					setImageState({ ...currentImage, failed: true, hasRetried: true });
+				});
 			}}
 		/>
 	);

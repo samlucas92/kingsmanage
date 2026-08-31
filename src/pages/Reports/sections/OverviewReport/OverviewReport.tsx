@@ -6,7 +6,7 @@ import ReportPageHeader from "../../components/ReportPageHeader";
 import ReportChartContainer from "../../components/charts/ReportChartContainer";
 import ReportLineChart from "../../components/charts/ReportLineChart";
 import ReportLoadState from "../../components/ReportLoadState";
-import { useReportsContext } from "../../ReportsContext";
+import { useReportsContext } from "../../useReportsContext";
 import { useReportResource } from "../../hooks/useReportResource";
 import { reportsApi, type OverviewReportResponse } from "../../../../services/reportsApi";
 import { formatCurrency } from "../../../../utils/format";

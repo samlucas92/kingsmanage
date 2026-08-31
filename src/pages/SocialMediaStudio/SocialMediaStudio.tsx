@@ -546,7 +546,8 @@ export default function SocialMediaStudio() {
 		),
 		[selectedTemplate, templateFieldValues]
 	);
-	const showSponsors = effectiveTemplateFields.showSponsors !== false;
+	const showSponsors = kind !== "playerPortrait" &&
+		effectiveTemplateFields.showSponsors !== false;
 	const upcomingTemplateElements = useMemo(
 		() => getUpcomingTemplateElements(
 			upcomingTemplateDefinition,
@@ -1727,7 +1728,9 @@ export default function SocialMediaStudio() {
 										if (isUpcomingTemplateSelected) {
 											setSelectedTemplateElementId((current) => current ?? "headline");
 										} else {
-											setSelectedStaticTemplateElementId((current) => current ?? "headline");
+											setSelectedStaticTemplateElementId((current) =>
+												current ?? (kind === "playerPortrait" ? "player-image" : "headline")
+											);
 										}
 									}}
 									className={isCanvasEditorOpen ? "btn-primary px-3 py-2 text-xs" : "btn-secondary px-3 py-2 text-xs"}

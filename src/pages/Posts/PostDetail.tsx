@@ -1,4 +1,5 @@
 import {
+	useCallback,
 	useEffect,
 	useMemo,
 	useRef,
@@ -57,6 +58,21 @@ export default function PostDetail() {
 	const wasUpdated = post
 		? new Date(post.updatedAt).getTime() > new Date(post.createdAt).getTime() + 1000
 		: false;
+	const loadAttachments = useCallback(async (postId: string) => {
+		setIsLoadingAttachments(true);
+		setAttachmentsError("");
+
+		try {
+			const files = await filesApi.getFilesForLinkedEntity("Post", postId);
+			setAttachments(files);
+		} catch (error) {
+			setAttachmentsError(
+				error instanceof Error ? error.message : "Failed to load attachments."
+			);
+		} finally {
+			setIsLoadingAttachments(false);
+		}
+	}, []);
 
 	useEffect(() => {
 		if (!id) {
@@ -71,8 +87,9 @@ export default function PostDetail() {
 			return;
 		}
 
-		void loadAttachments(id);
-	}, [id]);
+		const timeout = window.setTimeout(() => void loadAttachments(id), 0);
+		return () => window.clearTimeout(timeout);
+	}, [id, loadAttachments]);
 
 	useEffect(() => {
 		return () => clearSelectedPost();
@@ -95,22 +112,6 @@ export default function PostDetail() {
 			document.removeEventListener("copy", handleDocumentCopy, true);
 		};
 	}, []);
-
-	async function loadAttachments(postId: string) {
-		setIsLoadingAttachments(true);
-		setAttachmentsError("");
-
-		try {
-			const files = await filesApi.getFilesForLinkedEntity("Post", postId);
-			setAttachments(files);
-		} catch (error) {
-			setAttachmentsError(
-				error instanceof Error ? error.message : "Failed to load attachments."
-			);
-		} finally {
-			setIsLoadingAttachments(false);
-		}
-	}
 
 	async function handleSavePost(request: CreateClubPostRequest) {
 		if (!id) {

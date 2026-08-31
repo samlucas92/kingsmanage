@@ -52,14 +52,22 @@ const labelsByTemplate: Record<string, Record<string, string>> = {
 	},
 };
 
+const decorativeElementsByTemplate: Record<string, Set<string>> = {
+	"player-portrait-club": new Set(["background", "circle-overlay"]),
+};
+
 export function getStaticTemplateElements(
 	templateId: string,
 	definition: EditableTemplateLayout<string>,
 	includeSponsors: boolean
 ): StaticTemplateElement[] {
 	const labels = labelsByTemplate[templateId] ?? {};
+	const decorativeElements = decorativeElementsByTemplate[templateId] ?? new Set();
 	return Object.entries(definition.elements)
-		.filter(([id]) => includeSponsors || id !== "sponsor-section")
+		.filter(([id]) =>
+			(includeSponsors || id !== "sponsor-section") &&
+			!decorativeElements.has(id)
+		)
 		.map(([id, bounds]) => ({
 			id,
 			label: labels[id] ?? id,

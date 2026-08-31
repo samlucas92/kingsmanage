@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 
 import type { ClubPost, ClubPostType, CreateClubPostRequest } from "../../../types/posts";
 import { getPostTypeLabel } from "../../../utils/posts";
@@ -20,32 +20,30 @@ export default function PostFormModal({
 	onSavePost,
 	post = null,
 }: PostFormModalProps) {
+	if (!isOpen) return null;
+	return (
+		<PostFormFields
+			key={post?.id ?? "new-post"}
+			onClose={onClose}
+			onSavePost={onSavePost}
+			post={post}
+		/>
+	);
+}
+
+function PostFormFields({
+	onClose,
+	onSavePost,
+	post,
+}: Omit<PostFormModalProps, "isOpen">) {
 	const isEditing = Boolean(post);
-	const [type, setType] = useState<ClubPostType>("General");
-	const [title, setTitle] = useState("");
-	const [body, setBody] = useState("");
-	const [isPinned, setIsPinned] = useState(false);
+	const [type, setType] = useState<ClubPostType>(post?.type ?? "General");
+	const [title, setTitle] = useState(post?.title ?? "");
+	const [body, setBody] = useState(post?.body ?? "");
+	const [isPinned, setIsPinned] = useState(post?.isPinned ?? false);
 	const [error, setError] = useState("");
 	const [isSaving, setIsSaving] = useState(false);
-	const [draftId, setDraftId] = useState(() => crypto.randomUUID());
-
-	useEffect(() => {
-		if (!isOpen) {
-			return;
-		}
-
-		setType(post?.type ?? "General");
-		setTitle(post?.title ?? "");
-		setBody(post?.body ?? "");
-		setIsPinned(post?.isPinned ?? false);
-		setError("");
-		setIsSaving(false);
-		if (!post) setDraftId(crypto.randomUUID());
-	}, [isOpen, post]);
-
-	if (!isOpen) {
-		return null;
-	}
+	const [draftId] = useState(() => crypto.randomUUID());
 
 	async function handleSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();

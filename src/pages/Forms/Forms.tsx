@@ -1,4 +1,4 @@
-import { useEffect, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useEffectEvent, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import ActionMenu from "../../components/compositions/ActionMenu";
@@ -79,36 +79,6 @@ export default function Forms() {
 		enabled: Boolean(form && !isEditorMode && !isReportMode && !isInsightsMode && (formId || goCode)),
 	});
 
-	useEffect(() => {
-		if (goCode) {
-			void loadPublicForm(goCode);
-			return;
-		}
-
-		if (formId) {
-			void loadFormDetail(formId);
-			return;
-		}
-
-		void loadForms();
-	}, [formId, goCode, location.pathname]);
-
-	useEffect(() => {
-		if (!isEditorMode || !form) {
-			return;
-		}
-
-		setEditingForm(toEditableForm(form));
-	}, [form, isEditorMode]);
-
-	useEffect(() => {
-		if (!results) {
-			return;
-		}
-
-		setSelectedCopyQuestions(new Set(results.questions.map((question) => question.questionId)));
-	}, [results]);
-
 	const canSubmitSelectedForm = form?.status === "Open" &&
 		(!form.hasSubmitted || form.allowMultipleSubmissions);
 	const totalPages = Math.max(1, Math.ceil(forms.length / pageSize));
@@ -142,6 +112,7 @@ export default function Forms() {
 			const loadedForm = await formsApi.getForm(id);
 			setForm(loadedForm);
 			setAnswers(buildInitialAnswers(loadedForm));
+			if (isEditorMode) setEditingForm(toEditableForm(loadedForm));
 			if (canManageForms && (isReportMode || isEditorMode)) {
 				const [loadedResults, loadedSubmissionReport] = await Promise.all([
 					formsApi.getResults(id),
@@ -149,6 +120,9 @@ export default function Forms() {
 				]);
 				setResults(loadedResults);
 				setSubmissionReport(loadedSubmissionReport);
+				setSelectedCopyQuestions(new Set(
+					loadedResults.questions.map((question) => question.questionId)
+				));
 			}
 		} catch (error) {
 			setError(error instanceof Error ? error.message : "Failed to load form.");
@@ -173,6 +147,23 @@ export default function Forms() {
 			setIsLoading(false);
 		}
 	}
+
+	const loadCurrentView = useEffectEvent(() => {
+		if (goCode) {
+			void loadPublicForm(goCode);
+			return;
+		}
+		if (formId) {
+			void loadFormDetail(formId);
+			return;
+		}
+		void loadForms();
+	});
+
+	useEffect(() => {
+		const timeout = window.setTimeout(loadCurrentView, 0);
+		return () => window.clearTimeout(timeout);
+	}, [formId, goCode, location.pathname]);
 
 	function openCreateForm() {
 		setForm(null);
@@ -425,7 +416,12 @@ export default function Forms() {
 					viewMode={reportViewMode}
 					isLoading={isLoading}
 					onBack={() => navigate("/forms")}
-					onCopy={() => setCopyModalOpen(true)}
+					onCopy={() => {
+						setSelectedCopyQuestions(new Set(
+							results?.questions.map((question) => question.questionId) ?? []
+						));
+						setCopyModalOpen(true);
+					}}
 					onEdit={() => form && navigate(`/forms/${form.id}/edit`)}
 					onGoToForm={() => form && navigate(`/go/${form.goCode}`)}
 					onInsights={() => form && navigate(`/forms/${form.id}/insights`)}
@@ -1353,13 +1349,13 @@ function ChoiceOptionEditor({
 
 function PlayerOptionsModal({
 	isOpen,
-	players,
-	selectedPlayerIds,
-	isLoading,
-	error,
-	onClose,
-	onConfirm,
-}: {
+	...props
+}: PlayerOptionsModalProps) {
+	if (!isOpen) return null;
+	return <PlayerOptionsModalContent {...props} />;
+}
+
+type PlayerOptionsModalProps = {
 	isOpen: boolean;
 	players: Player[];
 	selectedPlayerIds: Set<string>;
@@ -1367,17 +1363,20 @@ function PlayerOptionsModal({
 	error: string;
 	onClose: () => void;
 	onConfirm: (players: Player[]) => void;
-}) {
+};
+
+function PlayerOptionsModalContent({
+	players,
+	selectedPlayerIds,
+	isLoading,
+	error,
+	onClose,
+	onConfirm,
+}: Omit<PlayerOptionsModalProps, "isOpen">) {
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 	const availablePlayers = players
 		.filter((player) => player.isActive && !selectedPlayerIds.has(player.id))
 		.sort((firstPlayer, secondPlayer) => firstPlayer.name.localeCompare(secondPlayer.name));
-
-	useEffect(() => {
-		if (isOpen) {
-			setSelectedIds(new Set());
-		}
-	}, [isOpen]);
 
 	function togglePlayer(playerId: string) {
 		setSelectedIds((current) => {
@@ -1395,7 +1394,7 @@ function PlayerOptionsModal({
 		<Modal
 			title="Add player options"
 			message="Select one, many, or all players to add as ID-backed form options."
-			isOpen={isOpen}
+			isOpen
 			onClose={onClose}
 			onConfirm={() => onConfirm(availablePlayers.filter((player) => selectedIds.has(player.id)))}
 			confirmText={`Add ${selectedIds.size || ""} player${selectedIds.size === 1 ? "" : "s"}`.trim()}

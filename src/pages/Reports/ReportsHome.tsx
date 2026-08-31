@@ -1,6 +1,6 @@
 import ReportsFilterBar from "./components/ReportsFilterBar";
 import ReportsSectionCard from "./components/ReportsSectionCard";
-import { useReportsContext } from "./ReportsContext";
+import { useReportsContext } from "./useReportsContext";
 
 export default function ReportsHome() {
 	const { canViewFinance, isLoading, loadError } = useReportsContext();

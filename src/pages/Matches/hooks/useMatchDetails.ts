@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMatchStore } from "../../../stores/match";
 import type {
 	MatchNotes,
@@ -145,13 +145,9 @@ export function useMatchDetail(matchId?: string) {
 			? selectedEvent
 			: events.find((event) => event.id === currentMatch.clubEventId)
 		: undefined;
-	const matchSeason = useMemo(
-		() =>
-			currentMatch?.seasonId
-				? seasons.find((season) => season.id === currentMatch.seasonId)
-				: undefined,
-		[currentMatch?.seasonId, seasons]
-	);
+	const matchSeason = currentMatch?.seasonId
+		? seasons.find((season) => season.id === currentMatch.seasonId)
+		: undefined;
 
 	function getMatchPlayerAvailabilityStatus(playerId: string) {
 		return linkedEvent

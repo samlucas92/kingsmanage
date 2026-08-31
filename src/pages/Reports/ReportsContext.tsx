@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useEventStore } from "../../stores/events";
 import { useFinanceStore } from "../../stores/finance";
 import { useMatchStore } from "../../stores/match";
@@ -10,45 +10,16 @@ import { useClubTeamStore } from "../../stores/clubTeams";
 import {
 	buildFinanceRows,
 	getFinanceSummary,
-	type FinanceSummary,
 } from "../../services/financeService";
 import type { ReportsTeamFilter, ReportsVenueFilter } from "./utils/reportCalculations";
-
-type ReportsContextValue = {
-	selectedSeasonId: string;
-	setSelectedSeasonId: (seasonId: string) => void;
-	selectedTeamId: ReportsTeamFilter;
-	setSelectedTeamId: (teamId: ReportsTeamFilter) => void;
-	selectedCompetition: string;
-	setSelectedCompetition: (competition: string) => void;
-	selectedVenue: ReportsVenueFilter;
-	setSelectedVenue: (venue: ReportsVenueFilter) => void;
-	selectedPlayerId: string;
-	setSelectedPlayerId: (playerId: string) => void;
-	dateFrom: string;
-	setDateFrom: (date: string) => void;
-	dateTo: string;
-	setDateTo: (date: string) => void;
-	includeFriendlies: boolean;
-	setIncludeFriendlies: (includeFriendlies: boolean) => void;
-	canViewFinance: boolean;
-	financeSummary?: FinanceSummary;
-	isLoading: boolean;
-	loadError: string;
-};
-
-const ReportsContext = createContext<ReportsContextValue | null>(null);
+import { ReportsContext } from "./reportsContextValue";
 
 export function ReportsProvider({ children }: { children: ReactNode }) {
 	const currentUser = useAuthStore((state) => state.currentUser);
 	const canViewFinance = currentUser?.role === "Admin";
-	const [selectedSeasonId, setSelectedSeasonId] = useState("");
-	const [selectedTeamId, setSelectedTeamId] = useState<ReportsTeamFilter>("all");
-	const [selectedCompetition, setSelectedCompetition] = useState("all");
-	const [selectedVenue, setSelectedVenue] = useState<ReportsVenueFilter>("all");
-	const [selectedPlayerId, setSelectedPlayerId] = useState("all");
-	const [dateFrom, setDateFrom] = useState("");
-	const [dateTo, setDateTo] = useState("");
+	const [selectedSeasonSelection, setSelectedSeasonId] = useState("");
+	const [selectedTeamSelection, setSelectedTeamId] = useState<ReportsTeamFilter>("all");
+	const [selectedPlayerSelection, setSelectedPlayerId] = useState("all");
 	const [includeFriendlies, setIncludeFriendlies] = useState(true);
 
 	const seasons = useSeasonStore((state) => state.seasons);
@@ -56,6 +27,9 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
 	const loadSeasons = useSeasonStore((state) => state.loadSeasons);
 	const isLoadingSeasons = useSeasonStore((state) => state.isLoadingSeasons);
 	const seasonLoadError = useSeasonStore((state) => state.seasonLoadError);
+	const selectedSeasonId = seasons.some((season) => season.id === selectedSeasonSelection)
+		? selectedSeasonSelection
+		: activeSeasonId || seasons[0]?.id || "";
 
 	const loadMatches = useMatchStore((state) => state.loadMatches);
 	const isLoadingMatches = useMatchStore((state) => state.isLoadingMatches);
@@ -81,7 +55,19 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
 
 	const clubTeamProfiles = useClubTeamStore((state) => state.profiles);
 	const loadClubTeams = useClubTeamStore((state) => state.loadProfiles);
-	const activeTeamExists = selectedTeamId === "all" || clubTeamProfiles.some((team) => team.id === selectedTeamId);
+	const selectedTeamId = selectedTeamSelection === "all" ||
+		clubTeamProfiles.some((team) => team.id === selectedTeamSelection)
+		? selectedTeamSelection
+		: "all";
+	const selectedPlayerId = selectedPlayerSelection === "all" ||
+		players.some((player) => player.id === selectedPlayerSelection)
+		? selectedPlayerSelection
+		: "all";
+	const filterScope = `${selectedSeasonId}:${selectedTeamId}`;
+	const [selectedCompetition, setSelectedCompetition] = useScopedState(filterScope, "all");
+	const [selectedVenue, setSelectedVenue] = useScopedState<ReportsVenueFilter>(filterScope, "all");
+	const [dateFrom, setDateFrom] = useScopedState(filterScope, "");
+	const [dateTo, setDateTo] = useScopedState(filterScope, "");
 
 	useEffect(() => {
 		void loadSeasons();
@@ -89,33 +75,6 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
 		void loadEvents();
 		void loadClubTeams();
 	}, [loadClubTeams, loadEvents, loadPlayers, loadSeasons]);
-
-	useEffect(() => {
-		if (selectedSeasonId && seasons.some((season) => season.id === selectedSeasonId)) {
-			return;
-		}
-
-		setSelectedSeasonId(activeSeasonId || seasons[0]?.id || "");
-	}, [activeSeasonId, seasons, selectedSeasonId]);
-
-	useEffect(() => {
-		if (!activeTeamExists) {
-			setSelectedTeamId("all");
-		}
-	}, [activeTeamExists]);
-
-	useEffect(() => {
-		setSelectedCompetition("all");
-		setSelectedVenue("all");
-		setDateFrom("");
-		setDateTo("");
-	}, [selectedSeasonId, selectedTeamId]);
-
-	useEffect(() => {
-		if (selectedPlayerId !== "all" && !players.some((player) => player.id === selectedPlayerId)) {
-			setSelectedPlayerId("all");
-		}
-	}, [players, selectedPlayerId]);
 
 	useEffect(() => {
 		if (!selectedSeasonId) {
@@ -196,6 +155,10 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
 			selectedPlayerId,
 			selectedTeamId,
 			selectedVenue,
+			setDateFrom,
+			setDateTo,
+			setSelectedCompetition,
+			setSelectedVenue,
 		]
 	);
 
@@ -206,12 +169,11 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
 	);
 }
 
-export function useReportsContext() {
-	const context = useContext(ReportsContext);
-
-	if (!context) {
-		throw new Error("useReportsContext must be used inside ReportsProvider");
-	}
-
-	return context;
+function useScopedState<T>(scope: string, defaultValue: T) {
+	const [state, setState] = useState({ scope, value: defaultValue });
+	const value = state.scope === scope ? state.value : defaultValue;
+	const setValue = useCallback((nextValue: T) => {
+		setState({ scope, value: nextValue });
+	}, [scope]);
+	return [value, setValue] as const;
 }

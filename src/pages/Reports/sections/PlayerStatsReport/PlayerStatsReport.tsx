@@ -8,7 +8,7 @@ import ReportPageHeader from "../../components/ReportPageHeader";
 import ReportPanel from "../../components/ReportPanel";
 import ReportLoadState from "../../components/ReportLoadState";
 import ReportMobileRankedList from "../../components/ReportMobileRankedList";
-import { useReportsContext } from "../../ReportsContext";
+import { useReportsContext } from "../../useReportsContext";
 import { useReportResource } from "../../hooks/useReportResource";
 import { reportsApi, type PlayerAwardCount, type PlayerContribution, type PlayerReportsResponse } from "../../../../services/reportsApi";
 

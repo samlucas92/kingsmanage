@@ -1,39 +1,33 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 
 import type { ClubEvent, UpdateClubEventRequest } from "../../types/events";
 import { formatDateForInput } from "../../utils/date";
 import LocationPicker from "../../components/locations/LocationPicker";
 
-export default function EventEditModal({
-	event,
-	isOpen,
-	onClose,
-	onSave,
-}: {
+type EventEditModalProps = {
 	event: ClubEvent;
 	isOpen: boolean;
 	onClose: () => void;
 	onSave: (request: UpdateClubEventRequest) => Promise<void>;
-}) {
-	const [title, setTitle] = useState("");
-	const [description, setDescription] = useState("");
-	const [start, setStart] = useState("");
-	const [end, setEnd] = useState("");
-	const [location, setLocation] = useState("");
+};
+
+export default function EventEditModal(props: EventEditModalProps) {
+	if (!props.isOpen) return null;
+	return <EventEditModalForm key={props.event.id} {...props} />;
+}
+
+function EventEditModalForm({
+	event,
+	onClose,
+	onSave,
+}: EventEditModalProps) {
+	const [title, setTitle] = useState(event.title);
+	const [description, setDescription] = useState(event.description);
+	const [start, setStart] = useState(() => formatDateForInput(event.startDateTime));
+	const [end, setEnd] = useState(() => event.endDateTime ? formatDateForInput(event.endDateTime) : "");
+	const [location, setLocation] = useState(event.location);
 	const [error, setError] = useState("");
 	const [isSaving, setIsSaving] = useState(false);
-
-	useEffect(() => {
-		if (!isOpen) return;
-		setTitle(event.title);
-		setDescription(event.description);
-		setStart(formatDateForInput(event.startDateTime));
-		setEnd(event.endDateTime ? formatDateForInput(event.endDateTime) : "");
-		setLocation(event.location);
-		setError("");
-	}, [event, isOpen]);
-
-	if (!isOpen) return null;
 
 	async function handleSubmit(formEvent: FormEvent) {
 		formEvent.preventDefault();

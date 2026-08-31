@@ -8,7 +8,7 @@ import { BulkMatchImportModal } from "./components/BulkMatchImportModal";
 import { MatchesTable } from "./components/MatchesTable";
 import { MatchFilters } from "./components/MatchFilters";
 import type { MatchFilter, MatchTeamFilter } from "./components/MatchFilters";
-import { getMatchFilterFromState } from "./components/MatchFilters";
+import { getMatchFilterFromState } from "./components/matchFilterState";
 import { PostponeMatchModal } from "./components/match-detail/PostponeMatchModal";
 import { useMatchForm } from "./hooks/useMatchForm";
 import { formatDateForInput } from "../../utils/date";
@@ -43,7 +43,7 @@ export default function Matches() {
 		state.availableClubs.find((club) => club.isCurrent)
 	);
 
-	const [selectedSeasonId, setSelectedSeasonId] = useState("");
+	const [selectedSeasonSelection, setSelectedSeasonId] = useState("");
 	const [matchFilter, setMatchFilter] = useState<MatchFilter>("upcoming");
 	const [teamFilter, setTeamFilter] = useState<MatchTeamFilter>("all");
 	const [matchToPostpone, setMatchToPostpone] = useState<Match | null>(null);
@@ -56,19 +56,14 @@ export default function Matches() {
 		activeClub?.customFormations,
 		activeClub?.defaultFormationKey
 	);
+	const selectedSeasonId = seasons.some((season) => season.id === selectedSeasonSelection)
+		? selectedSeasonSelection
+		: activeSeasonId || seasons[0]?.id || "";
 
 	useEffect(() => {
 		void loadSeasons();
 		void loadTeamProfiles();
 	}, [loadSeasons, loadTeamProfiles]);
-
-	useEffect(() => {
-		if (selectedSeasonId && seasons.some((season) => season.id === selectedSeasonId)) {
-			return;
-		}
-
-		setSelectedSeasonId(activeSeasonId || seasons[0]?.id || "");
-	}, [activeSeasonId, seasons, selectedSeasonId]);
 
 	useEffect(() => {
 		if (!selectedSeasonId) {

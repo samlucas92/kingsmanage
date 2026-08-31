@@ -1,5 +1,19 @@
 type Props = {
-  player: any;
+  player: {
+    id: string;
+    name: string;
+    number?: number;
+    firstApps: number;
+    firstGoals: number;
+    secondApps: number;
+    secondGoals: number;
+    totalApps: number;
+    totalGoals: number;
+    preApps: number;
+    preGoals: number;
+    careerApps: number;
+    careerGoals: number;
+  };
 };
 
 export default function TableRow({ player }: Props) {

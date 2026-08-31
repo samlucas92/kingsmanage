@@ -76,11 +76,16 @@ export default function EventFormModal({
 	const [secondMatchDetails, setSecondMatchDetails] = useState<MatchDetails>(emptyMatchDetails);
 	const [error, setError] = useState("");
 	const [isSaving, setIsSaving] = useState(false);
+	const activeTeamScopes = activeTeamProfiles.map((profile) =>
+		profile.id === FIRST_TEAM_ID ? "First" : "Second"
+	) satisfies ClubEventTeamScope[];
+	const effectiveTeamScope = getTeamsForScope(teamScope).every((team) =>
+		activeTeamScopes.includes(team)
+	)
+		? teamScope
+		: activeTeamScopes[0] ?? teamScope;
 
-	const teamsInScope = useMemo(
-		() => (type === "Match" ? getTeamsForScope(teamScope) : []),
-		[teamScope, type]
-	);
+	const teamsInScope = type === "Match" ? getTeamsForScope(effectiveTeamScope) : [];
 
 	const firstTeamMatches = useMemo(
 		() => getAvailableMatchesForTeam(matches, FIRST_TEAM_ID),
@@ -117,14 +122,6 @@ export default function EventFormModal({
 
 		void loadMatches(activeSeasonId || undefined);
 	}, [activeSeasonId, isOpen, loadMatches, matchMode, type]);
-
-	useEffect(() => {
-		if (!isOpen || type !== "Match" || activeTeamProfiles.length === 0) return;
-		const currentTeams = getTeamsForScope(teamScope);
-		const activeTeams = activeTeamProfiles.map((profile) => profile.id === FIRST_TEAM_ID ? "First" : "Second");
-		if (currentTeams.every((team) => activeTeams.includes(team))) return;
-		setTeamScope(activeTeams[0]);
-	}, [activeTeamProfiles, isOpen, teamScope, type]);
 
 	if (!isOpen) {
 		return null;
@@ -261,7 +258,7 @@ export default function EventFormModal({
 
 		const request: CreateClubEventRequest = {
 			type,
-			teamScope: type === "Match" ? teamScope : "Both",
+			teamScope: type === "Match" ? effectiveTeamScope : "Both",
 			title: eventTitle,
 			description: description.trim(),
 			startDateTime: new Date(startDateTime).toISOString(),
@@ -417,7 +414,7 @@ export default function EventFormModal({
 							<label className="block text-sm font-semibold text-slate-700">
 								Team
 								<select
-									value={teamScope}
+									value={effectiveTeamScope}
 									onChange={(event) => handleTeamScopeChange(event.target.value as ClubEventTeamScope)}
 									className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
 								>

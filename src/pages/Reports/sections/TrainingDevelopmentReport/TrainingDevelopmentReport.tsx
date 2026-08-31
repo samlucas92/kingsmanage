@@ -5,7 +5,7 @@ import ReportDetails from "../../components/ReportDetails";
 import ReportEmptyState from "../../components/ReportEmptyState";
 import ReportPageHeader from "../../components/ReportPageHeader";
 import ReportLoadState from "../../components/ReportLoadState";
-import { useReportsContext } from "../../ReportsContext";
+import { useReportsContext } from "../../useReportsContext";
 import { useReportResource } from "../../hooks/useReportResource";
 import { reportsApi, type AvailabilityReportResponse } from "../../../../services/reportsApi";
 

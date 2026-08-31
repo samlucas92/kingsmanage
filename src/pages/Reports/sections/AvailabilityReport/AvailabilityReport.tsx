@@ -7,7 +7,7 @@ import ReportDetails from "../../components/ReportDetails";
 import ReportPageHeader from "../../components/ReportPageHeader";
 import ReportPanel from "../../components/ReportPanel";
 import ReportLoadState from "../../components/ReportLoadState";
-import { useReportsContext } from "../../ReportsContext";
+import { useReportsContext } from "../../useReportsContext";
 import { useReportResource } from "../../hooks/useReportResource";
 import type { ClubEventType } from "../../../../types/events";
 import { reportsApi, type AvailabilityReportResponse } from "../../../../services/reportsApi";

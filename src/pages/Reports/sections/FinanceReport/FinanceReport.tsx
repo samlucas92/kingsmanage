@@ -9,7 +9,7 @@ import ReportLoadState from "../../components/ReportLoadState";
 import ReportPageHeader from "../../components/ReportPageHeader";
 import ReportPanel from "../../components/ReportPanel";
 import { useReportResource } from "../../hooks/useReportResource";
-import { useReportsContext } from "../../ReportsContext";
+import { useReportsContext } from "../../useReportsContext";
 
 export default function FinanceReport() {
 	const { selectedSeasonId, isLoading, loadError } = useReportsContext();

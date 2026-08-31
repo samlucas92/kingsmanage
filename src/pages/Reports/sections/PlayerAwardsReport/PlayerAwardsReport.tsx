@@ -4,7 +4,7 @@ import ReportAnswerCard from "../../components/ReportAnswerCard";
 import ReportPageHeader from "../../components/ReportPageHeader";
 import ReportPanel from "../../components/ReportPanel";
 import { useReportResource } from "../../hooks/useReportResource";
-import { useReportsContext } from "../../ReportsContext";
+import { useReportsContext } from "../../useReportsContext";
 import { reportsApi, type PlayerAwardCount, type PlayerReportsResponse } from "../../../../services/reportsApi";
 
 export default function PlayerAwardsReport() {

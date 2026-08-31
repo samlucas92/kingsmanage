@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { ReportsProvider, useReportsContext } from "./ReportsContext";
+import { ReportsProvider } from "./ReportsContext";
+import { useReportsContext } from "./useReportsContext";
 import ReportsHome from "./ReportsHome";
 
 const AvailabilityReport = lazy(() => import("./sections/AvailabilityReport/AvailabilityReport"));

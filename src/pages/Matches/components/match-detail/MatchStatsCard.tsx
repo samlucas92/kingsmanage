@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type {
 	MatchAppearanceType,
 	MatchPlayerStat,
@@ -58,11 +58,15 @@ export function MatchStatsCard({
 	const [areaFilter, setAreaFilter] = useState<PlayerAreaFilter>("all");
 	const [isSaving, setIsSaving] = useState(false);
 	const [saveMessage, setSaveMessage] = useState("");
-
-	useEffect(() => {
+	const [draftSource, setDraftSource] = useState({ selectedPlayers, playerStats });
+	if (
+		draftSource.selectedPlayers !== selectedPlayers ||
+		draftSource.playerStats !== playerStats
+	) {
+		setDraftSource({ selectedPlayers, playerStats });
 		setDraftStats(buildDraft(selectedPlayers, playerStats));
 		setSaveMessage("");
-	}, [selectedPlayers, playerStats]);
+	}
 
 	const orderedPlayers = useMemo(() => {
 		return [...selectedPlayers].sort((firstPlayer, secondPlayer) => {

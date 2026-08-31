@@ -179,7 +179,7 @@ export default function PlayerProfile() {
 	const [recentAppearances, setRecentAppearances] = useState<PlayerMatchRecord[]>([]);
 	const [isLoadingRecentAppearances, setIsLoadingRecentAppearances] = useState(false);
 	const [recentAppearancesError, setRecentAppearancesError] = useState("");
-	const [selectedSeasonId, setSelectedSeasonId] = useState("");
+	const [selectedSeasonSelection, setSelectedSeasonId] = useState("");
 	const [trainingDevelopment, setTrainingDevelopment] = useState<PlayerTrainingDevelopment | null>(null);
 	const [isLoadingTrainingDevelopment, setIsLoadingTrainingDevelopment] = useState(false);
 	const [trainingDevelopmentError, setTrainingDevelopmentError] = useState("");
@@ -215,6 +215,9 @@ export default function PlayerProfile() {
 	const events = useEventStore((state) => state.events);
 	const loadEvents = useEventStore((state) => state.loadEvents);
 	const eventsLoadError = useEventStore((state) => state.eventsLoadError);
+	const selectedSeasonId = seasons.some((season) => season.id === selectedSeasonSelection)
+		? selectedSeasonSelection
+		: activeSeasonId || seasons[0]?.id || "";
 
 	const player = players.find((player) => player.id === id);
 	const selectedSeason = seasons.find((season) => season.id === selectedSeasonId);
@@ -238,14 +241,6 @@ export default function PlayerProfile() {
 	}, [loadSeasons, loadEvents]);
 
 	useEffect(() => {
-		if (selectedSeasonId && seasons.some((season) => season.id === selectedSeasonId)) {
-			return;
-		}
-
-		setSelectedSeasonId(activeSeasonId || seasons[0]?.id || "");
-	}, [activeSeasonId, seasons, selectedSeasonId]);
-
-	useEffect(() => {
 		if (!selectedSeasonId) {
 			return;
 		}
@@ -256,7 +251,6 @@ export default function PlayerProfile() {
 
 	useEffect(() => {
 		if (!id || !selectedSeasonId) {
-			setRecentAppearances([]);
 			return;
 		}
 
@@ -311,7 +305,6 @@ export default function PlayerProfile() {
 
 	useEffect(() => {
 		if (!id || !selectedSeason || !canViewTrainingDevelopment) {
-			setTrainingDevelopment(null);
 			return;
 		}
 
@@ -380,13 +373,11 @@ export default function PlayerProfile() {
 	const financeTotalPaid = playerFinanceRecord?.totalPaid ?? 0;
 	const financeTotalAdjustments = playerFinanceRecord?.totalAdjustments ?? 0;
 	const financeBalance = playerFinanceRecord?.balance ?? financeAmountOwed - financeTotalPaid;
-	const financeTransactions = useMemo(() => {
-		return [...(playerFinanceRecord?.transactions ?? [])].sort(
+	const financeTransactions = [...(playerFinanceRecord?.transactions ?? [])].sort(
 			(firstTransaction, secondTransaction) =>
 				new Date(secondTransaction.transactionDate).getTime() -
 				new Date(firstTransaction.transactionDate).getTime()
 		);
-	}, [playerFinanceRecord]);
 	const financeStatus = getFinanceStatus(
 		financeAmountOwed,
 		financeTotalPaid,
