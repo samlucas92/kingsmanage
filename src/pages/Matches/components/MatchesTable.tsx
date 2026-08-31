@@ -1,9 +1,8 @@
 import { Link } from "react-router-dom";
 import type { Match, MatchState } from "../../../stores/match";
 import { getClubTeamLabel, useClubTeamStore } from "../../../stores/clubTeams";
-import { formatDisplayDate, formatDisplayTime } from "../../../utils/date";
+import { formatDisplayTime } from "../../../utils/date";
 import EmptyState from "../../../components/compositions/EmptyState";
-import DataTable from "../../../components/compositions/DataTable";
 import StatusBadge from "../../../components/compositions/StatusBadge";
 
 interface MatchesTableProps {
@@ -19,7 +18,6 @@ export function MatchesTable({
 	onPostponeMatch,
 	onRestoreMatch,
 }: MatchesTableProps) {
-	const profiles = useClubTeamStore((state) => state.profiles);
 	if (matches.length === 0) {
 		return (
 			<div className="overflow-hidden rounded-xl bg-white shadow">
@@ -35,7 +33,7 @@ export function MatchesTable({
 
 	return (
 		<div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-			<div className="divide-y divide-slate-100 md:hidden">
+			<div className="divide-y divide-slate-100 lg:hidden">
 				{matches.map((match) => (
 					<MatchCard
 						key={match.id}
@@ -47,79 +45,155 @@ export function MatchesTable({
 				))}
 			</div>
 
-			<div className="hidden md:block">
-				<DataTable minWidthClassName="min-w-[900px]">
-					<thead className="border-b bg-gray-50">
-						<tr className="text-left">
-							<th className="p-3">Date</th>
-							<th className="p-3">Team</th>
-							<th className="p-3">Opponent</th>
-							<th className="p-3">Venue</th>
-							<th className="p-3">Result</th>
-							<th className="p-3">State</th>
-							<th className="p-3">Lineup</th>
-							<th className="p-3 text-right">Actions</th>
-						</tr>
-					</thead>
+			<div className="hidden lg:block">
+				<div className="border-b border-slate-200 bg-slate-50/80 px-5 py-4 lg:px-6">
+					<div className="flex items-center justify-between gap-4">
+						<div>
+							<p className="text-xs font-black uppercase tracking-[0.16em] text-yepset-700">
+								Fixture list
+							</p>
+							<p className="mt-1 text-sm font-medium text-slate-500">
+								Open a match to manage its squad, lineup and matchday workflow.
+							</p>
+						</div>
+						<span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm ring-1 ring-slate-200">
+							{matches.length} {matches.length === 1 ? "match" : "matches"}
+						</span>
+					</div>
+				</div>
 
-					<tbody>
-						{matches.map((match) => (
-							<tr key={match.id} className="border-b hover:bg-gray-50">
-								<td className="p-3">
-									<div>
-										<p className="font-medium text-slate-900">
-											{formatDisplayDate(match.date)}
-										</p>
-
-										<p className="text-xs text-slate-500">
-											{formatDisplayTime(match.date)}
-										</p>
-									</div>
-								</td>
-
-								<td className="p-3">
-									<StatusBadge
-										label={getClubTeamLabel(profiles, match.team)}
-										tone="info"
-									/>
-								</td>
-
-								<td className="p-3 font-medium">{match.opponent}</td>
-
-								<td className="p-3 capitalize">{match.venue}</td>
-
-								<td className="p-3">{getResultLabel(match)}</td>
-
-								<td className="p-3">
-									<StatusBadge
-										label={getStateLabel(match.state)}
-										tone={getStateTone(match.state)}
-									/>
-								</td>
-
-								<td className="p-3">
-									<StatusBadge
-										label={match.isLineupLocked ? "Saved" : "Not saved"}
-										tone={match.isLineupLocked ? "info" : "neutral"}
-									/>
-								</td>
-
-								<td className="p-3">
-									<div className="flex flex-wrap justify-end gap-2">
-										<MatchActions
-											match={match}
-											onEditMatch={onEditMatch}
-											onPostponeMatch={onPostponeMatch}
-											onRestoreMatch={onRestoreMatch}
-										/>
-									</div>
-								</td>
-							</tr>
-						))}
-					</tbody>
-				</DataTable>
+				<div className="divide-y divide-slate-200">
+					{matches.map((match, index) => (
+						<DesktopMatchCard
+							key={match.id}
+							match={match}
+							isNextMatch={index === 0 && match.state === "upcoming"}
+							onEditMatch={onEditMatch}
+							onPostponeMatch={onPostponeMatch}
+							onRestoreMatch={onRestoreMatch}
+						/>
+					))}
+				</div>
 			</div>
 		</div>
+	);
+}
+
+function DesktopMatchCard({
+	match,
+	isNextMatch,
+	onEditMatch,
+	onPostponeMatch,
+	onRestoreMatch,
+}: {
+	match: Match;
+	isNextMatch: boolean;
+	onEditMatch: (match: Match) => void;
+	onPostponeMatch: (match: Match) => void;
+	onRestoreMatch: (matchId: string) => void;
+}) {
+	const profiles = useClubTeamStore((state) => state.profiles);
+	const matchDate = new Date(match.date);
+	const dateLabel = matchDate.toLocaleDateString("en-GB", {
+		weekday: "short",
+		day: "numeric",
+		month: "short",
+	}).toUpperCase();
+	const locationLabel =
+		match.location || (match.venue === "home" ? "Home venue" : "Away venue");
+
+	return (
+		<article className="group relative grid min-h-40 grid-cols-[116px_minmax(0,1fr)_auto] overflow-hidden bg-white transition hover:bg-slate-50/70">
+			<div
+				className={`flex flex-col justify-center border-r px-5 py-6 ${
+					isNextMatch
+						? "border-yepset-700 bg-yepset-800 text-white"
+						: "border-slate-200 bg-slate-50 text-slate-950"
+				}`}
+			>
+				{isNextMatch && (
+					<span className="mb-2 text-[9px] font-black uppercase tracking-[0.15em] text-kick-300">
+						Next match
+					</span>
+				)}
+				<span
+					className={`text-[11px] font-black tracking-wide ${
+						isNextMatch ? "text-white/70" : "text-slate-500"
+					}`}
+				>
+					{dateLabel}
+				</span>
+				<strong className="mt-1 text-2xl font-black leading-none">
+					{formatDisplayTime(match.date)}
+				</strong>
+			</div>
+
+			<Link
+				to={`/matches/${match.id}`}
+				className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(180px,0.55fr)] items-center gap-6 px-6 py-5"
+			>
+				<div className="min-w-0">
+					<div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+						<span className="text-xs font-black uppercase tracking-[0.12em] text-yepset-700">
+							{getClubTeamLabel(profiles, match.team)}
+						</span>
+						<span className="text-xs font-bold uppercase text-slate-400">
+							{match.venue === "home" ? "Home" : "Away"}
+						</span>
+					</div>
+					<h2 className="mt-2 break-words text-xl font-black leading-tight text-slate-950 lg:text-2xl">
+						<span className="mr-2 text-sm font-black uppercase tracking-wide text-slate-400">vs</span>
+						{match.opponent}
+					</h2>
+					<p className="mt-2 truncate text-sm font-medium text-slate-500">
+						{[match.competition, locationLabel].filter(Boolean).join(" · ")}
+					</p>
+				</div>
+
+				<div className="grid gap-2 border-l border-slate-200 pl-6">
+					<div className="flex flex-wrap items-center gap-2">
+						<StatusBadge
+							label={getStateLabel(match.state)}
+							tone={getStateTone(match.state)}
+						/>
+						<StatusBadge
+							label={match.isLineupLocked ? "Lineup saved" : "Lineup to pick"}
+							tone={match.isLineupLocked ? "success" : "neutral"}
+						/>
+					</div>
+					<p className="text-sm font-black text-slate-900">
+						{match.result ? getResultLabel(match) : "Open match hub"}
+						<span className="ml-2 inline-block text-lg text-yepset-700 transition group-hover:translate-x-1">
+							→
+						</span>
+					</p>
+				</div>
+			</Link>
+
+			<div className="flex w-36 flex-col justify-center gap-2 border-l border-slate-200 px-4 py-5">
+				<Link
+					to={`/matches/${match.id}`}
+					className="rounded-xl bg-yepset-700 px-4 py-2.5 text-center text-sm font-black text-white shadow-sm transition hover:bg-yepset-800"
+				>
+					Open match
+				</Link>
+				<details className="group/actions relative">
+					<summary className="cursor-pointer list-none rounded-xl border border-slate-200 px-4 py-2 text-center text-xs font-bold text-slate-600 hover:bg-white">
+						More actions
+					</summary>
+					<div className="absolute right-0 z-20 mt-2 grid min-w-36 gap-1 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+						<MatchActions
+							match={match}
+							onEditMatch={onEditMatch}
+							onPostponeMatch={onPostponeMatch}
+							onRestoreMatch={onRestoreMatch}
+							isMobile
+							hideView
+						/>
+					</div>
+				</details>
+			</div>
+		</article>
 	);
 }
 
@@ -201,12 +275,14 @@ function MatchActions({
 	onPostponeMatch,
 	onRestoreMatch,
 	isMobile = false,
+	hideView = false,
 }: {
 	match: Match;
 	onEditMatch: (match: Match) => void;
 	onPostponeMatch: (match: Match) => void;
 	onRestoreMatch: (matchId: string) => void;
 	isMobile?: boolean;
+	hideView?: boolean;
 }) {
 	const buttonClassName = isMobile
 		? "rounded-lg border px-3 py-2 text-center text-sm font-medium hover:bg-gray-100"
@@ -256,9 +332,11 @@ function MatchActions({
 				</>
 			)}
 
-			<Link to={`/matches/${match.id}`} className={viewClassName}>
-				View
-			</Link>
+			{!hideView && (
+				<Link to={`/matches/${match.id}`} className={viewClassName}>
+					View
+				</Link>
+			)}
 		</>
 	);
 }

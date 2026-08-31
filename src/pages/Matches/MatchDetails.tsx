@@ -117,6 +117,7 @@ export default function MatchDetail() {
 	}
 
 	const currentMatch = matchDetail.match;
+	const currentTeamName = getClubTeamLabel(teamProfiles, currentMatch.team);
 	const matchdayWorkflow = getMatchdayWorkflow(
 		currentMatch,
 		matchDetail.linkedEvent,
@@ -297,6 +298,7 @@ export default function MatchDetail() {
 
 			<div id="matchday-fixture" className="scroll-mt-4">
 				<MatchHeaderCard
+					teamName={currentTeamName}
 					opponent={currentMatch.opponent}
 					date={currentMatch.date}
 					venue={currentMatch.venue}
@@ -416,7 +418,7 @@ export default function MatchDetail() {
 				isOpen={showGeneratePost}
 				match={currentMatch}
 				players={players}
-				teamName={getClubTeamLabel(teamProfiles, currentMatch.team)}
+				teamName={currentTeamName}
 				onClose={() => setShowGeneratePost(false)}
 				onPublish={async (request) => {
 					await createPost(request);

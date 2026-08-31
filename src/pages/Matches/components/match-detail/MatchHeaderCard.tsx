@@ -1,9 +1,10 @@
 import type { MatchState } from "../../../../stores/match";
 import StatusBadge from "../../../../components/compositions/StatusBadge";
 import PanelCard from "../../../../components/compositions/PanelCard";
-import { formatDisplayDateTime } from "../../../../utils/date";
+import { formatDisplayTime } from "../../../../utils/date";
 
 interface MatchHeaderCardProps {
+	teamName: string;
 	opponent: string;
 	date: string;
 	venue: "home" | "away";
@@ -15,6 +16,7 @@ interface MatchHeaderCardProps {
 }
 
 export function MatchHeaderCard({
+	teamName,
 	opponent,
 	date,
 	venue,
@@ -24,49 +26,58 @@ export function MatchHeaderCard({
 	isCompleted,
 	onPostponeClick,
 }: MatchHeaderCardProps) {
+	const matchDate = new Date(date);
+	const weekday = matchDate.toLocaleDateString("en-GB", { weekday: "short" });
+	const day = matchDate.toLocaleDateString("en-GB", { day: "numeric" });
+	const month = matchDate.toLocaleDateString("en-GB", { month: "short" });
+
 	return (
 		<PanelCard>
-			<div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-				<div className="min-w-0">
-					<p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-						Match detail
-					</p>
-
-					<h1 className="mt-1 truncate text-2xl font-black text-slate-950 sm:text-3xl">
-						vs {opponent}
-					</h1>
-
-					<p className="mt-1 text-sm text-gray-600 sm:text-base">
-						{formatDisplayDateTime(date)} ·{" "}
-						<span className="capitalize">{venue}</span>
-					</p>
-					{(competition || location) && (
-						<p className="mt-1 text-sm font-medium text-slate-600">
-							{[competition, location].filter(Boolean).join(" · ")}
-						</p>
-					)}
-
-					<div className="mt-3 flex flex-wrap items-center gap-2">
-						<StatusBadge label={getStateLabel(state)} tone={getStateTone(state)} />
-
-						<StatusBadge
-							label={venue === "home" ? "Home" : "Away"}
-							tone={venue === "home" ? "info" : "warning"}
-						/>
-
-						{isCompleted && <StatusBadge label="Completed" tone="success" />}
-					</div>
+			<div className="grid min-w-0 gap-4 sm:grid-cols-[76px_minmax(0,1fr)_auto] sm:items-center sm:gap-5">
+				<div className="flex items-center gap-3 border-b border-slate-200 pb-4 sm:block sm:border-b-0 sm:border-r sm:pb-0 sm:pr-5 sm:text-center">
+					<span className="text-xs font-black uppercase tracking-wide text-slate-500">
+						{weekday}
+					</span>
+					<strong className="text-3xl font-black leading-none text-slate-950 sm:mt-1 sm:block">
+						{day}
+					</strong>
+					<span className="text-xs font-bold text-slate-500 sm:mt-1 sm:block">
+						{month} · {formatDisplayTime(date)}
+					</span>
 				</div>
 
-				{!isCompleted && (
-					<button
-						type="button"
-						onClick={onPostponeClick}
-						className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold hover:bg-slate-50 sm:w-auto"
-					>
-						Postpone
-					</button>
-				)}
+				<div className="min-w-0">
+					<p className="text-xs font-black uppercase tracking-[0.14em] text-yepset-700">
+						{teamName}
+					</p>
+					<h1 className="mt-1 break-words text-xl font-black leading-tight text-slate-950 sm:text-2xl">
+						<span className="mr-2 text-sm uppercase tracking-wide text-slate-400">vs</span>
+						{opponent}
+					</h1>
+					<p className="mt-2 text-sm font-medium text-slate-500">
+						{[
+							location || (venue === "home" ? "Home venue" : "Away venue"),
+							competition,
+							venue === "home" ? "Home" : "Away",
+						]
+							.filter(Boolean)
+							.join(" · ")}
+					</p>
+				</div>
+
+				<div className="flex flex-wrap items-center gap-2 sm:max-w-44 sm:justify-end">
+					<StatusBadge label={getStateLabel(state)} tone={getStateTone(state)} />
+					{isCompleted && <StatusBadge label="Completed" tone="success" />}
+					{!isCompleted && (
+						<button
+							type="button"
+							onClick={onPostponeClick}
+							className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 sm:mt-1"
+						>
+							Postpone
+						</button>
+					)}
+				</div>
 			</div>
 		</PanelCard>
 	);
