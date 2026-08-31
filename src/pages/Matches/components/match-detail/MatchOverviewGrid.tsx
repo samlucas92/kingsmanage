@@ -1,11 +1,18 @@
 import PanelCard from "../../../../components/compositions/PanelCard";
 import StatusBadge from "../../../../components/compositions/StatusBadge";
+import {
+	getClubDefaultFormationKey,
+	getClubSportDefinition,
+} from "../../../../constants/sports";
+import { useAuthStore } from "../../../../stores/auth";
 import type { Match } from "../../../../stores/match";
+import { usePlayerStore } from "../../../../stores/players";
 import type { ClubEvent } from "../../../../types/events";
 import type {
 	MatchdayStageId,
 	MatchdayWorkflow,
 } from "../../../../utils/fixtureWorkflow";
+import { resolveLineupPosition } from "../../../../utils/lineupPosition";
 import type { MatchDetailSectionId } from "./MatchDetailSectionNav";
 
 type MatchOverviewGridProps = {
@@ -19,20 +26,6 @@ type MatchOverviewGridProps = {
 	onCommunicationsSelect: () => void;
 };
 
-const fallbackPitchPositions = [
-	{ x: 50, y: 84 },
-	{ x: 18, y: 66 },
-	{ x: 40, y: 69 },
-	{ x: 60, y: 69 },
-	{ x: 82, y: 66 },
-	{ x: 30, y: 43 },
-	{ x: 50, y: 47 },
-	{ x: 70, y: 43 },
-	{ x: 22, y: 20 },
-	{ x: 50, y: 15 },
-	{ x: 78, y: 20 },
-];
-
 export function MatchOverviewGrid({
 	match,
 	workflow,
@@ -43,6 +36,27 @@ export function MatchOverviewGrid({
 	onAvailabilitySelect,
 	onCommunicationsSelect,
 }: MatchOverviewGridProps) {
+	const activeClub = useAuthStore((state) =>
+		state.availableClubs.find((club) => club.isCurrent)
+	);
+	const players = usePlayerStore((state) => state.players);
+	const sportDefinition = getClubSportDefinition(
+		activeClub?.sportKey,
+		activeClub?.customFormations
+	);
+	const defaultFormationKey = getClubDefaultFormationKey(
+		activeClub?.sportKey,
+		activeClub?.customFormations,
+		activeClub?.defaultFormationKey
+	);
+	const formation =
+		sportDefinition.formations.find(
+			(candidate) => candidate.key === match.selectedFormation
+		) ??
+		sportDefinition.formations.find(
+			(candidate) => candidate.key === defaultFormationKey
+		) ??
+		sportDefinition.formations[0];
 	const availabilityStage = getStage(workflow, "availability");
 	const communicationsStage = getStage(workflow, "communications");
 	const resultStage = getStage(workflow, "result");
@@ -64,7 +78,7 @@ export function MatchOverviewGrid({
 							/>
 						</div>
 						<h2 className="mt-2 text-xl font-black text-slate-950">
-							{match.selectedFormation || "Formation not selected"}
+							{formation?.name || match.selectedFormation || "Formation not selected"}
 						</h2>
 						<p className="mt-1 text-sm font-medium text-slate-500">
 							{starterCount}/11 starters · {benchCount} on the bench
@@ -91,24 +105,34 @@ export function MatchOverviewGrid({
 					<button
 						type="button"
 						onClick={() => onSectionSelect("squad")}
-						className="relative h-40 overflow-hidden rounded-2xl border-4 border-white bg-[repeating-linear-gradient(90deg,#17663a_0,#17663a_25px,#1a6d3e_25px,#1a6d3e_50px)] shadow-inner ring-1 ring-slate-200"
+						className="relative mx-auto h-52 w-44 overflow-hidden rounded-2xl border-4 border-white bg-[repeating-linear-gradient(90deg,#17663a_0,#17663a_25px,#1a6d3e_25px,#1a6d3e_50px)] shadow-inner ring-1 ring-slate-200"
 						aria-label="Open lineup preview"
 					>
-						<span className="absolute inset-3 border border-white/70" />
+						<span className="absolute inset-3 rounded-md border border-white/70" />
 						<span className="absolute inset-x-3 top-1/2 border-t border-white/70" />
 						<span className="absolute left-1/2 top-1/2 size-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/70" />
+						<span className="absolute bottom-3 left-1/2 h-10 w-20 -translate-x-1/2 border border-b-0 border-white/70" />
 						{pitchPlayers.slice(0, 11).map((player, index) => {
-							const fallbackPosition = fallbackPitchPositions[index];
+							const position = resolveLineupPosition(
+								player,
+								formation?.slots ?? []
+							);
+							const playerRecord = players.find(
+								(candidate) => candidate.id === player.playerId
+							);
+							const markerLabel = playerRecord?.number
+								? String(playerRecord.number)
+								: getInitials(playerRecord?.name, index);
 							return (
 								<span
 									key={player.playerId}
-									className="absolute z-10 grid size-4 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-kick-300 bg-yepset-700 text-[7px] font-black text-white shadow"
+									className="absolute z-10 grid size-5 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-kick-300 bg-yepset-700 text-[6px] font-black text-white shadow"
 									style={{
-										left: `${player.x ?? fallbackPosition?.x ?? 50}%`,
-										top: `${player.y ?? fallbackPosition?.y ?? 50}%`,
+										left: `${position.x}%`,
+										top: `${position.y}%`,
 									}}
 								>
-									{index + 1}
+									{markerLabel}
 								</span>
 							);
 						})}
@@ -185,6 +209,17 @@ function OverviewMetric({ label, value }: { label: string; value: string }) {
 			<p className="mt-1 text-sm font-black text-slate-900">{value}</p>
 		</div>
 	);
+}
+
+function getInitials(name: string | undefined, fallbackIndex: number) {
+	if (!name) {
+		return String(fallbackIndex + 1);
+	}
+
+	const parts = name.trim().split(/\s+/);
+	return parts.length > 1
+		? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+		: parts[0].slice(0, 2).toUpperCase();
 }
 
 function OverviewActionCard({
