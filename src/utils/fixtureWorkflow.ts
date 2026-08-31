@@ -22,6 +22,42 @@ export type FixtureAction = {
 	to: string;
 };
 
+export type MatchdayStageId =
+	| "fixture"
+	| "availability"
+	| "squad"
+	| "lineup"
+	| "communications"
+	| "result";
+
+export type MatchdayActionId =
+	| "link-event"
+	| "availability"
+	| "squad"
+	| "lineup"
+	| "communications"
+	| "result"
+	| "stats";
+
+export type MatchdayWorkflowStage = {
+	id: MatchdayStageId;
+	label: string;
+	status: string;
+	detail: string;
+	tone: "success" | "warning" | "info" | "neutral";
+};
+
+export type MatchdayWorkflow = {
+	stages: MatchdayWorkflowStage[];
+	completedStageCount: number;
+	trackedStageCount: number;
+	nextAction: {
+		id: MatchdayActionId;
+		label: string;
+		detail: string;
+	};
+};
+
 export function buildClubCalendar(matches: Match[], events: ClubEvent[]) {
 	const matchesById = new Map(matches.map((match) => [match.id, match]));
 	const includedMatchIds = new Set<string>();
@@ -179,6 +215,200 @@ export function getMatchReadiness(match: Match, linkedEvent?: ClubEvent) {
 		{ label: "Squad selected", complete: match.selectedPlayers.length > 0, detail: `${match.selectedPlayers.length} players selected.` },
 		{ label: "Lineup locked", complete: match.isLineupLocked, detail: "Confirms the final matchday selection." },
 	];
+}
+
+export function getMatchdayWorkflow(
+	match: Match,
+	linkedEvent: ClubEvent | undefined,
+	activePlayerIds: string[],
+	now: Date
+): MatchdayWorkflow {
+	const hasFixtureDetails = Boolean(match.competition && match.location);
+	const availability = getAvailabilitySummary(linkedEvent, activePlayerIds);
+	const starterCount = match.selectedPlayers.filter(
+		(player) => player.area === "pitch"
+	).length;
+	const hasFullStartingTeam = starterCount >= 11;
+	const kickoffHasPassed = new Date(match.date).getTime() <= now.getTime();
+	const isPostponed = match.state === "postponed";
+
+	const stages: MatchdayWorkflowStage[] = [
+		{
+			id: "fixture",
+			label: "Fixture",
+			status: linkedEvent && hasFixtureDetails ? "Complete" : "Needs attention",
+			detail: !linkedEvent
+				? "Add to the club calendar"
+				: hasFixtureDetails
+					? "Calendar and details ready"
+					: "Competition or location missing",
+			tone: linkedEvent && hasFixtureDetails ? "success" : "warning",
+		},
+		{
+			id: "availability",
+			label: "Availability",
+			status: availability.complete ? "Complete" : linkedEvent ? "In progress" : "Unavailable",
+			detail: linkedEvent
+				? `${availability.available} available · ${availability.awaiting} awaiting`
+				: "Link the calendar event first",
+			tone: availability.complete ? "success" : linkedEvent ? "info" : "neutral",
+		},
+		{
+			id: "squad",
+			label: "Squad",
+			status: hasFullStartingTeam ? "Complete" : starterCount > 0 ? "In progress" : "Not started",
+			detail: `${starterCount}/11 starters · ${Math.max(match.selectedPlayers.length - starterCount, 0)} bench`,
+			tone: hasFullStartingTeam ? "success" : starterCount > 0 ? "info" : "neutral",
+		},
+		{
+			id: "lineup",
+			label: "Lineup",
+			status: match.isLineupLocked ? "Complete" : hasFullStartingTeam ? "Ready" : "Waiting for squad",
+			detail: match.isLineupLocked ? "Formation and selection locked" : "Confirm the existing team selection",
+			tone: match.isLineupLocked ? "success" : hasFullStartingTeam ? "warning" : "neutral",
+		},
+		{
+			id: "communications",
+			label: "Communications",
+			status: match.isLineupLocked ? "Ready" : "Upcoming",
+			detail: match.isLineupLocked ? "Generate the matchday post" : "Available after lineup confirmation",
+			tone: match.isLineupLocked ? "info" : "neutral",
+		},
+		{
+			id: "result",
+			label: "Result",
+			status: match.isCompleted ? "Complete" : kickoffHasPassed && !isPostponed ? "Ready" : isPostponed ? "Postponed" : "Upcoming",
+			detail: match.isCompleted
+				? "Result entered and stats unlocked"
+				: kickoffHasPassed && !isPostponed
+					? "Enter the final score"
+					: isPostponed
+						? "Awaiting a new fixture date"
+						: "Available after kickoff",
+			tone: match.isCompleted ? "success" : kickoffHasPassed && !isPostponed ? "warning" : "neutral",
+		},
+	];
+
+	return {
+		stages,
+		completedStageCount: stages.filter(
+			(stage) => stage.id !== "communications" && stage.tone === "success"
+		).length,
+		trackedStageCount: stages.filter((stage) => stage.id !== "communications").length,
+		nextAction: getNextMatchdayAction({
+			match,
+			linkedEvent,
+			availabilityComplete: availability.complete,
+			hasFullStartingTeam,
+			kickoffHasPassed,
+			isPostponed,
+		}),
+	};
+}
+
+function getAvailabilitySummary(
+	linkedEvent: ClubEvent | undefined,
+	activePlayerIds: string[]
+) {
+	const activePlayers = new Set(activePlayerIds);
+	const responses = (linkedEvent?.availabilityResponses ?? []).filter((response) =>
+		activePlayers.has(response.playerId)
+	);
+	const respondedPlayerIds = new Set(
+		responses
+			.filter((response) => response.status !== "Unanswered")
+			.map((response) => response.playerId)
+	);
+	const available = new Set(
+		responses
+			.filter((response) => response.status === "Available")
+			.map((response) => response.playerId)
+	).size;
+	const awaiting = Math.max(activePlayers.size - respondedPlayerIds.size, 0);
+
+	return {
+		available,
+		awaiting,
+		complete: Boolean(linkedEvent && activePlayers.size > 0 && awaiting === 0),
+	};
+}
+
+function getNextMatchdayAction({
+	match,
+	linkedEvent,
+	availabilityComplete,
+	hasFullStartingTeam,
+	kickoffHasPassed,
+	isPostponed,
+}: {
+	match: Match;
+	linkedEvent?: ClubEvent;
+	availabilityComplete: boolean;
+	hasFullStartingTeam: boolean;
+	kickoffHasPassed: boolean;
+	isPostponed: boolean;
+}): MatchdayWorkflow["nextAction"] {
+	if (match.isCompleted) {
+		return {
+			id: "stats",
+			label: "Review match report",
+			detail: "Complete player statistics, awards and notes using the existing match report tools.",
+		};
+	}
+
+	if (!linkedEvent) {
+		return {
+			id: "link-event",
+			label: "Add match to calendar",
+			detail: "Unlock availability responses and keep the fixture in the club calendar.",
+		};
+	}
+
+	if (!availabilityComplete && !kickoffHasPassed) {
+		return {
+			id: "availability",
+			label: "Review availability",
+			detail: "Open the linked event to see responses and follow up before selecting the squad.",
+		};
+	}
+
+	if (kickoffHasPassed && !isPostponed) {
+		return {
+			id: "result",
+			label: "Enter result",
+			detail: "Record the final score to unlock the player report and statistics.",
+		};
+	}
+
+	if (!hasFullStartingTeam) {
+		return {
+			id: "squad",
+			label: "Finish squad selection",
+			detail: "Use the existing squad selector and formation pitch below.",
+		};
+	}
+
+	if (!match.isLineupLocked) {
+		return {
+			id: "lineup",
+			label: "Confirm lineup",
+			detail: "Lock the current formation and selected players when they are final.",
+		};
+	}
+
+	if (!kickoffHasPassed && !isPostponed) {
+		return {
+			id: "communications",
+			label: "Generate matchday post",
+			detail: "Open the existing post generator with the confirmed team selection.",
+		};
+	}
+
+	return {
+		id: "stats",
+		label: "Review match report",
+		detail: "Complete player statistics, awards and notes using the existing match report tools.",
+	};
 }
 
 function getMatchTitle(match: Match) {

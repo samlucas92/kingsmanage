@@ -6,6 +6,7 @@ import {
 	buildClubCalendar,
 	getCalendarConflictIds,
 	getFixtureActions,
+	getMatchdayWorkflow,
 } from "./fixtureWorkflow";
 
 function createMatch(overrides: Partial<Match> = {}): Match {
@@ -71,5 +72,63 @@ describe("fixture workflow", () => {
 		);
 		expect(actions.some((action) => action.title.includes("calendar event missing"))).toBe(true);
 		expect(actions.some((action) => action.title.includes("squad not selected"))).toBe(true);
+	});
+
+	it("starts the matchday workflow by linking the calendar event", () => {
+		const workflow = getMatchdayWorkflow(
+			createMatch({ clubEventId: null }),
+			undefined,
+			Array.from({ length: 18 }, (_, index) => `player-${index + 1}`),
+			new Date("2026-09-01T12:00:00.000Z")
+		);
+
+		expect(workflow.nextAction.id).toBe("link-event");
+		expect(workflow.stages[0].status).toBe("Needs attention");
+	});
+
+	it("directs an upcoming linked fixture to outstanding availability", () => {
+		const workflow = getMatchdayWorkflow(
+			createMatch(),
+			createEvent({
+				availabilityResponses: [
+					{ playerId: "player-1", status: "Available", updatedAt: "2026-09-01T12:00:00.000Z" },
+				],
+			}),
+			Array.from({ length: 18 }, (_, index) => `player-${index + 1}`),
+			new Date("2026-09-01T12:00:00.000Z")
+		);
+
+		expect(workflow.nextAction.id).toBe("availability");
+		expect(workflow.stages[1].detail).toBe("1 available · 17 awaiting");
+	});
+
+	it("moves through squad, lineup and communications using existing match state", () => {
+		const completeAvailability = createEvent({
+			availabilityResponses: [
+				{ playerId: "player-1", status: "Available", updatedAt: "2026-09-01T12:00:00.000Z" },
+			],
+		});
+		const elevenStarters = Array.from({ length: 11 }, (_, index) => ({
+			playerId: `player-${index + 1}`,
+			area: "pitch" as const,
+		}));
+
+		expect(getMatchdayWorkflow(createMatch(), completeAvailability, ["player-1"], new Date("2026-09-01T12:00:00.000Z")).nextAction.id).toBe("squad");
+		expect(getMatchdayWorkflow(createMatch({ selectedPlayers: elevenStarters }), completeAvailability, ["player-1"], new Date("2026-09-01T12:00:00.000Z")).nextAction.id).toBe("lineup");
+		expect(getMatchdayWorkflow(createMatch({ selectedPlayers: elevenStarters, isLineupLocked: true }), completeAvailability, ["player-1"], new Date("2026-09-01T12:00:00.000Z")).nextAction.id).toBe("communications");
+	});
+
+	it("prioritises the result after kickoff and stats after completion", () => {
+		const elevenStarters = Array.from({ length: 11 }, (_, index) => ({
+			playerId: `player-${index + 1}`,
+			area: "pitch" as const,
+		}));
+		const match = createMatch({ selectedPlayers: elevenStarters, isLineupLocked: true });
+		const event = createEvent();
+		const afterKickoff = new Date("2026-09-05T17:00:00.000Z");
+
+		expect(getMatchdayWorkflow(match, event, [], afterKickoff).nextAction.id).toBe("result");
+		expect(getMatchdayWorkflow({ ...match, isCompleted: true, state: "won" }, event, [], afterKickoff).nextAction.id).toBe("stats");
+		expect(getMatchdayWorkflow({ ...match, selectedPlayers: [], isCompleted: true, state: "won", clubEventId: null }, undefined, [], afterKickoff).nextAction.id).toBe("stats");
 	});
 });

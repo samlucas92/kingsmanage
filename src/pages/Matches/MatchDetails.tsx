@@ -19,10 +19,15 @@ import { usePostStore } from "../../stores/posts";
 import ConfirmationModal from "../../components/compositions/ConfirmationModal";
 import { formsApi } from "../../services/formsApi";
 import type { ClubForm } from "../../types/forms";
-import { getMatchReadiness } from "../../utils/fixtureWorkflow";
 import { matchApi } from "../../services/matchApi";
 import { useMatchStore } from "../../stores/match";
 import { useEventStore } from "../../stores/events";
+import { MatchdayWorkflowCard } from "./components/match-detail/MatchdayWorkflowCard";
+import {
+	getMatchdayWorkflow,
+	type MatchdayActionId,
+	type MatchdayStageId,
+} from "../../utils/fixtureWorkflow";
 
 export default function MatchDetail() {
 	const { id } = useParams();
@@ -39,6 +44,7 @@ export default function MatchDetail() {
 	const [deleteLinkedEvent, setDeleteLinkedEvent] = useState(true);
 	const [isLinkingEvent, setIsLinkingEvent] = useState(false);
 	const [linkEventError, setLinkEventError] = useState("");
+	const [pageOpenedAt] = useState(() => new Date());
 	const players = usePlayerStore((state) => state.players);
 	const teamProfiles = useClubTeamStore((state) => state.profiles);
 	const loadTeamProfiles = useClubTeamStore((state) => state.loadProfiles);
@@ -106,8 +112,12 @@ export default function MatchDetail() {
 	}
 
 	const currentMatch = matchDetail.match;
-	const readiness = getMatchReadiness(currentMatch, matchDetail.linkedEvent);
-	const readinessComplete = readiness.filter((item) => item.complete).length;
+	const matchdayWorkflow = getMatchdayWorkflow(
+		currentMatch,
+		matchDetail.linkedEvent,
+		players.filter((player) => player.isActive).map((player) => player.id),
+		pageOpenedAt
+	);
 
 	async function handleCreateAwardsForm() {
 		setIsCreatingAwardsForm(true);
@@ -147,6 +157,73 @@ export default function MatchDetail() {
 		} finally {
 			setIsLinkingEvent(false);
 		}
+	}
+
+	function scrollToSection(sectionId: string) {
+		document.getElementById(sectionId)?.scrollIntoView({
+			behavior: "smooth",
+			block: "start",
+		});
+	}
+
+	function handleMatchdayStageSelect(stageId: MatchdayStageId) {
+		if (stageId === "availability" && matchDetail.linkedEvent) {
+			navigate(`/events/${matchDetail.linkedEvent.id}`);
+			return;
+		}
+
+		if (stageId === "communications" && currentMatch.isLineupLocked) {
+			setShowGeneratePost(true);
+			return;
+		}
+
+		const sectionByStage: Record<Exclude<MatchdayStageId, "availability">, string> = {
+			fixture: "matchday-fixture",
+			squad: "matchday-team-selection",
+			lineup: "matchday-team-selection",
+			communications: "matchday-team-selection",
+			result: "matchday-result",
+		};
+
+		if (stageId === "availability") {
+			return;
+		}
+
+		scrollToSection(sectionByStage[stageId]);
+	}
+
+	function handleMatchdayNextAction(actionId: MatchdayActionId) {
+		if (actionId === "link-event") {
+			void handleCreateLinkedEvent();
+			return;
+		}
+
+		if (actionId === "availability" && matchDetail.linkedEvent) {
+			navigate(`/events/${matchDetail.linkedEvent.id}`);
+			return;
+		}
+
+		if (actionId === "squad") {
+			scrollToSection("matchday-team-selection");
+			return;
+		}
+
+		if (actionId === "lineup") {
+			matchDetail.handleSaveTeamClick();
+			return;
+		}
+
+		if (actionId === "communications") {
+			setShowGeneratePost(true);
+			return;
+		}
+
+		if (actionId === "result") {
+			matchDetail.handleOpenResultModal();
+			return;
+		}
+
+		scrollToSection("matchday-stats");
 	}
 
 	return (
@@ -192,84 +269,70 @@ export default function MatchDetail() {
 				</div>
 			)}
 
-			<MatchHeaderCard
-				opponent={currentMatch.opponent}
-				date={currentMatch.date}
-				venue={currentMatch.venue}
-				location={currentMatch.location}
-				competition={currentMatch.competition}
-				state={currentMatch.state}
-				isCompleted={currentMatch.isCompleted}
-				onPostponeClick={() => matchDetail.setShowPostponeModal(true)}
+			<div id="matchday-fixture" className="scroll-mt-4">
+				<MatchHeaderCard
+					opponent={currentMatch.opponent}
+					date={currentMatch.date}
+					venue={currentMatch.venue}
+					location={currentMatch.location}
+					competition={currentMatch.competition}
+					state={currentMatch.state}
+					isCompleted={currentMatch.isCompleted}
+					onPostponeClick={() => matchDetail.setShowPostponeModal(true)}
+				/>
+			</div>
+
+			<MatchdayWorkflowCard
+				workflow={matchdayWorkflow}
+				isActionBusy={isLinkingEvent}
+				actionError={linkEventError}
+				onStageSelect={handleMatchdayStageSelect}
+				onNextAction={handleMatchdayNextAction}
 			/>
 
-			<section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-				<div className="flex items-start justify-between gap-4">
-					<div>
-						<h2 className="text-lg font-black text-slate-950">Match readiness</h2>
-						<p className="mt-1 text-sm text-slate-500">A factual pre-match checklist for this fixture.</p>
-					</div>
-					<span className={`rounded-full px-3 py-1 text-sm font-black ${readinessComplete === readiness.length ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
-						{readinessComplete}/{readiness.length}
-					</span>
-				</div>
-				<div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-					{readiness.map((item) => (
-						<div key={item.label} className={`rounded-xl border p-3 ${item.complete ? "border-green-200 bg-green-50" : "border-amber-200 bg-amber-50"}`}>
-							<p className={`text-sm font-black ${item.complete ? "text-green-800" : "text-amber-900"}`}>{item.complete ? "✓" : "!"} {item.label}</p>
-							<p className="mt-1 text-xs font-medium text-slate-600">{item.detail}</p>
-						</div>
-					))}
-				</div>
-				{matchDetail.linkedEvent ? (
-					<button type="button" onClick={() => navigate(`/events/${matchDetail.linkedEvent?.id}`)} className="mt-4 text-sm font-bold text-yepset-700 hover:text-yepset-900">
-						Open linked calendar event →
-					</button>
-				) : (
-					<button type="button" disabled={isLinkingEvent} onClick={() => void handleCreateLinkedEvent()} className="mt-4 rounded-xl bg-yepset-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">
-						{isLinkingEvent ? "Adding to calendar…" : "Add match to calendar"}
-					</button>
-				)}
-				{linkEventError && <p className="mt-2 text-sm font-semibold text-red-700">{linkEventError}</p>}
-			</section>
+			<div id="matchday-team-selection" className="scroll-mt-4">
+				<TeamSelectionCard
+					matchId={currentMatch.id}
+					starterCount={matchDetail.starterCount}
+					benchCount={matchDetail.benchCount}
+					totalSelectedCount={matchDetail.totalSelectedCount}
+					isLineupLocked={currentMatch.isLineupLocked}
+					getPlayerAvailabilityStatus={
+						matchDetail.getMatchPlayerAvailabilityStatus
+					}
+					getPlayerTrainingAvailability={
+						matchDetail.getPlayerTrainingAvailability
+					}
+					onSaveTeamClick={matchDetail.handleSaveTeamClick}
+					onGeneratePostClick={() => setShowGeneratePost(true)}
+					onCreateAwardsFormClick={handleCreateAwardsForm}
+					onGoToAwardsFormClick={() => matchAwardsForm && navigate(`/go/${matchAwardsForm.goCode}`)}
+					onViewAwardsFormClick={() => matchAwardsForm && navigate(`/forms/${matchAwardsForm.id}/report`)}
+					hasAwardsForm={Boolean(matchAwardsForm)}
+					isCreatingAwardsForm={isCreatingAwardsForm}
+				/>
+			</div>
 
-			<ResultCard
-				homeTeamName={matchDetail.homeTeamName}
-				awayTeamName={matchDetail.awayTeamName}
-				result={currentMatch.result}
-				state={currentMatch.state}
-				isCompleted={currentMatch.isCompleted}
-				onOpenResultModal={matchDetail.handleOpenResultModal}
-			/>
+			<div id="matchday-result" className="scroll-mt-4">
+				<ResultCard
+					homeTeamName={matchDetail.homeTeamName}
+					awayTeamName={matchDetail.awayTeamName}
+					result={currentMatch.result}
+					state={currentMatch.state}
+					isCompleted={currentMatch.isCompleted}
+					onOpenResultModal={matchDetail.handleOpenResultModal}
+				/>
+			</div>
 
-			<TeamSelectionCard
-				matchId={currentMatch.id}
-				starterCount={matchDetail.starterCount}
-				benchCount={matchDetail.benchCount}
-				totalSelectedCount={matchDetail.totalSelectedCount}
-				isLineupLocked={currentMatch.isLineupLocked}
-				getPlayerAvailabilityStatus={
-					matchDetail.getMatchPlayerAvailabilityStatus
-				}
-				getPlayerTrainingAvailability={
-					matchDetail.getPlayerTrainingAvailability
-				}
-				onSaveTeamClick={matchDetail.handleSaveTeamClick}
-				onGeneratePostClick={() => setShowGeneratePost(true)}
-				onCreateAwardsFormClick={handleCreateAwardsForm}
-				onGoToAwardsFormClick={() => matchAwardsForm && navigate(`/go/${matchAwardsForm.goCode}`)}
-				onViewAwardsFormClick={() => matchAwardsForm && navigate(`/forms/${matchAwardsForm.id}/report`)}
-				hasAwardsForm={Boolean(matchAwardsForm)}
-				isCreatingAwardsForm={isCreatingAwardsForm}
-			/>
-
-			<MatchStatsCard
-				selectedPlayers={currentMatch.selectedPlayers}
-				playerStats={currentMatch.playerStats ?? []}
-				isCompleted={currentMatch.isCompleted}
-				getPlayerName={matchDetail.getPlayerName}
-				onSavePlayerStats={matchDetail.handleSaveMatchPlayerStats}
-			/>
+			<div id="matchday-stats" className="scroll-mt-4">
+				<MatchStatsCard
+					selectedPlayers={currentMatch.selectedPlayers}
+					playerStats={currentMatch.playerStats ?? []}
+					isCompleted={currentMatch.isCompleted}
+					getPlayerName={matchDetail.getPlayerName}
+					onSavePlayerStats={matchDetail.handleSaveMatchPlayerStats}
+				/>
+			</div>
 
 			<MatchNotesCard
 				noteDraft={matchDetail.noteDraft}
