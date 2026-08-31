@@ -28,6 +28,10 @@ import {
 	type MatchdayActionId,
 	type MatchdayStageId,
 } from "../../utils/fixtureWorkflow";
+import {
+	MatchDetailSectionNav,
+	type MatchDetailSectionId,
+} from "./components/match-detail/MatchDetailSectionNav";
 
 export default function MatchDetail() {
 	const { id } = useParams();
@@ -45,6 +49,7 @@ export default function MatchDetail() {
 	const [isLinkingEvent, setIsLinkingEvent] = useState(false);
 	const [linkEventError, setLinkEventError] = useState("");
 	const [pageOpenedAt] = useState(() => new Date());
+	const [activeSection, setActiveSection] = useState<MatchDetailSectionId>("overview");
 	const players = usePlayerStore((state) => state.players);
 	const teamProfiles = useClubTeamStore((state) => state.profiles);
 	const loadTeamProfiles = useClubTeamStore((state) => state.loadProfiles);
@@ -166,6 +171,17 @@ export default function MatchDetail() {
 		});
 	}
 
+	function handleSectionSelect(sectionId: MatchDetailSectionId) {
+		setActiveSection(sectionId);
+		const sectionTargets: Record<MatchDetailSectionId, string> = {
+			overview: "matchday-fixture",
+			squad: "matchday-team-selection",
+			stats: "matchday-stats",
+			notes: "matchday-notes",
+		};
+		scrollToSection(sectionTargets[sectionId]);
+	}
+
 	function handleMatchdayStageSelect(stageId: MatchdayStageId) {
 		if (stageId === "availability" && matchDetail.linkedEvent) {
 			navigate(`/events/${matchDetail.linkedEvent.id}`);
@@ -173,6 +189,7 @@ export default function MatchDetail() {
 		}
 
 		if (stageId === "communications" && currentMatch.isLineupLocked) {
+			setActiveSection("squad");
 			setShowGeneratePost(true);
 			return;
 		}
@@ -189,6 +206,10 @@ export default function MatchDetail() {
 			return;
 		}
 
+		setActiveSection(
+			stageId === "fixture" || stageId === "result" ? "overview" : "squad"
+		);
+
 		scrollToSection(sectionByStage[stageId]);
 	}
 
@@ -204,25 +225,30 @@ export default function MatchDetail() {
 		}
 
 		if (actionId === "squad") {
+			setActiveSection("squad");
 			scrollToSection("matchday-team-selection");
 			return;
 		}
 
 		if (actionId === "lineup") {
+			setActiveSection("squad");
 			matchDetail.handleSaveTeamClick();
 			return;
 		}
 
 		if (actionId === "communications") {
+			setActiveSection("squad");
 			setShowGeneratePost(true);
 			return;
 		}
 
 		if (actionId === "result") {
+			setActiveSection("overview");
 			matchDetail.handleOpenResultModal();
 			return;
 		}
 
+		setActiveSection("stats");
 		scrollToSection("matchday-stats");
 	}
 
@@ -290,6 +316,11 @@ export default function MatchDetail() {
 				onNextAction={handleMatchdayNextAction}
 			/>
 
+			<MatchDetailSectionNav
+				activeSection={activeSection}
+				onSectionSelect={handleSectionSelect}
+			/>
+
 			<div id="matchday-team-selection" className="scroll-mt-4">
 				<TeamSelectionCard
 					matchId={currentMatch.id}
@@ -334,12 +365,14 @@ export default function MatchDetail() {
 				/>
 			</div>
 
-			<MatchNotesCard
-				noteDraft={matchDetail.noteDraft}
-				notesSaved={matchDetail.notesSaved}
-				onUpdateNoteDraft={matchDetail.updateNoteDraft}
-				onSaveNotes={matchDetail.handleSaveNotes}
-			/>
+			<div id="matchday-notes" className="scroll-mt-4">
+				<MatchNotesCard
+					noteDraft={matchDetail.noteDraft}
+					notesSaved={matchDetail.notesSaved}
+					onUpdateNoteDraft={matchDetail.updateNoteDraft}
+					onSaveNotes={matchDetail.handleSaveNotes}
+				/>
+			</div>
 
 			<PostponementAuditCard postponements={currentMatch.postponements} />
 
