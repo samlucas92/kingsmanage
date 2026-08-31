@@ -1,6 +1,4 @@
 import { loadTemplateImage } from "../socialGraphicCanvas";
-import playerTemplateWithCircle from "../../../assets/social-media/backgrounds/kingsplayertemplate.png";
-import playerTemplateWithoutCircle from "../../../assets/social-media/backgrounds/kingsplayertemplatewithoutcircle.png";
 import type {
 	SocialGraphicTemplate,
 	SocialGraphicTemplateRenderContext,
@@ -180,13 +178,18 @@ async function renderPlayerPortrait(
 		context.restore();
 	}
 
-	await withElementTransformAsync(
+	withElementTransform(
 		context,
 		playerPortraitDefaultDefinition.elements["circle-overlay"],
 		definition.elements["circle-overlay"],
-		async () => {
-			const circleOverlay = await loadCircleOverlay();
-			context.drawImage(circleOverlay, 0, 0, 1254, 1254);
+		() => {
+			context.save();
+			context.beginPath();
+			context.arc(627, 627, 615, 0, Math.PI * 2);
+			context.strokeStyle = "#ffdc00";
+			context.lineWidth = 24;
+			context.stroke();
+			context.restore();
 		}
 	);
 
@@ -234,71 +237,4 @@ async function renderPlayerPortrait(
 			)
 		);
 	}
-}
-
-let circleOverlayPromise: Promise<HTMLCanvasElement> | undefined;
-
-function loadCircleOverlay() {
-	circleOverlayPromise ??= createCircleOverlay();
-	return circleOverlayPromise;
-}
-
-async function createCircleOverlay() {
-	const [withCircle, withoutCircle] = await Promise.all([
-		loadTemplateImage(playerTemplateWithCircle),
-		loadTemplateImage(playerTemplateWithoutCircle),
-	]);
-	const width = playerPortraitDefaultDefinition.canvas.width;
-	const height = playerPortraitDefaultDefinition.canvas.height;
-	const comparisonCanvas = document.createElement("canvas");
-	comparisonCanvas.width = width;
-	comparisonCanvas.height = height;
-	const comparisonContext = comparisonCanvas.getContext("2d", {
-		willReadFrequently: true,
-	});
-	if (!comparisonContext) {
-		throw new Error("This browser cannot create the player template overlay.");
-	}
-
-	comparisonContext.drawImage(withoutCircle, 0, 0, width, height);
-	const withoutCirclePixels = comparisonContext.getImageData(0, 0, width, height);
-	comparisonContext.clearRect(0, 0, width, height);
-	comparisonContext.drawImage(withCircle, 0, 0, width, height);
-	const withCirclePixels = comparisonContext.getImageData(0, 0, width, height);
-	const overlayPixels = createDifferenceOverlayPixels(
-		withCirclePixels.data,
-		withoutCirclePixels.data
-	);
-	comparisonContext.putImageData(
-		new ImageData(overlayPixels, width, height),
-		0,
-		0
-	);
-	return comparisonCanvas;
-}
-
-export function createDifferenceOverlayPixels(
-	withOverlay: Uint8ClampedArray,
-	withoutOverlay: Uint8ClampedArray,
-	differenceThreshold = 12
-) {
-	if (withOverlay.length !== withoutOverlay.length) {
-		throw new Error("Template layers must have matching dimensions.");
-	}
-
-	const result = new Uint8ClampedArray(withOverlay.length);
-	for (let index = 0; index < withOverlay.length; index += 4) {
-		const difference = Math.max(
-			Math.abs(withOverlay[index] - withoutOverlay[index]),
-			Math.abs(withOverlay[index + 1] - withoutOverlay[index + 1]),
-			Math.abs(withOverlay[index + 2] - withoutOverlay[index + 2])
-		);
-		result[index] = withOverlay[index];
-		result[index + 1] = withOverlay[index + 1];
-		result[index + 2] = withOverlay[index + 2];
-		result[index + 3] = difference >= differenceThreshold
-			? withOverlay[index + 3]
-			: 0;
-	}
-	return result;
 }
