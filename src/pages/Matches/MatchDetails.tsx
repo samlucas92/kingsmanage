@@ -165,22 +165,8 @@ export default function MatchDetail() {
 		}
 	}
 
-	function scrollToSection(sectionId: string) {
-		document.getElementById(sectionId)?.scrollIntoView({
-			behavior: "smooth",
-			block: "start",
-		});
-	}
-
 	function handleSectionSelect(sectionId: MatchDetailSectionId) {
 		setActiveSection(sectionId);
-		const sectionTargets: Record<MatchDetailSectionId, string> = {
-			overview: "matchday-fixture",
-			squad: "matchday-team-selection",
-			stats: "matchday-stats",
-			notes: "matchday-notes",
-		};
-		scrollToSection(sectionTargets[sectionId]);
 	}
 
 	function handleMatchdayStageSelect(stageId: MatchdayStageId) {
@@ -195,14 +181,6 @@ export default function MatchDetail() {
 			return;
 		}
 
-		const sectionByStage: Record<Exclude<MatchdayStageId, "availability">, string> = {
-			fixture: "matchday-fixture",
-			squad: "matchday-team-selection",
-			lineup: "matchday-team-selection",
-			communications: "matchday-team-selection",
-			result: "matchday-result",
-		};
-
 		if (stageId === "availability") {
 			return;
 		}
@@ -210,8 +188,6 @@ export default function MatchDetail() {
 		setActiveSection(
 			stageId === "fixture" || stageId === "result" ? "overview" : "squad"
 		);
-
-		scrollToSection(sectionByStage[stageId]);
 	}
 
 	function handleMatchdayNextAction(actionId: MatchdayActionId) {
@@ -227,7 +203,6 @@ export default function MatchDetail() {
 
 		if (actionId === "squad") {
 			setActiveSection("squad");
-			scrollToSection("matchday-team-selection");
 			return;
 		}
 
@@ -250,7 +225,6 @@ export default function MatchDetail() {
 		}
 
 		setActiveSection("stats");
-		scrollToSection("matchday-stats");
 	}
 
 	return (
@@ -323,60 +297,67 @@ export default function MatchDetail() {
 				onSectionSelect={handleSectionSelect}
 			/>
 
-			<div id="matchday-team-selection" className="scroll-mt-4">
-				<TeamSelectionCard
-					matchId={currentMatch.id}
-					starterCount={matchDetail.starterCount}
-					benchCount={matchDetail.benchCount}
-					totalSelectedCount={matchDetail.totalSelectedCount}
-					isLineupLocked={currentMatch.isLineupLocked}
-					getPlayerAvailabilityStatus={
-						matchDetail.getMatchPlayerAvailabilityStatus
-					}
-					getPlayerTrainingAvailability={
-						matchDetail.getPlayerTrainingAvailability
-					}
-					onSaveTeamClick={matchDetail.handleSaveTeamClick}
-					onGeneratePostClick={() => setShowGeneratePost(true)}
-					onCreateAwardsFormClick={handleCreateAwardsForm}
-					onGoToAwardsFormClick={() => matchAwardsForm && navigate(`/go/${matchAwardsForm.goCode}`)}
-					onViewAwardsFormClick={() => matchAwardsForm && navigate(`/forms/${matchAwardsForm.id}/report`)}
-					hasAwardsForm={Boolean(matchAwardsForm)}
-					isCreatingAwardsForm={isCreatingAwardsForm}
-				/>
-			</div>
+			<div role="tabpanel" aria-label={getSectionLabel(activeSection)}>
+				{activeSection === "overview" && (
+					<div className="space-y-3 lg:space-y-6">
+						<ResultCard
+							homeTeamName={matchDetail.homeTeamName}
+							awayTeamName={matchDetail.awayTeamName}
+							result={currentMatch.result}
+							state={currentMatch.state}
+							isCompleted={currentMatch.isCompleted}
+							onOpenResultModal={matchDetail.handleOpenResultModal}
+						/>
+						<PostponementAuditCard postponements={currentMatch.postponements} />
+					</div>
+				)}
 
-			<div id="matchday-result" className="scroll-mt-4">
-				<ResultCard
-					homeTeamName={matchDetail.homeTeamName}
-					awayTeamName={matchDetail.awayTeamName}
-					result={currentMatch.result}
-					state={currentMatch.state}
-					isCompleted={currentMatch.isCompleted}
-					onOpenResultModal={matchDetail.handleOpenResultModal}
-				/>
-			</div>
+				{activeSection === "squad" && (
+					<TeamSelectionCard
+						matchId={currentMatch.id}
+						starterCount={matchDetail.starterCount}
+						benchCount={matchDetail.benchCount}
+						totalSelectedCount={matchDetail.totalSelectedCount}
+						isLineupLocked={currentMatch.isLineupLocked}
+						getPlayerAvailabilityStatus={
+							matchDetail.getMatchPlayerAvailabilityStatus
+						}
+						getPlayerTrainingAvailability={
+							matchDetail.getPlayerTrainingAvailability
+						}
+						onSaveTeamClick={matchDetail.handleSaveTeamClick}
+						onGeneratePostClick={() => setShowGeneratePost(true)}
+						onCreateAwardsFormClick={handleCreateAwardsForm}
+						onGoToAwardsFormClick={() =>
+							matchAwardsForm && navigate(`/go/${matchAwardsForm.goCode}`)
+						}
+						onViewAwardsFormClick={() =>
+							matchAwardsForm && navigate(`/forms/${matchAwardsForm.id}/report`)
+						}
+						hasAwardsForm={Boolean(matchAwardsForm)}
+						isCreatingAwardsForm={isCreatingAwardsForm}
+					/>
+				)}
 
-			<div id="matchday-stats" className="scroll-mt-4">
-				<MatchStatsCard
-					selectedPlayers={currentMatch.selectedPlayers}
-					playerStats={currentMatch.playerStats ?? []}
-					isCompleted={currentMatch.isCompleted}
-					getPlayerName={matchDetail.getPlayerName}
-					onSavePlayerStats={matchDetail.handleSaveMatchPlayerStats}
-				/>
-			</div>
+				{activeSection === "stats" && (
+					<MatchStatsCard
+						selectedPlayers={currentMatch.selectedPlayers}
+						playerStats={currentMatch.playerStats ?? []}
+						isCompleted={currentMatch.isCompleted}
+						getPlayerName={matchDetail.getPlayerName}
+						onSavePlayerStats={matchDetail.handleSaveMatchPlayerStats}
+					/>
+				)}
 
-			<div id="matchday-notes" className="scroll-mt-4">
-				<MatchNotesCard
-					noteDraft={matchDetail.noteDraft}
-					notesSaved={matchDetail.notesSaved}
-					onUpdateNoteDraft={matchDetail.updateNoteDraft}
-					onSaveNotes={matchDetail.handleSaveNotes}
-				/>
+				{activeSection === "notes" && (
+					<MatchNotesCard
+						noteDraft={matchDetail.noteDraft}
+						notesSaved={matchDetail.notesSaved}
+						onUpdateNoteDraft={matchDetail.updateNoteDraft}
+						onSaveNotes={matchDetail.handleSaveNotes}
+					/>
+				)}
 			</div>
-
-			<PostponementAuditCard postponements={currentMatch.postponements} />
 
 			<button
 				type="button"
@@ -459,4 +440,20 @@ export default function MatchDetail() {
 			</ConfirmationModal>
 		</div>
 	);
+}
+
+function getSectionLabel(sectionId: MatchDetailSectionId) {
+	if (sectionId === "squad") {
+		return "Squad and lineup";
+	}
+
+	if (sectionId === "stats") {
+		return "Match stats";
+	}
+
+	if (sectionId === "notes") {
+		return "Notes";
+	}
+
+	return "Overview";
 }
