@@ -14,6 +14,7 @@ import type {
 } from "../stores/match";
 import { FIRST_TEAM_ID, SECOND_TEAM_ID, normaliseLegacyTeamId } from "../stores/clubTeams";
 import { toUtcIsoString } from "../utils/date";
+import type { ClubEvent } from "../types/events";
 
 type MatchVenue = Match["venue"];
 
@@ -399,9 +400,12 @@ export const matchApi = {
 		return fromApiMatch(match);
 	},
 
-	createMatch: async (match: MatchFixtureInput) => {
+	createLinkedEvent: (id: string) =>
+		apiClient.post<ClubEvent>(`/matches/${id}/event`, {}),
+
+	createMatch: async (match: MatchFixtureInput, createEvent = true) => {
 		const createdMatch = await apiClient.post<ApiMatch>(
-			"/matches",
+			`/matches?createEvent=${createEvent}`,
 			toApiMatchFixture(match)
 		);
 		return fromApiMatch(createdMatch);
@@ -429,8 +433,8 @@ export const matchApi = {
 		return fromApiMatch(updatedMatch);
 	},
 
-	deleteMatch: async (id: string) => {
-		await apiClient.delete(`/matches/${id}`);
+	deleteMatch: async (id: string, linkedEvent: "delete" | "detach" = "delete") => {
+		await apiClient.delete(`/matches/${id}?linkedEvent=${linkedEvent}`);
 	},
 
 	setResult: async (id: string, result: MatchResult) => {

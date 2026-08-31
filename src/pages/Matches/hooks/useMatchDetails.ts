@@ -306,6 +306,7 @@ export function useMatchDetail(matchId?: string) {
 		getPlayerName,
 		getMatchPlayerAvailabilityStatus,
 		getPlayerTrainingAvailability,
+		linkedEvent,
 		handleSaveMatchPlayerStats,
 		deleteMatch,
 	};

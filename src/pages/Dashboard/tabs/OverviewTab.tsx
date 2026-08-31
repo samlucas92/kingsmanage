@@ -6,6 +6,8 @@ import AttentionCard from "../components/AttentionCard";
 import MatchPreview from "../components/MatchPreview";
 import LatestMessagesCard from "../components/LatestMessagesCard";
 import MobileManagerOverview from "../components/MobileManagerOverview";
+import FixtureActionInbox from "../components/FixtureActionInbox";
+import type { ClubEvent } from "../../../types/events";
 
 export default function OverviewTab({
 	activePlayersCount,
@@ -21,6 +23,8 @@ export default function OverviewTab({
 	unlockedUpcomingMatchesCount,
 	upcomingEventsCount,
 	upcomingMatchesCount,
+	matches,
+	events,
 }: {
 	activePlayersCount: number;
 	completedMatchesCount: number;
@@ -41,6 +45,8 @@ export default function OverviewTab({
 	unlockedUpcomingMatchesCount: number;
 	upcomingEventsCount: number;
 	upcomingMatchesCount: number;
+	matches: Match[];
+	events: ClubEvent[];
 }) {
 	return (
 		<>
@@ -51,6 +57,8 @@ export default function OverviewTab({
 				nextMatch={nextMatch}
 				recentMatches={recentMatches}
 			/>
+
+			<FixtureActionInbox matches={matches} events={events} />
 
 		<div className="hidden space-y-6 lg:block">
 			<div className={`grid gap-5 ${isAdmin ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>

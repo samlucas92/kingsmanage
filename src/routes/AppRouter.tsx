@@ -14,6 +14,7 @@ const AccessDenied = lazyWithRetry(() => import("../pages/AccessDenied/AccessDen
 const Billing = lazyWithRetry(() => import("../pages/Billing/Billing"));
 const ClubSetup = lazyWithRetry(() => import("../pages/ClubSetup/ClubSetup"));
 const ClubTeams = lazyWithRetry(() => import("../pages/ClubTeams/ClubTeams"));
+const ClubCalendar = lazyWithRetry(() => import("../pages/Calendar/ClubCalendar"));
 const Dashboard = lazyWithRetry(() => import("../pages/Dashboard/Dashboard"));
 const EventDetail = lazyWithRetry(() => import("../pages/Events/EventDetail"));
 const Finance = lazyWithRetry(() => import("../pages/Finance/Finance"));
@@ -74,6 +75,7 @@ export default function AppRouter() {
 
 
 						<Route element={<ProtectedRoute allowedRoles={[...managementRoles]} />}>
+							<Route path="/calendar" element={<ClubCalendar />} />
 							<Route path="/matches" element={<Matches />} />
 							<Route path="/matches/:id" element={<MatchDetail />} />
 							<Route path="/players" element={<Players />} />

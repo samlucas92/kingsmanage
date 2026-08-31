@@ -331,6 +331,7 @@ export default function EventFormModal({
 			setSecondMatchId("");
 		} else {
 			setIsRecurring(false);
+			setMatchMode("create");
 			setTitle("");
 			if (startDateTime && !hasEditedEndDateTime) {
 				setEndDateTime(addMinutesToDateTimeLocal(startDateTime, 90));

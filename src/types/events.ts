@@ -43,6 +43,7 @@ export type ClubEvent = {
 	id: string;
 	type: ClubEventType;
 	teamScope: ClubEventTeamScope;
+	teamIds?: string[];
 	title: string;
 	description: string;
 	startDateTime: string;
@@ -94,6 +95,7 @@ export type CreateEventRecurrenceRequest = {
 export type UpdateClubEventRequest = {
 	type: ClubEventType;
 	teamScope: ClubEventTeamScope;
+	teamIds?: string[];
 	title: string;
 	description: string;
 	startDateTime: string;

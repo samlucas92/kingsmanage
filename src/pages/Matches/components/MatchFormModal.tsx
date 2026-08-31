@@ -11,6 +11,7 @@ interface MatchFormModalProps {
 	venue: "home" | "away";
 	location: string;
 	competition: string;
+	createEvent: boolean;
 	error: string;
 	onClose: () => void;
 	onConfirm: () => void;
@@ -20,6 +21,7 @@ interface MatchFormModalProps {
 	onVenueChange: (value: "home" | "away") => void;
 	onLocationChange: (value: string) => void;
 	onCompetitionChange: (value: string) => void;
+	onCreateEventChange: (value: boolean) => void;
 }
 
 export function MatchFormModal({
@@ -31,6 +33,7 @@ export function MatchFormModal({
 	venue,
 	location,
 	competition,
+	createEvent,
 	error,
 	onClose,
 	onConfirm,
@@ -40,6 +43,7 @@ export function MatchFormModal({
 	onVenueChange,
 	onLocationChange,
 	onCompetitionChange,
+	onCreateEventChange,
 }: MatchFormModalProps) {
 	const profiles = useClubTeamStore((state) => state.profiles);
 	const selectableProfiles = profiles.filter((profile) => profile.isActive || profile.id === team);
@@ -79,6 +83,23 @@ export function MatchFormModal({
 						))}
 					</select>
 				</label>
+
+				{!isEditing && (
+					<label className="flex gap-3 rounded-xl border border-yepset-200 bg-yepset-50 p-3">
+						<input
+							type="checkbox"
+							checked={createEvent}
+							onChange={(event) => onCreateEventChange(event.target.checked)}
+							className="mt-0.5 h-4 w-4 rounded border-slate-300 text-yepset-700"
+						/>
+						<span>
+							<span className="block text-sm font-bold text-slate-900">Add to the club calendar</span>
+							<span className="mt-0.5 block text-xs text-slate-600">
+								Recommended. Creates the linked event used for availability, reminders and the calendar.
+							</span>
+						</span>
+					</label>
+				)}
 
 				<label className="block space-y-1">
 					<span className="text-sm font-semibold text-slate-700">Competition</span>

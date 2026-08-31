@@ -17,7 +17,8 @@ export const eventsApi = {
 	updateEvent: (id: string, request: UpdateClubEventRequest) =>
 		apiClient.put<ClubEvent>(`/events/${id}`, request),
 
-	deleteEvent: (id: string) => apiClient.delete<void>(`/events/${id}`),
+	deleteEvent: (id: string, linkedMatches: "delete" | "detach" = "delete") =>
+		apiClient.delete<void>(`/events/${id}?linkedMatches=${linkedMatches}`),
 
 	markSeen: (id: string) => apiClient.put<ClubEvent>(`/events/${id}/seen`, {}),
 

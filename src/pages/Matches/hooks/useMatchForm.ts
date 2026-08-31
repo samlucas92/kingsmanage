@@ -23,6 +23,7 @@ export function useMatchForm({
 	const [venue, setVenue] = useState<"home" | "away">("home");
 	const [location, setLocation] = useState("");
 	const [competition, setCompetition] = useState("");
+	const [createEvent, setCreateEvent] = useState(true);
 	const [formError, setFormError] = useState("");
 	const [isSavingMatch, setIsSavingMatch] = useState(false);
 
@@ -36,6 +37,7 @@ export function useMatchForm({
 		setVenue("home");
 		setLocation("");
 		setCompetition("");
+		setCreateEvent(true);
 		setFormError("");
 		setIsSavingMatch(false);
 	}
@@ -171,6 +173,7 @@ export function useMatchForm({
 		venue,
 		location,
 		competition,
+		createEvent,
 		formError,
 		openAddMatchModal,
 		openEditMatchModal,
@@ -181,6 +184,7 @@ export function useMatchForm({
 		updateVenue,
 		updateLocation,
 		updateCompetition,
+		setCreateEvent,
 		handleConfirmMatch,
 	};
 }

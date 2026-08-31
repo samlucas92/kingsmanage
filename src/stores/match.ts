@@ -107,12 +107,12 @@ type MatchStore = {
 	matchLoadError: string;
 	loadMatches: (seasonId?: string, force?: boolean) => Promise<void>;
 	loadMatch: (matchId: string, force?: boolean) => Promise<void>;
-	addMatch: (match: MatchFixtureInput) => Promise<void>;
+	addMatch: (match: MatchFixtureInput, createEvent?: boolean) => Promise<void>;
 	updateMatchFixture: (
 		matchId: string,
 		match: MatchFixtureInput
 	) => Promise<void>;
-	deleteMatch: (matchId: string) => Promise<void>;
+	deleteMatch: (matchId: string, linkedEvent?: "delete" | "detach") => Promise<void>;
 	postponeMatch: (
 		matchId: string,
 		newDate: string,
@@ -262,11 +262,11 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
 		}
 	},
 
-	addMatch: async (match) => {
+	addMatch: async (match, createEvent = true) => {
 		const createdMatch = await matchApi.createMatch({
 			...match,
 			seasonId: match.seasonId ?? getDefaultSeasonId(),
-		});
+		}, createEvent);
 
 		set((state) => ({
 			matches: replaceMatch(state.matches, createdMatch),
@@ -303,8 +303,8 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
 		}));
 	},
 
-	deleteMatch: async (matchId) => {
-		await matchApi.deleteMatch(matchId);
+	deleteMatch: async (matchId, linkedEvent = "delete") => {
+		await matchApi.deleteMatch(matchId, linkedEvent);
 		set((state) => ({
 			matches: state.matches.filter((match) => match.id !== matchId),
 		}));

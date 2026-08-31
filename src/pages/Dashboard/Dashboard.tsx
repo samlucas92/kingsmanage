@@ -367,6 +367,8 @@ export default function Dashboard() {
 						unlockedUpcomingMatchesCount={unlockedUpcomingMatches.length}
 						upcomingEventsCount={upcomingEvents.length}
 						upcomingMatchesCount={upcomingMatches.length}
+						matches={matches}
+						events={events}
 					/>
 				)
 			)}

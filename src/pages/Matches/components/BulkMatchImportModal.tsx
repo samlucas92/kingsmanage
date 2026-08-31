@@ -33,7 +33,7 @@ export function BulkMatchImportModal({
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [fileName, setFileName] = useState("");
 	const [parseResult, setParseResult] = useState<MatchImportParseResult | null>(null);
-	const [createEvents, setCreateEvents] = useState(false);
+	const [createEvents, setCreateEvents] = useState(true);
 	const [isImporting, setIsImporting] = useState(false);
 	const [importError, setImportError] = useState("");
 	const [importResult, setImportResult] = useState<BulkMatchImportResult | null>(null);

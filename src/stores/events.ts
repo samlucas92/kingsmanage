@@ -21,7 +21,7 @@ type EventsState = {
 	loadEvent: (id: string, markSeen?: boolean) => Promise<void>;
 	createEvent: (request: CreateClubEventRequest) => Promise<ClubEvent>;
 	updateEvent: (id: string, request: UpdateClubEventRequest) => Promise<ClubEvent>;
-	deleteEvent: (id: string) => Promise<void>;
+	deleteEvent: (id: string, linkedMatches?: "delete" | "detach") => Promise<void>;
 	markSeen: (id: string) => Promise<ClubEvent>;
 	setAvailability: (id: string, status: ClubEventAvailabilityStatus) => Promise<ClubEvent>;
 	setPlayerAvailability: (
@@ -144,8 +144,8 @@ export const useEventStore = create<EventsState>((set, get) => ({
 		return updatedEvent;
 	},
 
-	deleteEvent: async (id) => {
-		await eventsApi.deleteEvent(id);
+	deleteEvent: async (id, linkedMatches = "delete") => {
+		await eventsApi.deleteEvent(id, linkedMatches);
 
 		set((state) => ({
 			events: state.events.filter((event) => event.id !== id),

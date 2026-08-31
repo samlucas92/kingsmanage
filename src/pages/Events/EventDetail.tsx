@@ -15,6 +15,7 @@ import {
 	hasPlayerSeenEvent,
 } from "../../utils/events";
 import { EventAvailabilityGroup } from "./EventAvailabilityGroup";
+import EventEditModal from "./EventEditModal";
 
 export default function EventDetail() {
 	const { id } = useParams<{ id: string }>();
@@ -25,6 +26,7 @@ export default function EventDetail() {
 	const selectedEventLoadError = useEventStore((state) => state.selectedEventLoadError);
 	const loadEvent = useEventStore((state) => state.loadEvent);
 	const deleteEvent = useEventStore((state) => state.deleteEvent);
+	const updateEvent = useEventStore((state) => state.updateEvent);
 	const setPlayerAvailability = useEventStore((state) => state.setPlayerAvailability);
 	const clearSelectedEvent = useEventStore((state) => state.clearSelectedEvent);
 	const loadMatches = useMatchStore((state) => state.loadMatches);
@@ -39,6 +41,8 @@ export default function EventDetail() {
 	const [isDeletingEvent, setIsDeletingEvent] = useState(false);
 	const [deleteError, setDeleteError] = useState("");
 	const [responseFilter, setResponseFilter] = useState<ResponseChaseFilter>("all");
+	const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+	const [deleteLinkedMatches, setDeleteLinkedMatches] = useState(true);
 
 	const isManagementRole = currentUser?.role === "Admin" || currentUser?.role === "Coach";
 	const linkedPlayerId = currentUser?.playerId ?? "";
@@ -106,6 +110,7 @@ export default function EventDetail() {
 
 	function openDeleteEventModal() {
 		setDeleteError("");
+		setDeleteLinkedMatches(true);
 		setIsDeleteModalOpen(true);
 	}
 
@@ -126,7 +131,7 @@ export default function EventDetail() {
 		setDeleteError("");
 
 		try {
-			await deleteEvent(selectedEvent.id);
+			await deleteEvent(selectedEvent.id, deleteLinkedMatches ? "delete" : "detach");
 			await loadMatches(undefined, true);
 			navigate("/", { replace: true });
 		} catch (error) {
@@ -183,6 +188,7 @@ export default function EventDetail() {
 								isDeletingEvent={isDeletingEvent}
 								linkedMatches={linkedMatches}
 								onDeleteEvent={openDeleteEventModal}
+								onEditEvent={() => setIsEditModalOpen(true)}
 							/>
 						)}
 
@@ -252,11 +258,27 @@ export default function EventDetail() {
 				confirmText="Delete event"
 				isBusy={isDeletingEvent}
 				isOpen={isDeleteModalOpen}
-				message={getDeleteEventConfirmationMessage(linkedMatches.length)}
+				message={linkedMatches.length === 0 ? getDeleteEventConfirmationMessage(0) : "Choose what happens to the linked match record."}
 				onCancel={() => setIsDeleteModalOpen(false)}
 				onConfirm={handleConfirmDeleteEvent}
 				title="Delete event?"
 				variant="danger"
+			>
+				{linkedMatches.length > 0 && (
+					<div className="space-y-2">
+						<label className="flex gap-3 rounded-xl border border-red-200 bg-red-50 p-3"><input type="radio" checked={deleteLinkedMatches} onChange={() => setDeleteLinkedMatches(true)} /><span><strong className="block text-sm text-red-900">Delete event and linked match</strong><span className="text-xs text-red-700">Removes the complete fixture record.</span></span></label>
+						<label className="flex gap-3 rounded-xl border border-slate-200 p-3"><input type="radio" checked={!deleteLinkedMatches} onChange={() => setDeleteLinkedMatches(false)} /><span><strong className="block text-sm text-slate-900">Delete event only</strong><span className="text-xs text-slate-600">Keeps the match and removes its calendar link.</span></span></label>
+					</div>
+				)}
+			</ConfirmationModal>
+			<EventEditModal
+				event={selectedEvent}
+				isOpen={isEditModalOpen}
+				onClose={() => setIsEditModalOpen(false)}
+				onSave={async (request) => {
+					await updateEvent(selectedEvent.id, request);
+					await loadMatches(undefined, true);
+				}}
 			/>
 		</div>
 	);
@@ -371,16 +393,19 @@ function EventManagementActions({
 	isDeletingEvent,
 	linkedMatches,
 	onDeleteEvent,
+	onEditEvent,
 }: {
 	isDeletingEvent: boolean;
 	linkedMatches: LinkedMatchAction[];
 	onDeleteEvent: () => void;
+	onEditEvent: () => void;
 }) {
 	const teamProfiles = useClubTeamStore((state) => state.profiles);
 
 	return (
 		<div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
 			<p className="text-sm font-bold text-slate-900">Admin actions</p>
+			<button type="button" onClick={onEditEvent} className="mt-3 w-full rounded-xl border border-yepset-200 bg-white px-4 py-2 text-sm font-bold text-yepset-700 hover:bg-yepset-50">Edit event</button>
 
 			{linkedMatches.length > 0 && (
 				<div className="mt-3 space-y-2">

@@ -26,14 +26,14 @@ export default function MobileBottomNavigation({
 					{ label: "Dashboard", to: "/", icon: "dashboard" },
 					{ label: "Players", to: "/players", icon: "players" },
 					{ label: "Matches", to: "/matches", icon: "matches" },
-					{ label: "Training", to: "/training", icon: "training" },
+					{ label: "Calendar", to: "/calendar", icon: "events" },
 				]
 			: role === "Coach"
 				? [
 						{ label: "Dashboard", to: "/", icon: "dashboard" },
 						{ label: "Players", to: "/players", icon: "players" },
 						{ label: "Matches", to: "/matches", icon: "matches" },
-						{ label: "Training", to: "/training", icon: "training" },
+						{ label: "Calendar", to: "/calendar", icon: "events" },
 					]
 				: [
 						{ label: "Dashboard", to: "/", icon: "dashboard" },

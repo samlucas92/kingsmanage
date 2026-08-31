@@ -19,6 +19,10 @@ import { usePostStore } from "../../stores/posts";
 import ConfirmationModal from "../../components/compositions/ConfirmationModal";
 import { formsApi } from "../../services/formsApi";
 import type { ClubForm } from "../../types/forms";
+import { getMatchReadiness } from "../../utils/fixtureWorkflow";
+import { matchApi } from "../../services/matchApi";
+import { useMatchStore } from "../../stores/match";
+import { useEventStore } from "../../stores/events";
 
 export default function MatchDetail() {
 	const { id } = useParams();
@@ -32,10 +36,15 @@ export default function MatchDetail() {
 	const [awardsFormMessage, setAwardsFormMessage] = useState("");
 	const [awardsFormError, setAwardsFormError] = useState("");
 	const [matchAwardsForm, setMatchAwardsForm] = useState<ClubForm | null>(null);
+	const [deleteLinkedEvent, setDeleteLinkedEvent] = useState(true);
+	const [isLinkingEvent, setIsLinkingEvent] = useState(false);
+	const [linkEventError, setLinkEventError] = useState("");
 	const players = usePlayerStore((state) => state.players);
 	const teamProfiles = useClubTeamStore((state) => state.profiles);
 	const loadTeamProfiles = useClubTeamStore((state) => state.loadProfiles);
 	const createPost = usePostStore((state) => state.createPost);
+	const reloadMatch = useMatchStore((state) => state.loadMatch);
+	const loadEvents = useEventStore((state) => state.loadEvents);
 
 	useEffect(() => {
 		void loadTeamProfiles();
@@ -97,6 +106,8 @@ export default function MatchDetail() {
 	}
 
 	const currentMatch = matchDetail.match;
+	const readiness = getMatchReadiness(currentMatch, matchDetail.linkedEvent);
+	const readinessComplete = readiness.filter((item) => item.complete).length;
 
 	async function handleCreateAwardsForm() {
 		setIsCreatingAwardsForm(true);
@@ -122,6 +133,19 @@ export default function MatchDetail() {
 			);
 		} finally {
 			setIsCreatingAwardsForm(false);
+		}
+	}
+
+	async function handleCreateLinkedEvent() {
+		setIsLinkingEvent(true);
+		setLinkEventError("");
+		try {
+			await matchApi.createLinkedEvent(currentMatch.id);
+			await Promise.all([reloadMatch(currentMatch.id, true), loadEvents(true)]);
+		} catch (error) {
+			setLinkEventError(error instanceof Error ? error.message : "Could not add this match to the calendar.");
+		} finally {
+			setIsLinkingEvent(false);
 		}
 	}
 
@@ -178,6 +202,36 @@ export default function MatchDetail() {
 				isCompleted={currentMatch.isCompleted}
 				onPostponeClick={() => matchDetail.setShowPostponeModal(true)}
 			/>
+
+			<section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+				<div className="flex items-start justify-between gap-4">
+					<div>
+						<h2 className="text-lg font-black text-slate-950">Match readiness</h2>
+						<p className="mt-1 text-sm text-slate-500">A factual pre-match checklist for this fixture.</p>
+					</div>
+					<span className={`rounded-full px-3 py-1 text-sm font-black ${readinessComplete === readiness.length ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
+						{readinessComplete}/{readiness.length}
+					</span>
+				</div>
+				<div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+					{readiness.map((item) => (
+						<div key={item.label} className={`rounded-xl border p-3 ${item.complete ? "border-green-200 bg-green-50" : "border-amber-200 bg-amber-50"}`}>
+							<p className={`text-sm font-black ${item.complete ? "text-green-800" : "text-amber-900"}`}>{item.complete ? "✓" : "!"} {item.label}</p>
+							<p className="mt-1 text-xs font-medium text-slate-600">{item.detail}</p>
+						</div>
+					))}
+				</div>
+				{matchDetail.linkedEvent ? (
+					<button type="button" onClick={() => navigate(`/events/${matchDetail.linkedEvent?.id}`)} className="mt-4 text-sm font-bold text-yepset-700 hover:text-yepset-900">
+						Open linked calendar event →
+					</button>
+				) : (
+					<button type="button" disabled={isLinkingEvent} onClick={() => void handleCreateLinkedEvent()} className="mt-4 rounded-xl bg-yepset-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">
+						{isLinkingEvent ? "Adding to calendar…" : "Add match to calendar"}
+					</button>
+				)}
+				{linkEventError && <p className="mt-2 text-sm font-semibold text-red-700">{linkEventError}</p>}
+			</section>
 
 			<ResultCard
 				homeTeamName={matchDetail.homeTeamName}
@@ -276,7 +330,7 @@ export default function MatchDetail() {
 			<ConfirmationModal
 				isOpen={showDeleteConfirmation}
 				title="Delete this match?"
-				message={`This permanently removes the fixture against ${currentMatch.opponent}, including its selection, notes, result and statistics.`}
+				message={currentMatch.clubEventId ? "Choose what happens to the linked calendar event." : `This permanently removes the fixture against ${currentMatch.opponent}, including its selection, notes, result and statistics.`}
 				confirmText="Delete match"
 				variant="danger"
 				isBusy={isDeleting}
@@ -285,7 +339,7 @@ export default function MatchDetail() {
 					setIsDeleting(true);
 					setDeleteError("");
 					try {
-						await matchDetail.deleteMatch(currentMatch.id);
+						await matchDetail.deleteMatch(currentMatch.id, deleteLinkedEvent ? "delete" : "detach");
 						navigate("/matches", { replace: true });
 					} catch (reason) {
 						setDeleteError(
@@ -297,7 +351,14 @@ export default function MatchDetail() {
 						setShowDeleteConfirmation(false);
 					}
 				}}
-			/>
+			>
+				{currentMatch.clubEventId && (
+					<div className="space-y-2">
+						<label className="flex gap-3 rounded-xl border border-red-200 bg-red-50 p-3"><input type="radio" checked={deleteLinkedEvent} onChange={() => setDeleteLinkedEvent(true)} /><span><strong className="block text-sm text-red-900">Delete match and event</strong><span className="text-xs text-red-700">Removes the complete fixture from matches and the calendar.</span></span></label>
+						<label className="flex gap-3 rounded-xl border border-slate-200 p-3"><input type="radio" checked={!deleteLinkedEvent} onChange={() => setDeleteLinkedEvent(false)} /><span><strong className="block text-sm text-slate-900">Delete match only</strong><span className="text-xs text-slate-600">Keeps the event and removes its match link.</span></span></label>
+					</div>
+				)}
+			</ConfirmationModal>
 		</div>
 	);
 }

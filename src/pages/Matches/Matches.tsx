@@ -87,7 +87,10 @@ export default function Matches() {
 				...match,
 				seasonId: selectedSeasonId,
 				formationKey: defaultFormationKey,
-			});
+			}, matchForm.createEvent);
+			if (matchForm.createEvent) {
+				await loadEvents(true);
+			}
 		} catch (error) {
 			setActionError(
 				error instanceof Error ? error.message : "Could not create match."
@@ -381,6 +384,7 @@ export default function Matches() {
 				venue={matchForm.venue}
 				location={matchForm.location}
 				competition={matchForm.competition}
+				createEvent={matchForm.createEvent}
 				error={matchForm.formError}
 				onClose={matchForm.closeMatchModal}
 				onConfirm={matchForm.handleConfirmMatch}
@@ -390,6 +394,7 @@ export default function Matches() {
 				onVenueChange={matchForm.updateVenue}
 				onLocationChange={matchForm.updateLocation}
 				onCompetitionChange={matchForm.updateCompetition}
+				onCreateEventChange={matchForm.setCreateEvent}
 			/>
 
 			<BulkMatchImportModal
