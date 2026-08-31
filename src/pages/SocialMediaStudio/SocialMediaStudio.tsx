@@ -1098,7 +1098,9 @@ export default function SocialMediaStudio() {
 			selectedStaticTemplateState.definition.canvas.width,
 			showSponsors
 				? selectedStaticTemplateState.definition.canvas.height
-				: selectedStaticTemplateState.definition.canvas.sponsorFreeHeight
+				: selectedStaticTemplateState.definition.canvas.sponsorFreeHeight,
+			undefined,
+			selectedStaticTemplateElement.allowOverflow
 		);
 		changeStaticVisualTemplateElement(selectedStaticTemplateElement.id, nextBounds);
 	}
@@ -2469,16 +2471,25 @@ function clampTemplateElementBounds(
 	minimumHeight: number,
 	canvasWidth: number,
 	canvasHeight: number,
-	constraint?: TemplateElementBounds
+	constraint?: TemplateElementBounds,
+	allowOverflow = false
 ): TemplateElementBounds {
 	const left = constraint?.x ?? 0;
 	const top = constraint?.y ?? 0;
 	const right = constraint ? constraint.x + constraint.width : canvasWidth;
 	const bottom = constraint ? constraint.y + constraint.height : canvasHeight;
-	const x = Math.min(Math.max(bounds.x, left), right - minimumWidth);
-	const y = Math.min(Math.max(bounds.y, top), bottom - minimumHeight);
-	const width = Math.min(Math.max(bounds.width, minimumWidth), right - x);
-	const height = Math.min(Math.max(bounds.height, minimumHeight), bottom - y);
+	const width = allowOverflow
+		? Math.max(bounds.width, minimumWidth)
+		: Math.min(Math.max(bounds.width, minimumWidth), right - left);
+	const height = allowOverflow
+		? Math.max(bounds.height, minimumHeight)
+		: Math.min(Math.max(bounds.height, minimumHeight), bottom - top);
+	const minimumX = allowOverflow ? left - width + minimumWidth : left;
+	const maximumX = allowOverflow ? right - minimumWidth : right - width;
+	const minimumY = allowOverflow ? top - height + minimumHeight : top;
+	const maximumY = allowOverflow ? bottom - minimumHeight : bottom - height;
+	const x = Math.min(Math.max(bounds.x, minimumX), maximumX);
+	const y = Math.min(Math.max(bounds.y, minimumY), maximumY);
 	return {
 		x,
 		y,

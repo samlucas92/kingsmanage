@@ -6,6 +6,7 @@ export type StaticTemplateElement = EditableTemplateBounds & {
 	minimumWidth: number;
 	minimumHeight: number;
 	resizeMode: "both";
+	allowOverflow: boolean;
 };
 
 const labelsByTemplate: Record<string, Record<string, string>> = {
@@ -56,6 +57,10 @@ const decorativeElementsByTemplate: Record<string, Set<string>> = {
 	"player-portrait-club": new Set(["background", "circle-overlay"]),
 };
 
+const overflowElementsByTemplate: Record<string, Set<string>> = {
+	"player-portrait-club": new Set(["player-image"]),
+};
+
 export function getStaticTemplateElements(
 	templateId: string,
 	definition: EditableTemplateLayout<string>,
@@ -63,6 +68,7 @@ export function getStaticTemplateElements(
 ): StaticTemplateElement[] {
 	const labels = labelsByTemplate[templateId] ?? {};
 	const decorativeElements = decorativeElementsByTemplate[templateId] ?? new Set();
+	const overflowElements = overflowElementsByTemplate[templateId] ?? new Set();
 	return Object.entries(definition.elements)
 		.filter(([id]) =>
 			(includeSponsors || id !== "sponsor-section") &&
@@ -75,6 +81,7 @@ export function getStaticTemplateElements(
 			minimumWidth: 48,
 			minimumHeight: 32,
 			resizeMode: "both" as const,
+			allowOverflow: overflowElements.has(id),
 		}));
 }
 

@@ -4,13 +4,14 @@ import type {
 	TemplateElementBounds,
 } from "./upcomingTemplateElements";
 
-type CanvasTemplateElement = TemplateElementBounds & {
+export type CanvasTemplateElement = TemplateElementBounds & {
 	id: string;
 	label: string;
 	minimumWidth: number;
 	minimumHeight: number;
 	resizeMode?: "both" | "horizontal" | "square" | "none";
 	constraint?: TemplateElementBounds;
+	allowOverflow?: boolean;
 };
 
 type TemplateCanvasOverlayProps = {
@@ -174,7 +175,7 @@ export function TemplateCanvasOverlay({
 	);
 }
 
-function clampMovedBounds(
+export function clampMovedBounds(
 	element: CanvasTemplateElement,
 	deltaX: number,
 	deltaY: number,
@@ -189,9 +190,21 @@ function clampMovedBounds(
 	const bottom = element.constraint
 		? element.constraint.y + element.constraint.height
 		: canvasHeight;
+	const minimumX = element.allowOverflow
+		? left - element.width + element.minimumWidth
+		: left;
+	const maximumX = element.allowOverflow
+		? right - element.minimumWidth
+		: right - element.width;
+	const minimumY = element.allowOverflow
+		? top - element.height + element.minimumHeight
+		: top;
+	const maximumY = element.allowOverflow
+		? bottom - element.minimumHeight
+		: bottom - element.height;
 	return {
-		x: clamp(element.x + deltaX, left, right - element.width),
-		y: clamp(element.y + deltaY, top, bottom - element.height),
+		x: clamp(element.x + deltaX, minimumX, maximumX),
+		y: clamp(element.y + deltaY, minimumY, maximumY),
 		width: element.width,
 		height: element.height,
 	};
@@ -213,11 +226,14 @@ function clampResizedBounds(
 		: canvasHeight;
 	if (element.resizeMode === "square") {
 		const sizeDelta = Math.abs(deltaX) >= Math.abs(deltaY) ? deltaX : deltaY;
-		const size = clamp(
-			element.width + sizeDelta,
-			Math.max(element.minimumWidth, element.minimumHeight),
-			Math.min(right - element.x, bottom - element.y)
-		);
+		const minimumSize = Math.max(element.minimumWidth, element.minimumHeight);
+		const size = element.allowOverflow
+			? Math.max(element.width + sizeDelta, minimumSize)
+			: clamp(
+				element.width + sizeDelta,
+				minimumSize,
+				Math.min(right - element.x, bottom - element.y)
+			);
 		return {
 			x: element.x,
 			y: element.y,
@@ -228,18 +244,22 @@ function clampResizedBounds(
 	return {
 		x: element.x,
 		y: element.y,
-		width: clamp(
-			element.width + deltaX,
-			element.minimumWidth,
-			right - element.x
-		),
+		width: element.allowOverflow
+			? Math.max(element.width + deltaX, element.minimumWidth)
+			: clamp(
+				element.width + deltaX,
+				element.minimumWidth,
+				right - element.x
+			),
 		height: element.resizeMode === "horizontal"
 			? element.height
-			: clamp(
-				element.height + deltaY,
-				element.minimumHeight,
-				bottom - element.y
-			),
+			: element.allowOverflow
+				? Math.max(element.height + deltaY, element.minimumHeight)
+				: clamp(
+					element.height + deltaY,
+					element.minimumHeight,
+					bottom - element.y
+				),
 	};
 }
 

@@ -31,4 +31,18 @@ describe("static editable social templates", () => {
 			);
 		}
 	);
+
+	it("allows the player image to extend beyond the canvas while it remains visible", () => {
+		const adapter = staticEditableTemplateAdapters.find(
+			(candidate) => candidate.id === "player-portrait-club"
+		);
+		if (!adapter) throw new Error("Player portrait adapter is missing.");
+		const candidate = JSON.parse(adapter.defaultSource) as {
+			elements: Record<string, { y: number }>;
+		};
+		candidate.elements["player-image"].y = 200;
+
+		expect(adapter.parse(JSON.stringify(candidate)).elements["player-image"].y)
+			.toBe(200);
+	});
 });

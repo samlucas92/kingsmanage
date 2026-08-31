@@ -16,5 +16,7 @@ describe("static player portrait canvas elements", () => {
 			"player-name",
 			"shirt-number",
 		]);
+		expect(elements.find((element) => element.id === "player-image")?.allowOverflow)
+			.toBe(true);
 	});
 });

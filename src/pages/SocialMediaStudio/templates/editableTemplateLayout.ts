@@ -17,7 +17,8 @@ export type EditableTemplateLayout<ElementId extends string> = {
 
 export function parseEditableTemplateLayout<ElementId extends string>(
 	source: string,
-	defaults: EditableTemplateLayout<ElementId>
+	defaults: EditableTemplateLayout<ElementId>,
+	options: { overflowElementIds?: readonly ElementId[] } = {}
 ): EditableTemplateLayout<ElementId> {
 	let candidate: unknown;
 	try {
@@ -58,8 +59,22 @@ export function parseEditableTemplateLayout<ElementId extends string>(
 			width: positiveNumber(value.width, `elements.${id}.width`),
 			height: positiveNumber(value.height, `elements.${id}.height`),
 		};
-		if (bounds.x < 0 || bounds.y < 0 || bounds.x + bounds.width > canvas.width || bounds.y + bounds.height > canvas.height) {
-			throw new Error(`elements.${id} must stay within the canvas.`);
+		const canOverflow = options.overflowElementIds?.includes(id) ?? false;
+		const isOutsideCanvas = bounds.x >= canvas.width ||
+			bounds.y >= canvas.height ||
+			bounds.x + bounds.width <= 0 ||
+			bounds.y + bounds.height <= 0;
+		if (canOverflow ? isOutsideCanvas : (
+			bounds.x < 0 ||
+			bounds.y < 0 ||
+			bounds.x + bounds.width > canvas.width ||
+			bounds.y + bounds.height > canvas.height
+		)) {
+			throw new Error(
+				canOverflow
+					? `elements.${id} must overlap the canvas.`
+					: `elements.${id} must stay within the canvas.`
+			);
 		}
 		elements[id] = bounds;
 	}
