@@ -185,6 +185,8 @@ export function getDefaultHeadline(kind: SocialGraphicKind) {
 	switch (kind) {
 		case "blank":
 			return "";
+		case "playerPortrait":
+			return "Player portrait";
 		case "fixture":
 			return "Matchday";
 		case "result":
@@ -201,6 +203,8 @@ export function getGraphicKindLabel(kind: SocialGraphicKind) {
 	switch (kind) {
 		case "blank":
 			return "Blank canvas";
+		case "playerPortrait":
+			return "Player portrait";
 		case "fixture":
 			return "Single fixture";
 		case "result":

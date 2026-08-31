@@ -26,6 +26,13 @@ const labelsByTemplate: Record<string, Record<string, string>> = {
 		"match-details": "Date, time and location",
 		"sponsor-section": "Sponsor section",
 	},
+	"player-portrait-club": {
+		background: "Portrait background",
+		"player-image": "Player image",
+		"circle-overlay": "Circle overlay",
+		"player-name": "Player name",
+		"shirt-number": "Shirt number",
+	},
 	"result-editorial-gold": {
 		"section-heading": "Competition heading",
 		headline: "Result headline",

@@ -2,6 +2,7 @@ import type { SocialGraphicTemplate } from "./types";
 import { blankEditorialTemplate } from "./templates/blankEditorialTemplate";
 import { matchdayEditorialTemplate } from "./templates/matchdayEditorialTemplate";
 import { lineupEditorialTemplate } from "./templates/lineupEditorialTemplate";
+import { playerPortraitTemplate } from "./templates/playerPortraitTemplate";
 import { resultEditorialTemplate } from "./templates/resultEditorialTemplate";
 import { upcomingEditorialTemplate } from "./templates/upcomingEditorialTemplate";
 
@@ -9,6 +10,7 @@ import { upcomingEditorialTemplate } from "./templates/upcomingEditorialTemplate
 // to this registry when it is ready to appear in the Social Media Studio.
 export const socialGraphicTemplates: SocialGraphicTemplate[] = [
 	blankEditorialTemplate,
+	playerPortraitTemplate,
 	upcomingEditorialTemplate,
 	matchdayEditorialTemplate,
 	lineupEditorialTemplate,

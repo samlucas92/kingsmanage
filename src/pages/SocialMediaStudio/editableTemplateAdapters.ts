@@ -24,6 +24,14 @@ import {
 } from "./templates/matchdayEditorialTemplate";
 import type { MatchdayEditorialTemplateDefinition } from "./templates/matchdayEditorialTemplate";
 import {
+	createPlayerPortraitTemplate,
+	parsePlayerPortraitDefinition,
+	playerPortraitDefaultDefinition,
+	playerPortraitDefaultSource,
+	serializePlayerPortraitDefinition,
+} from "./templates/playerPortraitTemplate";
+import type { PlayerPortraitTemplateDefinition } from "./templates/playerPortraitTemplate";
+import {
 	createResultEditorialTemplate,
 	parseResultEditorialDefinition,
 	resultEditorialDefaultDefinition,
@@ -35,6 +43,7 @@ import type { ResultEditorialTemplateDefinition } from "./templates/resultEditor
 export type StaticEditableTemplateDefinition =
 	| BlankEditorialTemplateDefinition
 	| MatchdayEditorialTemplateDefinition
+	| PlayerPortraitTemplateDefinition
 	| ResultEditorialTemplateDefinition
 	| LineupEditorialTemplateDefinition;
 
@@ -58,6 +67,18 @@ export const staticEditableTemplateAdapters: StaticEditableTemplateAdapter[] = [
 		),
 		create: (definition) => createBlankEditorialTemplate(
 			definition as BlankEditorialTemplateDefinition
+		),
+	},
+	{
+		id: "player-portrait-club",
+		defaultDefinition: playerPortraitDefaultDefinition,
+		defaultSource: playerPortraitDefaultSource,
+		parse: parsePlayerPortraitDefinition,
+		serialize: (definition) => serializePlayerPortraitDefinition(
+			definition as PlayerPortraitTemplateDefinition
+		),
+		create: (definition) => createPlayerPortraitTemplate(
+			definition as PlayerPortraitTemplateDefinition
 		),
 	},
 	{

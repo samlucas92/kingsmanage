@@ -1,8 +1,10 @@
 import type { SocialGraphicAsset } from "./types";
 import kingsbridgeColtsLogo from "../../assets/social-media/logos/Kings.png";
+import kingsbridgePlayerBackground from "../../assets/social-media/backgrounds/kingsplayertemplatewithoutcircle.png";
 
 export type SocialGraphicAssetManifest = {
 	teamLogos: SocialGraphicAsset[];
+	portraitBackgrounds: SocialGraphicAsset[];
 	featuredImages: SocialGraphicAsset[];
 	sponsors: SocialGraphicAsset[];
 };
@@ -17,6 +19,13 @@ export const socialGraphicAssetManifest: SocialGraphicAssetManifest = {
 			id: "kingsbridge-colts",
 			name: "Kingsbridge Colts",
 			source: kingsbridgeColtsLogo,
+		},
+	],
+	portraitBackgrounds: [
+		{
+			id: "kingsbridge-player-background",
+			name: "Kingsbridge player background",
+			source: kingsbridgePlayerBackground,
 		},
 	],
 	featuredImages: [],

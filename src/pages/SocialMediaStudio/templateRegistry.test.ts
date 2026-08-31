@@ -38,6 +38,12 @@ describe("social graphic template registry", () => {
 				supportedKinds: ["blank"],
 			}),
 			expect.objectContaining({
+				id: "player-portrait-club",
+				width: 1254,
+				height: 1254,
+				supportedKinds: ["playerPortrait"],
+			}),
+			expect.objectContaining({
 				id: "upcoming-editorial-gold",
 				width: 1365,
 				height: 1651,
@@ -65,7 +71,9 @@ describe("social graphic template registry", () => {
 	});
 
 	it("makes the complete sponsor area optional", () => {
-		socialGraphicTemplates.filter((template) => template.id !== "blank-editorial-gold").forEach((template) => {
+		socialGraphicTemplates.filter((template) =>
+			!["blank-editorial-gold", "player-portrait-club"].includes(template.id)
+		).forEach((template) => {
 			const sponsorToggle = template.fields?.find(
 				(field) => field.id === "showSponsors"
 			);

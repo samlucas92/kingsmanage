@@ -78,6 +78,7 @@ import type {
 
 const graphicKinds: SocialGraphicKind[] = [
 	"blank",
+	"playerPortrait",
 	"upcomingFixtures",
 	"fixture",
 	"lineup",
@@ -143,17 +144,22 @@ export default function SocialMediaStudio() {
 	const [selectedFixtureId, setSelectedFixtureId] = useState("");
 	const [selectedLineupId, setSelectedLineupId] = useState("");
 	const [selectedResultId, setSelectedResultId] = useState("");
+	const [selectedPortraitPlayerId, setSelectedPortraitPlayerId] = useState("");
 	const [headline, setHeadline] = useState(getDefaultHeadline(kind));
 	const [footer, setFooter] = useState("");
 	const [clubHandle, setClubHandle] = useState("");
 	const [templateFieldValues, setTemplateFieldValues] = useState<Record<string, string | boolean>>({});
 	const [homeTeamLogoId, setHomeTeamLogoId] = useState("");
 	const [awayTeamLogoId, setAwayTeamLogoId] = useState("");
+	const [backgroundImageId, setBackgroundImageId] = useState("");
 	const [featuredImageId, setFeaturedImageId] = useState("");
 	const [sponsorIds, setSponsorIds] = useState(["", "", ""]);
 	const [fixtureOverrides, setFixtureOverrides] = useState<Record<string, SocialFixtureOverride>>({});
 	const [lineupOverrides, setLineupOverrides] = useState<Record<string, SocialLineup>>({});
 	const [temporaryAssets, setTemporaryAssets] = useState<Record<string, SocialGraphicAsset>>({});
+	const [originalPortraitFile, setOriginalPortraitFile] = useState<File | null>(null);
+	const [backgroundRemovalTolerance, setBackgroundRemovalTolerance] = useState(54);
+	const [isRemovingBackground, setIsRemovingBackground] = useState(false);
 	const [isRendering, setIsRendering] = useState(false);
 	const [actionMessage, setActionMessage] = useState("");
 	const [actionError, setActionError] = useState("");
@@ -217,12 +223,14 @@ export default function SocialMediaStudio() {
 			if (typeof state.selectedFixtureId === "string") setSelectedFixtureId(state.selectedFixtureId);
 			if (typeof state.selectedLineupId === "string") setSelectedLineupId(state.selectedLineupId);
 			if (typeof state.selectedResultId === "string") setSelectedResultId(state.selectedResultId);
+			if (typeof state.selectedPortraitPlayerId === "string") setSelectedPortraitPlayerId(state.selectedPortraitPlayerId);
 			if (typeof state.headline === "string") setHeadline(state.headline);
 			if (typeof state.footer === "string") setFooter(state.footer);
 			if (typeof state.clubHandle === "string") setClubHandle(state.clubHandle);
 			if (isRecord(state.templateFieldValues)) setTemplateFieldValues(state.templateFieldValues as Record<string, string | boolean>);
 			if (typeof state.homeTeamLogoId === "string") setHomeTeamLogoId(state.homeTeamLogoId);
 			if (typeof state.awayTeamLogoId === "string") setAwayTeamLogoId(state.awayTeamLogoId);
+			if (typeof state.backgroundImageId === "string") setBackgroundImageId(state.backgroundImageId);
 			if (typeof state.featuredImageId === "string") setFeaturedImageId(state.featuredImageId);
 			if (Array.isArray(state.sponsorIds)) setSponsorIds([...state.sponsorIds.filter((id): id is string => typeof id === "string"), "", "", ""].slice(0, 3));
 			if (isRecord(state.fixtureOverrides)) setFixtureOverrides(state.fixtureOverrides as Record<string, SocialFixtureOverride>);
@@ -441,6 +449,15 @@ export default function SocialMediaStudio() {
 	const effectiveResultId = completedMatches.some((match) => match.id === selectedResultId)
 		? selectedResultId
 		: completedMatches[0]?.id ?? "";
+	const activePlayers = useMemo(
+		() => players.filter((player) => player.isActive),
+		[players]
+	);
+	const effectivePortraitPlayerId = activePlayers.some(
+		(player) => player.id === selectedPortraitPlayerId
+	)
+		? selectedPortraitPlayerId
+		: "";
 	const selectedSingleMatch = kind === "result"
 		? completedMatches.find((match) => match.id === effectiveResultId)
 		: kind === "lineup"
@@ -583,6 +600,12 @@ export default function SocialMediaStudio() {
 			awayTeamLogoFallbackIndex,
 			temporaryAssets.awayTeamLogo
 		),
+		backgroundImage: findSelectedAsset(
+			socialGraphicAssetManifest.portraitBackgrounds,
+			backgroundImageId,
+			0,
+			temporaryAssets.backgroundImage
+		),
 		featuredImage: findSelectedAsset(
 			socialGraphicAssetManifest.featuredImages,
 			featuredImageId,
@@ -601,6 +624,7 @@ export default function SocialMediaStudio() {
 	}), [
 		homeTeamLogoId,
 		awayTeamLogoId,
+		backgroundImageId,
 		featuredImageId,
 		sponsorIds,
 		temporaryAssets,
@@ -610,7 +634,7 @@ export default function SocialMediaStudio() {
 	]);
 
 	const selectedMatches = useMemo(() => {
-		if (kind === "blank") return [];
+		if (kind === "blank" || kind === "playerPortrait") return [];
 
 		if (kind === "upcomingFixtures") {
 			const selectedIds = new Set(effectiveUpcomingIds);
@@ -724,6 +748,17 @@ export default function SocialMediaStudio() {
 		setTemplateFieldValues({});
 		setActionMessage("");
 		setActionError("");
+	}
+
+	function handlePortraitPlayerChange(playerId: string) {
+		setSelectedPortraitPlayerId(playerId);
+		const player = activePlayers.find((candidate) => candidate.id === playerId);
+		if (!player) return;
+		setTemplateFieldValues((current) => ({
+			...current,
+			playerName: player.name,
+			shirtNumber: String(player.number),
+		}));
 	}
 
 	function setTemplateField(fieldId: string, value: string | boolean) {
@@ -1206,6 +1241,45 @@ export default function SocialMediaStudio() {
 		selectAsset(asset.id);
 	}
 
+	function handlePortraitPhotoUpload(file: File) {
+		setOriginalPortraitFile(file);
+		setTemporaryImage("featuredImage", file, setFeaturedImageId);
+		setActionError("");
+		setActionMessage("Player photo added. Remove its background or position it as-is.");
+	}
+
+	async function handleRemovePortraitBackground() {
+		if (!originalPortraitFile || isRemovingBackground) return;
+
+		try {
+			setIsRemovingBackground(true);
+			setActionError("");
+			setActionMessage("Removing the edge-connected background locally…");
+			const { removeImageBackground } = await import("./backgroundRemoval");
+			const cutout = await removeImageBackground(originalPortraitFile, {
+				tolerance: backgroundRemovalTolerance,
+			});
+			setTemporaryImage("featuredImage", cutout, setFeaturedImageId);
+			setActionMessage("Background removed. Use the canvas editor to position the player.");
+		} catch (error) {
+			setActionMessage("");
+			setActionError(
+				error instanceof Error
+					? error.message
+					: "The player background could not be removed."
+			);
+		} finally {
+			setIsRemovingBackground(false);
+		}
+	}
+
+	function restoreOriginalPortraitPhoto() {
+		if (!originalPortraitFile) return;
+		setTemporaryImage("featuredImage", originalPortraitFile, setFeaturedImageId);
+		setActionError("");
+		setActionMessage("Original player photo restored.");
+	}
+
 	async function handleCopyImage() {
 		if (!canvasRef.current || !selectedTemplate) return;
 
@@ -1235,8 +1309,9 @@ export default function SocialMediaStudio() {
 		}
 	}
 
-	const hasRequiredMatch = kind === "blank" || content.fixtures.length > 0;
-	const exportDisabled = !selectedTemplate || !hasRequiredMatch || isRendering;
+	const hasRequiredMatch = kind === "blank" || kind === "playerPortrait" || content.fixtures.length > 0;
+	const hasRequiredImage = kind !== "playerPortrait" || Boolean(selectedAssets.featuredImage);
+	const exportDisabled = !selectedTemplate || !hasRequiredMatch || !hasRequiredImage || isRendering;
 	const editorStateJson = JSON.stringify({
 		kind,
 		selectedTemplateId: effectiveTemplateId,
@@ -1244,12 +1319,14 @@ export default function SocialMediaStudio() {
 		selectedFixtureId: effectiveFixtureId,
 		selectedLineupId: effectiveLineupId,
 		selectedResultId: effectiveResultId,
+		selectedPortraitPlayerId: effectivePortraitPlayerId,
 		headline,
 		footer,
 		clubHandle,
 		templateFieldValues,
 		homeTeamLogoId,
 		awayTeamLogoId,
+		backgroundImageId,
 		featuredImageId,
 		sponsorIds,
 		fixtureOverrides,
@@ -1290,7 +1367,7 @@ export default function SocialMediaStudio() {
 				<div>
 					<h1 className="text-2xl font-bold text-slate-900">Social Media Studio</h1>
 					<p className="mt-1 text-sm text-slate-600">
-						Turn club fixtures and results into ready-to-post artwork.
+						Create ready-to-post content and reusable club artwork.
 					</p>
 				</div>
 				<div className="flex flex-wrap items-center gap-2">
@@ -1302,7 +1379,7 @@ export default function SocialMediaStudio() {
 				</div>
 			</header>
 
-			<div className="grid grid-cols-2 gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm sm:grid-cols-5" role="tablist" aria-label="Graphic type">
+			<div className="grid grid-cols-2 gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm sm:grid-cols-3 xl:grid-cols-6" role="tablist" aria-label="Graphic type">
 				{graphicKinds.map((graphicKind) => (
 					<button
 						key={graphicKind}
@@ -1477,6 +1554,27 @@ export default function SocialMediaStudio() {
 								<p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 text-xs leading-5 text-slate-600">
 									Start with the branded background, then add only the text and images you need below.
 								</p>
+							) : kind === "playerPortrait" ? (
+								<div className="space-y-3">
+									<p className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2.5 text-xs leading-5 text-sky-900">
+										Choose a player to prefill their name and number, then add their photo in the Images section.
+									</p>
+									<label className="block text-sm font-semibold text-slate-700">
+										Player
+										<select
+											value={effectivePortraitPlayerId}
+											onChange={(event) => handlePortraitPlayerChange(event.target.value)}
+											className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm"
+										>
+											<option value="">Custom / no linked player</option>
+											{activePlayers.map((player) => (
+												<option key={player.id} value={player.id}>
+													{player.name} · #{player.number}
+												</option>
+											))}
+										</select>
+									</label>
+								</div>
 							) : kind === "upcomingFixtures" ? (
 								<UpcomingFixturePicker
 									fixtures={upcomingMatches.map((match) => toSocialFixture(match, teamProfiles, players))}
@@ -1515,7 +1613,7 @@ export default function SocialMediaStudio() {
 								/>
 							)}
 
-							{kind !== "blank" && (
+							{kind !== "blank" && kind !== "playerPortrait" && (
 								<>
 									<label className="block text-sm font-semibold text-slate-700">
 										Headline
@@ -1562,12 +1660,47 @@ export default function SocialMediaStudio() {
 					{selectedTemplate && (
 						<section className="mt-5 border-t border-slate-200 pt-5">
 							<div className="flex items-center justify-between gap-3">
-								<h2 className="text-base font-bold text-slate-900">Bundled images</h2>
-								<span className="text-xs font-semibold text-slate-500">Source controlled</span>
+								<h2 className="text-base font-bold text-slate-900">Images</h2>
+								<span className="text-xs font-semibold text-slate-500">
+									{kind === "playerPortrait" ? "Processed in your browser" : "Source controlled or temporary"}
+								</span>
 							</div>
 							<div className="mt-3 space-y-3">
-								<AssetPicker label={kind === "blank" || kind === "upcomingFixtures" || kind === "lineup" ? "Club logo" : "Home team logo"} assets={socialGraphicAssetManifest.teamLogos} value={homeTeamLogoId} fallbackIndex={homeTeamLogoFallbackIndex} temporaryAsset={temporaryAssets.homeTeamLogo} onChange={setHomeTeamLogoId} onTemporaryImage={(file) => setTemporaryImage("homeTeamLogo", file, setHomeTeamLogoId)} />
-								{kind !== "blank" && kind !== "upcomingFixtures" && kind !== "lineup" && <AssetPicker label="Away team logo" assets={socialGraphicAssetManifest.teamLogos} value={awayTeamLogoId} fallbackIndex={awayTeamLogoFallbackIndex} temporaryAsset={temporaryAssets.awayTeamLogo} onChange={setAwayTeamLogoId} onTemporaryImage={(file) => setTemporaryImage("awayTeamLogo", file, setAwayTeamLogoId)} />}
+								{kind !== "playerPortrait" && <AssetPicker label={kind === "blank" || kind === "upcomingFixtures" || kind === "lineup" ? "Club logo" : "Home team logo"} assets={socialGraphicAssetManifest.teamLogos} value={homeTeamLogoId} fallbackIndex={homeTeamLogoFallbackIndex} temporaryAsset={temporaryAssets.homeTeamLogo} onChange={setHomeTeamLogoId} onTemporaryImage={(file) => setTemporaryImage("homeTeamLogo", file, setHomeTeamLogoId)} />}
+								{kind !== "blank" && kind !== "playerPortrait" && kind !== "upcomingFixtures" && kind !== "lineup" && <AssetPicker label="Away team logo" assets={socialGraphicAssetManifest.teamLogos} value={awayTeamLogoId} fallbackIndex={awayTeamLogoFallbackIndex} temporaryAsset={temporaryAssets.awayTeamLogo} onChange={setAwayTeamLogoId} onTemporaryImage={(file) => setTemporaryImage("awayTeamLogo", file, setAwayTeamLogoId)} />}
+								{kind === "playerPortrait" && (
+									<>
+										<AssetPicker label="Portrait background" uploadLabel="Use a different background for this graphic" assets={socialGraphicAssetManifest.portraitBackgrounds} value={backgroundImageId} fallbackIndex={0} temporaryAsset={temporaryAssets.backgroundImage} onChange={setBackgroundImageId} onTemporaryImage={(file) => setTemporaryImage("backgroundImage", file, setBackgroundImageId)} />
+										<AssetPicker label="Player photo" emptyLabel="Add a player photo" uploadLabel="Upload or replace player photo" assets={socialGraphicAssetManifest.featuredImages} value={featuredImageId} fallbackIndex={-1} temporaryAsset={temporaryAssets.featuredImage} onChange={setFeaturedImageId} onTemporaryImage={handlePortraitPhotoUpload} />
+										{temporaryAssets.featuredImage && (
+											<div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+												<div className="flex gap-3">
+													<div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-lg border border-slate-200 bg-[linear-gradient(45deg,#e2e8f0_25%,transparent_25%),linear-gradient(-45deg,#e2e8f0_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#e2e8f0_75%),linear-gradient(-45deg,transparent_75%,#e2e8f0_75%)] bg-[length:14px_14px] bg-[position:0_0,0_7px,7px_-7px,-7px_0]">
+														<img src={temporaryAssets.featuredImage.source} alt="Current player cutout" className="h-full w-full object-contain" />
+													</div>
+													<div className="min-w-0 flex-1">
+														<p className="text-sm font-bold text-slate-900">Quick background removal</p>
+														<p className="mt-1 text-xs leading-5 text-slate-600">
+															Runs locally and removes similar colours connected to the photo edges. Plain or contrasting backgrounds give the cleanest cutout.
+														</p>
+													</div>
+												</div>
+												<label className="mt-3 block text-xs font-bold text-slate-700">
+													Removal strength · {backgroundRemovalTolerance}
+													<input type="range" min="28" max="92" step="2" value={backgroundRemovalTolerance} onChange={(event) => setBackgroundRemovalTolerance(Number(event.target.value))} className="mt-2 w-full accent-yepset-700" />
+												</label>
+												<div className="mt-3 flex flex-wrap gap-2">
+													<button type="button" onClick={() => void handleRemovePortraitBackground()} disabled={!originalPortraitFile || isRemovingBackground} className="btn-primary px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-45">
+														{isRemovingBackground ? "Removing background…" : "Remove background"}
+													</button>
+													<button type="button" onClick={restoreOriginalPortraitPhoto} disabled={!originalPortraitFile || isRemovingBackground} className="btn-secondary px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-45">
+														Restore original
+													</button>
+												</div>
+											</div>
+										)}
+									</>
+								)}
 								{(kind === "blank" || kind === "result") && <AssetPicker label={kind === "blank" ? "Main image" : "Player of the Match image"} assets={socialGraphicAssetManifest.featuredImages} value={featuredImageId} fallbackIndex={0} temporaryAsset={temporaryAssets.featuredImage} onChange={setFeaturedImageId} onTemporaryImage={(file) => setTemporaryImage("featuredImage", file, setFeaturedImageId)} />}
 								{showSponsors && [0, 1, 2].map((index) => (
 									<AssetPicker key={index} label={`Sponsor ${index + 1}`} emptyLabel="No sponsor" uploadLabel="Replace sponsor image" emptyUploadLabel="Add sponsor image" preferDirectUploadWhenEmpty assets={socialGraphicAssetManifest.sponsors} value={sponsorIds[index] ?? ""} fallbackIndex={index} temporaryAsset={temporaryAssets[`sponsor:${index}`]} onChange={(assetId) => setSponsorId(index, assetId)} onTemporaryImage={(file) => setTemporaryImage(`sponsor:${index}`, file, (assetId) => setSponsorId(index, assetId))} />

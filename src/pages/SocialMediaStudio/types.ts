@@ -1,6 +1,12 @@
 import type { MatchResult } from "../../stores/match";
 
-export type SocialGraphicKind = "blank" | "upcomingFixtures" | "fixture" | "lineup" | "result";
+export type SocialGraphicKind =
+	| "blank"
+	| "playerPortrait"
+	| "upcomingFixtures"
+	| "fixture"
+	| "lineup"
+	| "result";
 
 export type SocialGraphicAsset = {
 	id: string;
@@ -11,6 +17,7 @@ export type SocialGraphicAsset = {
 export type SocialGraphicAssetSelection = {
 	homeTeamLogo?: SocialGraphicAsset;
 	awayTeamLogo?: SocialGraphicAsset;
+	backgroundImage?: SocialGraphicAsset;
 	featuredImage?: SocialGraphicAsset;
 	sponsors: Array<SocialGraphicAsset | undefined>;
 };
