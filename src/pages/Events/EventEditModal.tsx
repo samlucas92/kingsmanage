@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 
 import type { ClubEvent, UpdateClubEventRequest } from "../../types/events";
 import { formatDateForInput } from "../../utils/date";
+import LocationPicker from "../../components/locations/LocationPicker";
 
 export default function EventEditModal({
 	event,
@@ -83,7 +84,11 @@ export default function EventEditModal({
 					<Field label="Starts"><input type="datetime-local" value={start} onChange={(value) => setStart(value.target.value)} className="w-full rounded-lg border px-3 py-2" /></Field>
 					<Field label="Ends"><input type="datetime-local" value={end} onChange={(value) => setEnd(value.target.value)} className="w-full rounded-lg border px-3 py-2" /></Field>
 				</div>
-				<Field label="Location"><input value={location} onChange={(value) => setLocation(value.target.value)} className="w-full rounded-lg border px-3 py-2" /></Field>
+				<LocationPicker
+					value={location}
+					onChange={setLocation}
+					required={event.type === "Match"}
+				/>
 				<button type="submit" disabled={isSaving} className="w-full rounded-xl bg-yepset-700 px-4 py-3 text-sm font-black text-white disabled:opacity-60">{isSaving ? "Saving…" : "Save changes"}</button>
 			</form>
 		</div>

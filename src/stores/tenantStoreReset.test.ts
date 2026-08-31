@@ -7,6 +7,7 @@ import { useHistoricalStatsStore } from "./historicalStats";
 import { useMatchStore } from "./match";
 import { useMessageStore } from "./messages";
 import { useNotificationStore } from "./notifications";
+import { useOrganizationLocationsStore } from "./organizationLocations";
 import { usePlayerStore, type Player } from "./players";
 import { usePostStore } from "./posts";
 import { useSeasonStore } from "./seasons";
@@ -36,6 +37,7 @@ describe("resetTenantStores", () => {
 		usePostStore.setState({ posts: [{ id: "previous-post" } as never], hasLoadedPosts: true });
 		useMessageStore.setState({ threads: [{ thread: { id: "previous-thread" } } as never] });
 		useNotificationStore.setState({ notifications: [{ id: "previous-notification" } as never], hasLoadedNotifications: true });
+		useOrganizationLocationsStore.setState({ locations: [{ id: "previous-location" } as never], hasLoaded: true });
 		useClubTeamStore.setState({ profiles: [{ id: "previous-team" } as never], hasLoaded: true });
 
 		resetTenantStores();
@@ -51,6 +53,7 @@ describe("resetTenantStores", () => {
 		expect(usePostStore.getState()).toMatchObject({ posts: [], hasLoadedPosts: false });
 		expect(useMessageStore.getState()).toMatchObject({ threads: [], messages: [] });
 		expect(useNotificationStore.getState()).toMatchObject({ notifications: [], hasLoadedNotifications: false });
+		expect(useOrganizationLocationsStore.getState()).toMatchObject({ locations: [], hasLoaded: false });
 		expect(useClubTeamStore.getState()).toMatchObject({ hasLoaded: false });
 		expect(usePlayerStore.getState().loadPlayers).toBeTypeOf("function");
 	});

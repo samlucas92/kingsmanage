@@ -1,4 +1,5 @@
 import Modal from "../../../components/compositions/Modal";
+import LocationPicker from "../../../components/locations/LocationPicker";
 import type { ClubTeam } from "../../../stores/match";
 import { useClubTeamStore } from "../../../stores/clubTeams";
 
@@ -172,18 +173,11 @@ export function MatchFormModal({
 					</select>
 				</label>
 
-				<label className="block space-y-1">
-					<span className="text-sm font-semibold text-slate-700">Location</span>
-					<input
-						value={location}
-						onChange={(event) => onLocationChange(event.target.value)}
-						className="w-full rounded-lg border px-3 py-2"
-						placeholder="e.g. The Rec, Kingsbridge SA4 6RP"
-					/>
-					<span className="text-xs text-slate-500">
-						Enter the venue name or address used for directions in matchday posts.
-					</span>
-				</label>
+				<LocationPicker
+					value={location}
+					onChange={onLocationChange}
+					required
+				/>
 
 				{isEditing && (
 					<p className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">

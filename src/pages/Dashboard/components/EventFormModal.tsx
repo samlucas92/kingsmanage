@@ -9,6 +9,7 @@ import {
 	useClubTeamStore,
 } from "../../../stores/clubTeams";
 import { formatDateForInput } from "../../../utils/date";
+import LocationPicker from "../../../components/locations/LocationPicker";
 import type {
 	ClubEventTeamScope,
 	ClubEventType,
@@ -508,15 +509,11 @@ export default function EventFormModal({
 						</label>
 					</div>
 
-					<label className="block text-sm font-semibold text-slate-700">
-						Location
-						<input
-							type="text"
-							value={location}
-							onChange={(event) => setLocation(event.target.value)}
-							className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-						/>
-					</label>
+					<LocationPicker
+						value={location}
+						onChange={setLocation}
+						required={type === "Match"}
+					/>
 
 					{type !== "Match" && (
 						<section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
