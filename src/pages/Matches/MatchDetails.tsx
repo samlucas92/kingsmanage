@@ -32,6 +32,7 @@ import {
 	MatchDetailSectionNav,
 	type MatchDetailSectionId,
 } from "./components/match-detail/MatchDetailSectionNav";
+import { MatchOverviewGrid } from "./components/match-detail/MatchOverviewGrid";
 
 export default function MatchDetail() {
 	const { id } = useParams();
@@ -284,6 +285,15 @@ export default function MatchDetail() {
 				/>
 			</div>
 
+			<ResultCard
+				homeTeamName={matchDetail.homeTeamName}
+				awayTeamName={matchDetail.awayTeamName}
+				result={currentMatch.result}
+				state={currentMatch.state}
+				isCompleted={currentMatch.isCompleted}
+				onOpenResultModal={matchDetail.handleOpenResultModal}
+			/>
+
 			<MatchdayWorkflowCard
 				workflow={matchdayWorkflow}
 				isActionBusy={isLinkingEvent}
@@ -300,13 +310,27 @@ export default function MatchDetail() {
 			<div role="tabpanel" aria-label={getSectionLabel(activeSection)}>
 				{activeSection === "overview" && (
 					<div className="space-y-3 lg:space-y-6">
-						<ResultCard
-							homeTeamName={matchDetail.homeTeamName}
-							awayTeamName={matchDetail.awayTeamName}
-							result={currentMatch.result}
-							state={currentMatch.state}
-							isCompleted={currentMatch.isCompleted}
-							onOpenResultModal={matchDetail.handleOpenResultModal}
+						<MatchOverviewGrid
+							match={currentMatch}
+							workflow={matchdayWorkflow}
+							linkedEvent={matchDetail.linkedEvent}
+							starterCount={matchDetail.starterCount}
+							benchCount={matchDetail.benchCount}
+							onSectionSelect={handleSectionSelect}
+							onAvailabilitySelect={() => {
+								if (matchDetail.linkedEvent) {
+									navigate(`/events/${matchDetail.linkedEvent.id}`);
+									return;
+								}
+
+								void handleCreateLinkedEvent();
+							}}
+							onCommunicationsSelect={() => {
+								setActiveSection("squad");
+								if (currentMatch.isLineupLocked) {
+									setShowGeneratePost(true);
+								}
+							}}
 						/>
 						<PostponementAuditCard postponements={currentMatch.postponements} />
 					</div>
