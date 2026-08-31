@@ -15,6 +15,43 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (() => {
+        window.setTimeout(() => {
+          const root = document.getElementById("root");
+          if (!root || root.hasChildNodes()) return;
+
+          root.innerHTML = `
+            <main style="min-height:100vh;display:grid;place-items:center;background:#f3f6f5;padding:20px;font-family:'Avenir Next','Segoe UI',sans-serif;color:#172321">
+              <section style="width:100%;max-width:440px;border:1px solid rgba(203,213,225,.75);border-radius:16px;background:#fff;padding:28px;text-align:center;box-shadow:0 12px 32px rgba(15,42,40,.08)">
+                <div style="margin:0 auto;display:grid;width:52px;height:52px;place-items:center;border-radius:14px;background:#082a28;color:#fff;font-size:22px;font-weight:900">Y</div>
+                <h1 style="margin:24px 0 0;font-size:24px;line-height:1.2">Yepset needs a refresh</h1>
+                <p style="margin:10px auto 0;max-width:340px;color:#475569;font-size:14px;line-height:1.6">The app did not finish loading. Refresh the saved app files to open the current version.</p>
+                <button id="yepset-boot-recovery" type="button" style="margin-top:24px;min-height:44px;width:100%;border:0;border-radius:12px;background:#17695f;padding:10px 16px;color:#fff;font-size:14px;font-weight:700;cursor:pointer">Refresh Yepset</button>
+              </section>
+            </main>
+          `;
+
+          document.getElementById("yepset-boot-recovery")?.addEventListener("click", async (event) => {
+            const button = event.currentTarget;
+            button.disabled = true;
+            button.textContent = "Refreshing…";
+
+            if ("serviceWorker" in navigator) {
+              const registrations = await navigator.serviceWorker.getRegistrations();
+              await Promise.all(registrations.map((registration) => registration.unregister()));
+            }
+
+            if ("caches" in window) {
+              const cacheNames = await caches.keys();
+              await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
+            }
+
+            window.location.reload();
+          });
+        }, 6000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

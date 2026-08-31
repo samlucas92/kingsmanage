@@ -47,22 +47,13 @@ export default defineConfig({
       workbox: {
         cleanupOutdatedCaches: true,
         navigateFallback: '/index.html',
-        skipWaiting: true,
+        skipWaiting: false,
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
             handler: 'NetworkOnly',
             options: { cacheName: 'yepset-api-network-only' },
-          },
-          {
-            urlPattern: ({ request }) => request.mode === 'navigate',
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'yepset-pages',
-              networkTimeoutSeconds: 3,
-              expiration: { maxEntries: 20, maxAgeSeconds: 7 * 24 * 60 * 60 },
-            },
           },
           {
             urlPattern: ({ request, url }) => request.destination === 'image' && !url.pathname.startsWith('/api/'),
