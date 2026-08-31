@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { clampMovedBounds } from "./TemplateCanvasOverlay";
-import type { CanvasTemplateElement } from "./TemplateCanvasOverlay";
+import { clampMovedBounds } from "./templateCanvasBounds";
+import type { CanvasTemplateElement } from "./templateCanvasBounds";
 
 const playerImage: CanvasTemplateElement = {
 	id: "player-image",

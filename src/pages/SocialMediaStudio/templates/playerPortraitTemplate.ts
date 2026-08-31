@@ -89,7 +89,7 @@ export function createPlayerPortraitTemplate(
 }
 
 export function parsePlayerPortraitDefinition(source: string) {
-	return parseEditableTemplateLayout(
+	return parseEditableTemplateLayout<PlayerPortraitElementId>(
 		addMissingCircleOverlay(source),
 		playerPortraitDefaultDefinition,
 		{ overflowElementIds: ["player-image"] }

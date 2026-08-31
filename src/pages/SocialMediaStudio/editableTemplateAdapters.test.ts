@@ -42,7 +42,9 @@ describe("static editable social templates", () => {
 		};
 		candidate.elements["player-image"].y = 200;
 
-		expect(adapter.parse(JSON.stringify(candidate)).elements["player-image"].y)
-			.toBe(200);
+		const parsed = adapter.parse(JSON.stringify(candidate));
+		const elements = parsed.elements as Record<string, { y: number }>;
+
+		expect(elements["player-image"].y).toBe(200);
 	});
 });
