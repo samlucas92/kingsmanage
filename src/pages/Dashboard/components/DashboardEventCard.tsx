@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuthStore } from "../../../stores/auth";
 import { getClubTeamLabel, useClubTeamStore } from "../../../stores/clubTeams";
 import type { ClubEvent, ClubEventAvailabilityStatus } from "../../../types/events";
-import { getEventCounts, getPlayerAvailabilityStatus } from "../../../utils/events";
+import { getEventCounts, getEventTeamLabel, getPlayerAvailabilityStatus } from "../../../utils/events";
 
 type DashboardEventCardProps = {
 	event: ClubEvent;
@@ -37,8 +37,10 @@ export default function DashboardEventCard({
 					<div className="min-w-0 flex-1">
 						<div className="flex flex-wrap gap-2">
 							<Pill label={event.type} />
-							<Pill label={event.teamScope === "Both" ? "Both Teams" : getClubTeamLabel(teamProfiles, event.teamScope)} />
-							{linkedMatches.length > 0 && <Pill label="Linked match" />}
+							<Pill label={getEventTeamLabel(event, teamProfiles)} />
+							{linkedMatches.length > 0 && (
+								<Pill label={linkedMatches.length === 1 ? "Linked match" : `${linkedMatches.length} linked matches`} />
+							)}
 						</div>
 
 						<Link
@@ -60,11 +62,11 @@ export default function DashboardEventCard({
 							<div className="mt-3 flex flex-wrap gap-2">
 								{linkedMatches.map((matchLink) => (
 									<Link
-										key={`${matchLink.team}-${matchLink.matchId}`}
+										key={`${matchLink.teamId}-${matchLink.matchId}`}
 										to={`/matches/${matchLink.matchId}`}
 										className="rounded-lg border border-yepset-200 bg-yepset-50 px-3 py-1.5 text-xs font-bold text-yepset-700 hover:bg-yepset-100"
 									>
-										Open {getClubTeamLabel(teamProfiles, matchLink.team)} match
+										Open {getClubTeamLabel(teamProfiles, matchLink.teamId)} match
 									</Link>
 								))}
 							</div>
@@ -166,7 +168,7 @@ function getLinkedMatchActions(event: ClubEvent) {
 	return (event.matchLinks ?? [])
 		.filter((matchLink) => Boolean(matchLink.matchId))
 		.map((matchLink) => ({
-			team: matchLink.team,
+			teamId: matchLink.teamId ?? matchLink.team,
 			matchId: matchLink.matchId as string,
 		}));
 }

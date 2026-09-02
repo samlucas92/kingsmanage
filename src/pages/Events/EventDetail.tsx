@@ -11,6 +11,7 @@ import { usePlayerStore, type Player } from "../../stores/players";
 import type { ClubEvent, ClubEventAvailabilityStatus } from "../../types/events";
 import {
 	getAvailabilityGroups,
+	getEventTeamLabel,
 	getPlayerAvailabilityStatus,
 	hasPlayerSeenEvent,
 } from "../../utils/events";
@@ -156,8 +157,10 @@ export default function EventDetail() {
 					<div>
 						<div className="flex flex-wrap gap-2">
 							<EventPill label={selectedEvent.type} />
-							<EventPill label={selectedEvent.teamScope === "Both" ? "Both Teams" : getClubTeamLabel(teamProfiles, selectedEvent.teamScope)} />
-							{linkedMatches.length > 0 && <EventPill label="Linked match" />}
+							<EventPill label={getEventTeamLabel(selectedEvent, teamProfiles)} />
+							{linkedMatches.length > 0 && (
+								<EventPill label={linkedMatches.length === 1 ? "Linked match" : `${linkedMatches.length} linked matches`} />
+							)}
 						</div>
 
 						<h1 className="mt-3 text-2xl font-black text-slate-950 sm:text-3xl">
@@ -258,7 +261,7 @@ export default function EventDetail() {
 				confirmText="Delete event"
 				isBusy={isDeletingEvent}
 				isOpen={isDeleteModalOpen}
-				message={linkedMatches.length === 0 ? getDeleteEventConfirmationMessage(0) : "Choose what happens to the linked match record."}
+				message={linkedMatches.length === 0 ? getDeleteEventConfirmationMessage(0) : `Choose what happens to the ${linkedMatches.length === 1 ? "linked match" : "linked matches"}.`}
 				onCancel={() => setIsDeleteModalOpen(false)}
 				onConfirm={handleConfirmDeleteEvent}
 				title="Delete event?"
@@ -266,7 +269,7 @@ export default function EventDetail() {
 			>
 				{linkedMatches.length > 0 && (
 					<div className="space-y-2">
-						<label className="flex gap-3 rounded-xl border border-red-200 bg-red-50 p-3"><input type="radio" checked={deleteLinkedMatches} onChange={() => setDeleteLinkedMatches(true)} /><span><strong className="block text-sm text-red-900">Delete event and linked match</strong><span className="text-xs text-red-700">Removes the complete fixture record.</span></span></label>
+						<label className="flex gap-3 rounded-xl border border-red-200 bg-red-50 p-3"><input type="radio" checked={deleteLinkedMatches} onChange={() => setDeleteLinkedMatches(true)} /><span><strong className="block text-sm text-red-900">Delete event and linked {linkedMatches.length === 1 ? "match" : "matches"}</strong><span className="text-xs text-red-700">Removes the complete fixture {linkedMatches.length === 1 ? "record" : "records"}.</span></span></label>
 						<label className="flex gap-3 rounded-xl border border-slate-200 p-3"><input type="radio" checked={!deleteLinkedMatches} onChange={() => setDeleteLinkedMatches(false)} /><span><strong className="block text-sm text-slate-900">Delete event only</strong><span className="text-xs text-slate-600">Keeps the match and removes its calendar link.</span></span></label>
 					</div>
 				)}
@@ -411,11 +414,11 @@ function EventManagementActions({
 				<div className="mt-3 space-y-2">
 					{linkedMatches.map((matchLink) => (
 						<Link
-							key={`${matchLink.team}-${matchLink.matchId}`}
+							key={`${matchLink.teamId}-${matchLink.matchId}`}
 							to={`/matches/${matchLink.matchId}`}
 							className="flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50"
 						>
-							<span>{getClubTeamLabel(teamProfiles, matchLink.team)} match</span>
+							<span>{getClubTeamLabel(teamProfiles, matchLink.teamId)} match</span>
 							<span>Open</span>
 						</Link>
 					))}
@@ -459,7 +462,7 @@ function EmptyState({ message }: { message: string }) {
 type ResponseChaseFilter = "all" | "unanswered" | "unseen" | "seen-unanswered";
 
 type LinkedMatchAction = {
-	team: string;
+	teamId: string;
 	matchId: string;
 };
 
@@ -525,7 +528,7 @@ function getLinkedMatchActions(event: ClubEvent): LinkedMatchAction[] {
 	return (event.matchLinks ?? [])
 		.filter((matchLink) => Boolean(matchLink.matchId))
 		.map((matchLink) => ({
-			team: matchLink.team,
+			teamId: matchLink.teamId ?? matchLink.team,
 			matchId: matchLink.matchId as string,
 		}));
 }

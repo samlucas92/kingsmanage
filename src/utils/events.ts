@@ -1,4 +1,5 @@
 import type { Player } from "../stores/players";
+import { getClubTeamLabel, type ClubTeamProfile } from "../stores/clubTeams";
 import type {
 	ClubEvent,
 	ClubEventAvailabilityStatus,
@@ -85,6 +86,22 @@ export function getEventCounts(event: ClubEvent) {
 		declined: availabilityResponses.filter((response) => response.status === "Declined").length,
 		unanswered: availabilityResponses.filter((response) => response.status === "Unanswered").length,
 	};
+}
+
+export function getEventTeamLabel(event: ClubEvent, profiles: ClubTeamProfile[]) {
+	const teamIds = event.teamIds?.filter(Boolean) ?? [];
+
+	if (teamIds.length === 1) {
+		return getClubTeamLabel(profiles, teamIds[0]);
+	}
+
+	if (teamIds.length > 1) {
+		return `${teamIds.length} Teams`;
+	}
+
+	return event.teamScope === "Both"
+		? "Both Teams"
+		: getClubTeamLabel(profiles, event.teamScope);
 }
 
 export function sortEventsAscending(firstEvent: ClubEvent, secondEvent: ClubEvent) {

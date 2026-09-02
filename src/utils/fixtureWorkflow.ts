@@ -64,9 +64,11 @@ export function buildClubCalendar(matches: Match[], events: ClubEvent[]) {
 	const items: ClubCalendarItem[] = [];
 
 	for (const event of events) {
-		const linkedMatch = event.matchLinks
+		const linkedMatches = event.matchLinks
 			.map((link) => link.matchId ? matchesById.get(link.matchId) : undefined)
-			.find(Boolean);
+			.filter((match): match is Match => Boolean(match));
+		const linkedMatch = linkedMatches[0];
+		const isMultiTeamMatchday = linkedMatches.length > 1;
 
 		if (linkedMatch) {
 			for (const link of event.matchLinks) {
@@ -77,13 +79,13 @@ export function buildClubCalendar(matches: Match[], events: ClubEvent[]) {
 		items.push({
 			id: `event:${event.id}`,
 			kind: event.type,
-			title: linkedMatch ? getMatchTitle(linkedMatch) : event.title,
+			title: linkedMatch && !isMultiTeamMatchday ? getMatchTitle(linkedMatch) : event.title,
 			start: event.startDateTime,
 			end: event.endDateTime,
 			location: event.location,
-			team: linkedMatch?.team ?? event.teamScope,
-			to: linkedMatch ? `/matches/${linkedMatch.id}` : `/events/${event.id}`,
-			match: linkedMatch,
+			team: isMultiTeamMatchday ? "Both" : linkedMatch?.team ?? event.teamScope,
+			to: linkedMatch && !isMultiTeamMatchday ? `/matches/${linkedMatch.id}` : `/events/${event.id}`,
+			match: isMultiTeamMatchday ? undefined : linkedMatch,
 			event,
 		});
 	}

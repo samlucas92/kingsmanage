@@ -259,7 +259,7 @@ export function SelectedPitchPlayer({
 	};
 
 	const selectionSuffix = otherSelectionLabels.length > 0
-		? ` Also selected: ${otherSelectionLabels.join("; ")}`
+		? ` Selected for another match today: ${otherSelectionLabels.join("; ")}`
 		: "";
 	const title = isSwapTarget
 		? `Drop to replace or swap with ${name}`
@@ -464,9 +464,9 @@ function OtherSelectionBadge({
 	return (
 		<span
 			className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900"
-			title={labels.join("\n")}
+			title={`Selected for another match today:\n${labels.join("\n")}`}
 		>
-			{compact ? "Also" : "Also selected"}
+			{compact ? "Other team" : "Selected for another team"}
 		</span>
 	);
 }

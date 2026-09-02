@@ -788,9 +788,9 @@ function OtherSelectionBadge({ labels }: { labels: string[] }) {
 	return (
 		<span
 			className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-900"
-			title={labels.join("\n")}
+			title={`Selected for another match today:\n${labels.join("\n")}`}
 		>
-			Also selected
+			Selected for another team
 		</span>
 	);
 }

@@ -56,6 +56,29 @@ describe("fixture workflow", () => {
 		expect(items[0].event?.id).toBe("event-1");
 	});
 
+	it("shows a multi-team matchday as one event linking to all its matches", () => {
+		const secondMatch = createMatch({ id: "match-2", team: "team-2" });
+		const event = createEvent({
+			title: "Club matchday · 2 teams",
+			teamScope: "Both",
+			teamIds: ["team-1", "team-2"],
+			matchLinks: [
+				{ team: "First", teamId: "team-1", matchId: "match-1" },
+				{ team: "Second", teamId: "team-2", matchId: "match-2" },
+			],
+		});
+
+		const items = buildClubCalendar([createMatch(), secondMatch], [event]);
+
+		expect(items).toHaveLength(1);
+		expect(items[0]).toEqual(expect.objectContaining({
+			title: "Club matchday · 2 teams",
+			to: "/events/event-1",
+			team: "Both",
+		}));
+		expect(items[0].match).toBeUndefined();
+	});
+
 	it("marks overlapping items for the same team as conflicts", () => {
 		const items = buildClubCalendar(
 			[createMatch(), createMatch({ id: "match-2", clubEventId: null, date: "2026-09-05T15:00:00.000Z" })],

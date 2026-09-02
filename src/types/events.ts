@@ -18,6 +18,7 @@ export type ClubEventRecurrence = {
 
 export type ClubEventMatchLink = {
 	team: EventClubTeam;
+	teamId?: string | null;
 	matchId?: string | null;
 };
 
@@ -62,6 +63,7 @@ export type ClubEvent = {
 export type CreateMatchForEventRequest = {
 	seasonId?: string | null;
 	team: EventClubTeam;
+	teamId?: string | null;
 	opponent: string;
 	competition: string;
 	date?: string | null;
@@ -73,6 +75,7 @@ export type CreateMatchForEventRequest = {
 export type CreateClubEventRequest = {
 	type: ClubEventType;
 	teamScope: ClubEventTeamScope;
+	teamIds?: string[];
 	title: string;
 	description: string;
 	startDateTime: string;
