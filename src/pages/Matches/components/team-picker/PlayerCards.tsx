@@ -13,6 +13,7 @@ interface AvailablePlayerProps {
 	isSwapTarget?: boolean;
 	availabilityStatus?: ClubEventAvailabilityStatus;
 	trainingAvailability?: TrainingAvailabilitySummary;
+	otherSelectionLabels?: string[];
 	onOpenMenu: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
@@ -24,6 +25,7 @@ export function AvailablePlayer({
 	isSwapTarget = false,
 	availabilityStatus,
 	trainingAvailability,
+	otherSelectionLabels = [],
 	onOpenMenu,
 }: AvailablePlayerProps) {
 	const {
@@ -93,6 +95,9 @@ export function AvailablePlayer({
 			</button>
 
 			<div className="flex shrink-0 flex-col items-end gap-1">
+				{otherSelectionLabels.length > 0 && (
+					<OtherSelectionBadge labels={otherSelectionLabels} compact />
+				)}
 				{availabilityStatus && (
 					<span
 						className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${getAvailabilityStatusClass(
@@ -190,6 +195,7 @@ interface SelectedPitchPlayerProps {
 	isSwapTarget: boolean;
 	isOutOfPosition: boolean;
 	preferredPositions: string[];
+	otherSelectionLabels?: string[];
 	enableDrag?: boolean;
 	onOpenMenu: (event: MouseEvent<HTMLButtonElement>) => void;
 }
@@ -206,6 +212,7 @@ export function SelectedPitchPlayer({
 	isSwapTarget,
 	isOutOfPosition,
 	preferredPositions,
+	otherSelectionLabels = [],
 	enableDrag = true,
 	onOpenMenu,
 }: SelectedPitchPlayerProps) {
@@ -251,15 +258,18 @@ export function SelectedPitchPlayer({
 				: "translate(-50%, -50%)",
 	};
 
+	const selectionSuffix = otherSelectionLabels.length > 0
+		? ` Also selected: ${otherSelectionLabels.join("; ")}`
+		: "";
 	const title = isSwapTarget
 		? `Drop to replace or swap with ${name}`
 		: isOutOfPosition
-			? `${name} - out of position. Prefers: ${preferredPositions.join(", ")}`
+			? `${name} - out of position. Prefers: ${preferredPositions.join(", ")}.${selectionSuffix}`
 			: `${name}${
 					preferredPositions.length > 0
 						? ` - prefers: ${preferredPositions.join(", ")}`
 						: ""
-				}`;
+				}${selectionSuffix}`;
 
 	return (
 		<div
@@ -311,6 +321,12 @@ export function SelectedPitchPlayer({
 				</span>
 			)}
 
+			{otherSelectionLabels.length > 0 && (
+				<span className="pointer-events-none absolute -right-1 top-0 flex h-5 min-w-5 items-center justify-center rounded-full border border-white bg-amber-100 px-1 text-[9px] font-black text-amber-900 shadow" title={otherSelectionLabels.join("\n")}>
+					2×
+				</span>
+			)}
+
 			{!disabled && (
 				<button
 					type="button"
@@ -332,6 +348,7 @@ interface BenchPlayerProps {
 	disabled: boolean;
 	isMenuOpen: boolean;
 	isSwapTarget?: boolean;
+	otherSelectionLabels?: string[];
 	onOpenMenu: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
@@ -342,6 +359,7 @@ export function BenchPlayer({
 	disabled,
 	isMenuOpen,
 	isSwapTarget = false,
+	otherSelectionLabels = [],
 	onOpenMenu,
 }: BenchPlayerProps) {
 	const {
@@ -416,6 +434,10 @@ export function BenchPlayer({
 				{name}
 			</button>
 
+			{otherSelectionLabels.length > 0 && (
+				<OtherSelectionBadge labels={otherSelectionLabels} compact />
+			)}
+
 			{!disabled && (
 				<button
 					type="button"
@@ -429,6 +451,23 @@ export function BenchPlayer({
 				</button>
 			)}
 		</div>
+	);
+}
+
+function OtherSelectionBadge({
+	labels,
+	compact = false,
+}: {
+	labels: string[];
+	compact?: boolean;
+}) {
+	return (
+		<span
+			className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900"
+			title={labels.join("\n")}
+		>
+			{compact ? "Also" : "Also selected"}
+		</span>
 	);
 }
 

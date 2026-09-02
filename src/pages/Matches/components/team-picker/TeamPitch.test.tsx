@@ -81,6 +81,39 @@ describe("TeamPitch responsive controls", () => {
 		expect(html).not.toContain('aria-label="Select player for GK"');
 	});
 
+	it("marks a player who is also selected for another same-day match", () => {
+		const selected = {
+			playerId: "player-1",
+			area: "pitch" as const,
+			positionKey: "gk",
+			positionIndex: 0,
+		};
+		const html = renderToStaticMarkup(
+			<DndContext>
+				<TeamPitch
+					pitchRef={{ current: null }}
+					isOverPitch={false}
+					formation={formation}
+					surface="football-pitch"
+					hoveredFormationIndex={null}
+					hoveredSwapTargetPlayerId={null}
+					pitchPlayers={[selected]}
+					isLineupLocked={false}
+					getPositionOccupant={() => selected}
+					getPlayerName={() => "Alex Morgan"}
+					getPlayerNumber={() => 9}
+					getPlayerPositions={() => ["GK"]}
+					getPlayerInitials={() => "AM"}
+					getPlayerOtherSelectionLabels={() => ["Second Team vs Town · 15:00"]}
+					onOpenPlayerMenu={() => undefined}
+				/>
+			</DndContext>
+		);
+
+		expect(html).toContain("2×");
+		expect(html).toContain("Second Team vs Town");
+	});
+
 	it("keeps the shirt treatment while dragging a pitch player", () => {
 		const html = renderToStaticMarkup(
 			<DragOverlayPlayer

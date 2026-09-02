@@ -3,6 +3,7 @@ import StatusBadge from "../../../../components/compositions/StatusBadge";
 import type { ClubEventAvailabilityStatus } from "../../../../types/events";
 import type { TrainingAvailabilitySummary } from "../../../../utils/trainingAvailability";
 import TeamPicker from "../TeamPicker";
+import type { SameDaySelection } from "../../sameDaySelections";
 
 interface TeamSelectionCardProps {
 	matchId: string;
@@ -16,6 +17,7 @@ interface TeamSelectionCardProps {
 	getPlayerTrainingAvailability: (
 		playerId: string
 	) => TrainingAvailabilitySummary;
+	getPlayerSameDaySelections: (playerId: string) => SameDaySelection[];
 	onSaveTeamClick: () => void;
 	onGeneratePostClick: () => void;
 	onCreateAwardsFormClick: () => void;
@@ -33,6 +35,7 @@ export function TeamSelectionCard({
 	isLineupLocked,
 	getPlayerAvailabilityStatus,
 	getPlayerTrainingAvailability,
+	getPlayerSameDaySelections,
 	onSaveTeamClick,
 	onGeneratePostClick,
 	onCreateAwardsFormClick,
@@ -110,6 +113,7 @@ export function TeamSelectionCard({
 					matchId={matchId}
 					getPlayerAvailabilityStatus={getPlayerAvailabilityStatus}
 					getPlayerTrainingAvailability={getPlayerTrainingAvailability}
+					getPlayerSameDaySelections={getPlayerSameDaySelections}
 				/>
 			</div>
 		</PanelCard>

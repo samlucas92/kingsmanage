@@ -21,6 +21,7 @@ interface TeamPitchProps {
 	getPlayerNumber: (playerId: string) => number | undefined;
 	getPlayerPositions: (playerId: string) => string[];
 	getPlayerInitials: (name: string) => string;
+	getPlayerOtherSelectionLabels?: (playerId: string) => string[];
 	enablePlayerDrag?: boolean;
 	onOpenPlayerMenu: (
 		playerId: string,
@@ -44,6 +45,7 @@ export function TeamPitch({
 	getPlayerNumber,
 	getPlayerPositions,
 	getPlayerInitials,
+	getPlayerOtherSelectionLabels,
 	enablePlayerDrag = true,
 	onOpenPlayerMenu,
 	onOpenMobilePositionSelector,
@@ -135,6 +137,7 @@ export function TeamPitch({
 						}
 						isOutOfPosition={isOutOfPosition}
 						preferredPositions={preferredPositions}
+						otherSelectionLabels={getPlayerOtherSelectionLabels?.(selectedPlayer.playerId)}
 						enableDrag={enablePlayerDrag}
 						onOpenMenu={(event) =>
 							onOpenPlayerMenu(selectedPlayer.playerId, event)

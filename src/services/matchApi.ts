@@ -82,6 +82,7 @@ type ApiMatchViewModel = Omit<
 	venue: ApiMatchVenue;
 	state: ApiMatchState;
 	competitionType?: ApiMatchCompetitionType;
+	selectedPlayerIds: string[];
 };
 
 
@@ -334,9 +335,15 @@ function fromApiPlayerMatchViewModel(match: ApiPlayerMatchViewModel): PlayerMatc
 }
 
 function toApiMatch(match: Match): ApiMatch {
-	const { competitionType: _competitionType, isDetailLoaded, ...matchToSave } = match;
+	const {
+		competitionType: _competitionType,
+		isDetailLoaded,
+		selectedPlayerIds,
+		...matchToSave
+	} = match;
 	void _competitionType;
 	void isDetailLoaded;
+	void selectedPlayerIds;
 
 	return {
 		...matchToSave,

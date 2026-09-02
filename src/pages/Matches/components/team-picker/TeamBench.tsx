@@ -11,6 +11,7 @@ interface TeamBenchProps {
 	isLineupLocked: boolean;
 	openMenuPlayerId?: string;
 	getPlayerName: (playerId: string) => string;
+	getPlayerOtherSelectionLabels?: (playerId: string) => string[];
 	onOpenPlayerMenu: (
 		playerId: string,
 		event: MouseEvent<HTMLButtonElement>
@@ -26,6 +27,7 @@ export function TeamBench({
 	isLineupLocked,
 	openMenuPlayerId,
 	getPlayerName,
+	getPlayerOtherSelectionLabels,
 	onOpenPlayerMenu,
 	onAddSubstitute,
 }: TeamBenchProps) {
@@ -113,6 +115,7 @@ export function TeamBench({
 								isSwapTarget={
 									hoveredSwapTargetPlayerId === selectedPlayer.playerId
 								}
+								otherSelectionLabels={getPlayerOtherSelectionLabels?.(selectedPlayer.playerId)}
 								onOpenMenu={(event) =>
 									onOpenPlayerMenu(selectedPlayer.playerId, event)
 								}

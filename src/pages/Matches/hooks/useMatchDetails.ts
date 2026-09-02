@@ -12,6 +12,7 @@ import {
 	getTrainingAvailabilitySummary,
 	type TrainingAvailabilitySummary,
 } from "../../../utils/trainingAvailability";
+import { getSameDaySelectionsByPlayer } from "../sameDaySelections";
 
 type ResultPreview = "won" | "lost" | "draw";
 
@@ -31,9 +32,11 @@ export function useMatchDetail(matchId?: string) {
 	const match = useMatchStore((state) =>
 		state.matches.find((match) => match.id === matchId)
 	);
+	const matches = useMatchStore((state) => state.matches);
 	const isLoadingMatches = useMatchStore((state) => state.isLoadingMatches);
 	const matchLoadError = useMatchStore((state) => state.matchLoadError);
 	const loadMatch = useMatchStore((state) => state.loadMatch);
+	const loadMatches = useMatchStore((state) => state.loadMatches);
 	const setResult = useMatchStore((state) => state.setResult);
 	const postponeMatch = useMatchStore((state) => state.postponeMatch);
 	const toggleLineupLocked = useMatchStore(
@@ -79,6 +82,11 @@ export function useMatchDetail(matchId?: string) {
 
 		void loadMatch(matchId);
 	}, [loadMatch, matchId]);
+
+	useEffect(() => {
+		if (!match?.seasonId) return;
+		void loadMatches(match.seasonId);
+	}, [loadMatches, match?.seasonId]);
 
 	useEffect(() => {
 		const clubEventId = match?.clubEventId;
@@ -148,6 +156,13 @@ export function useMatchDetail(matchId?: string) {
 	const matchSeason = currentMatch?.seasonId
 		? seasons.find((season) => season.id === currentMatch.seasonId)
 		: undefined;
+	const sameDaySelectionsByPlayer = currentMatch
+		? getSameDaySelectionsByPlayer(matches, currentMatch)
+		: {};
+
+	function getPlayerSameDaySelections(playerId: string) {
+		return sameDaySelectionsByPlayer[playerId] ?? [];
+	}
 
 	function getMatchPlayerAvailabilityStatus(playerId: string) {
 		return linkedEvent
@@ -302,6 +317,7 @@ export function useMatchDetail(matchId?: string) {
 		getPlayerName,
 		getMatchPlayerAvailabilityStatus,
 		getPlayerTrainingAvailability,
+		getPlayerSameDaySelections,
 		linkedEvent,
 		handleSaveMatchPlayerStats,
 		deleteMatch,

@@ -349,6 +349,9 @@ export default function MatchDetail() {
 						getPlayerTrainingAvailability={
 							matchDetail.getPlayerTrainingAvailability
 						}
+						getPlayerSameDaySelections={
+							matchDetail.getPlayerSameDaySelections
+						}
 						onSaveTeamClick={matchDetail.handleSaveTeamClick}
 						onGeneratePostClick={() => setShowGeneratePost(true)}
 						onCreateAwardsFormClick={handleCreateAwardsForm}

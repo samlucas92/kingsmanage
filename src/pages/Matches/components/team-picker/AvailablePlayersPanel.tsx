@@ -23,6 +23,7 @@ interface AvailablePlayersPanelProps {
 	getPlayerTrainingAvailability?: (
 		playerId: string
 	) => TrainingAvailabilitySummary;
+	getPlayerOtherSelectionLabels: (playerId: string) => string[];
 	onOpenPlayerMenu: (
 		playerId: string,
 		event: MouseEvent<HTMLButtonElement>
@@ -39,6 +40,7 @@ export function AvailablePlayersPanel({
 	hoveredSwapTargetPlayerId = null,
 	getPlayerAvailabilityStatus,
 	getPlayerTrainingAvailability,
+	getPlayerOtherSelectionLabels,
 	onOpenPlayerMenu,
 	onShowAvailableOnlyChange,
 }: AvailablePlayersPanelProps) {
@@ -98,6 +100,7 @@ export function AvailablePlayersPanel({
 							isSwapTarget={hoveredSwapTargetPlayerId === player.id}
 							availabilityStatus={getPlayerAvailabilityStatus?.(player.id)}
 							trainingAvailability={getPlayerTrainingAvailability?.(player.id)}
+							otherSelectionLabels={getPlayerOtherSelectionLabels(player.id)}
 							onOpenMenu={(event) => onOpenPlayerMenu(player.id, event)}
 						/>
 					))}

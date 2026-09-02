@@ -84,6 +84,7 @@ export type Match = {
 	notes?: MatchNotes;
 	postponements: PostponementAudit[];
 	selectedPlayers: SelectedPlayer[];
+	selectedPlayerIds?: string[];
 	playerStats?: MatchPlayerStat[];
 	isDetailLoaded?: boolean;
 };
@@ -157,17 +158,41 @@ const emptyMatchNotes: MatchNotes = {
 };
 
 function normaliseMatch(match: Match): Match {
+	const selectedPlayers = match.selectedPlayers ?? [];
 	return {
 		...match,
 		notes: match.notes ?? emptyMatchNotes,
 		postponements: match.postponements ?? [],
-		selectedPlayers: match.selectedPlayers ?? [],
+		selectedPlayers,
+		selectedPlayerIds: match.selectedPlayerIds ?? selectedPlayers.map(
+			(selectedPlayer) => selectedPlayer.playerId
+		),
 		playerStats: match.playerStats ?? [],
 	};
 }
 
 function normaliseMatchStore(matches: Match[]) {
 	return matches.map(normaliseMatch);
+}
+
+export function mergeMatchSummaries(
+	summaries: Match[],
+	existingMatches: Match[]
+) {
+	return normaliseMatchStore(summaries).map((summary) => {
+		const existing = existingMatches.find(
+			(match) => match.id === summary.id && match.isDetailLoaded
+		);
+		if (!existing) return summary;
+
+		return normaliseMatch({
+			...summary,
+			...existing,
+			selectedPlayerIds: existing.selectedPlayers.map(
+				(selectedPlayer) => selectedPlayer.playerId
+			),
+		});
+	});
 }
 
 function replaceMatch(matches: Match[], updatedMatch: Match) {
@@ -219,12 +244,12 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
 				? await matchApi.getSeasonMatches(requestedSeasonId)
 				: await matchApi.getMatches();
 
-			set({
-				matches: normaliseMatchStore(matches),
+			set((state) => ({
+				matches: mergeMatchSummaries(matches, state.matches),
 				isLoadingMatches: false,
 				hasLoadedMatches: true,
 				loadedSeasonId: requestedSeasonId,
-			});
+			}));
 		} catch (error) {
 			set({
 				isLoadingMatches: false,

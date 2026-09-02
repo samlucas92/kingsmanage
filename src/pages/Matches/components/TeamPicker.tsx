@@ -17,6 +17,8 @@ import type { ClubEventAvailabilityStatus } from "../../../types/events";
 import type { TrainingAvailabilitySummary } from "../../../utils/trainingAvailability";
 import type { FormationPosition } from "./team-picker/Types";
 import { useTeamPicker } from "./team-picker/useTeamPicker";
+import type { SameDaySelection } from "../sameDaySelections";
+import { getClubTeamLabel, useClubTeamStore } from "../../../stores/clubTeams";
 
 interface TeamPickerProps {
 	matchId: string;
@@ -26,6 +28,7 @@ interface TeamPickerProps {
 	getPlayerTrainingAvailability?: (
 		playerId: string
 	) => TrainingAvailabilitySummary;
+	getPlayerSameDaySelections?: (playerId: string) => SameDaySelection[];
 }
 
 type MobilePlayerSelectorMode =
@@ -48,8 +51,10 @@ export default function TeamPicker({
 	matchId,
 	getPlayerAvailabilityStatus,
 	getPlayerTrainingAvailability,
+	getPlayerSameDaySelections,
 }: TeamPickerProps) {
 	const teamPicker = useTeamPicker(matchId);
+	const teamProfiles = useClubTeamStore((state) => state.profiles);
 	const isDesktopTeamPicker = useMediaQuery("(min-width: 1280px)");
 	const sensors = useSensors(
 		useSensor(PointerSensor, {
@@ -78,6 +83,27 @@ export default function TeamPicker({
 		getPlayerAvailabilityStatus,
 		getPlayerTrainingAvailability,
 	});
+	const playerIds = new Set([
+		...teamPicker.availablePlayers.map((player) => player.id),
+		...teamPicker.pitchPlayers.map((player) => player.playerId),
+		...teamPicker.benchPlayers.map((player) => player.playerId),
+	]);
+	const playersSelectedElsewhere = [...playerIds].filter(
+		(playerId) => (getPlayerSameDaySelections?.(playerId).length ?? 0) > 0
+	);
+	const linkedMatchCount = new Set(
+		playersSelectedElsewhere.flatMap((playerId) =>
+			(getPlayerSameDaySelections?.(playerId) ?? []).map(
+				(selection) => selection.matchId
+			)
+		)
+	).size;
+
+	function getOtherSelectionLabels(playerId: string) {
+		return (getPlayerSameDaySelections?.(playerId) ?? []).map((selection) =>
+			formatSameDaySelection(selection, teamProfiles)
+		);
+	}
 
 	const activePlayerName = teamPicker.activeDragData
 		? teamPicker.getPlayerName(teamPicker.activeDragData.playerId)
@@ -235,6 +261,14 @@ export default function TeamPicker({
 			onDragEnd={teamPicker.handleDragEnd}
 			onDragCancel={teamPicker.handleDragCancel}
 		>
+			{playersSelectedElsewhere.length > 0 && (
+				<div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+					<p className="font-bold">Same-day team selections</p>
+					<p className="mt-1 text-xs leading-5">
+						{playersSelectedElsewhere.length} {playersSelectedElsewhere.length === 1 ? "player is" : "players are"} already selected in {linkedMatchCount} other {linkedMatchCount === 1 ? "match" : "matches"}. Double selection is allowed; amber badges show where else they are playing.
+					</p>
+				</div>
+			)}
 			<div className="grid min-w-0 items-start gap-4 xl:grid-cols-[320px_minmax(420px,1fr)]">
 				<div className="hidden min-w-0 xl:block xl:sticky xl:top-0">
 					<AvailablePlayersPanel
@@ -246,6 +280,7 @@ export default function TeamPicker({
 						hoveredSwapTargetPlayerId={teamPicker.hoveredSwapTargetPlayerId}
 						getPlayerAvailabilityStatus={getPlayerAvailabilityStatus}
 						getPlayerTrainingAvailability={getPlayerTrainingAvailability}
+						getPlayerOtherSelectionLabels={getOtherSelectionLabels}
 						onShowAvailableOnlyChange={setShowAvailableOnly}
 						onOpenPlayerMenu={teamPicker.openPlayerMenu}
 					/>
@@ -327,6 +362,7 @@ export default function TeamPicker({
 								getPlayerNumber={teamPicker.getPlayerNumber}
 								getPlayerPositions={teamPicker.getPlayerPositions}
 								getPlayerInitials={teamPicker.getPlayerInitials}
+								getPlayerOtherSelectionLabels={getOtherSelectionLabels}
 								enablePlayerDrag={isDesktopTeamPicker}
 								onOpenPlayerMenu={teamPicker.openPlayerMenu}
 								onOpenMobilePositionSelector={openMobilePositionSelector}
@@ -342,6 +378,7 @@ export default function TeamPicker({
 						isLineupLocked={teamPicker.isLineupLocked}
 						openMenuPlayerId={teamPicker.openMenu?.playerId}
 						getPlayerName={teamPicker.getPlayerName}
+						getPlayerOtherSelectionLabels={getOtherSelectionLabels}
 						onOpenPlayerMenu={teamPicker.openPlayerMenu}
 						onAddSubstitute={openMobileBenchSelector}
 					/>
@@ -365,6 +402,7 @@ export default function TeamPicker({
 					getPlayerPositions={teamPicker.getPlayerPositions}
 					getPlayerAvailabilityStatus={getPlayerAvailabilityStatus}
 					getPlayerTrainingAvailability={getPlayerTrainingAvailability}
+					getPlayerOtherSelectionLabels={getOtherSelectionLabels}
 					onShowAvailableOnlyChange={setShowAvailableOnly}
 					onClose={closeMobilePlayerSelector}
 					onSelectPlayer={handleSelectMobilePlayer}
@@ -499,6 +537,17 @@ function prepareAvailablePlayers({
 		});
 }
 
+function formatSameDaySelection(
+	selection: SameDaySelection,
+	teamProfiles: ReturnType<typeof useClubTeamStore.getState>["profiles"]
+) {
+	const time = new Date(selection.date).toLocaleTimeString([], {
+		hour: "2-digit",
+		minute: "2-digit",
+	});
+	return `${getClubTeamLabel(teamProfiles, selection.team)} vs ${selection.opponent} · ${time}${selection.isLineupLocked ? " · confirmed" : ""}`;
+}
+
 function useMediaQuery(query: string) {
 	const [matches, setMatches] = useState(() => {
 		if (typeof window === "undefined" || !window.matchMedia) {
@@ -537,6 +586,7 @@ function MobilePlayerSelector({
 	getPlayerPositions,
 	getPlayerAvailabilityStatus,
 	getPlayerTrainingAvailability,
+	getPlayerOtherSelectionLabels,
 	onShowAvailableOnlyChange,
 	onClose,
 	onSelectPlayer,
@@ -557,6 +607,7 @@ function MobilePlayerSelector({
 	getPlayerTrainingAvailability?: (
 		playerId: string
 	) => TrainingAvailabilitySummary;
+	getPlayerOtherSelectionLabels: (playerId: string) => string[];
 	onShowAvailableOnlyChange: (value: boolean) => void;
 	onClose: () => void;
 	onSelectPlayer: (playerId: string) => void;
@@ -679,6 +730,7 @@ function MobilePlayerSelector({
 									getPlayerAvailabilityStatus?.(player.id);
 								const trainingAvailability =
 									getPlayerTrainingAvailability?.(player.id);
+								const otherSelectionLabels = getPlayerOtherSelectionLabels(player.id);
 
 								return (
 									<button
@@ -704,6 +756,9 @@ function MobilePlayerSelector({
 										</div>
 
 										<div className="flex shrink-0 flex-col items-end gap-1">
+											{otherSelectionLabels.length > 0 && (
+												<OtherSelectionBadge labels={otherSelectionLabels} />
+											)}
 											{availabilityStatus && (
 												<AvailabilityStatusBadge status={availabilityStatus} />
 											)}
@@ -726,6 +781,17 @@ function MobilePlayerSelector({
 				</div>
 			</div>
 		</div>
+	);
+}
+
+function OtherSelectionBadge({ labels }: { labels: string[] }) {
+	return (
+		<span
+			className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-900"
+			title={labels.join("\n")}
+		>
+			Also selected
+		</span>
 	);
 }
 
