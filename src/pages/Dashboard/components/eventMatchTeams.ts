@@ -11,6 +11,7 @@ export type MatchTeamDraft = {
 	matchId: string;
 	opponent: string;
 	competition: string;
+	location: string;
 	venue: EventMatchVenue;
 };
 
@@ -20,6 +21,7 @@ export function createMatchTeamDraft(teamId: string): MatchTeamDraft {
 		matchId: "",
 		opponent: "",
 		competition: "",
+		location: "",
 		venue: "Home",
 	};
 }
@@ -42,12 +44,10 @@ export function getLegacyTeamScope(teamIds: string[]): ClubEventTeamScope {
 
 export function buildCreateMatchRequest({
 	draft,
-	eventLocation,
 	eventStartDateTime,
 	seasonId,
 }: {
 	draft: MatchTeamDraft;
-	eventLocation: string;
 	eventStartDateTime: string;
 	seasonId: string;
 }): CreateMatchForEventRequest {
@@ -59,7 +59,20 @@ export function buildCreateMatchRequest({
 		competition: draft.competition.trim(),
 		date: new Date(eventStartDateTime).toISOString(),
 		venue: draft.venue,
-		location: eventLocation.trim(),
+		location: draft.location.trim(),
 		selectedFormation: "FourThreeThree",
 	};
+}
+
+export function summariseMatchLocations(locations: string[]) {
+	const uniqueLocations = locations
+		.map((location) => location.trim())
+		.filter(Boolean)
+		.filter((location, index, values) =>
+			values.findIndex((candidate) => candidate.toLocaleLowerCase() === location.toLocaleLowerCase()) === index
+		);
+
+	if (uniqueLocations.length === 0) return "";
+	if (uniqueLocations.length === 1) return uniqueLocations[0];
+	return "Multiple venues";
 }

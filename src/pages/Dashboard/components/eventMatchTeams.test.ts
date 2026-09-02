@@ -5,6 +5,7 @@ import {
 	buildCreateMatchRequest,
 	createMatchTeamDraft,
 	getLegacyTeamScope,
+	summariseMatchLocations,
 } from "./eventMatchTeams";
 
 const THIRD_TEAM_ID = "33333333-3333-3333-3333-333333333303";
@@ -21,17 +22,18 @@ describe("multi-team event match creation", () => {
 			...createMatchTeamDraft(FIRST_TEAM_ID),
 			opponent: "Town Firsts",
 			competition: "Premier Division",
+			location: "Memorial Ground",
 		};
 		const thirds = {
 			...createMatchTeamDraft(THIRD_TEAM_ID),
 			opponent: "Town Thirds",
 			competition: "Division Three",
+			location: "Town Sports Ground",
 			venue: "Away" as const,
 		};
 
 		const requests = [firsts, thirds].map((draft) => buildCreateMatchRequest({
 			draft,
-			eventLocation: "Memorial Ground",
 			eventStartDateTime: "2026-09-12T14:00:00.000Z",
 			seasonId: "season-1",
 		}));
@@ -41,14 +43,23 @@ describe("multi-team event match creation", () => {
 				teamId: FIRST_TEAM_ID,
 				opponent: "Town Firsts",
 				competition: "Premier Division",
+				location: "Memorial Ground",
 				venue: "Home",
 			}),
 			expect.objectContaining({
 				teamId: THIRD_TEAM_ID,
 				opponent: "Town Thirds",
 				competition: "Division Three",
+				location: "Town Sports Ground",
 				venue: "Away",
 			}),
 		]);
+	});
+
+	it("summarises different team grounds as multiple venues", () => {
+		expect(summariseMatchLocations(["Memorial Ground", "Town Sports Ground"]))
+			.toBe("Multiple venues");
+		expect(summariseMatchLocations([" Memorial Ground ", "memorial ground"]))
+			.toBe("Memorial Ground");
 	});
 });

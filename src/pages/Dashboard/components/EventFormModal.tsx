@@ -22,6 +22,7 @@ import {
 	createMatchTeamDraft,
 	getLegacyTeam,
 	getLegacyTeamScope,
+	summariseMatchLocations,
 	type MatchTeamDraft,
 } from "./eventMatchTeams";
 
@@ -101,7 +102,7 @@ export default function EventFormModal({ isOpen, onClose, onCreateEvent }: Props
 			setError("End date cannot be before the start date.");
 			return;
 		}
-		if (type === "Match" && !location.trim()) {
+		if (type === "Match" && matchMode === "none" && !location.trim()) {
 			setError("Enter the match location.");
 			return;
 		}
@@ -149,9 +150,15 @@ export default function EventFormModal({ isOpen, onClose, onCreateEvent }: Props
 				setError(`Enter the ${getClubTeamLabel(teamProfiles, missingCompetition.teamId)} competition.`);
 				return;
 			}
+			const missingLocation = matchTeams.find((draft) => !draft.location.trim());
+			if (missingLocation) {
+				setError(`Enter the ${getClubTeamLabel(teamProfiles, missingLocation.teamId)} match location.`);
+				return;
+			}
 		}
 
 		const teamIds = type === "Match" ? matchTeams.map((draft) => draft.teamId) : [];
+		const eventLocation = getEventLocation(type, matchMode, location, matchTeams, matches);
 		const request: CreateClubEventRequest = {
 			type,
 			teamScope: type === "Match" ? getLegacyTeamScope(teamIds) : "Both",
@@ -160,7 +167,7 @@ export default function EventFormModal({ isOpen, onClose, onCreateEvent }: Props
 			description: description.trim(),
 			startDateTime: new Date(startDateTime).toISOString(),
 			endDateTime: endDateTime ? new Date(endDateTime).toISOString() : null,
-			location: location.trim(),
+			location: eventLocation,
 			matchLinks: type === "Match" && matchMode === "link"
 				? matchTeams.map((draft) => ({
 					team: getLegacyTeam(draft.teamId),
@@ -172,7 +179,6 @@ export default function EventFormModal({ isOpen, onClose, onCreateEvent }: Props
 			createMatches: type === "Match" && matchMode === "create" && activeSeasonId
 				? matchTeams.map((draft) => buildCreateMatchRequest({
 					draft,
-					eventLocation: location,
 					eventStartDateTime: startDateTime,
 					seasonId: activeSeasonId,
 				}))
@@ -291,7 +297,9 @@ export default function EventFormModal({ isOpen, onClose, onCreateEvent }: Props
 						<label className="block text-sm font-semibold text-slate-700">End<input type="datetime-local" value={endDateTime} onChange={(event) => { setEndDateTime(event.target.value); setHasEditedEndDateTime(Boolean(event.target.value)); }} className={inputClassName} />{type === "Match" && <span className="mt-1 block text-xs text-slate-500">Defaults to 90 minutes after kick-off. You can still override it.</span>}</label>
 					</div>
 
-					<LocationPicker value={location} onChange={setLocation} required={type === "Match"} />
+					{(type !== "Match" || matchMode === "none") && (
+						<LocationPicker value={location} onChange={setLocation} required={type === "Match"} />
+					)}
 
 					{type !== "Match" && <RecurrenceFields isRecurring={isRecurring} onRecurringChange={setIsRecurring} interval={recurrenceInterval} onIntervalChange={setRecurrenceInterval} unit={recurrenceUnit} onUnitChange={setRecurrenceUnit} endDate={recurrenceEndDate} onEndDateChange={setRecurrenceEndDate} preview={recurrencePreview} />}
 
@@ -308,11 +316,12 @@ export default function EventFormModal({ isOpen, onClose, onCreateEvent }: Props
 								<div className="mt-4 grid gap-4 lg:grid-cols-2">
 									{isLoadingMatches && <p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-500 lg:col-span-2">Loading existing matches...</p>}
 									{matchTeams.map((draft) => <ExistingMatchSelect key={draft.teamId} label={`${getClubTeamLabel(teamProfiles, draft.teamId)} existing match`} matches={getAvailableMatchesForTeam(matches, draft.teamId)} value={draft.matchId} onChange={(matchId) => updateMatchTeam(draft.teamId, { matchId })} />)}
+									<p className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800 lg:col-span-2">Each linked match keeps its own home/away setting and location.</p>
 								</div>
 							)}
 							{matchMode === "create" && (
 								<div className="mt-4 space-y-4">
-									<div className="rounded-xl border border-yepset-100 bg-yepset-50 px-4 py-3 text-sm text-yepset-900">Start time and location are shared. Set the opponent, venue and competition for each team.</div>
+									<div className="rounded-xl border border-yepset-100 bg-yepset-50 px-4 py-3 text-sm text-yepset-900">The event date is shared. Set each team&apos;s opponent, home/away status, competition and location separately.</div>
 									<div className="grid gap-4 lg:grid-cols-2">{matchTeams.map((draft) => <MatchDetailsFields key={draft.teamId} draft={draft} label={getClubTeamLabel(teamProfiles, draft.teamId)} onChange={(changes) => updateMatchTeam(draft.teamId, changes)} />)}</div>
 								</div>
 							)}
@@ -367,6 +376,7 @@ function MatchDetailsFields({ draft, label, onChange }: { draft: MatchTeamDraft;
 				<label className="block text-sm font-semibold text-slate-700">Opponent<input type="text" value={draft.opponent} onChange={(event) => onChange({ opponent: event.target.value })} placeholder="e.g. AFC Oak" className={inputClassName} /></label>
 				<label className="block text-sm font-semibold text-slate-700">Home/Away<select value={draft.venue} onChange={(event) => onChange({ venue: event.target.value as EventMatchVenue })} className={inputClassName}><option value="Home">Home</option><option value="Away">Away</option></select></label>
 				<label className="block text-sm font-semibold text-slate-700">Competition<input type="text" value={draft.competition} onChange={(event) => onChange({ competition: event.target.value })} className={inputClassName} /></label>
+				<LocationPicker value={draft.location} onChange={(location) => onChange({ location })} label="Match location" required />
 			</div>
 		</section>
 	);
@@ -390,6 +400,17 @@ function RecurrenceFields({ isRecurring, onRecurringChange, interval, onInterval
 
 function getAvailableMatchesForTeam(matches: Match[], teamId: string) {
 	return [...matches].filter((match) => normaliseLegacyTeamId(match.team) === teamId && !match.clubEventId).sort((first, second) => new Date(first.date).getTime() - new Date(second.date).getTime());
+}
+
+function getEventLocation(type: ClubEventType, mode: MatchLinkMode, fallback: string, drafts: MatchTeamDraft[], matches: Match[]) {
+	if (type !== "Match" || mode === "none") return fallback.trim();
+
+	if (mode === "create") {
+		return summariseMatchLocations(drafts.map((draft) => draft.location));
+	}
+
+	return summariseMatchLocations(drafts.map((draft) =>
+		matches.find((match) => match.id === draft.matchId)?.location ?? ""));
 }
 
 function formatMatchOption(match: Match) {
