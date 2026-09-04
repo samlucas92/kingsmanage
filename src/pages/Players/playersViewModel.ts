@@ -8,7 +8,9 @@ export function getPlayersSummary(players: Player[]) {
 		total: players.length,
 		active: players.filter((player) => player.isActive).length,
 		inactive: players.filter((player) => !player.isActive).length,
-		goalkeepers: players.filter((player) => player.positions.includes("GK")).length,
+		goalkeepers: players.filter(
+			(player) => player.isActive && player.positions.includes("GK")
+		).length,
 	};
 }
 

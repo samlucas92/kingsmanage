@@ -12,14 +12,15 @@ const players: Player[] = [
 	{ id: "1", name: "Alex Wilson", number: 12, positions: ["CB", "RB"], appearances: 20, isActive: true },
 	{ id: "2", name: "Ben Harris", number: 1, positions: ["GK"], appearances: 8, isActive: true },
 	{ id: "3", name: "Chris Jones", number: 9, positions: ["ST"], appearances: 14, isActive: false },
+	{ id: "4", name: "Dan Hughes", number: 31, positions: ["GK"], appearances: 2, isActive: false },
 ];
 
 describe("players view model", () => {
 	it("builds useful squad summary counts", () => {
 		expect(getPlayersSummary(players)).toEqual({
-			total: 3,
+			total: 4,
 			active: 2,
-			inactive: 1,
+			inactive: 2,
 			goalkeepers: 1,
 		});
 	});
