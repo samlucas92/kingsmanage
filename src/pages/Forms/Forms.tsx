@@ -356,7 +356,7 @@ export default function Forms() {
 		try {
 			const { downloadFormResultsImage } = await import("./formResultsImage");
 			await downloadFormResultsImage({
-				clubId: activeClub?.id,
+				clubLogoFileId: activeClub?.logoFileId,
 				clubName: activeClub?.name ?? "Yepset club",
 				primaryColor: activeClub?.primaryColor ?? "#0f766e",
 				secondaryColor: activeClub?.secondaryColor ?? "#facc15",

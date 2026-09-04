@@ -48,6 +48,7 @@ export type ClubAccess = {
 	sportKey: string;
 	primaryColor: string;
 	secondaryColor: string;
+	logoFileId?: string | null;
 	customFormations: SportFormation[];
 	defaultFormationKey?: string;
 	isCurrent: boolean;

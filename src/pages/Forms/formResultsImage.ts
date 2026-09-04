@@ -54,13 +54,13 @@ export function getFormResultsImageFilename(clubName: string, formTitle: string)
 }
 
 export async function downloadFormResultsImage({
-	clubId,
+	clubLogoFileId,
 	clubName,
 	primaryColor,
 	secondaryColor,
 	results,
 }: {
-	clubId?: string;
+	clubLogoFileId?: string | null;
 	clubName: string;
 	primaryColor: string;
 	secondaryColor: string;
@@ -69,7 +69,9 @@ export async function downloadFormResultsImage({
 	if (document.fonts?.ready) await document.fonts.ready;
 
 	const data = buildFormResultsGraphicData(results);
-	const clubLogo = clubId ? await loadClubLogoImage(clubId).catch(() => null) : null;
+	const clubLogo = clubLogoFileId
+		? await loadClubLogoImage(clubLogoFileId).catch(() => null)
+		: null;
 	const canvas = document.createElement("canvas");
 	canvas.width = width;
 	canvas.height = minimumHeight;
@@ -377,14 +379,8 @@ function drawClubMark(
 	context.textBaseline = "alphabetic";
 }
 
-async function loadClubLogoImage(clubId: string) {
-	const files = await filesApi.getFilesForLinkedEntity("ClubLogo", clubId);
-	const logoFile = [...files].sort((left, right) =>
-		new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()
-	)[0];
-	if (!logoFile) return null;
-
-	const { downloadUrl } = await filesApi.getDownloadUrl(logoFile.id);
+async function loadClubLogoImage(logoFileId: string) {
+	const { downloadUrl } = await filesApi.getDownloadUrl(logoFileId);
 	const response = await fetch(downloadUrl);
 	if (!response.ok) throw new Error("The club crest could not be downloaded.");
 	const objectUrl = URL.createObjectURL(await response.blob());
