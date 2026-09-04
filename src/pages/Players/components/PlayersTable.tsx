@@ -1,7 +1,11 @@
 import { Link } from "react-router-dom";
 
 import type { Player } from "../../../stores/players";
-import type { PlayersViewMode } from "../playersViewModel";
+import {
+	getPlayerAvatarTone,
+	getPlayerInitials,
+	type PlayersViewMode,
+} from "../playersViewModel";
 
 type Props = {
 	players: Player[];
@@ -58,28 +62,30 @@ function PlayerCard({
 	return (
 		<article className={`relative rounded-2xl border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5 ${player.isActive ? "border-slate-200" : "border-slate-200 opacity-75"}`}>
 			<div className="flex items-start gap-4">
-				<Link to={`/players/${player.id}`} className={`grid h-16 w-16 shrink-0 place-items-center rounded-full text-lg font-black ring-4 ring-white shadow-sm ${getAvatarTone(player.name)}`} aria-label={`Open ${player.name}'s profile`}>
-					{getInitials(player.name)}
+				<Link to={`/players/${player.id}`} className={`grid h-16 w-16 shrink-0 place-items-center rounded-full text-lg font-black ring-4 ring-white shadow-sm ${getPlayerAvatarTone(player.name)}`} aria-label={`Open ${player.name}'s profile`}>
+					{getPlayerInitials(player.name)}
 				</Link>
 
-				<div className="min-w-0 flex-1">
-					<Link to={`/players/${player.id}`} className="block truncate text-lg font-black text-slate-950 hover:text-yepset-700">
+				<div className="min-w-0 flex-1 pr-10">
+					<Link to={`/players/${player.id}`} className="block break-words text-lg font-black leading-tight text-slate-950 hover:text-yepset-700">
 						{player.name}
 					</Link>
-					<p className="mt-0.5 text-sm font-bold text-slate-500">#{player.number}</p>
+					<div className="mt-2 flex flex-wrap items-end gap-x-5 gap-y-1">
+						<p className="text-sm font-bold text-slate-500">#{player.number}</p>
+						<p className="text-sm font-black text-slate-700">
+							{player.appearances} <span className="text-[10px] uppercase tracking-wider text-slate-400">apps</span>
+						</p>
+					</div>
 				</div>
 
-				<div className="shrink-0 text-right">
-					<p className="text-xl font-black text-slate-900">{player.appearances}</p>
-					<p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Apps</p>
+				<div className="absolute right-3 top-3 sm:right-4 sm:top-4">
+					<PlayerActions
+						player={player}
+						isUpdating={isUpdating}
+						onEditPlayer={onEditPlayer}
+						onTogglePlayerActive={onTogglePlayerActive}
+					/>
 				</div>
-
-				<PlayerActions
-					player={player}
-					isUpdating={isUpdating}
-					onEditPlayer={onEditPlayer}
-					onTogglePlayerActive={onTogglePlayerActive}
-				/>
 			</div>
 
 			<div className="mt-5 flex min-h-7 flex-wrap items-center gap-2">
@@ -96,9 +102,9 @@ function PlayersList({ players, activeTogglePlayerId, onEditPlayer, onTogglePlay
 			<div className="divide-y divide-slate-100 md:hidden">
 				{players.map((player) => (
 					<div key={player.id} className="flex items-center gap-3 p-3">
-						<Link to={`/players/${player.id}`} className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-xs font-black ${getAvatarTone(player.name)}`}>{getInitials(player.name)}</Link>
+						<Link to={`/players/${player.id}`} className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-xs font-black ${getPlayerAvatarTone(player.name)}`}>{getPlayerInitials(player.name)}</Link>
 						<Link to={`/players/${player.id}`} className="min-w-0 flex-1">
-							<span className="block truncate text-sm font-black text-slate-950">{player.name}</span>
+							<span className="block break-words text-sm font-black leading-tight text-slate-950">{player.name}</span>
 							<span className="mt-1 block truncate text-xs font-semibold text-slate-500">#{player.number} · {player.positions.join(", ") || "No positions"} · {player.appearances} apps</span>
 						</Link>
 						<PlayerStatus active={player.isActive} />
@@ -115,7 +121,7 @@ function PlayersList({ players, activeTogglePlayerId, onEditPlayer, onTogglePlay
 					<tbody className="divide-y divide-slate-100">
 						{players.map((player) => (
 							<tr key={player.id} className="transition hover:bg-slate-50/80">
-								<td className="px-5 py-4"><div className="flex items-center gap-3"><Link to={`/players/${player.id}`} className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-xs font-black ${getAvatarTone(player.name)}`}>{getInitials(player.name)}</Link><div><Link to={`/players/${player.id}`} className="font-black text-slate-900 hover:text-yepset-700">{player.name}</Link><p className="mt-0.5 text-xs font-bold text-slate-400">#{player.number}</p></div></div></td>
+								<td className="px-5 py-4"><div className="flex items-center gap-3"><Link to={`/players/${player.id}`} className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-xs font-black ${getPlayerAvatarTone(player.name)}`}>{getPlayerInitials(player.name)}</Link><div><Link to={`/players/${player.id}`} className="font-black text-slate-900 hover:text-yepset-700">{player.name}</Link><p className="mt-0.5 text-xs font-bold text-slate-400">#{player.number}</p></div></div></td>
 								<td className="px-4 py-4"><div className="flex flex-wrap gap-1.5">{player.positions.length > 0 ? player.positions.map((position) => <PositionBadge key={position} position={position} />) : <span className="text-xs text-slate-400">Not set</span>}</div></td>
 								<td className="px-4 py-4 font-bold text-slate-700">{player.appearances}</td>
 								<td className="px-4 py-4"><PlayerStatus active={player.isActive} /></td>
@@ -150,19 +156,4 @@ function PositionBadge({ position }: { position: string }) {
 
 function PlayerStatus({ active, className = "" }: { active: boolean; className?: string }) {
 	return <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-black ${active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"} ${className}`}>{active ? "Active" : "Inactive"}</span>;
-}
-
-function getInitials(name: string) {
-	return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
-}
-
-function getAvatarTone(name: string) {
-	const tones = [
-		"bg-blue-100 text-blue-800",
-		"bg-violet-100 text-violet-800",
-		"bg-amber-100 text-amber-800",
-		"bg-emerald-100 text-emerald-800",
-	];
-	const index = [...name].reduce((total, character) => total + character.charCodeAt(0), 0) % tones.length;
-	return tones[index];
 }

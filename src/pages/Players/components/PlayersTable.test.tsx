@@ -37,6 +37,7 @@ describe("PlayersTable", () => {
 		expect(html).toContain("View profile");
 		expect(html).toContain("Edit player");
 		expect(html).toContain("Deactivate");
+		expect(html).not.toContain("block truncate text-lg");
 	});
 
 	it("renders the same player data in list view", () => {

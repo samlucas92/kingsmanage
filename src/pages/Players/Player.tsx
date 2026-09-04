@@ -17,6 +17,7 @@ import { matchApi } from "../../services/matchApi";
 import { trainingApi } from "../../services/trainingApi";
 import { PlayerFormModal } from "./components/PlayerFormModal";
 import { usePlayerForm } from "./hooks/usePlayerForm";
+import { getPlayerAvatarTone, getPlayerInitials } from "./playersViewModel";
 import { formatDisplayDate } from "../../utils/date";
 import type { ClubEvent, ClubEventAvailabilityStatus } from "../../types/events";
 import type { FinanceTransaction } from "../../types/finance";
@@ -421,7 +422,7 @@ export default function PlayerProfile() {
 	}
 
 	return (
-		<div className="space-y-3 lg:space-y-6">
+		<div className="space-y-4 lg:space-y-6">
 			<LinkButton to="/players" className="hidden lg:inline-flex">← Back to players</LinkButton>
 
 			{playerLoadError && (
@@ -476,87 +477,65 @@ export default function PlayerProfile() {
 				</div>
 			)}
 
-			<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-				<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-					<div className="flex min-w-0 items-center gap-3">
-						<div className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-yepset-100 text-lg font-black text-yepset-900">
-							{player.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("")}
+			<section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+				<div className="h-1.5 bg-yepset-400" />
+				<div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+					<div className="flex min-w-0 items-center gap-4 sm:gap-5">
+						<div className={`grid h-20 w-20 shrink-0 place-items-center rounded-full text-2xl font-black ring-4 ring-white shadow-sm sm:h-24 sm:w-24 sm:text-3xl ${getPlayerAvatarTone(player.name)}`}>
+							{getPlayerInitials(player.name)}
 						</div>
 						<div className="min-w-0">
-						<p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-							Player Profile
-						</p>
-						<h1 className="truncate text-xl font-black text-slate-950 sm:text-2xl">
-							{player.name}
-						</h1>
-						<div className="mt-3 flex flex-wrap items-center gap-2">
-							<StatusBadge
-								label={player.isActive ? "Active" : "Inactive"}
-								tone={player.isActive ? "success" : "neutral"}
-							/>
-							<span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-								#{player.number}
-							</span>
-							{player.positions.map((position) => (
-								<span
-									key={position}
-									className="rounded-full bg-yepset-50 px-3 py-1 text-xs font-semibold text-yepset-800"
-								>
-									{position}
-								</span>
-							))}
-						</div>
+							<div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-400">
+								<span className={`h-2 w-2 rounded-full ${player.isActive ? "bg-emerald-500" : "bg-slate-300"}`} />
+								Player profile
+							</div>
+							<h1 className="mt-1 break-words text-2xl font-black tracking-tight text-slate-950 sm:text-4xl">{player.name}</h1>
+							<div className="mt-3 flex flex-wrap items-center gap-2">
+								<StatusBadge label={player.isActive ? "Active" : "Inactive"} tone={player.isActive ? "success" : "neutral"} />
+								<span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">#{player.number}</span>
+								{player.positions.map((position) => <span key={position} className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-800">{position}</span>)}
+							</div>
 						</div>
 					</div>
 
-					<div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-						<button
-							type="button"
-							onClick={() => playerForm.openEditPlayerModal(player)}
-							className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold hover:bg-slate-50"
-						>
-							Edit
-						</button>
-						<button
-							type="button"
-							onClick={() => void togglePlayerActive(player.id)}
-							className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold hover:bg-slate-50"
-						>
-							{player.isActive ? "Deactivate" : "Activate"}
-						</button>
+					<div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center">
+						<div className="rounded-xl bg-slate-50 px-5 py-3 text-center sm:min-w-32">
+							<p className="text-2xl font-black text-slate-950">{careerApps}</p>
+							<p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Career apps</p>
+						</div>
+						<div className="grid grid-cols-2 gap-2">
+							<button type="button" onClick={() => playerForm.openEditPlayerModal(player)} className="rounded-xl bg-yepset-700 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-yepset-800">Edit player</button>
+							<button type="button" onClick={() => void togglePlayerActive(player.id)} className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50">{player.isActive ? "Deactivate" : "Activate"}</button>
+						</div>
 					</div>
 				</div>
-			</div>
+			</section>
 
-			<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-					<div>
-						<p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-							Season view
-						</p>
-						<h2 className="text-lg font-bold text-slate-900">
-							{selectedSeason?.name ?? "No season selected"}
-						</h2>
-					</div>
-					<SeasonSelector
-						label="Season filter"
-						selectedSeasonId={selectedSeasonId}
-						onSeasonChange={setSelectedSeasonId}
-					/>
+			<section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+				<div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+					<div><p className="text-xs font-black uppercase tracking-widest text-yepset-700">Season overview</p><h2 className="mt-1 text-xl font-black text-slate-950">{selectedSeason?.name ?? "No season selected"}</h2><p className="mt-1 text-sm text-slate-500">Performance and activity for the selected season.</p></div>
+					<SeasonSelector label="Season filter" selectedSeasonId={selectedSeasonId} onSeasonChange={setSelectedSeasonId} />
 				</div>
-			</div>
+				<div className="mt-5 grid grid-cols-3 gap-2 sm:gap-3">
+					<ProfileMetric label="Career apps" value={careerApps} />
+					<ProfileMetric label="Season apps" value={seasonApps} />
+					<ProfileMetric label="Season goals" value={seasonGoals} accent />
+				</div>
+			</section>
 
-			<div className="grid grid-cols-3 gap-2 sm:gap-4">
-				<MetricCard label="Career Apps" value={careerApps} />
-				<MetricCard label="Season Apps" value={seasonApps} />
-				<MetricCard label="Season Goals" value={seasonGoals} />
-			</div>
+			<nav aria-label="Player profile sections" className="flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+				{canViewTrainingDevelopment && <ProfileNavLink href="#development">Development</ProfileNavLink>}
+				<ProfileNavLink href="#availability">Training availability</ProfileNavLink>
+				<ProfileNavLink href="#finance">Finance</ProfileNavLink>
+				<ProfileNavLink href="#appearances">Appearances</ProfileNavLink>
+			</nav>
 
 			{canViewTrainingDevelopment && (
-				<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+				<div id="development" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
 					<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 						<div>
-							<h2 className="text-lg font-bold text-slate-900">
+							<p className="text-xs font-black uppercase tracking-widest text-yepset-700">Coaching</p>
+							<h2 className="mt-1 text-xl font-black text-slate-950">
 								Player Development
 							</h2>
 							<p className="mt-1 text-sm text-slate-500">
@@ -638,10 +617,11 @@ export default function PlayerProfile() {
 				</div>
 			)}
 
-			<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+			<div id="availability" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
 				<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 					<div>
-						<h2 className="text-lg font-bold text-slate-900">
+						<p className="text-xs font-black uppercase tracking-widest text-yepset-700">Commitment</p>
+						<h2 className="mt-1 text-xl font-black text-slate-950">
 							Training Availability Report
 						</h2>
 						<p className="mt-1 text-sm text-slate-500">
@@ -684,10 +664,11 @@ export default function PlayerProfile() {
 				)}
 			</div>
 
-			<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+			<div id="finance" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
 				<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 					<div>
-						<h2 className="text-lg font-bold text-slate-900">
+						<p className="text-xs font-black uppercase tracking-widest text-yepset-700">Account</p>
+						<h2 className="mt-1 text-xl font-black text-slate-950">
 							Season Finance
 						</h2>
 						<p className="mt-1 text-sm text-slate-500">
@@ -786,8 +767,9 @@ export default function PlayerProfile() {
 				</div>
 			</div>
 
-			<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-				<h2 className="text-lg font-bold text-slate-900">
+			<div id="appearances" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+				<p className="text-xs font-black uppercase tracking-widest text-yepset-700">Match history</p>
+				<h2 className="mt-1 text-xl font-black text-slate-950">
 					Recent Season Appearances
 				</h2>
 				<p className="mt-1 text-sm text-slate-500">
@@ -845,4 +827,17 @@ export default function PlayerProfile() {
 			/>
 		</div>
 	);
+}
+
+function ProfileMetric({ label, value, accent = false }: { label: string; value: number; accent?: boolean }) {
+	return (
+		<div className={`rounded-xl border px-3 py-4 text-center sm:px-5 sm:py-5 ${accent ? "border-blue-100 bg-blue-50" : "border-slate-200 bg-slate-50"}`}>
+			<p className={`text-2xl font-black sm:text-3xl ${accent ? "text-blue-800" : "text-slate-950"}`}>{value}</p>
+			<p className="mt-1 text-[10px] font-black uppercase tracking-wider text-slate-500 sm:text-xs">{label}</p>
+		</div>
+	);
+}
+
+function ProfileNavLink({ href, children }: { href: string; children: string }) {
+	return <a href={href} className="shrink-0 rounded-xl px-3 py-2 text-sm font-bold text-slate-600 transition hover:bg-blue-50 hover:text-blue-800">{children}</a>;
 }
