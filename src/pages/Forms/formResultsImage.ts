@@ -1,6 +1,7 @@
 import type { ClubFormOptionResult, ClubFormResults } from "../../types/forms";
 import { createBrandTheme } from "../../utils/brandTheme";
 import { slugify } from "../../services/exportService";
+import { filesApi } from "../../services/filesApi";
 
 export type FormResultsGraphicQuestion = {
 	questionId: string;
@@ -9,7 +10,7 @@ export type FormResultsGraphicQuestion = {
 	rankedOptions: ClubFormOptionResult[];
 	winners: ClubFormOptionResult[];
 	averageRating?: number | null;
-	textResponseCount: number;
+	textResponses: string[];
 };
 
 export type FormResultsGraphicData = {
@@ -21,7 +22,6 @@ export type FormResultsGraphicData = {
 const width = 1080;
 const minimumHeight = 1080;
 const pagePadding = 72;
-const questionCardHeight = 400;
 const questionGap = 24;
 
 export function buildFormResultsGraphicData(results: ClubFormResults): FormResultsGraphicData {
@@ -43,7 +43,7 @@ export function buildFormResultsGraphicData(results: ClubFormResults): FormResul
 				rankedOptions,
 				winners: rankedOptions.filter((option) => option.count === winningCount),
 				averageRating: question.averageRating,
-				textResponseCount: question.textResponses.length,
+				textResponses: question.textResponses,
 			};
 		}),
 	};
@@ -54,11 +54,13 @@ export function getFormResultsImageFilename(clubName: string, formTitle: string)
 }
 
 export async function downloadFormResultsImage({
+	clubId,
 	clubName,
 	primaryColor,
 	secondaryColor,
 	results,
 }: {
+	clubId?: string;
 	clubName: string;
 	primaryColor: string;
 	secondaryColor: string;
@@ -67,16 +69,24 @@ export async function downloadFormResultsImage({
 	if (document.fonts?.ready) await document.fonts.ready;
 
 	const data = buildFormResultsGraphicData(results);
+	const clubLogo = clubId ? await loadClubLogoImage(clubId).catch(() => null) : null;
 	const canvas = document.createElement("canvas");
 	canvas.width = width;
+	canvas.height = minimumHeight;
+	const sizingContext = canvas.getContext("2d");
+	if (!sizingContext) throw new Error("This browser cannot create the results image.");
+	const questionCardHeights = data.questions.map((question) =>
+		getQuestionCardHeight(sizingContext, question)
+	);
 	canvas.height = Math.max(
 		minimumHeight,
-		430 + data.questions.length * questionCardHeight + Math.max(0, data.questions.length - 1) * questionGap
+		430 + questionCardHeights.reduce((total, height) => total + height, 0) +
+			Math.max(0, data.questions.length - 1) * questionGap
 	);
 	const context = canvas.getContext("2d");
 	if (!context) throw new Error("This browser cannot create the results image.");
 
-	renderFormResultsGraphic(context, canvas, data, {
+	renderFormResultsGraphic(context, canvas, data, questionCardHeights, clubLogo, {
 		clubName,
 		primaryColor,
 		secondaryColor,
@@ -97,6 +107,8 @@ function renderFormResultsGraphic(
 	context: CanvasRenderingContext2D,
 	canvas: HTMLCanvasElement,
 	data: FormResultsGraphicData,
+	questionCardHeights: number[],
+	clubLogo: HTMLImageElement | null,
 	brand: { clubName: string; primaryColor: string; secondaryColor: string }
 ) {
 	const theme = createBrandTheme(brand.primaryColor, brand.secondaryColor);
@@ -118,7 +130,7 @@ function renderFormResultsGraphic(
 	context.fill();
 	context.restore();
 
-	drawClubMark(context, brand.clubName, accent, accentText);
+	drawClubMark(context, brand.clubName, clubLogo, accent, accentText);
 	context.fillStyle = "#ffffff";
 	context.font = font(20, 800);
 	context.fillText(brand.clubName.toUpperCase(), 150, 96, 640);
@@ -138,16 +150,19 @@ function renderFormResultsGraphic(
 	if (data.questions.length === 0) {
 		drawEmptyCard(context, 340, "No result questions are available yet.");
 	} else {
+		let questionY = 340;
 		data.questions.forEach((question, index) => {
 			drawQuestionCard(
 				context,
 				question,
-				340 + index * (questionCardHeight + questionGap),
+				questionY,
+				questionCardHeights[index],
 				primary,
 				accent,
 				accentText,
 				index + 1
 			);
+			questionY += questionCardHeights[index] + questionGap;
 		});
 	}
 
@@ -162,6 +177,7 @@ function drawQuestionCard(
 	context: CanvasRenderingContext2D,
 	question: FormResultsGraphicQuestion,
 	y: number,
+	cardHeight: number,
 	primary: string,
 	accent: string,
 	accentText: string,
@@ -169,7 +185,7 @@ function drawQuestionCard(
 ) {
 	const x = pagePadding;
 	const cardWidth = width - pagePadding * 2;
-	roundedRect(context, x, y, cardWidth, questionCardHeight, 30);
+	roundedRect(context, x, y, cardWidth, cardHeight, 30);
 	context.fillStyle = "#ffffff";
 	context.fill();
 
@@ -189,23 +205,33 @@ function drawQuestionCard(
 	context.textAlign = "left";
 
 	if (question.rankedOptions.length > 0) {
-		drawRankedResult(context, question, x, y, cardWidth, accent, accentText);
+		const contentBottom = drawRankedResult(context, question, x, y, cardWidth, accent, accentText);
+		if (question.textResponses.length > 0) {
+			drawWrittenResponses(context, question.textResponses, x, contentBottom + 18, cardWidth, primary);
+		}
 		return;
 	}
 
-	context.fillStyle = "#f1f5f9";
-	roundedRect(context, x + 34, y + 168, cardWidth - 68, 166, 22);
-	context.fill();
-	context.fillStyle = primary;
-	context.font = font(18, 900);
-	context.fillText(question.averageRating != null ? "AVERAGE RATING" : "WRITTEN RESPONSES", x + 62, y + 214);
-	context.fillStyle = "#0f172a";
-	context.font = font(48, 900);
-	context.fillText(
-		question.averageRating != null ? String(question.averageRating) : String(question.textResponseCount),
-		x + 62,
-		y + 282
-	);
+	let contentY = y + 154;
+	if (question.averageRating != null) {
+		context.fillStyle = "#f1f5f9";
+		roundedRect(context, x + 34, contentY, cardWidth - 68, 126, 22);
+		context.fill();
+		context.fillStyle = primary;
+		context.font = font(16, 900);
+		context.fillText("AVERAGE RATING", x + 62, contentY + 38);
+		context.fillStyle = "#0f172a";
+		context.font = font(44, 900);
+		context.fillText(String(question.averageRating), x + 62, contentY + 94);
+		contentY += 148;
+	}
+	if (question.textResponses.length > 0) {
+		drawWrittenResponses(context, question.textResponses, x, contentY, cardWidth, primary);
+	} else if (question.averageRating == null) {
+		context.fillStyle = "#64748b";
+		context.font = font(20, 800);
+		context.fillText("No responses yet.", x + 34, contentY + 48);
+	}
 }
 
 function drawRankedResult(
@@ -216,7 +242,7 @@ function drawRankedResult(
 	cardWidth: number,
 	accent: string,
 	accentText: string
-) {
+): number {
 	const winnerLabel = question.winners.length > 1 ? "TIED WINNERS" : "WINNER";
 	const winnerNames = question.winners.map(optionLabel).join(" / ");
 	const winnerCount = question.winners[0]?.count ?? 0;
@@ -238,23 +264,110 @@ function drawRankedResult(
 	context.fillText(`${winnerCount} ${winnerCount === 1 ? "vote" : "votes"}`, x + cardWidth - 60, y + 241);
 	context.textAlign = "left";
 
-	question.rankedOptions.slice(0, 3).forEach((option, index) => {
-		const rowY = y + 304 + index * 28;
+	context.fillStyle = "#64748b";
+	context.font = font(13, 900);
+	context.fillText("ALL VOTES", x + 42, y + 304);
+	question.rankedOptions.forEach((option, index) => {
+		const rowY = y + 338 + index * 34;
 		context.fillStyle = index === 0 ? "#0f172a" : "#475569";
 		context.font = font(16, index === 0 ? 900 : 750);
 		context.fillText(`${index + 1}`, x + 42, rowY);
-		drawFittedText(context, optionLabel(option), x + 72, rowY, cardWidth - 250, 16, 12, index === 0 ? 900 : 750);
+		drawFittedText(context, optionLabel(option), x + 72, rowY, cardWidth - 310, 16, 12, index === 0 ? 900 : 750);
 		context.textAlign = "right";
-		context.fillText(`${option.count}`, x + cardWidth - 42, rowY);
+		const percentage = question.responseCount > 0
+			? Math.round((option.count / question.responseCount) * 100)
+			: 0;
+		context.fillText(`${option.count} · ${percentage}%`, x + cardWidth - 42, rowY);
 		context.textAlign = "left";
 	});
+	return y + 354 + question.rankedOptions.length * 34;
 }
 
-function drawClubMark(context: CanvasRenderingContext2D, clubName: string, accent: string, textColor: string) {
-	context.fillStyle = accent;
+function drawWrittenResponses(
+	context: CanvasRenderingContext2D,
+	responses: string[],
+	x: number,
+	y: number,
+	cardWidth: number,
+	primary: string
+) {
+	context.fillStyle = primary;
+	context.font = font(13, 900);
+	context.fillText("WRITTEN RESPONSES", x + 42, y + 18);
+	let responseY = y + 36;
+	responses.forEach((response, index) => {
+		const lines = getResponseLines(context, response, cardWidth - 132);
+		const boxHeight = getResponseBoxHeight(lines);
+		context.fillStyle = "#f8fafc";
+		roundedRect(context, x + 34, responseY, cardWidth - 68, boxHeight, 16);
+		context.fill();
+		context.fillStyle = "#94a3b8";
+		context.font = font(13, 900);
+		context.fillText(`${index + 1}`, x + 52, responseY + 30);
+		context.fillStyle = "#334155";
+		context.font = font(17, 650);
+		lines.forEach((line, lineIndex) => {
+			context.fillText(line, x + 82, responseY + 30 + lineIndex * 24, cardWidth - 132);
+		});
+		responseY += boxHeight + 10;
+	});
+	return responseY;
+}
+
+function getQuestionCardHeight(context: CanvasRenderingContext2D, question: FormResultsGraphicQuestion) {
+	let contentBottom = 188;
+	if (question.rankedOptions.length > 0) {
+		contentBottom = 354 + question.rankedOptions.length * 34;
+	} else if (question.averageRating != null) {
+		contentBottom = 302;
+	}
+
+	if (question.textResponses.length > 0) {
+		contentBottom += 54 + question.textResponses.reduce((total, response) => {
+			const lines = getResponseLines(context, response, width - pagePadding * 2 - 132);
+			return total + getResponseBoxHeight(lines) + 10;
+		}, 0);
+	}
+
+	return Math.max(400, contentBottom + 30);
+}
+
+function getResponseLines(context: CanvasRenderingContext2D, response: string, maxWidth: number) {
+	context.font = font(17, 650);
+	return wrapText(context, response.trim() || "No written response", maxWidth);
+}
+
+function getResponseBoxHeight(lines: string[]) {
+	return Math.max(54, 24 + lines.length * 24);
+}
+
+function drawClubMark(
+	context: CanvasRenderingContext2D,
+	clubName: string,
+	clubLogo: HTMLImageElement | null,
+	accent: string,
+	textColor: string
+) {
+	context.fillStyle = clubLogo ? "#ffffff" : accent;
 	context.beginPath();
-	context.arc(104, 88, 32, 0, Math.PI * 2);
+	context.arc(104, 88, 38, 0, Math.PI * 2);
 	context.fill();
+
+	if (clubLogo) {
+		const maximumSize = 62;
+		const scale = Math.min(maximumSize / clubLogo.naturalWidth, maximumSize / clubLogo.naturalHeight);
+		const logoWidth = clubLogo.naturalWidth * scale;
+		const logoHeight = clubLogo.naturalHeight * scale;
+		context.drawImage(
+			clubLogo,
+			104 - logoWidth / 2,
+			88 - logoHeight / 2,
+			logoWidth,
+			logoHeight
+		);
+		return;
+	}
+
 	context.fillStyle = textColor;
 	context.font = font(24, 900);
 	context.textAlign = "center";
@@ -262,6 +375,27 @@ function drawClubMark(context: CanvasRenderingContext2D, clubName: string, accen
 	context.fillText(clubName.trim().charAt(0).toUpperCase() || "Y", 104, 89);
 	context.textAlign = "left";
 	context.textBaseline = "alphabetic";
+}
+
+async function loadClubLogoImage(clubId: string) {
+	const files = await filesApi.getFilesForLinkedEntity("ClubLogo", clubId);
+	const logoFile = [...files].sort((left, right) =>
+		new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()
+	)[0];
+	if (!logoFile) return null;
+
+	const { downloadUrl } = await filesApi.getDownloadUrl(logoFile.id);
+	const response = await fetch(downloadUrl);
+	if (!response.ok) throw new Error("The club crest could not be downloaded.");
+	const objectUrl = URL.createObjectURL(await response.blob());
+	try {
+		const image = new Image();
+		image.src = objectUrl;
+		await image.decode();
+		return image;
+	} finally {
+		URL.revokeObjectURL(objectUrl);
+	}
 }
 
 function drawEmptyCard(context: CanvasRenderingContext2D, y: number, message: string) {
@@ -275,6 +409,13 @@ function drawEmptyCard(context: CanvasRenderingContext2D, y: number, message: st
 
 function drawWrappedText(context: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, fontSize: number, maxLines: number) {
 	context.font = font(fontSize, 900);
+	const lines = wrapText(context, text, maxWidth);
+	lines.slice(0, maxLines).forEach((item, index) => {
+		drawFittedText(context, item, x, y + index * fontSize * 1.15, maxWidth, fontSize, 16, 900);
+	});
+}
+
+function wrapText(context: CanvasRenderingContext2D, text: string, maxWidth: number) {
 	const words = text.trim().split(/\s+/);
 	const lines: string[] = [];
 	let line = "";
@@ -288,9 +429,7 @@ function drawWrappedText(context: CanvasRenderingContext2D, text: string, x: num
 		}
 	}
 	if (line) lines.push(line);
-	lines.slice(0, maxLines).forEach((item, index) => {
-		drawFittedText(context, item, x, y + index * fontSize * 1.15, maxWidth, fontSize, 16, 900);
-	});
+	return lines.length > 0 ? lines : [""];
 }
 
 function drawFittedText(context: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, preferredSize: number, minimumSize: number, weight: number) {

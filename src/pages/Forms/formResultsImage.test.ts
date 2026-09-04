@@ -13,11 +13,12 @@ const results: ClubFormResults = {
 		type: "SingleChoice",
 		responseCount: 12,
 		options: [
-			{ value: "alex", label: "Alex Wilson", count: 3 },
+			{ value: "alex", label: "Alex Wilson", count: 2 },
 			{ value: "sam", label: "Sam Jones", count: 7 },
 			{ value: "ben", label: "Ben Price", count: 2 },
+			{ value: "dai", label: "Dai Rowe", count: 1 },
 		],
-		textResponses: [],
+		textResponses: ["Brilliant performance from start to finish."],
 	}],
 };
 
@@ -29,8 +30,13 @@ describe("form results image", () => {
 			"Sam Jones",
 			"Alex Wilson",
 			"Ben Price",
+			"Dai Rowe",
 		]);
 		expect(graphic.questions[0].winners.map((option) => option.label)).toEqual(["Sam Jones"]);
+		expect(graphic.questions[0].rankedOptions).toHaveLength(4);
+		expect(graphic.questions[0].textResponses).toEqual([
+			"Brilliant performance from start to finish.",
+		]);
 	});
 
 	it("keeps tied winners visible", () => {
