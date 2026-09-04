@@ -350,13 +350,8 @@ function drawClubMark(
 	accent: string,
 	textColor: string
 ) {
-	context.fillStyle = clubLogo ? "#ffffff" : accent;
-	context.beginPath();
-	context.arc(104, 88, 38, 0, Math.PI * 2);
-	context.fill();
-
 	if (clubLogo) {
-		const maximumSize = 62;
+		const maximumSize = 72;
 		const scale = Math.min(maximumSize / clubLogo.naturalWidth, maximumSize / clubLogo.naturalHeight);
 		const logoWidth = clubLogo.naturalWidth * scale;
 		const logoHeight = clubLogo.naturalHeight * scale;
@@ -370,6 +365,10 @@ function drawClubMark(
 		return;
 	}
 
+	context.fillStyle = accent;
+	context.beginPath();
+	context.arc(104, 88, 38, 0, Math.PI * 2);
+	context.fill();
 	context.fillStyle = textColor;
 	context.font = font(24, 900);
 	context.textAlign = "center";
