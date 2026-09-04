@@ -50,6 +50,7 @@ export default function Forms() {
 	const location = useLocation();
 	const navigate = useNavigate();
 	const currentUser = useAuthStore((state) => state.currentUser);
+	const activeClub = useAuthStore((state) => state.availableClubs.find((club) => club.isCurrent));
 	const isPublicForm = Boolean(goCode);
 	const isEditorMode = location.pathname.endsWith("/edit");
 	const isReportMode = location.pathname.endsWith("/report");
@@ -71,6 +72,7 @@ export default function Forms() {
 	const [deleteTarget, setDeleteTarget] = useState<ClubForm | null>(null);
 	const [cleanupMatchAward, setCleanupMatchAward] = useState(false);
 	const [copyModalOpen, setCopyModalOpen] = useState(false);
+	const [isDownloadingResults, setIsDownloadingResults] = useState(false);
 	const [selectedCopyQuestions, setSelectedCopyQuestions] = useState<Set<string>>(new Set());
 	const [listAnalytics, setListAnalytics] = useState<Record<string, FormAnalyticsPerformance>>({});
 	const analyticsTracker = useFormAnalytics({
@@ -345,6 +347,28 @@ export default function Forms() {
 		}
 	}
 
+	async function downloadResultsImage() {
+		if (!results) return;
+
+		setIsDownloadingResults(true);
+		setError("");
+		setMessage("");
+		try {
+			const { downloadFormResultsImage } = await import("./formResultsImage");
+			await downloadFormResultsImage({
+				clubName: activeClub?.name ?? "Yepset club",
+				primaryColor: activeClub?.primaryColor ?? "#0f766e",
+				secondaryColor: activeClub?.secondaryColor ?? "#facc15",
+				results,
+			});
+			setMessage("Results image downloaded.");
+		} catch (error) {
+			setError(error instanceof Error ? error.message : "Could not download the results image.");
+		} finally {
+			setIsDownloadingResults(false);
+		}
+	}
+
 	if (isPublicForm) {
 		return (
 			<div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(21,128,113,.16),transparent_32%),#f8fafc] px-4 py-8 text-slate-900">
@@ -415,6 +439,7 @@ export default function Forms() {
 					submissionReport={submissionReport}
 					viewMode={reportViewMode}
 					isLoading={isLoading}
+					isDownloadingResults={isDownloadingResults}
 					onBack={() => navigate("/forms")}
 					onCopy={() => {
 						setSelectedCopyQuestions(new Set(
@@ -422,6 +447,7 @@ export default function Forms() {
 						));
 						setCopyModalOpen(true);
 					}}
+					onDownloadImage={() => void downloadResultsImage()}
 					onEdit={() => form && navigate(`/forms/${form.id}/edit`)}
 					onGoToForm={() => form && navigate(`/go/${form.goCode}`)}
 					onInsights={() => form && navigate(`/forms/${form.id}/insights`)}
@@ -721,8 +747,10 @@ function FormReportView({
 	submissionReport,
 	viewMode,
 	isLoading,
+	isDownloadingResults,
 	onBack,
 	onCopy,
+	onDownloadImage,
 	onDelete,
 	onEdit,
 	onGoToForm,
@@ -737,8 +765,10 @@ function FormReportView({
 	submissionReport: ClubFormSubmissionReport | null;
 	viewMode: ReportViewMode;
 	isLoading: boolean;
+	isDownloadingResults: boolean;
 	onBack: () => void;
 	onCopy: () => void;
+	onDownloadImage: () => void;
 	onDelete: () => void;
 	onEdit: () => void;
 	onGoToForm: () => void;
@@ -772,6 +802,15 @@ function FormReportView({
 				<div className="flex flex-wrap gap-2">
 					<button type="button" onClick={onGoToForm} className="btn-primary">Go to form</button>
 					<button type="button" onClick={onCopy} disabled={form.status !== "Closed"} className="btn-secondary disabled:opacity-50">Copy results</button>
+					<button
+						type="button"
+						onClick={onDownloadImage}
+						disabled={form.status !== "Closed" || !results || results.submissionCount === 0 || isDownloadingResults}
+						title={form.status !== "Closed" ? "Close the form before downloading final results." : undefined}
+						className="btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
+					>
+						{isDownloadingResults ? "Creating image…" : "Download image"}
+					</button>
 					<button type="button" onClick={onShare} className="btn-secondary">Share</button>
 					<button type="button" onClick={onEdit} className="btn-secondary">Edit</button>
 					<button type="button" onClick={onInsights} className="btn-secondary">Insights</button>
