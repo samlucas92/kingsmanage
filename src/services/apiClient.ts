@@ -66,6 +66,21 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 	return response.json() as Promise<T>;
 }
 
+async function requestBlob(path: string): Promise<Blob> {
+	const headers: Record<string, string> = {};
+	const token = getStoredAuthToken();
+	if (token) headers.Authorization = `Bearer ${token}`;
+
+	const response = await fetch(`${API_BASE_URL}${path}`, { headers });
+	if (response.status === 401) {
+		window.dispatchEvent(new CustomEvent("kingsmanage:unauthorised"));
+	}
+	if (!response.ok) {
+		throw new Error(await getErrorMessage(response));
+	}
+	return response.blob();
+}
+
 async function getErrorMessage(response: Response) {
 	const fallbackMessage = `Request failed with status ${response.status}`;
 
@@ -110,6 +125,7 @@ async function getErrorMessage(response: Response) {
 
 export const apiClient = {
 	get: <T>(path: string, options?: RequestOptions) => request<T>(path, options),
+	getBlob: (path: string) => requestBlob(path),
 	post: <T>(path: string, body: unknown, options?: RequestOptions) => request<T>(path, {
 		...options,
 		method: "POST",

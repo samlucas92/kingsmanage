@@ -380,10 +380,7 @@ function drawClubMark(
 }
 
 async function loadClubLogoImage(logoFileId: string) {
-	const { downloadUrl } = await filesApi.getDownloadUrl(logoFileId);
-	const response = await fetch(downloadUrl);
-	if (!response.ok) throw new Error("The club crest could not be downloaded.");
-	const objectUrl = URL.createObjectURL(await response.blob());
+	const objectUrl = URL.createObjectURL(await filesApi.getContent(logoFileId));
 	try {
 		const image = new Image();
 		image.src = objectUrl;

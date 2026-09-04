@@ -30,6 +30,8 @@ export const filesApi = {
 	getDownloadUrl: (id: string) =>
 		apiClient.get<FileDownloadUrlResponse>(`/files/${id}/download-url`),
 
+	getContent: (id: string) => apiClient.getBlob(`/files/${id}/content`),
+
 	getStorageUsage: () =>
 		apiClient.get<FileStorageUsage>("/files/storage-usage"),
 
