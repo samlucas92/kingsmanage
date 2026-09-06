@@ -6,12 +6,16 @@ import MetricCard from "../../components/compositions/MetricCard";
 import DataTable from "../../components/compositions/DataTable";
 import StatusBadge from "../../components/compositions/StatusBadge";
 import { useState } from "react";
+import { useSeasonStore } from "../../stores/seasons";
 
 export default function HistoricalStats() {
 	const players = usePlayerStore((state) => state.players);
 	const loadPlayers = usePlayerStore((state) => state.loadPlayers);
 	const isLoadingPlayers = usePlayerStore((state) => state.isLoadingPlayers);
 	const playerLoadError = usePlayerStore((state) => state.playerLoadError);
+	const seasons = useSeasonStore((state) => state.seasons);
+	const activeSeasonId = useSeasonStore((state) => state.activeSeasonId);
+	const loadSeasons = useSeasonStore((state) => state.loadSeasons);
 
 	const historicalPlayerStats = useHistoricalStatsStore(
 		(state) => state.historicalPlayerStats
@@ -38,7 +42,11 @@ export default function HistoricalStats() {
 	useEffect(() => {
 		void loadPlayers(true);
 		void loadHistoricalStats(true);
-	}, [loadHistoricalStats, loadPlayers]);
+		void loadSeasons();
+	}, [loadHistoricalStats, loadPlayers, loadSeasons]);
+
+	const activeSeasonName = seasons.find((season) => season.id === activeSeasonId)?.name;
+	const baselineLabel = activeSeasonName ? `Before ${activeSeasonName}` : "Historical";
 
 	const rows = useMemo(() => {
 		return players
@@ -109,7 +117,7 @@ export default function HistoricalStats() {
 			<div>
 				<h1 className="text-2xl font-bold text-slate-900">Historical Stats</h1>
 				<p className="mt-1 text-sm text-slate-600">
-					Edit player appearances and goals from before 2026/27. These values are the baseline for career totals.
+					Edit player appearances and goals from before the current season. These values are the baseline for career totals.
 				</p>
 			</div>
 
@@ -125,7 +133,7 @@ export default function HistoricalStats() {
 			</div>
 
 			<PanelCard
-				title="Pre-26/27 historical totals"
+				title={`${baselineLabel} totals`}
 				description="Changes save when you leave a field or press Enter."
 				action={
 					<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -169,8 +177,8 @@ export default function HistoricalStats() {
 					<thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
 						<tr>
 							<th className="px-4 py-3 text-left font-semibold">Player</th>
-							<th className="px-4 py-3 text-center font-semibold">Pre 26/27 Apps</th>
-							<th className="px-4 py-3 text-center font-semibold">Pre 26/27 Goals</th>
+							<th className="px-4 py-3 text-center font-semibold">{baselineLabel} Apps</th>
+							<th className="px-4 py-3 text-center font-semibold">{baselineLabel} Goals</th>
 							<th className="px-4 py-3 text-left font-semibold">Status</th>
 						</tr>
 					</thead>

@@ -4,6 +4,7 @@ import SeasonSelector from "../../components/compositions/SeasonSelector";
 import MetricCard from "../../components/compositions/MetricCard";
 import DataTable from "../../components/compositions/DataTable";
 import PanelCard from "../../components/compositions/PanelCard";
+import { useAuthStore } from "../../stores/auth";
 import { useMatchStore } from "../../stores/match";
 import { useSeasonStore } from "../../stores/seasons";
 import { useStatsStore } from "../../stores/stats";
@@ -20,6 +21,8 @@ import {
 	type ExportColumn,
 } from "../../services/exportService";
 import type { PlayerStatsRecord } from "../../services/statsApi";
+import PlayerStatsBreakdownModal from "./PlayerStatsBreakdownModal";
+import SeasonRolloverPanel from "./SeasonRolloverPanel";
 
 type StatsRow = PlayerStatsRecord & {
 	id: string;
@@ -57,7 +60,8 @@ const columns: {
 function getExportColumns(
 	selectedSeasonName: string,
 	firstTeamName: string,
-	secondTeamName: string
+	secondTeamName: string,
+	historicalLabel: string
 ): ExportColumn<StatsRow>[] {
 	return [
 		{
@@ -89,11 +93,11 @@ function getExportColumns(
 			getValue: (row) => row.seasonGoals,
 		},
 		{
-			label: "Pre 26/27 Apps",
+			label: `${historicalLabel} Apps`,
 			getValue: (row) => row.preSeasonApps,
 		},
 		{
-			label: "Pre 26/27 Goals",
+			label: `${historicalLabel} Goals`,
 			getValue: (row) => row.preSeasonGoals,
 		},
 		{
@@ -166,11 +170,13 @@ export default function Stats({
 	const loadSeasons = useSeasonStore((state) => state.loadSeasons);
 	const seasonStats = useStatsStore((state) => state.seasonStats);
 	const loadSeasonStats = useStatsStore((state) => state.loadSeasonStats);
+	const currentUser = useAuthStore((state) => state.currentUser);
 	const [sortKey, setSortKey] = useState<SortKey>("careerApps");
 	const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 	const [includeInactive, setIncludeInactive] = useState(false);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [copyStatus, setCopyStatus] = useState("");
+	const [breakdownPlayerId, setBreakdownPlayerId] = useState("");
 	const [internalSelectedSeasonId, setInternalSelectedSeasonId] = useState("");
 	const requestedSeasonId = controlledSelectedSeasonId ?? internalSelectedSeasonId;
 	const selectedSeasonId = seasons.some((season) => season.id === requestedSeasonId)
@@ -180,6 +186,10 @@ export default function Stats({
 
 	const selectedSeason = seasons.find((season) => season.id === selectedSeasonId);
 	const selectedSeasonName = selectedSeason?.name ?? "Selected season";
+	const historicalLabel = `Before ${selectedSeasonName}`;
+	const canManageRollover = currentUser?.role === "Admin" ||
+		currentUser?.tenantRole === "OrganizationAdmin" ||
+		currentUser?.tenantRole === "ClubAdmin";
 
 	useEffect(() => {
 		void loadSeasons();
@@ -287,7 +297,12 @@ export default function Stats({
 	}
 
 	function handleCopyTable() {
-		const exportColumns = getExportColumns(selectedSeasonName, firstTeamName, secondTeamName);
+		const exportColumns = getExportColumns(
+			selectedSeasonName,
+			firstTeamName,
+			secondTeamName,
+			historicalLabel
+		);
 		const tableText = buildSeparatedTableText({
 			rows: sortedRows,
 			columns: exportColumns,
@@ -307,7 +322,12 @@ export default function Stats({
 	}
 
 	function handleExportCsv() {
-		const exportColumns = getExportColumns(selectedSeasonName, firstTeamName, secondTeamName);
+		const exportColumns = getExportColumns(
+			selectedSeasonName,
+			firstTeamName,
+			secondTeamName,
+			historicalLabel
+		);
 		const csvText = buildCsvText({
 			rows: sortedRows,
 			columns: exportColumns,
@@ -337,7 +357,7 @@ export default function Stats({
 						<p className="text-gray-600">
 							{variant === "report"
 								? "Goals, assists, appearances and match records for the selected report season."
-								: "Player stats split by selected season, the pre-26/27 historical baseline and career totals."}
+								: "Player stats split by selected season, the historical baseline and career totals."}
 						</p>
 					</div>
 
@@ -360,7 +380,7 @@ export default function Stats({
 						</h2>
 						<p className="mt-1 max-w-5xl text-sm text-slate-500">
 							{selectedSeasonName} apps and goals are calculated from completed
-							matches in this season. Career totals are the Pre 26/27 historical
+							matches in this season. Career totals are the before-season historical
 							baseline plus completed non-friendly matches in this season.
 						</p>
 					</div>
@@ -370,6 +390,14 @@ export default function Stats({
 					</span>
 				</div>
 			</PanelCard>
+
+			{variant !== "report" && (
+				<SeasonRolloverPanel
+					seasonId={selectedSeasonId}
+					canManage={canManageRollover}
+					onCompleted={() => loadSeasonStats(selectedSeasonId, true)}
+				/>
+			)}
 
 			<div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
 				{clubTeamProfiles.map((profile) => (
@@ -385,7 +413,7 @@ export default function Stats({
 					label={`${selectedSeasonName} Apps`}
 					value={totalSeasonApps}
 				/>
-				<MetricCard label="Pre 26/27 Apps" value={totalPreSeasonApps} />
+				<MetricCard label={`${historicalLabel} Apps`} value={totalPreSeasonApps} />
 			</div>
 
 			<div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
@@ -399,7 +427,7 @@ export default function Stats({
 			</div>
 
 			<div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
-				<MetricCard label="Pre 26/27 Goals" value={totalPreSeasonGoals} />
+				<MetricCard label={`${historicalLabel} Goals`} value={totalPreSeasonGoals} />
 				<MetricCard label={`${selectedSeasonName} Tracked Goals`} value={totalTrackedCareerGoals} />
 			</div>
 
@@ -460,7 +488,7 @@ export default function Stats({
 							<GroupHeader label={firstTeamName} />
 							<GroupHeader label={secondTeamName} />
 							<GroupHeader label={selectedSeasonName} />
-							<GroupHeader label="Pre 26/27" />
+							<GroupHeader label={historicalLabel} />
 							<GroupHeader label="Career" />
 							<th
 								colSpan={7}
@@ -518,10 +546,14 @@ export default function Stats({
 								<td className="p-3 text-center">{row.preSeasonApps}</td>
 								<td className="p-3 text-center">{row.preSeasonGoals}</td>
 								<td className="p-3 text-center font-semibold text-slate-900">
-									{row.careerApps}
+									<button type="button" onClick={() => setBreakdownPlayerId(row.playerId)} className="rounded-md px-2 py-1 text-blue-900 hover:bg-blue-50 hover:underline" title={`Show how ${row.name}'s career stats are calculated`}>
+										{row.careerApps}
+									</button>
 								</td>
 								<td className="p-3 text-center font-semibold text-slate-900">
-									{row.careerGoals}
+									<button type="button" onClick={() => setBreakdownPlayerId(row.playerId)} className="rounded-md px-2 py-1 text-blue-900 hover:bg-blue-50 hover:underline" title={`Show how ${row.name}'s career stats are calculated`}>
+										{row.careerGoals}
+									</button>
 								</td>
 								<td className="p-3 text-center">{row.assists}</td>
 								<td className="p-3 text-center">{row.starts}</td>
@@ -536,6 +568,14 @@ export default function Stats({
 					</tbody>
 				</DataTable>
 			</div>
+
+			{breakdownPlayerId && (
+				<PlayerStatsBreakdownModal
+					seasonId={selectedSeasonId}
+					playerId={breakdownPlayerId}
+					onClose={() => setBreakdownPlayerId("")}
+				/>
+			)}
 		</div>
 	);
 }
