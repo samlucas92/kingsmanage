@@ -62,6 +62,16 @@ export type MatchPlayerStatField =
 	| "note";
 
 export type MatchPlayerStatValue = number | boolean | string;
+export type MatchTimelineEventType = "goal" | "yellowCard" | "redCard" | "substitution";
+
+export type MatchTimelineEvent = {
+	id: string;
+	type: MatchTimelineEventType;
+	minute: number;
+	playerId: string;
+	secondaryPlayerId?: string | null;
+};
+
 export type ClubTeam = string;
 export type MatchCompetitionType = "unknown" | "league" | "cup" | "friendly" | "tournament";
 
@@ -86,6 +96,8 @@ export type Match = {
 	selectedPlayers: SelectedPlayer[];
 	selectedPlayerIds?: string[];
 	playerStats?: MatchPlayerStat[];
+	matchDurationMinutes?: number;
+	matchEvents?: MatchTimelineEvent[];
 	isDetailLoaded?: boolean;
 };
 
@@ -148,6 +160,11 @@ type MatchStore = {
 		matchId: string,
 		playerStats: MatchPlayerStat[]
 	) => Promise<void>;
+	updateMatchEvents: (
+		matchId: string,
+		matchDurationMinutes: number,
+		matchEvents: MatchTimelineEvent[]
+	) => Promise<void>;
 };
 
 const emptyMatchNotes: MatchNotes = {
@@ -168,6 +185,8 @@ function normaliseMatch(match: Match): Match {
 			(selectedPlayer) => selectedPlayer.playerId
 		),
 		playerStats: match.playerStats ?? [],
+		matchDurationMinutes: match.matchDurationMinutes ?? 90,
+		matchEvents: match.matchEvents ?? [],
 	};
 }
 
@@ -485,6 +504,18 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
 		const savedMatch = await matchApi.updatePlayerStats(
 			matchId,
 			playerStats
+		);
+
+		set((state) => ({
+			matches: replaceMatch(state.matches, savedMatch),
+		}));
+	},
+
+	updateMatchEvents: async (matchId, matchDurationMinutes, matchEvents) => {
+		const savedMatch = await matchApi.updateMatchEvents(
+			matchId,
+			matchDurationMinutes,
+			matchEvents
 		);
 
 		set((state) => ({

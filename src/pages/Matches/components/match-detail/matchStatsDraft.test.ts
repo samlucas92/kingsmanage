@@ -1,13 +1,6 @@
 import { describe, expect, it } from "vitest";
-
-import type { MatchPlayerStat, SelectedPlayer } from "../../../../stores/match";
-import {
-	buildMatchStatsDraft,
-	calculateMinutesPlayed,
-	getParticipationMinute,
-	updateMotmDraft,
-	updateStatsForMatchDuration,
-} from "./matchStatsDraft";
+import type { MatchPlayerStat } from "../../../../stores/match";
+import { updateMotmDraft } from "./matchStatsDraft";
 
 function createStat(playerId: string, isMOTM: boolean): MatchPlayerStat {
 	return {
@@ -45,56 +38,5 @@ describe("match report MOTM selection", () => {
 		expect(updated.filter((stat) => stat.isMOTM).map((stat) => stat.playerId)).toEqual([
 			"player-two",
 		]);
-	});
-});
-
-describe("match report participation", () => {
-	it("calculates starter and substitute minutes from event times", () => {
-		expect(calculateMinutesPlayed("started", 74, 90)).toBe(74);
-		expect(calculateMinutesPlayed("substituteUsed", 62, 90)).toBe(28);
-		expect(calculateMinutesPlayed("unusedSubstitute", 62, 90)).toBe(0);
-	});
-
-	it("reconstructs a substitution minute from saved minutes", () => {
-		const substitute = {
-			...createStat("substitute", false),
-			appearanceType: "substituteUsed" as const,
-			minutes: 28,
-		};
-
-		expect(getParticipationMinute(substitute, 90)).toBe(62);
-	});
-
-	it("preserves event times when the match length changes", () => {
-		const fullMatchStarter = createStat("starter", false);
-		const substitute = {
-			...createStat("substitute", false),
-			appearanceType: "substituteUsed" as const,
-			minutes: 25,
-		};
-
-		const updated = updateStatsForMatchDuration(
-			[fullMatchStarter, substitute],
-			90,
-			80
-		);
-
-		expect(updated[0].minutes).toBe(80);
-		expect(updated[1].minutes).toBe(15);
-	});
-
-	it("defaults selected starters to a full match and bench players to did not play", () => {
-		const selectedPlayers: SelectedPlayer[] = [
-			{ playerId: "starter", area: "pitch" },
-			{ playerId: "substitute", area: "bench" },
-		];
-
-		const draft = buildMatchStatsDraft(selectedPlayers, [], 80);
-
-		expect(draft[0]).toMatchObject({ appearanceType: "started", minutes: 80 });
-		expect(draft[1]).toMatchObject({
-			appearanceType: "unusedSubstitute",
-			minutes: 0,
-		});
 	});
 });

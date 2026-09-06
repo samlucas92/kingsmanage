@@ -343,6 +343,12 @@ export default function MatchDetail() {
 						benchCount={matchDetail.benchCount}
 						totalSelectedCount={matchDetail.totalSelectedCount}
 						isLineupLocked={currentMatch.isLineupLocked}
+						isCompleted={currentMatch.isCompleted}
+						selectedPlayers={currentMatch.selectedPlayers}
+						playerStats={currentMatch.playerStats ?? []}
+						matchEvents={currentMatch.matchEvents ?? []}
+						matchDurationMinutes={currentMatch.matchDurationMinutes ?? 90}
+						getPlayerName={matchDetail.getPlayerName}
 						getPlayerAvailabilityStatus={
 							matchDetail.getMatchPlayerAvailabilityStatus
 						}
@@ -363,17 +369,24 @@ export default function MatchDetail() {
 						}
 						hasAwardsForm={Boolean(matchAwardsForm)}
 						isCreatingAwardsForm={isCreatingAwardsForm}
+						onSaveMatchEvents={matchDetail.handleSaveMatchEvents}
 					/>
 				)}
 
 				{activeSection === "stats" && (
-					<MatchStatsCard
-						selectedPlayers={currentMatch.selectedPlayers}
-						playerStats={currentMatch.playerStats ?? []}
-						isCompleted={currentMatch.isCompleted}
-						getPlayerName={matchDetail.getPlayerName}
-						onSavePlayerStats={matchDetail.handleSaveMatchPlayerStats}
-					/>
+					currentMatch.isCompleted ? (
+						<MatchStatsCard
+							selectedPlayers={currentMatch.selectedPlayers}
+							playerStats={currentMatch.playerStats ?? []}
+							getPlayerName={matchDetail.getPlayerName}
+							onEditEvents={() => setActiveSection("squad")}
+							onSavePlayerStats={matchDetail.handleSaveMatchPlayerStats}
+						/>
+					) : (
+						<div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm font-medium text-amber-800 shadow-sm">
+							Enter the final result before adding match events.
+						</div>
+					)
 				)}
 
 				{activeSection === "notes" && (
@@ -402,7 +415,10 @@ export default function MatchDetail() {
 				awayGoals={matchDetail.awayGoals}
 				resultPreview={matchDetail.resultPreview}
 				onClose={() => matchDetail.setShowResultModal(false)}
-				onConfirm={matchDetail.handleConfirmResult}
+				onConfirm={() => {
+					matchDetail.handleConfirmResult();
+					setActiveSection("squad");
+				}}
 				onUpdateHomeGoals={matchDetail.updateHomeGoals}
 				onUpdateAwayGoals={matchDetail.updateAwayGoals}
 			/>

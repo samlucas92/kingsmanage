@@ -3,7 +3,13 @@ import StatusBadge from "../../../../components/compositions/StatusBadge";
 import type { ClubEventAvailabilityStatus } from "../../../../types/events";
 import type { TrainingAvailabilitySummary } from "../../../../utils/trainingAvailability";
 import TeamPicker from "../TeamPicker";
+import type {
+	MatchPlayerStat,
+	MatchTimelineEvent,
+	SelectedPlayer,
+} from "../../../../stores/match";
 import type { SameDaySelection } from "../../sameDaySelections";
+import { MatchEventsEditor } from "./MatchEventsEditor";
 
 interface TeamSelectionCardProps {
 	matchId: string;
@@ -11,6 +17,12 @@ interface TeamSelectionCardProps {
 	benchCount: number;
 	totalSelectedCount: number;
 	isLineupLocked: boolean;
+	isCompleted: boolean;
+	selectedPlayers: SelectedPlayer[];
+	playerStats: MatchPlayerStat[];
+	matchEvents: MatchTimelineEvent[];
+	matchDurationMinutes: number;
+	getPlayerName: (playerId: string) => string;
 	getPlayerAvailabilityStatus: (
 		playerId: string
 	) => ClubEventAvailabilityStatus | undefined;
@@ -25,6 +37,10 @@ interface TeamSelectionCardProps {
 	onViewAwardsFormClick?: () => void;
 	hasAwardsForm?: boolean;
 	isCreatingAwardsForm?: boolean;
+	onSaveMatchEvents: (
+		matchDurationMinutes: number,
+		matchEvents: MatchTimelineEvent[]
+	) => Promise<void>;
 }
 
 export function TeamSelectionCard({
@@ -33,6 +49,12 @@ export function TeamSelectionCard({
 	benchCount,
 	totalSelectedCount,
 	isLineupLocked,
+	isCompleted,
+	selectedPlayers,
+	playerStats,
+	matchEvents,
+	matchDurationMinutes,
+	getPlayerName,
 	getPlayerAvailabilityStatus,
 	getPlayerTrainingAvailability,
 	getPlayerSameDaySelections,
@@ -43,6 +65,7 @@ export function TeamSelectionCard({
 	onViewAwardsFormClick,
 	hasAwardsForm = false,
 	isCreatingAwardsForm = false,
+	onSaveMatchEvents,
 }: TeamSelectionCardProps) {
 	return (
 		<PanelCard>
@@ -108,14 +131,25 @@ export function TeamSelectionCard({
 				</p>
 			)}
 
-			<div className="mt-4 min-w-0 rounded-xl border border-dashed border-yepset-200 bg-yepset-50 p-2 text-slate-500 sm:mt-6 sm:p-4">
-				<TeamPicker
-					matchId={matchId}
-					getPlayerAvailabilityStatus={getPlayerAvailabilityStatus}
-					getPlayerTrainingAvailability={getPlayerTrainingAvailability}
-					getPlayerSameDaySelections={getPlayerSameDaySelections}
+			{isCompleted && isLineupLocked ? (
+				<MatchEventsEditor
+					selectedPlayers={selectedPlayers}
+					playerStats={playerStats}
+					matchEvents={matchEvents}
+					matchDurationMinutes={matchDurationMinutes}
+					getPlayerName={getPlayerName}
+					onSave={onSaveMatchEvents}
 				/>
-			</div>
+			) : (
+				<div className="mt-4 min-w-0 rounded-xl border border-dashed border-yepset-200 bg-yepset-50 p-2 text-slate-500 sm:mt-6 sm:p-4">
+					<TeamPicker
+						matchId={matchId}
+						getPlayerAvailabilityStatus={getPlayerAvailabilityStatus}
+						getPlayerTrainingAvailability={getPlayerTrainingAvailability}
+						getPlayerSameDaySelections={getPlayerSameDaySelections}
+					/>
+				</div>
+			)}
 		</PanelCard>
 	);
 }

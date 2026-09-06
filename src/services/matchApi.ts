@@ -9,6 +9,8 @@ import type {
 	MatchPlayerStat,
 	MatchResult,
 	MatchState,
+	MatchTimelineEvent,
+	MatchTimelineEventType,
 	PostponementAudit,
 	SelectedPlayer,
 } from "../stores/match";
@@ -50,10 +52,14 @@ type ApiMatchAppearanceType =
 type ApiMatchPlayerStat = Omit<MatchPlayerStat, "appearanceType"> & {
 	appearanceType: ApiMatchAppearanceType;
 };
+type ApiMatchTimelineEventType = "Goal" | "YellowCard" | "RedCard" | "Substitution";
+type ApiMatchTimelineEvent = Omit<MatchTimelineEvent, "type"> & {
+	type: ApiMatchTimelineEventType;
+};
 
 type ApiMatch = Omit<
 	Match,
-	"team" | "venue" | "state" | "selectedFormation" | "playerStats" | "isDetailLoaded"
+	"team" | "venue" | "state" | "selectedFormation" | "playerStats" | "matchEvents" | "isDetailLoaded"
 > & {
 	team: ApiClubTeam;
 	teamId?: string | null;
@@ -63,6 +69,7 @@ type ApiMatch = Omit<
 	selectedFormation: ApiLineupFormation;
 	formationKey?: string;
 	playerStats?: ApiMatchPlayerStat[];
+	matchEvents?: ApiMatchTimelineEvent[];
 };
 
 type ApiMatchViewModel = Omit<
@@ -287,6 +294,34 @@ function toApiPlayerStat(stat: MatchPlayerStat): ApiMatchPlayerStat {
 	};
 }
 
+function fromApiMatchEventType(type: ApiMatchTimelineEventType): MatchTimelineEventType {
+	return type === "YellowCard"
+		? "yellowCard"
+		: type === "RedCard"
+			? "redCard"
+			: type === "Substitution"
+				? "substitution"
+				: "goal";
+}
+
+function toApiMatchEventType(type: MatchTimelineEventType): ApiMatchTimelineEventType {
+	return type === "yellowCard"
+		? "YellowCard"
+		: type === "redCard"
+			? "RedCard"
+			: type === "substitution"
+				? "Substitution"
+				: "Goal";
+}
+
+function fromApiMatchEvent(matchEvent: ApiMatchTimelineEvent): MatchTimelineEvent {
+	return { ...matchEvent, type: fromApiMatchEventType(matchEvent.type) };
+}
+
+function toApiMatchEvent(matchEvent: MatchTimelineEvent): ApiMatchTimelineEvent {
+	return { ...matchEvent, type: toApiMatchEventType(matchEvent.type) };
+}
+
 function fromApiMatch(match: ApiMatch): Match {
 	return {
 		...match,
@@ -300,6 +335,8 @@ function fromApiMatch(match: ApiMatch): Match {
 		postponements: match.postponements ?? [],
 		selectedPlayers: match.selectedPlayers ?? [],
 		playerStats: (match.playerStats ?? []).map(fromApiPlayerStat),
+		matchDurationMinutes: match.matchDurationMinutes ?? 90,
+		matchEvents: (match.matchEvents ?? []).map(fromApiMatchEvent),
 		isDetailLoaded: true,
 	};
 }
@@ -317,6 +354,8 @@ function fromApiMatchViewModel(match: ApiMatchViewModel): Match {
 		postponements: [],
 		selectedPlayers: [],
 		playerStats: [],
+		matchDurationMinutes: 90,
+		matchEvents: [],
 		isDetailLoaded: false,
 	};
 }
@@ -357,6 +396,8 @@ function toApiMatch(match: Match): ApiMatch {
 		postponements: match.postponements ?? [],
 		selectedPlayers: match.selectedPlayers ?? [],
 		playerStats: (match.playerStats ?? []).map(toApiPlayerStat),
+		matchDurationMinutes: match.matchDurationMinutes ?? 90,
+		matchEvents: (match.matchEvents ?? []).map(toApiMatchEvent),
 	};
 }
 
@@ -504,6 +545,21 @@ export const matchApi = {
 		const updatedMatch = await apiClient.put<ApiMatch>(
 			`/matches/${id}/player-stats`,
 			playerStats.map(toApiPlayerStat)
+		);
+		return fromApiMatch(updatedMatch);
+	},
+
+	updateMatchEvents: async (
+		id: string,
+		matchDurationMinutes: number,
+		matchEvents: MatchTimelineEvent[]
+	) => {
+		const updatedMatch = await apiClient.put<ApiMatch>(
+			`/matches/${id}/events`,
+			{
+				matchDurationMinutes,
+				matchEvents: matchEvents.map(toApiMatchEvent),
+			}
 		);
 		return fromApiMatch(updatedMatch);
 	},

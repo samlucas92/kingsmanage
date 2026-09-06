@@ -3,6 +3,7 @@ import { useMatchStore } from "../../../stores/match";
 import type {
 	MatchNotes,
 	MatchPlayerStat,
+	MatchTimelineEvent,
 } from "../../../stores/match";
 import { usePlayerStore } from "../../../stores/players";
 import { useEventStore } from "../../../stores/events";
@@ -43,9 +44,8 @@ export function useMatchDetail(matchId?: string) {
 		(state) => state.toggleLineupLocked
 	);
 	const updateMatchNotes = useMatchStore((state) => state.updateMatchNotes);
-	const updateMatchPlayerStats = useMatchStore(
-		(state) => state.updateMatchPlayerStats
-	);
+	const updateMatchPlayerStats = useMatchStore((state) => state.updateMatchPlayerStats);
+	const updateMatchEvents = useMatchStore((state) => state.updateMatchEvents);
 	const deleteMatch = useMatchStore((state) => state.deleteMatch);
 	const events = useEventStore((state) => state.events);
 	const selectedEvent = useEventStore((state) => state.selectedEvent);
@@ -274,11 +274,19 @@ export function useMatchDetail(matchId?: string) {
 	}
 
 	async function handleSaveMatchPlayerStats(playerStats: MatchPlayerStat[]) {
+		if (!currentMatch) return;
+		await updateMatchPlayerStats(currentMatch.id, playerStats);
+	}
+
+	async function handleSaveMatchEvents(
+		matchDurationMinutes: number,
+		matchEvents: MatchTimelineEvent[]
+	) {
 		if (!currentMatch) {
 			return;
 		}
 
-		await updateMatchPlayerStats(currentMatch.id, playerStats);
+		await updateMatchEvents(currentMatch.id, matchDurationMinutes, matchEvents);
 	}
 
 	return {
@@ -320,6 +328,7 @@ export function useMatchDetail(matchId?: string) {
 		getPlayerSameDaySelections,
 		linkedEvent,
 		handleSaveMatchPlayerStats,
+		handleSaveMatchEvents,
 		deleteMatch,
 	};
 }
