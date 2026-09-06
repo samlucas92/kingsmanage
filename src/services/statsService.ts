@@ -80,8 +80,9 @@ export function getCompletedMatchesForSeason(
 	);
 }
 
-export function getAllCompletedMatches(matches: Match[]) {
-	return matches.filter((match) => match.isCompleted);
+export function isFriendlyMatch(match: Match) {
+	return match.competitionType === "friendly" ||
+		match.competition?.toLowerCase().includes("friendly") === true;
 }
 
 export function getPlayerAppearancesInMatches(
@@ -135,9 +136,7 @@ export function getPlayerStatsSummary({
 	const completedSeasonMatches = getCompletedMatchesForSeason(
 		matches,
 		selectedSeasonId
-	);
-
-	const allCompletedMatches = getAllCompletedMatches(matches);
+	).filter((match) => !isFriendlyMatch(match));
 
 	const firstTeamMatches = completedSeasonMatches.filter(
 		(match) => match.team === "first"
@@ -163,15 +162,8 @@ export function getPlayerStatsSummary({
 	const seasonApps = firstTeamApps + secondTeamApps;
 	const seasonGoals = firstTeamGoals + secondTeamGoals;
 
-	const trackedCareerApps = getPlayerAppearancesInMatches(
-		allCompletedMatches,
-		playerId
-	);
-
-	const trackedCareerGoals = getPlayerGoalsInMatches(
-		allCompletedMatches,
-		playerId
-	);
+	const trackedCareerApps = seasonApps;
+	const trackedCareerGoals = seasonGoals;
 
 	const playerSeasonMatchStats = getPlayerMatchStatsInMatches(
 		completedSeasonMatches,

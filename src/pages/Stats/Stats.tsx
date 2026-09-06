@@ -8,7 +8,10 @@ import { useMatchStore } from "../../stores/match";
 import { useSeasonStore } from "../../stores/seasons";
 import { useStatsStore } from "../../stores/stats";
 import { getClubTeamLabel, useClubTeamStore } from "../../stores/clubTeams";
-import { getCompletedMatchesForSeason } from "../../services/statsService";
+import {
+	getCompletedMatchesForSeason,
+	isFriendlyMatch,
+} from "../../services/statsService";
 import {
 	buildCsvText,
 	buildSeparatedTableText,
@@ -86,11 +89,11 @@ function getExportColumns(
 			getValue: (row) => row.seasonGoals,
 		},
 		{
-			label: "Pre 25/26 Apps",
+			label: "Pre 26/27 Apps",
 			getValue: (row) => row.preSeasonApps,
 		},
 		{
-			label: "Pre 25/26 Goals",
+			label: "Pre 26/27 Goals",
 			getValue: (row) => row.preSeasonGoals,
 		},
 		{
@@ -196,7 +199,9 @@ export default function Stats({
 			return [];
 		}
 
-		return getCompletedMatchesForSeason(matches, selectedSeasonId);
+		return getCompletedMatchesForSeason(matches, selectedSeasonId).filter(
+			(match) => !isFriendlyMatch(match)
+		);
 	}, [matches, selectedSeasonId]);
 
 	const statsRows = useMemo<StatsRow[]>(() => {
@@ -332,7 +337,7 @@ export default function Stats({
 						<p className="text-gray-600">
 							{variant === "report"
 								? "Goals, assists, appearances and match records for the selected report season."
-								: "Player stats split by selected season, pre-25/26 history and career totals across every tracked season."}
+								: "Player stats split by selected season, the pre-26/27 historical baseline and career totals."}
 						</p>
 					</div>
 
@@ -355,8 +360,8 @@ export default function Stats({
 						</h2>
 						<p className="mt-1 max-w-5xl text-sm text-slate-500">
 							{selectedSeasonName} apps and goals are calculated from completed
-							matches in this season. Career totals are Pre 25/26 plus all
-							completed tracked matches across every season.
+							matches in this season. Career totals are the Pre 26/27 historical
+							baseline plus completed non-friendly matches in this season.
 						</p>
 					</div>
 
@@ -380,11 +385,11 @@ export default function Stats({
 					label={`${selectedSeasonName} Apps`}
 					value={totalSeasonApps}
 				/>
-				<MetricCard label="Pre 25/26 Apps" value={totalPreSeasonApps} />
+				<MetricCard label="Pre 26/27 Apps" value={totalPreSeasonApps} />
 			</div>
 
 			<div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
-				<MetricCard label="Tracked Apps" value={totalTrackedCareerApps} />
+				<MetricCard label={`${selectedSeasonName} Tracked Apps`} value={totalTrackedCareerApps} />
 				<MetricCard label="Career Apps" value={totalCareerApps} />
 				<MetricCard
 					label={`${selectedSeasonName} Goals`}
@@ -394,8 +399,8 @@ export default function Stats({
 			</div>
 
 			<div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
-				<MetricCard label="Pre 25/26 Goals" value={totalPreSeasonGoals} />
-				<MetricCard label="Tracked Goals" value={totalTrackedCareerGoals} />
+				<MetricCard label="Pre 26/27 Goals" value={totalPreSeasonGoals} />
+				<MetricCard label={`${selectedSeasonName} Tracked Goals`} value={totalTrackedCareerGoals} />
 			</div>
 
 			<PanelCard contentClassName="flex min-w-0 flex-wrap items-center gap-4">
@@ -455,7 +460,7 @@ export default function Stats({
 							<GroupHeader label={firstTeamName} />
 							<GroupHeader label={secondTeamName} />
 							<GroupHeader label={selectedSeasonName} />
-							<GroupHeader label="Pre 25/26" />
+							<GroupHeader label="Pre 26/27" />
 							<GroupHeader label="Career" />
 							<th
 								colSpan={7}

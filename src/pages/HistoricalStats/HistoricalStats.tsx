@@ -109,7 +109,7 @@ export default function HistoricalStats() {
 			<div>
 				<h1 className="text-2xl font-bold text-slate-900">Historical Stats</h1>
 				<p className="mt-1 text-sm text-slate-600">
-					Edit pre 25/26 player appearances and goals. These values are used as the baseline for career totals.
+					Edit player appearances and goals from before 2026/27. These values are the baseline for career totals.
 				</p>
 			</div>
 
@@ -125,7 +125,7 @@ export default function HistoricalStats() {
 			</div>
 
 			<PanelCard
-				title="Pre-app historical totals"
+				title="Pre-26/27 historical totals"
 				description="Changes save when you leave a field or press Enter."
 				action={
 					<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -169,8 +169,8 @@ export default function HistoricalStats() {
 					<thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
 						<tr>
 							<th className="px-4 py-3 text-left font-semibold">Player</th>
-							<th className="px-4 py-3 text-center font-semibold">Pre 25/26 Apps</th>
-							<th className="px-4 py-3 text-center font-semibold">Pre 25/26 Goals</th>
+							<th className="px-4 py-3 text-center font-semibold">Pre 26/27 Apps</th>
+							<th className="px-4 py-3 text-center font-semibold">Pre 26/27 Goals</th>
 							<th className="px-4 py-3 text-left font-semibold">Status</th>
 						</tr>
 					</thead>
