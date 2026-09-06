@@ -133,11 +133,15 @@ export function TeamSelectionCard({
 
 			{isCompleted && isLineupLocked ? (
 				<MatchEventsEditor
+					matchId={matchId}
 					selectedPlayers={selectedPlayers}
 					playerStats={playerStats}
 					matchEvents={matchEvents}
 					matchDurationMinutes={matchDurationMinutes}
 					getPlayerName={getPlayerName}
+					getPlayerAvailabilityStatus={getPlayerAvailabilityStatus}
+					getPlayerTrainingAvailability={getPlayerTrainingAvailability}
+					getPlayerSameDaySelections={getPlayerSameDaySelections}
 					onSave={onSaveMatchEvents}
 				/>
 			) : (

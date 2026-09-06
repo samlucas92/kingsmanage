@@ -23,6 +23,7 @@ interface TeamPitchProps {
 	getPlayerInitials: (name: string) => string;
 	getPlayerOtherSelectionLabels?: (playerId: string) => string[];
 	enablePlayerDrag?: boolean;
+	allowPlayerClickWhenLocked?: boolean;
 	onOpenPlayerMenu: (
 		playerId: string,
 		event: MouseEvent<HTMLButtonElement>
@@ -47,6 +48,7 @@ export function TeamPitch({
 	getPlayerInitials,
 	getPlayerOtherSelectionLabels,
 	enablePlayerDrag = true,
+	allowPlayerClickWhenLocked = false,
 	onOpenPlayerMenu,
 	onOpenMobilePositionSelector,
 }: TeamPitchProps) {
@@ -139,6 +141,7 @@ export function TeamPitch({
 						preferredPositions={preferredPositions}
 						otherSelectionLabels={getPlayerOtherSelectionLabels?.(selectedPlayer.playerId)}
 						enableDrag={enablePlayerDrag}
+						allowClickWhenDisabled={allowPlayerClickWhenLocked}
 						onOpenMenu={(event) =>
 							onOpenPlayerMenu(selectedPlayer.playerId, event)
 						}

@@ -197,6 +197,7 @@ interface SelectedPitchPlayerProps {
 	preferredPositions: string[];
 	otherSelectionLabels?: string[];
 	enableDrag?: boolean;
+	allowClickWhenDisabled?: boolean;
 	onOpenMenu: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
@@ -214,9 +215,11 @@ export function SelectedPitchPlayer({
 	preferredPositions,
 	otherSelectionLabels = [],
 	enableDrag = true,
+	allowClickWhenDisabled = false,
 	onOpenMenu,
 }: SelectedPitchPlayerProps) {
 	const canDrag = enableDrag && !disabled;
+	const canClick = !disabled || allowClickWhenDisabled;
 	const {
 		attributes,
 		listeners,
@@ -291,9 +294,9 @@ export function SelectedPitchPlayer({
 				type="button"
 				{...(canDrag ? listeners : {})}
 				{...(canDrag ? attributes : {})}
-				onClick={disabled ? undefined : onOpenMenu}
+				onClick={canClick ? onOpenMenu : undefined}
 				className={`relative flex h-[3.25rem] w-[3.25rem] items-center justify-center drop-shadow-lg ${
-					disabled ? "cursor-default" : canDrag ? "cursor-grab" : "cursor-pointer"
+					canClick ? (canDrag ? "cursor-grab" : "cursor-pointer") : "cursor-default"
 				}`}
 				aria-label={`Open actions for ${name}`}
 			>
@@ -349,6 +352,7 @@ interface BenchPlayerProps {
 	isMenuOpen: boolean;
 	isSwapTarget?: boolean;
 	otherSelectionLabels?: string[];
+	allowClickWhenDisabled?: boolean;
 	onOpenMenu: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
@@ -360,8 +364,10 @@ export function BenchPlayer({
 	isMenuOpen,
 	isSwapTarget = false,
 	otherSelectionLabels = [],
+	allowClickWhenDisabled = false,
 	onOpenMenu,
 }: BenchPlayerProps) {
+	const canClick = !disabled || allowClickWhenDisabled;
 	const {
 		attributes,
 		listeners,
@@ -426,9 +432,9 @@ export function BenchPlayer({
 
 			<button
 				type="button"
-				onClick={onOpenMenu}
-				disabled={disabled}
-				className="min-w-0 flex-1 truncate text-left disabled:cursor-default"
+				onClick={canClick ? onOpenMenu : undefined}
+				disabled={!canClick}
+				className="min-w-0 flex-1 truncate text-left enabled:cursor-pointer disabled:cursor-default"
 				title={name}
 			>
 				{name}

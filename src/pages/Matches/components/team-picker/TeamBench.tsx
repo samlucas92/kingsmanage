@@ -12,6 +12,8 @@ interface TeamBenchProps {
 	openMenuPlayerId?: string;
 	getPlayerName: (playerId: string) => string;
 	getPlayerOtherSelectionLabels?: (playerId: string) => string[];
+	allowPlayerClickWhenLocked?: boolean;
+	isEventMode?: boolean;
 	onOpenPlayerMenu: (
 		playerId: string,
 		event: MouseEvent<HTMLButtonElement>
@@ -28,6 +30,8 @@ export function TeamBench({
 	openMenuPlayerId,
 	getPlayerName,
 	getPlayerOtherSelectionLabels,
+	allowPlayerClickWhenLocked = false,
+	isEventMode = false,
 	onOpenPlayerMenu,
 	onAddSubstitute,
 }: TeamBenchProps) {
@@ -64,8 +68,10 @@ export function TeamBench({
 						</h3>
 
 						<p className="text-xs text-slate-500">
-							{isLineupLocked
-								? "Bench locked with the saved lineup."
+							{isEventMode
+								? "Select a substitute to record a match event."
+								: isLineupLocked
+									? "Bench locked with the saved lineup."
 								: hoveredSwapTargetPlayerId
 									? "Release to swap this bench player with the dragged player."
 									: isOverBench
@@ -116,6 +122,7 @@ export function TeamBench({
 									hoveredSwapTargetPlayerId === selectedPlayer.playerId
 								}
 								otherSelectionLabels={getPlayerOtherSelectionLabels?.(selectedPlayer.playerId)}
+								allowClickWhenDisabled={allowPlayerClickWhenLocked}
 								onOpenMenu={(event) =>
 									onOpenPlayerMenu(selectedPlayer.playerId, event)
 								}

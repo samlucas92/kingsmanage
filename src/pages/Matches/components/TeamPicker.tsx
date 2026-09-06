@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import {
 	DndContext,
 	DragOverlay,
@@ -22,6 +22,11 @@ import { getClubTeamLabel, useClubTeamStore } from "../../../stores/clubTeams";
 
 interface TeamPickerProps {
 	matchId: string;
+	eventMode?: boolean;
+	onSelectedPlayerClick?: (
+		playerId: string,
+		area: "pitch" | "bench"
+	) => void;
 	getPlayerAvailabilityStatus?: (
 		playerId: string
 	) => ClubEventAvailabilityStatus | undefined;
@@ -49,6 +54,8 @@ type MobilePlayerSelectorMode =
 
 export default function TeamPicker({
 	matchId,
+	eventMode = false,
+	onSelectedPlayerClick,
 	getPlayerAvailabilityStatus,
 	getPlayerTrainingAvailability,
 	getPlayerSameDaySelections,
@@ -253,6 +260,20 @@ export default function TeamPicker({
 		teamPicker.setOpenMenu(null);
 	}
 
+	function handleSelectedPlayerClick(
+		playerId: string,
+		area: "pitch" | "bench",
+		event: MouseEvent<HTMLButtonElement>
+	) {
+		if (eventMode && onSelectedPlayerClick) {
+			event.stopPropagation();
+			onSelectedPlayerClick(playerId, area);
+			return;
+		}
+
+		teamPicker.openPlayerMenu(playerId, event);
+	}
+
 	return (
 		<DndContext
 			sensors={sensors}
@@ -269,8 +290,8 @@ export default function TeamPicker({
 					</p>
 				</div>
 			)}
-			<div className="grid min-w-0 items-start gap-4 xl:grid-cols-[320px_minmax(420px,1fr)]">
-				<div className="hidden min-w-0 xl:block xl:sticky xl:top-0">
+			<div className={`grid min-w-0 items-start gap-4 ${eventMode ? "" : "xl:grid-cols-[320px_minmax(420px,1fr)]"}`}>
+				{!eventMode && <div className="hidden min-w-0 xl:block xl:sticky xl:top-0">
 					<AvailablePlayersPanel
 						availablePlayers={preparedAvailablePlayers}
 						isLineupLocked={teamPicker.isLineupLocked}
@@ -284,7 +305,7 @@ export default function TeamPicker({
 						onShowAvailableOnlyChange={setShowAvailableOnly}
 						onOpenPlayerMenu={teamPicker.openPlayerMenu}
 					/>
-				</div>
+				</div>}
 
 				<div className="min-w-0 space-y-4">
 					<div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -294,8 +315,10 @@ export default function TeamPicker({
 							</h3>
 
 							<p className="text-xs text-slate-500">
-								{teamPicker.isLineupLocked
-									? "This team is saved and locked."
+								{eventMode
+									? "Select a player on the pitch or bench to record an event."
+									: teamPicker.isLineupLocked
+										? "This team is saved and locked."
 									: "Drag players on desktop, or tap an empty position on mobile."}
 							</p>
 						</div>
@@ -341,8 +364,9 @@ export default function TeamPicker({
 					</div>
 
 					<div className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-medium text-blue-800 xl:hidden">
-						Tap an empty shirt position to choose a player. Tap a selected player
-						to move, replace, bench, or remove them.
+						{eventMode
+							? "Tap a player on the pitch or bench to add a match event."
+							: "Tap an empty shirt position to choose a player. Tap a selected player to move, replace, bench, or remove them."}
 					</div>
 
 					<div className="min-w-0 overflow-x-auto pb-1">
@@ -364,7 +388,10 @@ export default function TeamPicker({
 								getPlayerInitials={teamPicker.getPlayerInitials}
 								getPlayerOtherSelectionLabels={getOtherSelectionLabels}
 								enablePlayerDrag={isDesktopTeamPicker}
-								onOpenPlayerMenu={teamPicker.openPlayerMenu}
+								allowPlayerClickWhenLocked={eventMode}
+								onOpenPlayerMenu={(playerId, event) =>
+									handleSelectedPlayerClick(playerId, "pitch", event)
+								}
 								onOpenMobilePositionSelector={openMobilePositionSelector}
 							/>
 						</div>
@@ -379,14 +406,19 @@ export default function TeamPicker({
 						openMenuPlayerId={teamPicker.openMenu?.playerId}
 						getPlayerName={teamPicker.getPlayerName}
 						getPlayerOtherSelectionLabels={getOtherSelectionLabels}
-						onOpenPlayerMenu={teamPicker.openPlayerMenu}
+						allowPlayerClickWhenLocked={eventMode}
+						isEventMode={eventMode}
+						onOpenPlayerMenu={(playerId, event) =>
+							handleSelectedPlayerClick(playerId, "bench", event)
+						}
 						onAddSubstitute={openMobileBenchSelector}
 					/>
 
 					<div className="hidden xl:block">
 						<p className="text-xs text-slate-500">
-							Drag available players onto the pitch or bench, or tap a player to
-							assign them manually.
+							{eventMode
+								? "Select any player to record a goal, card or substitution."
+								: "Drag available players onto the pitch or bench, or tap a player to assign them manually."}
 						</p>
 					</div>
 				</div>
@@ -409,7 +441,7 @@ export default function TeamPicker({
 				/>
 			)}
 
-			{teamPicker.openMenu && (
+			{!eventMode && teamPicker.openMenu && (
 				<>
 					<button
 						type="button"
