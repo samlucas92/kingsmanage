@@ -28,6 +28,7 @@ const HandoverTasks = lazyWithRetry(() => import("../pages/Handover/HandoverTask
 const HandoverRecords = lazyWithRetry(() => import("../pages/Handover/HandoverRecords"));
 const HandoverRecordDetail = lazyWithRetry(() => import("../pages/Handover/HandoverRecordDetail"));
 const OrganizationDocuments = lazyWithRetry(() => import("../pages/Handover/OrganizationDocuments"));
+const OppositionTeams = lazyWithRetry(() => import("../pages/OppositionTeams/OppositionTeams"));
 const Login = lazyWithRetry(() => import("../pages/Login/Login"));
 const MatchDetail = lazyWithRetry(() => import("../pages/Matches/MatchDetails"));
 const Matches = lazyWithRetry(() => import("../pages/Matches/Matches"));
@@ -101,6 +102,7 @@ export default function AppRouter() {
 						<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} />}>
 							<Route path="/finance" element={<Finance />} />
 							<Route path="/funding" element={<Funding />} />
+							<Route path="/opposition-teams" element={<OppositionTeams />} />
 							<Route path="/seasons" element={<Seasons />} />
 							<Route path="/club-teams" element={<ClubTeams />} />
 						</Route>

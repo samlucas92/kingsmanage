@@ -1,13 +1,17 @@
+import { useEffect } from "react";
+
 import Modal from "../../../components/compositions/Modal";
 import LocationPicker from "../../../components/locations/LocationPicker";
 import type { ClubTeam } from "../../../stores/match";
 import { useClubTeamStore } from "../../../stores/clubTeams";
+import { useOppositionTeamStore } from "../../../stores/oppositionTeams";
 
 interface MatchFormModalProps {
 	isOpen: boolean;
 	isEditing: boolean;
 	team: ClubTeam;
 	opponent: string;
+	opponentTeamId: string | null;
 	date: string;
 	venue: "home" | "away";
 	location: string;
@@ -18,6 +22,7 @@ interface MatchFormModalProps {
 	onConfirm: () => void;
 	onTeamChange: (value: ClubTeam) => void;
 	onOpponentChange: (value: string) => void;
+	onOpponentTeamChange: (id: string | null, name: string, defaultLocation?: string) => void;
 	onDateChange: (value: string) => void;
 	onVenueChange: (value: "home" | "away") => void;
 	onLocationChange: (value: string) => void;
@@ -30,6 +35,7 @@ export function MatchFormModal({
 	isEditing,
 	team,
 	opponent,
+	opponentTeamId,
 	date,
 	venue,
 	location,
@@ -40,6 +46,7 @@ export function MatchFormModal({
 	onConfirm,
 	onTeamChange,
 	onOpponentChange,
+	onOpponentTeamChange,
 	onDateChange,
 	onVenueChange,
 	onLocationChange,
@@ -50,6 +57,11 @@ export function MatchFormModal({
 	const selectableProfiles = profiles.filter((profile) => profile.isActive || profile.id === team);
 	const selectedProfile = profiles.find((profile) => profile.id === team);
 	const competitionOptions = selectedProfile?.competitions ?? [];
+	const oppositionTeams = useOppositionTeamStore((state) => state.teams);
+	const loadOppositionTeams = useOppositionTeamStore((state) => state.loadTeams);
+	const selectableOppositionTeams = oppositionTeams.filter((opposition) => opposition.isActive || opposition.id === opponentTeamId);
+
+	useEffect(() => { if (isOpen) void loadOppositionTeams(); }, [isOpen, loadOppositionTeams]);
 
 	return (
 		<Modal
@@ -131,8 +143,20 @@ export function MatchFormModal({
 				</label>
 
 				<label className="block space-y-1">
+					<span className="text-sm font-semibold text-slate-700">Saved opposition</span>
+					<select value={opponentTeamId ?? ""} onChange={(event) => {
+						const selected = oppositionTeams.find((team) => team.id === event.target.value);
+						onOpponentTeamChange(selected?.id ?? null, selected?.name ?? "", selected?.location);
+					}} className="w-full rounded-lg border px-3 py-2">
+						<option value="">Enter a team manually</option>
+						{selectableOppositionTeams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
+					</select>
+					{selectableOppositionTeams.length === 0 && <span className="text-xs text-slate-500">No saved opposition yet. You can still enter a name below.</span>}
+				</label>
+
+				<label className="block space-y-1">
 					<span className="text-sm font-semibold text-slate-700">
-						Opponent
+						Opponent name
 					</span>
 
 					<input
@@ -163,9 +187,12 @@ export function MatchFormModal({
 
 					<select
 						value={venue}
-						onChange={(event) =>
-							onVenueChange(event.target.value as "home" | "away")
-						}
+						onChange={(event) => {
+							const nextVenue = event.target.value as "home" | "away";
+							onVenueChange(nextVenue);
+							const selected = oppositionTeams.find((team) => team.id === opponentTeamId);
+							if (nextVenue === "away" && selected?.location) onLocationChange(selected.location);
+						}}
 						className="w-full rounded-lg border px-3 py-2"
 					>
 						<option value="home">Home</option>

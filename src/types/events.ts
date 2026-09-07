@@ -64,6 +64,7 @@ export type CreateMatchForEventRequest = {
 	seasonId?: string | null;
 	team: EventClubTeam;
 	teamId?: string | null;
+	opponentTeamId?: string | null;
 	opponent: string;
 	competition: string;
 	date?: string | null;

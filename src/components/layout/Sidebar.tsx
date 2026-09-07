@@ -102,6 +102,12 @@ const navigationItems: NavigationItem[] = [
 		group: "manage-club",
 	},
 	{
+		label: "Opposition teams",
+		to: "/opposition-teams",
+		roles: ["Admin"],
+		group: "manage-club",
+	},
+	{
 		label: "Handover Vault",
 		to: "/handover",
 		roles: ["Admin", "Coach"],
@@ -430,6 +436,8 @@ function NavigationIcon({ path }: { path: string }) {
 						? "M4 19V9m5 10V5m5 14v-7m5 7V3"
 						: path === "/funding"
 							? "M5 8h14M7 8V5h10v3m-11 0-2 4h16l-2-4M6 12v8m4-8v8m4-8v8m4-8v8M4 20h16"
+						: path === "/opposition-teams"
+							? "M7 5h10l2 4-7 11L5 9l2-4Zm1 4h8M9.5 5 12 9l2.5-4"
 						: path === "/reports"
 							? "M4 19V5m5 14v-8m5 8V8m5 11V3M3 21h18"
 							: path === "/forms"

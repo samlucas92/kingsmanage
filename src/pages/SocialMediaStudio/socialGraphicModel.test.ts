@@ -82,6 +82,31 @@ describe("social graphic model", () => {
 		expect(applySocialFixtureOverride(fixture, { playerOfTheMatch: "A. Smith" }).playerOfTheMatch).toBe("A. Smith");
 	});
 
+	it("uses a saved opposition ground as the away-location default", () => {
+		const fixture = toSocialFixture(
+			createMatch({
+				opponentTeamId: "opposition-1",
+				venue: "away",
+				location: "",
+			}),
+			teamProfiles,
+			[],
+			[{
+				id: "opposition-1",
+				name: "Riverside",
+				location: "Riverside Ground, Bridge Street",
+				badgeFileId: "badge-1",
+				isActive: true,
+				createdAt: "2026-09-01T12:00:00.000Z",
+				updatedAt: "2026-09-01T12:00:00.000Z",
+			}]
+		);
+
+		expect(fixture.location).toBe("Riverside Ground, Bridge Street");
+		expect(applySocialFixtureOverride(fixture, { location: "Neutral Venue" }).location)
+			.toBe("Neutral Venue");
+	});
+
 	it("applies graphic-only copy and score overrides without changing the match fixture", () => {
 		const fixture = toSocialFixture(
 			createMatch({ result: { homeGoals: 2, awayGoals: 1 } }),

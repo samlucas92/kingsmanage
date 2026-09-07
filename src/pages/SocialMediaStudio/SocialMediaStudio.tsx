@@ -11,6 +11,8 @@ import type { Player } from "../../stores/players";
 import { useSeasonStore } from "../../stores/seasons";
 import { socialGraphicTemplatesApi } from "../../services/socialGraphicTemplatesApi";
 import { socialPublicationsApi } from "../../services/socialPublicationsApi";
+import { filesApi } from "../../services/filesApi";
+import { useOppositionTeamStore } from "../../stores/oppositionTeams";
 import { formatDateForInput } from "../../utils/date";
 import { socialGraphicAssetManifest } from "./assetManifest";
 import {
@@ -135,6 +137,8 @@ export default function SocialMediaStudio() {
 	const loadSeasons = useSeasonStore((state) => state.loadSeasons);
 	const teamProfiles = useClubTeamStore((state) => state.profiles);
 	const loadTeamProfiles = useClubTeamStore((state) => state.loadProfiles);
+	const oppositionTeams = useOppositionTeamStore((state) => state.teams);
+	const loadOppositionTeams = useOppositionTeamStore((state) => state.loadTeams);
 	const availableClubs = useAuthStore((state) => state.availableClubs);
 	const currentUser = useAuthStore((state) => state.currentUser);
 
@@ -157,6 +161,7 @@ export default function SocialMediaStudio() {
 	const [fixtureOverrides, setFixtureOverrides] = useState<Record<string, SocialFixtureOverride>>({});
 	const [lineupOverrides, setLineupOverrides] = useState<Record<string, SocialLineup>>({});
 	const [temporaryAssets, setTemporaryAssets] = useState<Record<string, SocialGraphicAsset>>({});
+	const [oppositionLogoAssets, setOppositionLogoAssets] = useState<SocialGraphicAsset[]>([]);
 	const [originalPortraitFile, setOriginalPortraitFile] = useState<File | null>(null);
 	const [backgroundRemovalTolerance, setBackgroundRemovalTolerance] = useState(54);
 	const [isRemovingBackground, setIsRemovingBackground] = useState(false);
@@ -208,7 +213,31 @@ export default function SocialMediaStudio() {
 		void loadSeasons();
 		void loadTeamProfiles();
 		void loadPlayers();
-	}, [loadSeasons, loadTeamProfiles, loadPlayers]);
+		void loadOppositionTeams();
+	}, [loadSeasons, loadTeamProfiles, loadPlayers, loadOppositionTeams]);
+
+	useEffect(() => {
+		let active = true;
+		const objectUrls: string[] = [];
+		void Promise.all(oppositionTeams.filter((team) => team.badgeFileId).map(async (team) => {
+			try {
+				const blob = await filesApi.getContent(team.badgeFileId!);
+				const source = URL.createObjectURL(blob);
+				objectUrls.push(source);
+				return { id: `opposition:${team.id}`, name: team.name, source };
+			} catch {
+				return null;
+			}
+		})).then((assets) => {
+			if (active) setOppositionLogoAssets(
+				assets.filter((asset): asset is SocialGraphicAsset => asset !== null)
+			);
+		});
+		return () => {
+			active = false;
+			objectUrls.forEach((url) => URL.revokeObjectURL(url));
+		};
+	}, [oppositionTeams]);
 
 	useEffect(() => {
 		const contentId = searchParams.get("contentId") ?? "";
@@ -465,9 +494,20 @@ export default function SocialMediaStudio() {
 			: kind === "fixture"
 				? upcomingMatches.find((match) => match.id === effectiveFixtureId)
 				: undefined;
+	const teamLogoAssets = useMemo(
+		() => [...socialGraphicAssetManifest.teamLogos, ...oppositionLogoAssets],
+		[oppositionLogoAssets]
+	);
+	const selectedOpposition = selectedSingleMatch
+		? oppositionTeams.find((team) => team.id === selectedSingleMatch.opponentTeamId)
+			?? oppositionTeams.find((team) => team.name.trim().toLowerCase() === selectedSingleMatch.opponent.trim().toLowerCase())
+		: undefined;
+	const oppositionLogoFallbackIndex = selectedOpposition
+		? teamLogoAssets.findIndex((asset) => asset.id === `opposition:${selectedOpposition.id}`)
+		: -1;
 	const clubLogoIsHome = kind === "upcomingFixtures" || kind === "lineup" || selectedSingleMatch?.venue !== "away";
-	const homeTeamLogoFallbackIndex = clubLogoIsHome ? 0 : -1;
-	const awayTeamLogoFallbackIndex = clubLogoIsHome ? -1 : 0;
+	const homeTeamLogoFallbackIndex = clubLogoIsHome ? 0 : oppositionLogoFallbackIndex;
+	const awayTeamLogoFallbackIndex = clubLogoIsHome ? oppositionLogoFallbackIndex : 0;
 
 	useEffect(() => {
 		const matchId = kind === "result"
@@ -590,13 +630,13 @@ export default function SocialMediaStudio() {
 		isUpcomingFixtureRowUnlocked(upcomingTemplateDefinition, selectedFixtureRowIndex);
 	const selectedAssets = useMemo(() => ({
 		homeTeamLogo: findSelectedAsset(
-			socialGraphicAssetManifest.teamLogos,
+			teamLogoAssets,
 			homeTeamLogoId,
 			homeTeamLogoFallbackIndex,
 			temporaryAssets.homeTeamLogo
 		),
 		awayTeamLogo: findSelectedAsset(
-			socialGraphicAssetManifest.teamLogos,
+			teamLogoAssets,
 			awayTeamLogoId,
 			awayTeamLogoFallbackIndex,
 			temporaryAssets.awayTeamLogo
@@ -632,6 +672,7 @@ export default function SocialMediaStudio() {
 		showSponsors,
 		homeTeamLogoFallbackIndex,
 		awayTeamLogoFallbackIndex,
+		teamLogoAssets,
 	]);
 
 	const selectedMatches = useMemo(() => {
@@ -658,10 +699,10 @@ export default function SocialMediaStudio() {
 
 	const selectedSocialFixtures = useMemo(
 		() => selectedMatches.map((match) => applySocialFixtureOverride(
-			toSocialFixture(match, teamProfiles, players),
+			toSocialFixture(match, teamProfiles, players, oppositionTeams),
 			fixtureOverrides[match.id]
 		)),
-		[selectedMatches, teamProfiles, players, fixtureOverrides]
+		[selectedMatches, teamProfiles, players, oppositionTeams, fixtureOverrides]
 	);
 	const selectedLineup = useMemo(() => {
 		if (kind !== "lineup" || !selectedSingleMatch) return undefined;
@@ -1669,8 +1710,8 @@ export default function SocialMediaStudio() {
 								</span>
 							</div>
 							<div className="mt-3 space-y-3">
-								{kind !== "playerPortrait" && <AssetPicker label={kind === "blank" || kind === "upcomingFixtures" || kind === "lineup" ? "Club logo" : "Home team logo"} assets={socialGraphicAssetManifest.teamLogos} value={homeTeamLogoId} fallbackIndex={homeTeamLogoFallbackIndex} temporaryAsset={temporaryAssets.homeTeamLogo} onChange={setHomeTeamLogoId} onTemporaryImage={(file) => setTemporaryImage("homeTeamLogo", file, setHomeTeamLogoId)} />}
-								{kind !== "blank" && kind !== "playerPortrait" && kind !== "upcomingFixtures" && kind !== "lineup" && <AssetPicker label="Away team logo" assets={socialGraphicAssetManifest.teamLogos} value={awayTeamLogoId} fallbackIndex={awayTeamLogoFallbackIndex} temporaryAsset={temporaryAssets.awayTeamLogo} onChange={setAwayTeamLogoId} onTemporaryImage={(file) => setTemporaryImage("awayTeamLogo", file, setAwayTeamLogoId)} />}
+								{kind !== "playerPortrait" && <AssetPicker label={kind === "blank" || kind === "upcomingFixtures" || kind === "lineup" ? "Club logo" : "Home team logo"} assets={teamLogoAssets} value={homeTeamLogoId} fallbackIndex={homeTeamLogoFallbackIndex} temporaryAsset={temporaryAssets.homeTeamLogo} onChange={setHomeTeamLogoId} onTemporaryImage={(file) => setTemporaryImage("homeTeamLogo", file, setHomeTeamLogoId)} />}
+								{kind !== "blank" && kind !== "playerPortrait" && kind !== "upcomingFixtures" && kind !== "lineup" && <AssetPicker label="Away team logo" assets={teamLogoAssets} value={awayTeamLogoId} fallbackIndex={awayTeamLogoFallbackIndex} temporaryAsset={temporaryAssets.awayTeamLogo} onChange={setAwayTeamLogoId} onTemporaryImage={(file) => setTemporaryImage("awayTeamLogo", file, setAwayTeamLogoId)} />}
 								{kind === "playerPortrait" && (
 									<>
 										<AssetPicker label="Portrait background" uploadLabel="Use a different background for this graphic" assets={socialGraphicAssetManifest.portraitBackgrounds} value={backgroundImageId} fallbackIndex={0} temporaryAsset={temporaryAssets.backgroundImage} onChange={setBackgroundImageId} onTemporaryImage={(file) => setTemporaryImage("backgroundImage", file, setBackgroundImageId)} />

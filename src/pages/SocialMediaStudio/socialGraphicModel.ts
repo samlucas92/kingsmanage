@@ -3,6 +3,7 @@ import { getClubTeamLabel } from "../../stores/clubTeams";
 import type { Match } from "../../stores/match";
 import type { Player } from "../../stores/players";
 import type { SportFormation } from "../../constants/sports";
+import type { OppositionTeam } from "../../types/oppositionTeams";
 import { resolveLineupPosition } from "../../utils/lineupPosition";
 import type {
 	SocialFixture,
@@ -15,8 +16,11 @@ import type {
 export function toSocialFixture(
 	match: Match,
 	teamProfiles: ClubTeamProfile[],
-	players: Player[] = []
+	players: Player[] = [],
+	oppositionTeams: OppositionTeam[] = []
 ): SocialFixture {
+	const savedOpposition = oppositionTeams.find((team) => team.id === match.opponentTeamId)
+		?? oppositionTeams.find((team) => team.name.trim().toLowerCase() === match.opponent.trim().toLowerCase());
 	return {
 		id: match.id,
 		teamName: getClubTeamLabel(teamProfiles, match.team),
@@ -24,7 +28,7 @@ export function toSocialFixture(
 		competition: match.competition?.trim() || "Fixture",
 		date: match.date,
 		venue: match.venue,
-		location: match.location?.trim() || "Venue to be confirmed",
+		location: match.location?.trim() || (match.venue === "away" ? savedOpposition?.location.trim() : "") || "Venue to be confirmed",
 		playerOfTheMatch: getPlayersOfTheMatch(match, players).join("\n"),
 		result: match.result,
 		scorers: aggregateScorers(match, players),

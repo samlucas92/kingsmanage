@@ -9,6 +9,7 @@ import type {
 	FileUploadUrlResponse,
 } from "../types/files";
 import type { SportsClub } from "../types/organization";
+import type { OppositionTeam } from "../types/oppositionTeams";
 
 export const filesApi = {
 	getFilesForLinkedEntity: (
@@ -40,9 +41,13 @@ export const filesApi = {
 
 	assignClubLogo: (fileId: string) =>
 		apiClient.post<SportsClub>(`/files/${fileId}/assign-club-logo`, {}),
+	assignOppositionTeamBadge: (fileId: string) =>
+		apiClient.post<OppositionTeam>(`/files/${fileId}/assign-opposition-team-badge`, {}),
 
 	removeClubLogo: (clubId: string) =>
 		apiClient.delete<SportsClub>(`/files/club-logo/${clubId}`),
+	removeOppositionTeamBadge: (teamId: string) =>
+		apiClient.delete<OppositionTeam>(`/files/opposition-team-badge/${teamId}`),
 
 	deleteFile: (id: string) => apiClient.delete<void>(`/files/${id}`),
 };

@@ -75,16 +75,17 @@ export function formatFileSize(sizeBytes: number) {
 
 export async function getManagedImageValidationError(
 	file: File,
-	purpose: "club-logo" | "editor"
+	purpose: "club-logo" | "opposition-badge" | "editor"
 ) {
 	const basicError = getUploadFileValidationError(file);
 	if (basicError) return basicError;
 	if (!file.type.startsWith("image/")) return "Choose a JPG, PNG or WebP image.";
 
-	const maximumBytes = purpose === "club-logo" ? 2 * 1024 * 1024 : 5 * 1024 * 1024;
+	const isBadge = purpose === "club-logo" || purpose === "opposition-badge";
+	const maximumBytes = isBadge ? 2 * 1024 * 1024 : 5 * 1024 * 1024;
 	if (file.size > maximumBytes) {
-		return purpose === "club-logo"
-			? "Club logos must be 2MB or less."
+		return isBadge
+			? "Club logos and opposition badges must be 2MB or less."
 			: "Embedded images must be 5MB or less.";
 	}
 
@@ -98,8 +99,8 @@ export async function getManagedImageValidationError(
 	} catch {
 		return "The selected image could not be read.";
 	}
-	if (purpose === "club-logo" && (width < 128 || height < 128 || width > 1024 || height > 1024)) {
-		return "Club logos must be between 128×128 and 1024×1024 pixels.";
+	if (isBadge && (width < 128 || height < 128 || width > 1024 || height > 1024)) {
+		return "Club logos and opposition badges must be between 128×128 and 1024×1024 pixels.";
 	}
 	if (purpose === "editor" && (width > 2400 || height > 2400)) {
 		return "Embedded images must be no larger than 2400×2400 pixels.";

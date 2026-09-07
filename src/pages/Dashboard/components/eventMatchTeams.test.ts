@@ -20,6 +20,7 @@ describe("multi-team event match creation", () => {
 	it("creates an independent match request for each team's opponent", () => {
 		const firsts = {
 			...createMatchTeamDraft(FIRST_TEAM_ID),
+			opponentTeamId: "opposition-1",
 			opponent: "Town Firsts",
 			competition: "Premier Division",
 			location: "Memorial Ground",
@@ -41,6 +42,7 @@ describe("multi-team event match creation", () => {
 		expect(requests).toEqual([
 			expect.objectContaining({
 				teamId: FIRST_TEAM_ID,
+				opponentTeamId: "opposition-1",
 				opponent: "Town Firsts",
 				competition: "Premier Division",
 				location: "Memorial Ground",

@@ -17,6 +17,7 @@ import { useAuthStore } from "../../stores/auth";
 import { getClubDefaultFormationKey } from "../../constants/sports";
 import { useEventStore } from "../../stores/events";
 import type { BulkMatchImportResult } from "../../services/matchApi";
+import { useOppositionTeamStore } from "../../stores/oppositionTeams";
 
 export default function Matches() {
 	const matches = useMatchStore((state) => state.matches);
@@ -39,6 +40,8 @@ export default function Matches() {
 	const loadTeamProfiles = useClubTeamStore((state) => state.loadProfiles);
 	const teamProfiles = useClubTeamStore((state) => state.profiles);
 	const loadEvents = useEventStore((state) => state.loadEvents);
+	const oppositionTeams = useOppositionTeamStore((state) => state.teams);
+	const loadOppositionTeams = useOppositionTeamStore((state) => state.loadTeams);
 	const activeClub = useAuthStore((state) =>
 		state.availableClubs.find((club) => club.isCurrent)
 	);
@@ -63,7 +66,8 @@ export default function Matches() {
 	useEffect(() => {
 		void loadSeasons();
 		void loadTeamProfiles();
-	}, [loadSeasons, loadTeamProfiles]);
+		void loadOppositionTeams();
+	}, [loadSeasons, loadTeamProfiles, loadOppositionTeams]);
 
 	useEffect(() => {
 		if (!selectedSeasonId) {
@@ -375,6 +379,7 @@ export default function Matches() {
 				isEditing={matchForm.isEditing}
 				team={matchForm.team}
 				opponent={matchForm.opponent}
+				opponentTeamId={matchForm.opponentTeamId}
 				date={matchForm.date}
 				venue={matchForm.venue}
 				location={matchForm.location}
@@ -385,6 +390,7 @@ export default function Matches() {
 				onConfirm={matchForm.handleConfirmMatch}
 				onTeamChange={matchForm.updateTeam}
 				onOpponentChange={matchForm.updateOpponent}
+				onOpponentTeamChange={matchForm.updateOpponentTeam}
 				onDateChange={matchForm.updateDate}
 				onVenueChange={matchForm.updateVenue}
 				onLocationChange={matchForm.updateLocation}
@@ -397,6 +403,7 @@ export default function Matches() {
 				seasonId={selectedSeasonId}
 				seasonName={selectedSeason?.name ?? ""}
 				teamProfiles={teamProfiles}
+				oppositionTeams={oppositionTeams}
 				existingMatches={selectedSeasonMatches}
 				defaultFormationKey={defaultFormationKey}
 				onClose={() => setIsImportModalOpen(false)}

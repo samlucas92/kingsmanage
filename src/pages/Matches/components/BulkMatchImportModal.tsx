@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { matchApi, type BulkMatchImportResult } from "../../../services/matchApi";
 import type { Match } from "../../../stores/match";
 import type { ClubTeamProfile } from "../../../stores/clubTeams";
+import type { OppositionTeam } from "../../../types/oppositionTeams";
 import {
 	matchImportTemplate,
 	parseMatchImportCsv,
@@ -14,6 +15,7 @@ type BulkMatchImportModalProps = {
 	seasonId: string;
 	seasonName: string;
 	teamProfiles: ClubTeamProfile[];
+	oppositionTeams: OppositionTeam[];
 	existingMatches: Match[];
 	defaultFormationKey: string;
 	onClose: () => void;
@@ -25,6 +27,7 @@ export function BulkMatchImportModal({
 	seasonId,
 	seasonName,
 	teamProfiles,
+	oppositionTeams,
 	existingMatches,
 	defaultFormationKey,
 	onClose,
@@ -98,6 +101,7 @@ export function BulkMatchImportModal({
 				seasonId,
 				createEvents,
 				matches: rows.map((row) => ({
+					opponentTeamId: oppositionTeams.find((team) => team.name.trim().toLowerCase() === row.opponent.trim().toLowerCase())?.id ?? null,
 					teamId: row.teamId,
 					teamName: row.teamName,
 					opponent: row.opponent,

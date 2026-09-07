@@ -80,6 +80,7 @@ export type Match = {
 	seasonId?: string;
 	clubEventId?: string | null;
 	team: ClubTeam;
+	opponentTeamId?: string | null;
 	opponent: string;
 	competition?: string;
 	competitionType?: MatchCompetitionType;
@@ -104,6 +105,7 @@ export type Match = {
 export type MatchFixtureInput = {
 	seasonId?: string;
 	team: ClubTeam;
+	opponentTeamId?: string | null;
 	opponent: string;
 	date: string;
 	venue: "home" | "away";
@@ -333,6 +335,7 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
 			...currentMatch,
 			seasonId: updatedFixture.seasonId ?? currentMatch.seasonId,
 			team: updatedFixture.team,
+			opponentTeamId: updatedFixture.opponentTeamId ?? null,
 			opponent: updatedFixture.opponent,
 			date: updatedFixture.date,
 			venue: updatedFixture.venue,

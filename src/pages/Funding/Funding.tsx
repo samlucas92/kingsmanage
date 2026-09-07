@@ -50,7 +50,7 @@ export default function Funding() {
 	}
 
 	useEffect(() => {
-		void loadFunding();
+		queueMicrotask(() => void loadFunding());
 	}, []);
 
 	const summary = useMemo(() => getFundingSummary(opportunities), [opportunities]);
@@ -174,7 +174,7 @@ export default function Funding() {
 			</section>
 
 			<FundingImportModal isOpen={isImportOpen} existingOpportunities={opportunities} onClose={() => setIsImportOpen(false)} onImported={loadFunding} />
-			<FundingOpportunityModal isOpen={isEditorOpen} opportunity={selectedOpportunity} isSaving={isSaving} error={actionError} onClose={() => { if (!isSaving) { setIsEditorOpen(false); setSelectedOpportunity(null); setActionError(""); } }} onSave={saveOpportunity} onDelete={requestDelete} />
+			{isEditorOpen && <FundingOpportunityModal isOpen opportunity={selectedOpportunity} isSaving={isSaving} error={actionError} onClose={() => { if (!isSaving) { setIsEditorOpen(false); setSelectedOpportunity(null); setActionError(""); } }} onSave={saveOpportunity} onDelete={requestDelete} />}
 			<ConfirmationModal isOpen={Boolean(deleteTarget)} title="Delete this funding opportunity?" message={deleteTarget ? `“${deleteTarget.name}” and its application notes will be removed.` : ""} confirmText="Delete opportunity" variant="danger" isBusy={isSaving} onCancel={() => { setDeleteTarget(null); setActionError(""); }} onConfirm={confirmDelete} />
 		</div>
 	);

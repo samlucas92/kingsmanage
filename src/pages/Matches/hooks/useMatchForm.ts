@@ -19,6 +19,7 @@ export function useMatchForm({
 	const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
 	const [team, setTeam] = useState<ClubTeam>(FIRST_TEAM_ID);
 	const [opponent, setOpponent] = useState("");
+	const [opponentTeamId, setOpponentTeamId] = useState<string | null>(null);
 	const [date, setDate] = useState("");
 	const [venue, setVenue] = useState<"home" | "away">("home");
 	const [location, setLocation] = useState("");
@@ -33,6 +34,7 @@ export function useMatchForm({
 		setEditingMatchId(null);
 		setTeam(FIRST_TEAM_ID);
 		setOpponent("");
+		setOpponentTeamId(null);
 		setDate("");
 		setVenue("home");
 		setLocation("");
@@ -51,6 +53,7 @@ export function useMatchForm({
 		setEditingMatchId(match.id);
 		setTeam(match.team);
 		setOpponent(match.opponent);
+		setOpponentTeamId(match.opponentTeamId ?? null);
 		setDate(formatDateForInput(match.date));
 		setVenue(match.venue);
 		setLocation(match.location ?? "");
@@ -76,6 +79,14 @@ export function useMatchForm({
 
 	function updateOpponent(value: string) {
 		setOpponent(value);
+		setOpponentTeamId(null);
+		setFormError("");
+	}
+
+	function updateOpponentTeam(id: string | null, name: string, defaultLocation?: string) {
+		setOpponentTeamId(id);
+		setOpponent(name);
+		if (venue === "away" && defaultLocation) setLocation(defaultLocation);
 		setFormError("");
 	}
 
@@ -133,6 +144,7 @@ export function useMatchForm({
 
 		const savedMatch: MatchFixtureInput = {
 			team,
+			opponentTeamId,
 			opponent: opponent.trim(),
 			date,
 			venue,
@@ -169,6 +181,7 @@ export function useMatchForm({
 		isSavingMatch,
 		team,
 		opponent,
+		opponentTeamId,
 		date,
 		venue,
 		location,
@@ -180,6 +193,7 @@ export function useMatchForm({
 		closeMatchModal,
 		updateTeam,
 		updateOpponent,
+		updateOpponentTeam,
 		updateDate,
 		updateVenue,
 		updateLocation,

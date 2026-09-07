@@ -9,6 +9,8 @@ import {
 	useClubTeamStore,
 } from "../../../stores/clubTeams";
 import { useMatchStore, type Match } from "../../../stores/match";
+import { useOppositionTeamStore } from "../../../stores/oppositionTeams";
+import type { OppositionTeam } from "../../../types/oppositionTeams";
 import { useSeasonStore } from "../../../stores/seasons";
 import type {
 	ClubEventType,
@@ -42,6 +44,8 @@ export default function EventFormModal({ isOpen, onClose, onCreateEvent }: Props
 	const isLoadingMatches = useMatchStore((state) => state.isLoadingMatches);
 	const teamProfiles = useClubTeamStore((state) => state.profiles);
 	const activeTeamProfiles = teamProfiles.filter((profile) => profile.isActive);
+	const oppositionTeams = useOppositionTeamStore((state) => state.teams);
+	const loadOppositionTeams = useOppositionTeamStore((state) => state.loadTeams);
 
 	const [type, setType] = useState<ClubEventType>("Training");
 	const [title, setTitle] = useState("");
@@ -77,6 +81,10 @@ export default function EventFormModal({ isOpen, onClose, onCreateEvent }: Props
 			void loadMatches(activeSeasonId || undefined);
 		}
 	}, [activeSeasonId, isOpen, loadMatches, matchMode, type]);
+
+	useEffect(() => {
+		if (isOpen && type === "Match") void loadOppositionTeams();
+	}, [isOpen, type, loadOppositionTeams]);
 
 	if (!isOpen) return null;
 
@@ -322,7 +330,7 @@ export default function EventFormModal({ isOpen, onClose, onCreateEvent }: Props
 							{matchMode === "create" && (
 								<div className="mt-4 space-y-4">
 									<div className="rounded-xl border border-yepset-100 bg-yepset-50 px-4 py-3 text-sm text-yepset-900">The event date is shared. Set each team&apos;s opponent, home/away status, competition and location separately.</div>
-									<div className="grid gap-4 lg:grid-cols-2">{matchTeams.map((draft) => <MatchDetailsFields key={draft.teamId} draft={draft} label={getClubTeamLabel(teamProfiles, draft.teamId)} onChange={(changes) => updateMatchTeam(draft.teamId, changes)} />)}</div>
+									<div className="grid gap-4 lg:grid-cols-2">{matchTeams.map((draft) => <MatchDetailsFields key={draft.teamId} draft={draft} label={getClubTeamLabel(teamProfiles, draft.teamId)} oppositionTeams={oppositionTeams} onChange={(changes) => updateMatchTeam(draft.teamId, changes)} />)}</div>
 								</div>
 							)}
 						</section>
@@ -368,13 +376,15 @@ function ExistingMatchSelect({ label, matches, onChange, value }: { label: strin
 	);
 }
 
-function MatchDetailsFields({ draft, label, onChange }: { draft: MatchTeamDraft; label: string; onChange: (changes: Partial<MatchTeamDraft>) => void }) {
+function MatchDetailsFields({ draft, label, oppositionTeams, onChange }: { draft: MatchTeamDraft; label: string; oppositionTeams: OppositionTeam[]; onChange: (changes: Partial<MatchTeamDraft>) => void }) {
+	const selectableOpposition = oppositionTeams.filter((team) => team.isActive || team.id === draft.opponentTeamId);
 	return (
 		<section className="rounded-2xl border border-slate-200 bg-white p-4">
 			<h4 className="text-sm font-bold text-slate-900">{label}</h4>
 			<div className="mt-4 space-y-4">
-				<label className="block text-sm font-semibold text-slate-700">Opponent<input type="text" value={draft.opponent} onChange={(event) => onChange({ opponent: event.target.value })} placeholder="e.g. AFC Oak" className={inputClassName} /></label>
-				<label className="block text-sm font-semibold text-slate-700">Home/Away<select value={draft.venue} onChange={(event) => onChange({ venue: event.target.value as EventMatchVenue })} className={inputClassName}><option value="Home">Home</option><option value="Away">Away</option></select></label>
+				<label className="block text-sm font-semibold text-slate-700">Saved opposition<select value={draft.opponentTeamId ?? ""} onChange={(event) => { const selected = oppositionTeams.find((team) => team.id === event.target.value); onChange({ opponentTeamId: selected?.id ?? null, opponent: selected?.name ?? "", ...(draft.venue === "Away" && selected?.location ? { location: selected.location } : {}) }); }} className={inputClassName}><option value="">Enter manually</option>{selectableOpposition.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
+				<label className="block text-sm font-semibold text-slate-700">Opponent name<input type="text" value={draft.opponent} onChange={(event) => onChange({ opponent: event.target.value, opponentTeamId: null })} placeholder="e.g. AFC Oak" className={inputClassName} /></label>
+				<label className="block text-sm font-semibold text-slate-700">Home/Away<select value={draft.venue} onChange={(event) => { const venue = event.target.value as EventMatchVenue; const selected = oppositionTeams.find((team) => team.id === draft.opponentTeamId); onChange({ venue, ...(venue === "Away" && selected?.location ? { location: selected.location } : {}) }); }} className={inputClassName}><option value="Home">Home</option><option value="Away">Away</option></select></label>
 				<label className="block text-sm font-semibold text-slate-700">Competition<input type="text" value={draft.competition} onChange={(event) => onChange({ competition: event.target.value })} className={inputClassName} /></label>
 				<LocationPicker value={draft.location} onChange={(location) => onChange({ location })} label="Match location" required />
 			</div>

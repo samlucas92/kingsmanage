@@ -130,6 +130,7 @@ export type BulkMatchImportInput = {
 	createEvents: boolean;
 	matches: Array<{
 		teamId: string;
+		opponentTeamId?: string | null;
 		teamName: string;
 		opponent: string;
 		competition: string;

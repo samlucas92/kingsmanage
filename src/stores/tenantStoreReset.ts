@@ -6,6 +6,7 @@ import { useMatchStore } from "./match";
 import { useMessageStore } from "./messages";
 import { useNotificationStore } from "./notifications";
 import { useOrganizationLocationsStore } from "./organizationLocations";
+import { useOppositionTeamStore } from "./oppositionTeams";
 import { usePlayerStore } from "./players";
 import { usePostStore } from "./posts";
 import { useRealtimeStore } from "./realtime";
@@ -29,6 +30,7 @@ export function resetTenantStores() {
 	useMessageStore.setState(useMessageStore.getInitialState(), true);
 	useNotificationStore.setState(useNotificationStore.getInitialState(), true);
 	useOrganizationLocationsStore.setState(useOrganizationLocationsStore.getInitialState(), true);
+	useOppositionTeamStore.setState(useOppositionTeamStore.getInitialState(), true);
 	usePlayerStore.setState(usePlayerStore.getInitialState(), true);
 	usePostStore.setState(usePostStore.getInitialState(), true);
 	useSeasonStore.setState(useSeasonStore.getInitialState(), true);

@@ -9,6 +9,7 @@ import type {
 export type MatchTeamDraft = {
 	teamId: string;
 	matchId: string;
+	opponentTeamId: string | null;
 	opponent: string;
 	competition: string;
 	location: string;
@@ -19,6 +20,7 @@ export function createMatchTeamDraft(teamId: string): MatchTeamDraft {
 	return {
 		teamId,
 		matchId: "",
+		opponentTeamId: null,
 		opponent: "",
 		competition: "",
 		location: "",
@@ -55,6 +57,7 @@ export function buildCreateMatchRequest({
 		seasonId,
 		team: getLegacyTeam(draft.teamId),
 		teamId: draft.teamId,
+		opponentTeamId: draft.opponentTeamId,
 		opponent: draft.opponent.trim(),
 		competition: draft.competition.trim(),
 		date: new Date(eventStartDateTime).toISOString(),

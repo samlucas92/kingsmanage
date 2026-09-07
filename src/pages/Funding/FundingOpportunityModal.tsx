@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 
 import type {
 	FundingApplicationState,
@@ -49,14 +49,10 @@ export default function FundingOpportunityModal({
 	onSave,
 	onDelete,
 }: FundingOpportunityModalProps) {
-	const [draft, setDraft] = useState<SaveFundingOpportunityRequest>(emptyDraft);
+	const [draft, setDraft] = useState<SaveFundingOpportunityRequest>(() =>
+		opportunity ? toDraft(opportunity) : emptyDraft
+	);
 	const [validationError, setValidationError] = useState("");
-
-	useEffect(() => {
-		if (!isOpen) return;
-		setDraft(opportunity ? toDraft(opportunity) : emptyDraft);
-		setValidationError("");
-	}, [isOpen, opportunity]);
 
 	if (!isOpen) return null;
 
