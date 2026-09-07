@@ -19,6 +19,7 @@ const Dashboard = lazyWithRetry(() => import("../pages/Dashboard/Dashboard"));
 const EventDetail = lazyWithRetry(() => import("../pages/Events/EventDetail"));
 const Finance = lazyWithRetry(() => import("../pages/Finance/Finance"));
 const Forms = lazyWithRetry(() => import("../pages/Forms/Forms"));
+const Funding = lazyWithRetry(() => import("../pages/Funding/Funding"));
 const HistoricalStats = lazyWithRetry(() => import("../pages/HistoricalStats/HistoricalStats"));
 const HandoverOverview = lazyWithRetry(() => import("../pages/Handover/HandoverOverview"));
 const HandoverRoles = lazyWithRetry(() => import("../pages/Handover/HandoverRoles"));
@@ -99,6 +100,7 @@ export default function AppRouter() {
 
 						<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} />}>
 							<Route path="/finance" element={<Finance />} />
+							<Route path="/funding" element={<Funding />} />
 							<Route path="/seasons" element={<Seasons />} />
 							<Route path="/club-teams" element={<ClubTeams />} />
 						</Route>

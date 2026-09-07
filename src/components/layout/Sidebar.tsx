@@ -96,6 +96,12 @@ const navigationItems: NavigationItem[] = [
 		group: "manage-club",
 	},
 	{
+		label: "Funding",
+		to: "/funding",
+		roles: ["Admin"],
+		group: "manage-club",
+	},
+	{
 		label: "Handover Vault",
 		to: "/handover",
 		roles: ["Admin", "Coach"],
@@ -422,6 +428,8 @@ function NavigationIcon({ path }: { path: string }) {
 					? "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m7-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 10v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
 					: path === "/finance"
 						? "M4 19V9m5 10V5m5 14v-7m5 7V3"
+						: path === "/funding"
+							? "M5 8h14M7 8V5h10v3m-11 0-2 4h16l-2-4M6 12v8m4-8v8m4-8v8m4-8v8M4 20h16"
 						: path === "/reports"
 							? "M4 19V5m5 14v-8m5 8V8m5 11V3M3 21h18"
 							: path === "/forms"

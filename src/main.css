@@ -63,6 +63,36 @@ textarea:focus-visible {
 	box-shadow: 0 1px 2px rgb(15 23 42 / 4%), 0 12px 32px rgb(15 42 40 / 5%);
 }
 
+.input-field {
+	display: block;
+	width: 100%;
+	min-height: 2.75rem;
+	border: 1px solid #cbd5e1;
+	border-radius: .75rem;
+	background: white;
+	padding: .625rem .75rem;
+	color: #0f172a;
+	transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.input-field::placeholder {
+	color: #94a3b8;
+}
+
+.input-field:hover {
+	border-color: #94a3b8;
+}
+
+.input-field:focus {
+	border-color: var(--color-yepset-500);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-yepset-300) 28%, transparent);
+	outline: none;
+}
+
+textarea.input-field {
+	min-height: auto;
+}
+
 .btn-primary {
 	display: inline-flex;
 	min-height: 2.75rem;
