@@ -152,6 +152,7 @@ export default function SocialMediaStudio() {
 	const [headline, setHeadline] = useState(getDefaultHeadline(kind));
 	const [footer, setFooter] = useState("");
 	const [clubHandle, setClubHandle] = useState("");
+	const [isPostponed, setIsPostponed] = useState(false);
 	const [templateFieldValues, setTemplateFieldValues] = useState<Record<string, string | boolean>>({});
 	const [homeTeamLogoId, setHomeTeamLogoId] = useState("");
 	const [awayTeamLogoId, setAwayTeamLogoId] = useState("");
@@ -256,6 +257,7 @@ export default function SocialMediaStudio() {
 			if (typeof state.headline === "string") setHeadline(state.headline);
 			if (typeof state.footer === "string") setFooter(state.footer);
 			if (typeof state.clubHandle === "string") setClubHandle(state.clubHandle);
+			if (typeof state.isPostponed === "boolean") setIsPostponed(state.isPostponed);
 			if (isRecord(state.templateFieldValues)) setTemplateFieldValues(state.templateFieldValues as Record<string, string | boolean>);
 			if (typeof state.homeTeamLogoId === "string") setHomeTeamLogoId(state.homeTeamLogoId);
 			if (typeof state.awayTeamLogoId === "string") setAwayTeamLogoId(state.awayTeamLogoId);
@@ -453,6 +455,12 @@ export default function SocialMediaStudio() {
 			.sort((first, second) => Date.parse(first.date) - Date.parse(second.date)),
 		[seasonMatches]
 	);
+	const fixtureMatches = useMemo(
+		() => seasonMatches
+			.filter((match) => !match.isCompleted && (match.state === "upcoming" || match.state === "postponed"))
+			.sort((first, second) => Date.parse(first.date) - Date.parse(second.date)),
+		[seasonMatches]
+	);
 
 	const completedMatches = useMemo(
 		() => seasonMatches
@@ -469,9 +477,9 @@ export default function SocialMediaStudio() {
 			: upcomingMatches.slice(0, 3).map((match) => match.id);
 	}, [upcomingMatches, selectedUpcomingIds]);
 
-	const effectiveFixtureId = upcomingMatches.some((match) => match.id === selectedFixtureId)
+	const effectiveFixtureId = fixtureMatches.some((match) => match.id === selectedFixtureId)
 		? selectedFixtureId
-		: upcomingMatches[0]?.id ?? "";
+		: fixtureMatches[0]?.id ?? "";
 	const effectiveLineupId = upcomingMatches.some((match) => match.id === selectedLineupId)
 		? selectedLineupId
 		: upcomingMatches[0]?.id ?? "";
@@ -492,7 +500,7 @@ export default function SocialMediaStudio() {
 		: kind === "lineup"
 			? upcomingMatches.find((match) => match.id === effectiveLineupId)
 			: kind === "fixture"
-				? upcomingMatches.find((match) => match.id === effectiveFixtureId)
+				? fixtureMatches.find((match) => match.id === effectiveFixtureId)
 				: undefined;
 	const teamLogoAssets = useMemo(
 		() => [...socialGraphicAssetManifest.teamLogos, ...oppositionLogoAssets],
@@ -715,6 +723,7 @@ export default function SocialMediaStudio() {
 
 	const content = useMemo<SocialGraphicContent>(() => ({
 		kind,
+		isPostponed: kind === "fixture" && isPostponed,
 		clubName,
 		clubHandle: clubHandle.trim(),
 		headline: headline.trim() || getDefaultHeadline(kind),
@@ -725,6 +734,7 @@ export default function SocialMediaStudio() {
 		assets: selectedAssets,
 	}), [
 		kind,
+		isPostponed,
 		clubName,
 		clubHandle,
 		headline,
@@ -1364,6 +1374,7 @@ export default function SocialMediaStudio() {
 		selectedLineupId: effectiveLineupId,
 		selectedResultId: effectiveResultId,
 		selectedPortraitPlayerId: effectivePortraitPlayerId,
+		isPostponed,
 		headline,
 		footer,
 		clubHandle,
@@ -1628,7 +1639,7 @@ export default function SocialMediaStudio() {
 							) : (
 								<SingleMatchPicker
 									label={kind === "fixture" ? "Fixture" : kind === "lineup" ? "Lineup match" : "Result"}
-									fixtures={(kind === "result" ? completedMatches : upcomingMatches).map((match) => toSocialFixture(match, teamProfiles, players))}
+									fixtures={(kind === "result" ? completedMatches : kind === "fixture" ? fixtureMatches : upcomingMatches).map((match) => toSocialFixture(match, teamProfiles, players))}
 									selectedId={kind === "fixture" ? effectiveFixtureId : kind === "lineup" ? effectiveLineupId : effectiveResultId}
 									onChange={kind === "fixture" ? setSelectedFixtureId : kind === "lineup" ? setSelectedLineupId : setSelectedResultId}
 								/>
@@ -1645,6 +1656,13 @@ export default function SocialMediaStudio() {
 									onReset={() => resetFixtureOverride(fixture.id)}
 								/>
 							))}
+
+							{kind === "fixture" && (
+								<label className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-3 text-sm font-semibold ${isPostponed ? "border-red-300 bg-red-50 text-red-900" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+									<input type="checkbox" checked={isPostponed} onChange={(event) => setIsPostponed(event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-red-700" />
+									<span>Mark graphic as postponed<span className="mt-0.5 block text-xs font-medium opacity-75">Adds a large red diagonal POSTPONED banner to this image only.</span></span>
+								</label>
+							)}
 
 							{kind === "lineup" && selectedSingleMatch && selectedLineup && (
 								<LineupCopyEditor

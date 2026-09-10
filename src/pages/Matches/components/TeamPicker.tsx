@@ -19,6 +19,9 @@ import type { FormationPosition } from "./team-picker/Types";
 import { useTeamPicker } from "./team-picker/useTeamPicker";
 import type { SameDaySelection } from "../sameDaySelections";
 import { getClubTeamLabel, useClubTeamStore } from "../../../stores/clubTeams";
+import { matchApi } from "../../../services/matchApi";
+import type { MatchEligibility, PlayerLeagueEligibility } from "../../../types/leagueRules";
+import { resolvePlayerLeagueEligibility } from "./team-picker/leagueEligibility";
 
 interface TeamPickerProps {
 	matchId: string;
@@ -74,6 +77,17 @@ export default function TeamPicker({
 	const [mobilePlayerSelectorMode, setMobilePlayerSelectorMode] =
 		useState<MobilePlayerSelectorMode | null>(null);
 	const [showAvailableOnly, setShowAvailableOnly] = useState(false);
+	const [leagueEligibility, setLeagueEligibility] = useState<MatchEligibility | null>(null);
+	const selectedPlayerKey = teamPicker.match?.selectedPlayers.map((player) => player.playerId).sort().join(",") ?? "";
+
+	useEffect(() => {
+		if (eventMode) return;
+		let isCurrent = true;
+		matchApi.getEligibility(matchId)
+			.then((result) => { if (isCurrent) setLeagueEligibility(result); })
+			.catch(() => { if (isCurrent) setLeagueEligibility(null); });
+		return () => { isCurrent = false; };
+	}, [eventMode, matchId, selectedPlayerKey]);
 
 	if (!teamPicker.match) {
 		return (
@@ -110,6 +124,10 @@ export default function TeamPicker({
 		return (getPlayerSameDaySelections?.(playerId) ?? []).map((selection) =>
 			formatSameDaySelection(selection, teamProfiles)
 		);
+	}
+
+	function getPlayerLeagueEligibility(playerId: string): PlayerLeagueEligibility {
+		return resolvePlayerLeagueEligibility(playerId, leagueEligibility);
 	}
 
 	const activePlayerName = teamPicker.activeDragData
@@ -282,6 +300,13 @@ export default function TeamPicker({
 			onDragEnd={teamPicker.handleDragEnd}
 			onDragCancel={teamPicker.handleDragCancel}
 		>
+			{!eventMode && leagueEligibility && leagueEligibility.rules.length > 0 && (
+				<div className={`mb-4 rounded-xl border px-4 py-3 text-sm ${leagueEligibility.isValid ? "border-blue-200 bg-blue-50 text-blue-900" : "border-red-200 bg-red-50 text-red-900"}`}>
+					<p className="font-bold">League eligibility checks</p>
+					<div className="mt-1 space-y-1 text-xs leading-5">{leagueEligibility.rules.map((rule) => <p key={rule.ruleId}><span className="font-semibold">{rule.name}:</span> {rule.summary}</p>)}</div>
+					{leagueEligibility.violations.map((violation) => <p key={violation} className="mt-2 font-semibold">{violation}</p>)}
+				</div>
+			)}
 			{playersSelectedElsewhere.length > 0 && (
 				<div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
 					<p className="font-bold">Same-day team selections</p>
@@ -302,6 +327,7 @@ export default function TeamPicker({
 						getPlayerAvailabilityStatus={getPlayerAvailabilityStatus}
 						getPlayerTrainingAvailability={getPlayerTrainingAvailability}
 						getPlayerOtherSelectionLabels={getOtherSelectionLabels}
+						getPlayerLeagueEligibility={getPlayerLeagueEligibility}
 						onShowAvailableOnlyChange={setShowAvailableOnly}
 						onOpenPlayerMenu={teamPicker.openPlayerMenu}
 					/>
@@ -435,6 +461,7 @@ export default function TeamPicker({
 					getPlayerAvailabilityStatus={getPlayerAvailabilityStatus}
 					getPlayerTrainingAvailability={getPlayerTrainingAvailability}
 					getPlayerOtherSelectionLabels={getOtherSelectionLabels}
+					getPlayerLeagueEligibility={getPlayerLeagueEligibility}
 					onShowAvailableOnlyChange={setShowAvailableOnly}
 					onClose={closeMobilePlayerSelector}
 					onSelectPlayer={handleSelectMobilePlayer}
@@ -619,6 +646,7 @@ function MobilePlayerSelector({
 	getPlayerAvailabilityStatus,
 	getPlayerTrainingAvailability,
 	getPlayerOtherSelectionLabels,
+	getPlayerLeagueEligibility,
 	onShowAvailableOnlyChange,
 	onClose,
 	onSelectPlayer,
@@ -640,6 +668,7 @@ function MobilePlayerSelector({
 		playerId: string
 	) => TrainingAvailabilitySummary;
 	getPlayerOtherSelectionLabels: (playerId: string) => string[];
+	getPlayerLeagueEligibility?: (playerId: string) => PlayerLeagueEligibility;
 	onShowAvailableOnlyChange: (value: boolean) => void;
 	onClose: () => void;
 	onSelectPlayer: (playerId: string) => void;
@@ -763,13 +792,16 @@ function MobilePlayerSelector({
 								const trainingAvailability =
 									getPlayerTrainingAvailability?.(player.id);
 								const otherSelectionLabels = getPlayerOtherSelectionLabels(player.id);
+								const playerEligibility = getPlayerLeagueEligibility?.(player.id);
 
 								return (
 									<button
 										key={player.id}
 										type="button"
 										onClick={() => onSelectPlayer(player.id)}
-										className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm hover:bg-slate-50"
+										disabled={playerEligibility?.isEligible === false}
+										title={playerEligibility?.reasons.join(" · ")}
+										className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-red-50 disabled:opacity-60"
 									>
 										<div className="min-w-0">
 											<p className="truncate font-semibold text-slate-900">
@@ -788,6 +820,7 @@ function MobilePlayerSelector({
 										</div>
 
 										<div className="flex shrink-0 flex-col items-end gap-1">
+											{playerEligibility && playerEligibility.labels.length > 0 && <span className={`rounded-full px-2 py-1 text-xs font-bold ${playerEligibility.isEligible ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800"}`}>{playerEligibility.labels[0]}</span>}
 											{otherSelectionLabels.length > 0 && (
 												<OtherSelectionBadge labels={otherSelectionLabels} />
 											)}

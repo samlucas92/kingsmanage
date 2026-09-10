@@ -86,6 +86,7 @@ export type SocialLineup = {
 
 export type SocialGraphicContent = {
 	kind: SocialGraphicKind;
+	isPostponed?: boolean;
 	clubName: string;
 	clubHandle: string;
 	headline: string;

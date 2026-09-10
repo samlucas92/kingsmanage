@@ -3,6 +3,7 @@ import StatusBadge from "../../../../components/compositions/StatusBadge";
 import type { ClubEventAvailabilityStatus } from "../../../../types/events";
 import type { TrainingAvailabilitySummary } from "../../../../utils/trainingAvailability";
 import { AvailablePlayer } from "./PlayerCards";
+import type { PlayerLeagueEligibility } from "../../../../types/leagueRules";
 
 type Player = {
 	id: string;
@@ -24,6 +25,7 @@ interface AvailablePlayersPanelProps {
 		playerId: string
 	) => TrainingAvailabilitySummary;
 	getPlayerOtherSelectionLabels: (playerId: string) => string[];
+	getPlayerLeagueEligibility?: (playerId: string) => PlayerLeagueEligibility;
 	onOpenPlayerMenu: (
 		playerId: string,
 		event: MouseEvent<HTMLButtonElement>
@@ -41,6 +43,7 @@ export function AvailablePlayersPanel({
 	getPlayerAvailabilityStatus,
 	getPlayerTrainingAvailability,
 	getPlayerOtherSelectionLabels,
+	getPlayerLeagueEligibility,
 	onOpenPlayerMenu,
 	onShowAvailableOnlyChange,
 }: AvailablePlayersPanelProps) {
@@ -90,12 +93,15 @@ export function AvailablePlayersPanel({
 
 			<div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
 				<div className="grid grid-cols-1 gap-2 pb-1 sm:grid-cols-2 xl:grid-cols-1">
-					{availablePlayers.map((player) => (
+					{availablePlayers.map((player) => {
+						const leagueEligibility = getPlayerLeagueEligibility?.(player.id);
+						return (
 						<AvailablePlayer
 							key={player.id}
 							id={player.id}
 							name={player.name}
-							disabled={isLineupLocked}
+							disabled={isLineupLocked || leagueEligibility?.isEligible === false}
+							leagueEligibility={leagueEligibility}
 							isMenuOpen={openMenuPlayerId === player.id}
 							isSwapTarget={hoveredSwapTargetPlayerId === player.id}
 							availabilityStatus={getPlayerAvailabilityStatus?.(player.id)}
@@ -103,7 +109,8 @@ export function AvailablePlayersPanel({
 							otherSelectionLabels={getPlayerOtherSelectionLabels(player.id)}
 							onOpenMenu={(event) => onOpenPlayerMenu(player.id, event)}
 						/>
-					))}
+						);
+					})}
 
 					{availablePlayers.length === 0 && (
 						<p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500">

@@ -12,6 +12,7 @@ import { OrganizationDashboardPanel } from "./OrganizationDashboardPanel";
 import OrganizationAdminNav from "../../components/organization/OrganizationAdminNav";
 import ConfirmationModal from "../../components/compositions/ConfirmationModal";
 import LocationDirectoryPanel from "./LocationDirectoryPanel";
+import LeagueRulesPanel from "./LeagueRulesPanel";
 
 const sports = Object.keys(sportDefinitions);
 
@@ -196,6 +197,7 @@ export default function Organization() {
 			{canManageOrganization && <OrganizationDashboardPanel clubs={clubs} />}
 
 			<LocationDirectoryPanel />
+			<LeagueRulesPanel />
 
 			<section className="space-y-3">
 				<div><h2 className="text-xl font-bold">Clubs</h2><p className="text-sm text-slate-500">Each club has its own sport, teams and operational data.</p></div>

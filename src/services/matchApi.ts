@@ -17,6 +17,7 @@ import type {
 import { FIRST_TEAM_ID, SECOND_TEAM_ID, normaliseLegacyTeamId } from "../stores/clubTeams";
 import { toUtcIsoString } from "../utils/date";
 import type { ClubEvent } from "../types/events";
+import type { MatchEligibility } from "../types/leagueRules";
 
 type MatchVenue = Match["venue"];
 
@@ -422,6 +423,7 @@ function toApiMatchFixture(match: MatchFixtureInput): ApiMatchFixtureInput {
 }
 
 export const matchApi = {
+	getEligibility: (id: string) => apiClient.get<MatchEligibility>(`/matches/${id}/eligibility`),
 	getMatches: async () => {
 		const matches = await apiClient.get<ApiMatchViewModel[]>("/matches");
 		return matches.map(fromApiMatchViewModel);

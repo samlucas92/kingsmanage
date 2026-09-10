@@ -4,6 +4,7 @@ import type { MouseEvent } from "react";
 import type { ClubEventAvailabilityStatus } from "../../../../types/events";
 import type { TrainingAvailabilitySummary } from "../../../../utils/trainingAvailability";
 import type { DragData, DropData } from "./Types";
+import type { PlayerLeagueEligibility } from "../../../../types/leagueRules";
 
 interface AvailablePlayerProps {
 	id: string;
@@ -14,6 +15,7 @@ interface AvailablePlayerProps {
 	availabilityStatus?: ClubEventAvailabilityStatus;
 	trainingAvailability?: TrainingAvailabilitySummary;
 	otherSelectionLabels?: string[];
+	leagueEligibility?: PlayerLeagueEligibility;
 	onOpenMenu: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
@@ -26,6 +28,7 @@ export function AvailablePlayer({
 	availabilityStatus,
 	trainingAvailability,
 	otherSelectionLabels = [],
+	leagueEligibility,
 	onOpenMenu,
 }: AvailablePlayerProps) {
 	const {
@@ -89,12 +92,17 @@ export function AvailablePlayer({
 				onClick={onOpenMenu}
 				disabled={disabled}
 				className="flex-1 truncate text-left disabled:cursor-not-allowed"
-				title={name}
+				title={[name, ...(leagueEligibility?.reasons ?? [])].join(" · ")}
 			>
 				{isSwapTarget ? `↔ ${name}` : name}
 			</button>
 
 			<div className="flex shrink-0 flex-col items-end gap-1">
+				{leagueEligibility && leagueEligibility.labels.length > 0 && (
+					<span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${leagueEligibility.isEligible ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800"}`} title={leagueEligibility.reasons.join(" · ")}>
+						{leagueEligibility.labels[0]}
+					</span>
+				)}
 				{otherSelectionLabels.length > 0 && (
 					<OtherSelectionBadge labels={otherSelectionLabels} compact />
 				)}

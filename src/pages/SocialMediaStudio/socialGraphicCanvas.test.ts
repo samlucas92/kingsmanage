@@ -5,6 +5,7 @@ import {
 	getSocialExportDimensions,
 	SOCIAL_EXPORT_MAX_HEIGHT,
 	SOCIAL_EXPORT_MAX_WIDTH,
+	drawPostponedOverlay,
 } from "./socialGraphicCanvas";
 
 afterEach(() => {
@@ -51,5 +52,18 @@ describe("social graphic exports", () => {
 			width: 921,
 			height: 1350,
 		});
+	});
+
+	it("draws a large red postponed banner diagonally across a fixture", () => {
+		const context = {
+			save: vi.fn(), translate: vi.fn(), rotate: vi.fn(), fillRect: vi.fn(),
+			strokeRect: vi.fn(), fillText: vi.fn(), restore: vi.fn(),
+		} as unknown as CanvasRenderingContext2D;
+
+		drawPostponedOverlay(context, 1080, 1350);
+
+		expect(context.rotate).toHaveBeenCalledWith(-Math.PI / 7);
+		expect(context.fillRect).toHaveBeenCalled();
+		expect(context.fillText).toHaveBeenCalledWith("POSTPONED", 0, expect.any(Number), expect.any(Number));
 	});
 });
