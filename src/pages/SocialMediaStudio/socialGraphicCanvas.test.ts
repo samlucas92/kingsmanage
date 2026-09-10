@@ -54,16 +54,20 @@ describe("social graphic exports", () => {
 		});
 	});
 
-	it("draws a large red postponed banner diagonally across a fixture", () => {
+	it("draws outlined red postponed text diagonally without a background", () => {
 		const context = {
 			save: vi.fn(), translate: vi.fn(), rotate: vi.fn(), fillRect: vi.fn(),
-			strokeRect: vi.fn(), fillText: vi.fn(), restore: vi.fn(),
+			strokeRect: vi.fn(), strokeText: vi.fn(), fillText: vi.fn(), restore: vi.fn(),
 		} as unknown as CanvasRenderingContext2D;
 
 		drawPostponedOverlay(context, 1080, 1350);
 
 		expect(context.rotate).toHaveBeenCalledWith(-Math.PI / 7);
-		expect(context.fillRect).toHaveBeenCalled();
-		expect(context.fillText).toHaveBeenCalledWith("POSTPONED", 0, expect.any(Number), expect.any(Number));
+		expect(context.fillRect).not.toHaveBeenCalled();
+		expect(context.strokeRect).not.toHaveBeenCalled();
+		expect(context.strokeText).toHaveBeenCalledWith("POSTPONED", 0, 0, expect.any(Number));
+		expect(context.fillText).toHaveBeenCalledWith("POSTPONED", 0, 0, expect.any(Number));
+		expect(context.strokeStyle).toBe("#ffffff");
+		expect(context.fillStyle).toBe("#dc2626");
 	});
 });

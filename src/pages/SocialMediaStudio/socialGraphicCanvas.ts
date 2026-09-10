@@ -65,19 +65,24 @@ export function drawPostponedOverlay(
 	context.save();
 	context.translate(width / 2, height / 2);
 	context.rotate(-Math.PI / 7);
-	const bandHeight = Math.max(150, Math.round(Math.min(width, height) * 0.16));
-	context.fillStyle = "rgba(185, 28, 28, 0.94)";
-	context.fillRect(-width, -bandHeight / 2, width * 2, bandHeight);
-	context.strokeStyle = "rgba(255, 255, 255, 0.95)";
-	context.lineWidth = Math.max(5, Math.round(bandHeight * 0.045));
-	context.strokeRect(-width, -bandHeight / 2, width * 2, bandHeight);
-	context.fillStyle = "#ffffff";
+	const fontSize = Math.max(
+		96,
+		Math.round(Math.min(width, height) * 0.12)
+	);
+	const maxTextWidth = width * 0.88;
 	context.textAlign = "center";
 	context.textBaseline = "middle";
-	context.font = `900 ${Math.round(bandHeight * 0.5)}px Arial, sans-serif`;
-	context.shadowColor = "rgba(0, 0, 0, 0.35)";
-	context.shadowBlur = 14;
-	context.fillText("POSTPONED", 0, 5, width * 0.86);
+	context.font = `900 ${fontSize}px Arial, sans-serif`;
+	context.lineJoin = "round";
+	context.strokeStyle = "#ffffff";
+	context.lineWidth = Math.max(7, Math.round(fontSize * 0.075));
+	context.shadowColor = "rgba(0, 0, 0, 0.55)";
+	context.shadowBlur = 10;
+	context.shadowOffsetX = 4;
+	context.shadowOffsetY = 4;
+	context.strokeText("POSTPONED", 0, 0, maxTextWidth);
+	context.fillStyle = "#dc2626";
+	context.fillText("POSTPONED", 0, 0, maxTextWidth);
 	context.restore();
 }
 

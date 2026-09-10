@@ -1660,7 +1660,7 @@ export default function SocialMediaStudio() {
 							{kind === "fixture" && (
 								<label className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-3 text-sm font-semibold ${isPostponed ? "border-red-300 bg-red-50 text-red-900" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
 									<input type="checkbox" checked={isPostponed} onChange={(event) => setIsPostponed(event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-red-700" />
-									<span>Mark graphic as postponed<span className="mt-0.5 block text-xs font-medium opacity-75">Adds a large red diagonal POSTPONED banner to this image only.</span></span>
+									<span>Mark graphic as postponed<span className="mt-0.5 block text-xs font-medium opacity-75">Adds large red diagonal POSTPONED text with a white outline to this image only.</span></span>
 								</label>
 							)}
 

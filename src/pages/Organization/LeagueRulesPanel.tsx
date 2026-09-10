@@ -106,7 +106,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) { re
 
 function CompetitionDropdown({ teamName, options, selected, onChange }: { teamName: string; options: string[]; selected: string[]; onChange: (selected: string[]) => void }) {
 	const available = [...new Set(options.map((option) => option.trim()).filter(Boolean))];
-	const selectionLabel = selected.length === 0 ? "All competitions" : selected.join(", ");
+	const selectionLabel = selected.length === 0 ? "All competitions" : selected.map(formatCompetitionOption).join(", ");
 	return <>
 		<details className="relative mt-1">
 			<summary className="input-field flex cursor-pointer list-none items-center justify-between gap-3 text-left font-medium text-slate-800 marker:content-none">
@@ -117,13 +117,19 @@ function CompetitionDropdown({ teamName, options, selected, onChange }: { teamNa
 					<input type="checkbox" checked={selected.length === 0} onChange={() => onChange([])} className="h-4 w-4 rounded border-slate-300" />All competitions
 				</label>
 				{available.map((competition) => <label key={competition} className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium hover:bg-slate-50">
-					<input type="checkbox" checked={selected.includes(competition)} onChange={(event) => onChange(event.target.checked ? [...selected, competition] : selected.filter((item) => item !== competition))} className="h-4 w-4 rounded border-slate-300" />{competition}
+					<input type="checkbox" checked={selected.includes(competition)} onChange={(event) => onChange(event.target.checked ? [...selected, competition] : selected.filter((item) => item !== competition))} className="h-4 w-4 rounded border-slate-300" />{formatCompetitionOption(competition)}
 				</label>)}
 				{available.length === 0 && <p className="px-3 py-2 text-xs font-normal leading-5 text-amber-700">No competitions are configured for {teamName}. Add them under Club teams; this rule will currently apply to all competitions.</p>}
 			</div>
 		</details>
-		<span className="mt-1 block text-xs font-normal text-slate-500">From competitions configured for {teamName}. Choose all or select one or more.</span>
+		<span className="mt-1 block text-xs font-normal text-slate-500">From competitions configured for {teamName}. “League” covers every named league division; named cups remain specific.</span>
 	</>;
+}
+
+function formatCompetitionOption(competition: string) {
+	if (competition.toLowerCase() === "league") return "League (all league competitions)";
+	if (competition.toLowerCase() === "cup") return "Cup (all cup competitions)";
+	return competition;
 }
 function describeRule(rule: LeagueRule, teamName: (id: string) => string) {
 	if (rule.ruleType === "CupTied") return `Players used by ${teamName(rule.higherTeamId)} are cup-tied for ${teamName(rule.restrictedTeamId)}.`;

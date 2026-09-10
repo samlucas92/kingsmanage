@@ -78,14 +78,15 @@ export default function TeamPicker({
 		useState<MobilePlayerSelectorMode | null>(null);
 	const [showAvailableOnly, setShowAvailableOnly] = useState(false);
 	const [leagueEligibility, setLeagueEligibility] = useState<MatchEligibility | null>(null);
+	const [leagueEligibilityError, setLeagueEligibilityError] = useState("");
 	const selectedPlayerKey = teamPicker.match?.selectedPlayers.map((player) => player.playerId).sort().join(",") ?? "";
 
 	useEffect(() => {
 		if (eventMode) return;
 		let isCurrent = true;
 		matchApi.getEligibility(matchId)
-			.then((result) => { if (isCurrent) setLeagueEligibility(result); })
-			.catch(() => { if (isCurrent) setLeagueEligibility(null); });
+			.then((result) => { if (isCurrent) { setLeagueEligibility(result); setLeagueEligibilityError(""); } })
+			.catch((error) => { if (isCurrent) { setLeagueEligibility(null); setLeagueEligibilityError(error instanceof Error ? error.message : "League eligibility could not be checked."); } });
 		return () => { isCurrent = false; };
 	}, [eventMode, matchId, selectedPlayerKey]);
 
@@ -304,6 +305,12 @@ export default function TeamPicker({
 			onDragEnd={teamPicker.handleDragEnd}
 			onDragCancel={teamPicker.handleDragCancel}
 		>
+			{!eventMode && leagueEligibilityError && (
+				<div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+					<p className="font-bold">League rules could not be checked</p>
+					<p className="mt-1 text-xs">{leagueEligibilityError}</p>
+				</div>
+			)}
 			{!eventMode && leagueEligibility && leagueEligibility.rules.length > 0 && (
 				<div className={`mb-4 rounded-xl border px-4 py-3 text-sm ${leagueEligibility.isValid ? "border-blue-200 bg-blue-50 text-blue-900" : "border-red-200 bg-red-50 text-red-900"}`}>
 					<p className="font-bold">League eligibility checks</p>
