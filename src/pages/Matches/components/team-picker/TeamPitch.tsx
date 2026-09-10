@@ -5,6 +5,7 @@ import type { FormationPosition } from "./Types";
 import type { SportSurface } from "../../../../constants/sports";
 import { resolveLineupPosition } from "../../../../utils/lineupPosition";
 import { SelectedPitchPlayer } from "./PlayerCards";
+import type { PlayerLeagueEligibility } from "../../../../types/leagueRules";
 
 interface TeamPitchProps {
 	pitchRef: RefObject<HTMLDivElement | null>;
@@ -22,6 +23,7 @@ interface TeamPitchProps {
 	getPlayerPositions: (playerId: string) => string[];
 	getPlayerInitials: (name: string) => string;
 	getPlayerOtherSelectionLabels?: (playerId: string) => string[];
+	getPlayerLeagueEligibility?: (playerId: string) => PlayerLeagueEligibility;
 	enablePlayerDrag?: boolean;
 	allowPlayerClickWhenLocked?: boolean;
 	onOpenPlayerMenu: (
@@ -47,6 +49,7 @@ export function TeamPitch({
 	getPlayerPositions,
 	getPlayerInitials,
 	getPlayerOtherSelectionLabels,
+	getPlayerLeagueEligibility,
 	enablePlayerDrag = true,
 	allowPlayerClickWhenLocked = false,
 	onOpenPlayerMenu,
@@ -140,6 +143,7 @@ export function TeamPitch({
 						isOutOfPosition={isOutOfPosition}
 						preferredPositions={preferredPositions}
 						otherSelectionLabels={getPlayerOtherSelectionLabels?.(selectedPlayer.playerId)}
+						leagueEligibility={getPlayerLeagueEligibility?.(selectedPlayer.playerId)}
 						enableDrag={enablePlayerDrag}
 						allowClickWhenDisabled={allowPlayerClickWhenLocked}
 						onOpenMenu={(event) =>

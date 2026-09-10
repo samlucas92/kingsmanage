@@ -38,4 +38,6 @@ export type PlayerLeagueEligibility = {
 	isEligible: boolean;
 	labels: string[];
 	reasons: string[];
+	marker?: string;
+	tone?: "warning" | "danger";
 };

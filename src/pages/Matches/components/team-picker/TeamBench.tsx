@@ -2,6 +2,7 @@ import type { MouseEvent, RefObject } from "react";
 import type { SelectedPlayer } from "../../../../stores/match";
 import StatusBadge from "../../../../components/compositions/StatusBadge";
 import { BenchPlayer } from "./PlayerCards";
+import type { PlayerLeagueEligibility } from "../../../../types/leagueRules";
 
 interface TeamBenchProps {
 	benchRef: RefObject<HTMLDivElement | null>;
@@ -12,6 +13,7 @@ interface TeamBenchProps {
 	openMenuPlayerId?: string;
 	getPlayerName: (playerId: string) => string;
 	getPlayerOtherSelectionLabels?: (playerId: string) => string[];
+	getPlayerLeagueEligibility?: (playerId: string) => PlayerLeagueEligibility;
 	allowPlayerClickWhenLocked?: boolean;
 	isEventMode?: boolean;
 	onOpenPlayerMenu: (
@@ -30,6 +32,7 @@ export function TeamBench({
 	openMenuPlayerId,
 	getPlayerName,
 	getPlayerOtherSelectionLabels,
+	getPlayerLeagueEligibility,
 	allowPlayerClickWhenLocked = false,
 	isEventMode = false,
 	onOpenPlayerMenu,
@@ -122,6 +125,7 @@ export function TeamBench({
 									hoveredSwapTargetPlayerId === selectedPlayer.playerId
 								}
 								otherSelectionLabels={getPlayerOtherSelectionLabels?.(selectedPlayer.playerId)}
+								leagueEligibility={getPlayerLeagueEligibility?.(selectedPlayer.playerId)}
 								allowClickWhenDisabled={allowPlayerClickWhenLocked}
 								onOpenMenu={(event) =>
 									onOpenPlayerMenu(selectedPlayer.playerId, event)

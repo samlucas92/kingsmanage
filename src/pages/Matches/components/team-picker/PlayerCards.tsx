@@ -204,6 +204,7 @@ interface SelectedPitchPlayerProps {
 	isOutOfPosition: boolean;
 	preferredPositions: string[];
 	otherSelectionLabels?: string[];
+	leagueEligibility?: PlayerLeagueEligibility;
 	enableDrag?: boolean;
 	allowClickWhenDisabled?: boolean;
 	onOpenMenu: (event: MouseEvent<HTMLButtonElement>) => void;
@@ -222,6 +223,7 @@ export function SelectedPitchPlayer({
 	isOutOfPosition,
 	preferredPositions,
 	otherSelectionLabels = [],
+	leagueEligibility,
 	enableDrag = true,
 	allowClickWhenDisabled = false,
 	onOpenMenu,
@@ -272,6 +274,9 @@ export function SelectedPitchPlayer({
 	const selectionSuffix = otherSelectionLabels.length > 0
 		? ` Selected for another match today: ${otherSelectionLabels.join("; ")}`
 		: "";
+	const leagueSuffix = leagueEligibility?.reasons.length
+		? ` League rule: ${leagueEligibility.reasons.join(" ")}`
+		: "";
 	const title = isSwapTarget
 		? `Drop to replace or swap with ${name}`
 		: isOutOfPosition
@@ -280,7 +285,7 @@ export function SelectedPitchPlayer({
 					preferredPositions.length > 0
 						? ` - prefers: ${preferredPositions.join(", ")}`
 						: ""
-				}${selectionSuffix}`;
+				}${selectionSuffix}${leagueSuffix}`;
 
 	return (
 		<div
@@ -332,6 +337,12 @@ export function SelectedPitchPlayer({
 				</span>
 			)}
 
+			{leagueEligibility?.marker && (
+				<span className={`pointer-events-none absolute left-1/2 top-[-0.65rem] z-30 -translate-x-1/2 rounded-full border border-white px-1.5 py-0.5 text-[9px] font-black leading-none text-white shadow ${leagueEligibility.tone === "danger" ? "bg-red-600" : "bg-amber-500"}`} title={leagueEligibility.reasons.join("\n")}>
+					{leagueEligibility.marker}
+				</span>
+			)}
+
 			{otherSelectionLabels.length > 0 && (
 				<span className="pointer-events-none absolute -right-1 top-0 flex h-5 min-w-5 items-center justify-center rounded-full border border-white bg-amber-100 px-1 text-[9px] font-black text-amber-900 shadow" title={otherSelectionLabels.join("\n")}>
 					2×
@@ -360,6 +371,7 @@ interface BenchPlayerProps {
 	isMenuOpen: boolean;
 	isSwapTarget?: boolean;
 	otherSelectionLabels?: string[];
+	leagueEligibility?: PlayerLeagueEligibility;
 	allowClickWhenDisabled?: boolean;
 	onOpenMenu: (event: MouseEvent<HTMLButtonElement>) => void;
 }
@@ -372,6 +384,7 @@ export function BenchPlayer({
 	isMenuOpen,
 	isSwapTarget = false,
 	otherSelectionLabels = [],
+	leagueEligibility,
 	allowClickWhenDisabled = false,
 	onOpenMenu,
 }: BenchPlayerProps) {
@@ -443,13 +456,19 @@ export function BenchPlayer({
 				onClick={canClick ? onOpenMenu : undefined}
 				disabled={!canClick}
 				className="min-w-0 flex-1 truncate text-left enabled:cursor-pointer disabled:cursor-default"
-				title={name}
+				title={[name, ...(leagueEligibility?.reasons ?? [])].join(" · ")}
 			>
 				{name}
 			</button>
 
 			{otherSelectionLabels.length > 0 && (
 				<OtherSelectionBadge labels={otherSelectionLabels} compact />
+			)}
+
+			{leagueEligibility?.marker && (
+				<span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black text-white ${leagueEligibility.tone === "danger" ? "bg-red-600" : "bg-amber-500"}`} title={leagueEligibility.reasons.join("\n")}>
+					{leagueEligibility.marker}
+				</span>
 			)}
 
 			{!disabled && (

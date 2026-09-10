@@ -130,6 +130,10 @@ export default function TeamPicker({
 		return resolvePlayerLeagueEligibility(playerId, leagueEligibility);
 	}
 
+	function getSelectedPlayerLeagueEligibility(playerId: string): PlayerLeagueEligibility {
+		return resolvePlayerLeagueEligibility(playerId, leagueEligibility, true);
+	}
+
 	const activePlayerName = teamPicker.activeDragData
 		? teamPicker.getPlayerName(teamPicker.activeDragData.playerId)
 		: "";
@@ -413,6 +417,7 @@ export default function TeamPicker({
 								getPlayerPositions={teamPicker.getPlayerPositions}
 								getPlayerInitials={teamPicker.getPlayerInitials}
 								getPlayerOtherSelectionLabels={getOtherSelectionLabels}
+								getPlayerLeagueEligibility={getSelectedPlayerLeagueEligibility}
 								enablePlayerDrag={isDesktopTeamPicker}
 								allowPlayerClickWhenLocked={eventMode}
 								onOpenPlayerMenu={(playerId, event) =>
@@ -432,6 +437,7 @@ export default function TeamPicker({
 						openMenuPlayerId={teamPicker.openMenu?.playerId}
 						getPlayerName={teamPicker.getPlayerName}
 						getPlayerOtherSelectionLabels={getOtherSelectionLabels}
+						getPlayerLeagueEligibility={getSelectedPlayerLeagueEligibility}
 						allowPlayerClickWhenLocked={eventMode}
 						isEventMode={eventMode}
 						onOpenPlayerMenu={(playerId, event) =>

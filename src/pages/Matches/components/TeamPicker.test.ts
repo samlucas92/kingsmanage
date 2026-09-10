@@ -36,4 +36,18 @@ describe("league-rule player eligibility", () => {
 		expect(resolvePlayerLeagueEligibility("cup-tied", eligibility).labels).toContain("Cup-tied");
 		expect(resolvePlayerLeagueEligibility("unrelated", eligibility).isEligible).toBe(true);
 	});
+
+	it("marks selected affected players and identifies an over-limit lineup", () => {
+		const overLimit: MatchEligibility = {
+			...eligibility,
+			isValid: false,
+			rules: [{ ...eligibility.rules[0], selectedCount: 4, affectedPlayerIds: ["selected"] }],
+		};
+
+		const result = resolvePlayerLeagueEligibility("selected", overLimit, true);
+
+		expect(result.isEligible).toBe(false);
+		expect(result.marker).toBe("4/3");
+		expect(result.tone).toBe("danger");
+	});
 });
