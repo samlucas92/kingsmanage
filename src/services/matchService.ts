@@ -83,7 +83,7 @@ export function updateMatchFixtureRecord(
 
 export function postponeMatchRecord(
 	match: Match,
-	newDate: string,
+	newDate?: string,
 	reason?: string
 ): Match {
 	if (match.isCompleted) {
@@ -102,7 +102,7 @@ export function postponeMatchRecord(
 				changedAt: new Date().toISOString(),
 			},
 		],
-		date: newDate,
+		date: newDate ?? match.date,
 		state: "postponed",
 	};
 }

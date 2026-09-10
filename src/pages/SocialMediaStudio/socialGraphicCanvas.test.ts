@@ -65,6 +65,7 @@ describe("social graphic exports", () => {
 		expect(context.rotate).toHaveBeenCalledWith(-Math.PI / 7);
 		expect(context.fillRect).not.toHaveBeenCalled();
 		expect(context.strokeRect).not.toHaveBeenCalled();
+		expect(context.font).toBe("900 184px Arial, sans-serif");
 		expect(context.strokeText).toHaveBeenCalledWith("POSTPONED", 0, 0, expect.any(Number));
 		expect(context.fillText).toHaveBeenCalledWith("POSTPONED", 0, 0, expect.any(Number));
 		expect(context.strokeStyle).toBe("#ffffff");

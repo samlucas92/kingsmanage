@@ -122,7 +122,7 @@ type ApiMatchFixtureInput = Omit<MatchFixtureInput, "team" | "venue"> & {
 };
 
 type PostponeMatchInput = {
-	newDate: string;
+	newDate?: string;
 	reason?: string;
 };
 
@@ -575,7 +575,7 @@ export const matchApi = {
 			`/matches/${id}/postpone`,
 			{
 				...input,
-				newDate: toUtcIsoString(input.newDate),
+				newDate: input.newDate ? toUtcIsoString(input.newDate) : null,
 			}
 		);
 		return fromApiMatch(updatedMatch);

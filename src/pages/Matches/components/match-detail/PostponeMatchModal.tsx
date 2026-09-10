@@ -25,15 +25,19 @@ export function PostponeMatchModal({
 		>
 			<div className="space-y-3">
 				<p className="text-sm text-slate-600">
-					Choose the new date and time for this fixture.
+					Mark this fixture as postponed. Add a new date and time only if
+					they are already known.
 				</p>
 
-				<input
-					type="datetime-local"
-					value={newDate}
-					onChange={(event) => onUpdateNewDate(event.target.value)}
-					className="w-full rounded-lg border px-3 py-2"
-				/>
+				<label className="block text-sm font-semibold text-slate-700">
+					New date and time <span className="font-normal text-slate-500">(optional)</span>
+					<input
+						type="datetime-local"
+						value={newDate}
+						onChange={(event) => onUpdateNewDate(event.target.value)}
+						className="mt-1.5 w-full rounded-lg border px-3 py-2"
+					/>
+				</label>
 			</div>
 		</Modal>
 	);

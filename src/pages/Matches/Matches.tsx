@@ -11,7 +11,6 @@ import type { MatchFilter, MatchTeamFilter } from "./components/MatchFilters";
 import { getMatchFilterFromState } from "./components/matchFilterState";
 import { PostponeMatchModal } from "./components/match-detail/PostponeMatchModal";
 import { useMatchForm } from "./hooks/useMatchForm";
-import { formatDateForInput } from "../../utils/date";
 import { useClubTeamStore } from "../../stores/clubTeams";
 import { useAuthStore } from "../../stores/auth";
 import { getClubDefaultFormationKey } from "../../constants/sports";
@@ -203,7 +202,7 @@ export default function Matches() {
 
 	function openPostponeModal(match: Match) {
 		setMatchToPostpone(match);
-		setPostponedDate(formatDateForInput(match.date));
+		setPostponedDate("");
 	}
 
 	function closePostponeModal() {
@@ -212,7 +211,7 @@ export default function Matches() {
 	}
 
 	async function handleConfirmPostpone() {
-		if (!matchToPostpone || !postponedDate || isSavingMatchAction) {
+		if (!matchToPostpone || isSavingMatchAction) {
 			return;
 		}
 

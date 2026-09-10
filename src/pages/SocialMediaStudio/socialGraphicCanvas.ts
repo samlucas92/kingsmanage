@@ -67,9 +67,9 @@ export function drawPostponedOverlay(
 	context.rotate(-Math.PI / 7);
 	const fontSize = Math.max(
 		96,
-		Math.round(Math.min(width, height) * 0.12)
+		Math.round(Math.min(width, height) * 0.17)
 	);
-	const maxTextWidth = width * 0.88;
+	const maxTextWidth = width * 0.94;
 	context.textAlign = "center";
 	context.textBaseline = "middle";
 	context.font = `900 ${fontSize}px Arial, sans-serif`;

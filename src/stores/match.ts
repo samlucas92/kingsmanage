@@ -8,7 +8,7 @@ export type LineupFormation = string;
 export type PostponementAudit = {
 	id: string;
 	oldDate: string;
-	newDate: string;
+	newDate?: string;
 	reason?: string;
 	changedAt: string;
 };
@@ -130,7 +130,7 @@ type MatchStore = {
 	deleteMatch: (matchId: string, linkedEvent?: "delete" | "detach") => Promise<void>;
 	postponeMatch: (
 		matchId: string,
-		newDate: string,
+		newDate?: string,
 		reason?: string
 	) => Promise<void>;
 	restoreMatch: (matchId: string) => Promise<void>;
