@@ -112,3 +112,10 @@ export type UpdateClubEventRequest = {
 export type UpdateClubEventAvailabilityRequest = {
 	status: ClubEventAvailabilityStatus;
 };
+
+export type BulkUpdateClubEventAvailabilityRequest = {
+	responses: Array<{
+		playerId: string;
+		status: ClubEventAvailabilityStatus;
+	}>;
+};

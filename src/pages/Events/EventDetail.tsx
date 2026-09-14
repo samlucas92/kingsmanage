@@ -16,6 +16,7 @@ import {
 	hasPlayerSeenEvent,
 } from "../../utils/events";
 import { EventAvailabilityGroup } from "./EventAvailabilityGroup";
+import { EventAttendanceImportModal } from "./EventAttendanceImportModal";
 import EventEditModal from "./EventEditModal";
 
 export default function EventDetail() {
@@ -29,6 +30,7 @@ export default function EventDetail() {
 	const deleteEvent = useEventStore((state) => state.deleteEvent);
 	const updateEvent = useEventStore((state) => state.updateEvent);
 	const setPlayerAvailability = useEventStore((state) => state.setPlayerAvailability);
+	const importPlayerAvailability = useEventStore((state) => state.importPlayerAvailability);
 	const clearSelectedEvent = useEventStore((state) => state.clearSelectedEvent);
 	const loadMatches = useMatchStore((state) => state.loadMatches);
 	const teamProfiles = useClubTeamStore((state) => state.profiles);
@@ -43,6 +45,7 @@ export default function EventDetail() {
 	const [deleteError, setDeleteError] = useState("");
 	const [responseFilter, setResponseFilter] = useState<ResponseChaseFilter>("all");
 	const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+	const [isAttendanceImportOpen, setIsAttendanceImportOpen] = useState(false);
 	const [deleteLinkedMatches, setDeleteLinkedMatches] = useState(true);
 
 	const isManagementRole = currentUser?.role === "Admin" || currentUser?.role === "Coach";
@@ -211,12 +214,26 @@ export default function EventDetail() {
 			</section>
 
 			<section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-				<h2 className="text-lg font-bold text-slate-900">Availability</h2>
-				<p className="mt-1 text-sm text-slate-500">
-					{isManagementRole
-						? "Update player availability and check who has seen the event."
-						: "View player responses. Availability is read-only on this page."}
-				</p>
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+					<div>
+						<h2 className="text-lg font-bold text-slate-900">Availability</h2>
+						<p className="mt-1 text-sm text-slate-500">
+							{isManagementRole
+								? "Update player availability and check who has seen the event."
+								: "View player responses. Availability is read-only on this page."}
+						</p>
+					</div>
+					{isManagementRole && (
+						<button
+							type="button"
+							onClick={() => setIsAttendanceImportOpen(true)}
+							disabled={isLoadingPlayers || Boolean(playerLoadError)}
+							className="shrink-0 rounded-xl border border-yepset-200 bg-white px-4 py-2.5 text-sm font-bold text-yepset-800 hover:bg-yepset-50 disabled:cursor-not-allowed disabled:opacity-50"
+						>
+							Import attendance
+						</button>
+					)}
+				</div>
 
 				{isManagementRole && (
 					<ResponseChasingFilters
@@ -257,6 +274,16 @@ export default function EventDetail() {
 					)}
 				</div>
 			</section>
+			<EventAttendanceImportModal
+				isOpen={isAttendanceImportOpen}
+				eventTitle={selectedEvent.title}
+				players={activePlayers}
+				onClose={() => setIsAttendanceImportOpen(false)}
+				onImport={async (request) => {
+					await importPlayerAvailability(selectedEvent.id, request);
+					setResponseFilter("all");
+				}}
+			/>
 			<ConfirmationModal
 				confirmText="Delete event"
 				isBusy={isDeletingEvent}

@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import { eventsApi } from "../services/eventsApi";
 import type {
+	BulkUpdateClubEventAvailabilityRequest,
 	ClubEvent,
 	ClubEventAvailabilityStatus,
 	CreateClubEventRequest,
@@ -28,6 +29,10 @@ type EventsState = {
 		id: string,
 		playerId: string,
 		status: ClubEventAvailabilityStatus
+	) => Promise<ClubEvent>;
+	importPlayerAvailability: (
+		id: string,
+		request: BulkUpdateClubEventAvailabilityRequest
 	) => Promise<ClubEvent>;
 	clearEventsLoadError: () => void;
 	clearSelectedEvent: () => void;
@@ -179,6 +184,18 @@ export const useEventStore = create<EventsState>((set, get) => ({
 
 	setPlayerAvailability: async (id, playerId, status) => {
 		const updatedEvent = await eventsApi.setPlayerAvailability(id, playerId, { status });
+
+		set((state) => ({
+			events: replaceEvent(state.events, updatedEvent),
+			selectedEvent:
+				state.selectedEvent?.id === updatedEvent.id ? updatedEvent : state.selectedEvent,
+		}));
+
+		return updatedEvent;
+	},
+
+	importPlayerAvailability: async (id, request) => {
+		const updatedEvent = await eventsApi.importPlayerAvailability(id, request);
 
 		set((state) => ({
 			events: replaceEvent(state.events, updatedEvent),

@@ -1,5 +1,6 @@
 import { apiClient } from "./apiClient";
 import type {
+	BulkUpdateClubEventAvailabilityRequest,
 	ClubEvent,
 	CreateClubEventRequest,
 	UpdateClubEventAvailabilityRequest,
@@ -30,4 +31,9 @@ export const eventsApi = {
 		playerId: string,
 		request: UpdateClubEventAvailabilityRequest
 	) => apiClient.put<ClubEvent>(`/events/${id}/availability/${playerId}`, request),
+
+	importPlayerAvailability: (
+		id: string,
+		request: BulkUpdateClubEventAvailabilityRequest
+	) => apiClient.put<ClubEvent>(`/events/${id}/availability/import`, request),
 };
