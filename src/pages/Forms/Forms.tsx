@@ -29,6 +29,7 @@ import {
 	optionRequiresTextInput,
 	removeStructuredChoiceOption,
 } from "./formChoiceOptions";
+import { sortFormsActiveFirst } from "./formSorting";
 import FormsAnalyticsPage from "./analytics/FormsAnalyticsPage";
 import { useFormAnalytics } from "./analytics/useFormAnalytics";
 
@@ -83,8 +84,9 @@ export default function Forms() {
 
 	const canSubmitSelectedForm = form?.status === "Open" &&
 		(!form.hasSubmitted || form.allowMultipleSubmissions);
-	const totalPages = Math.max(1, Math.ceil(forms.length / pageSize));
-	const pageForms = forms.slice((page - 1) * pageSize, page * pageSize);
+	const sortedForms = sortFormsActiveFirst(forms);
+	const totalPages = Math.max(1, Math.ceil(sortedForms.length / pageSize));
+	const pageForms = sortedForms.slice((page - 1) * pageSize, page * pageSize);
 
 	async function loadForms() {
 		setIsLoading(true);
