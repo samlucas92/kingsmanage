@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MatchTimelineEvent, SelectedPlayer } from "../../../../stores/match";
-import { deriveMatchStatsFromEvents } from "./matchEventsDraft";
+import { deriveMatchStatsFromEvents, parseMatchEventMinute } from "./matchEventsDraft";
 
 const selectedPlayers: SelectedPlayer[] = [
 	{ playerId: "starter", area: "pitch" },
@@ -41,5 +41,19 @@ describe("deriveMatchStatsFromEvents", () => {
 			appearanceType: "substituteUsed",
 			minutes: 25,
 		});
+	});
+});
+
+describe("parseMatchEventMinute", () => {
+	it("keeps an empty minute invalid instead of turning it into zero", () => {
+		expect(parseMatchEventMinute("", 90)).toBeNull();
+		expect(parseMatchEventMinute("   ", 90)).toBeNull();
+	});
+
+	it("accepts minutes within the match and rejects values outside it", () => {
+		expect(parseMatchEventMinute("0", 90)).toBe(0);
+		expect(parseMatchEventMinute("46", 90)).toBe(46);
+		expect(parseMatchEventMinute("91", 90)).toBeNull();
+		expect(parseMatchEventMinute("not a minute", 90)).toBeNull();
 	});
 });

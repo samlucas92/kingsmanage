@@ -9,14 +9,14 @@ import type { ClubEventAvailabilityStatus } from "../../../../types/events";
 import type { TrainingAvailabilitySummary } from "../../../../utils/trainingAvailability";
 import type { SameDaySelection } from "../../sameDaySelections";
 import TeamPicker from "../TeamPicker";
-import { sortMatchEvents } from "./matchEventsDraft";
+import { parseMatchEventMinute, sortMatchEvents } from "./matchEventsDraft";
 
 type PlayerArea = "pitch" | "bench";
 
 type ComposerState = {
 	id?: string;
 	type: MatchTimelineEventType | null;
-	minute: number;
+	minute: string;
 	anchorPlayerId: string;
 	anchorArea: PlayerArea;
 	playerId: string;
@@ -98,7 +98,7 @@ export function MatchEventsEditor({
 		setMessage("");
 		setComposer({
 			type: null,
-			minute: suggestedMinute(),
+			minute: String(suggestedMinute()),
 			anchorPlayerId: playerId,
 			anchorArea: area,
 			playerId,
@@ -140,7 +140,7 @@ export function MatchEventsEditor({
 		setComposer({
 			id: matchEvent.id,
 			type: matchEvent.type,
-			minute: matchEvent.minute,
+			minute: String(matchEvent.minute),
 			anchorPlayerId: matchEvent.playerId,
 			anchorArea: anchor?.area ?? "pitch",
 			playerId: matchEvent.playerId,
@@ -166,11 +166,13 @@ export function MatchEventsEditor({
 
 	async function submitComposer() {
 		if (!composer?.type) return;
+		const minute = parseMatchEventMinute(composer.minute, duration);
+		if (minute === null) return;
 
 		const nextEvent: MatchTimelineEvent = {
 			id: composer.id ?? crypto.randomUUID(),
 			type: composer.type,
-			minute: Math.min(Math.max(Math.round(composer.minute), 0), duration),
+			minute,
 			playerId: composer.playerId,
 			secondaryPlayerId:
 				composer.type === "goal" || composer.type === "substitution"
@@ -316,10 +318,15 @@ function EventComposer({
 	onCancel: () => void;
 	onSubmit: () => void;
 }) {
+	const minute = parseMatchEventMinute(composer.minute, duration);
+	const minuteError = composer.minute.trim() === ""
+		? "Enter the event minute."
+		: minute === null
+			? `Enter a minute from 0 to ${duration}.`
+			: "";
 	const valid = Boolean(composer.type) &&
 		Boolean(composer.playerId) &&
-		composer.minute >= 0 &&
-		composer.minute <= duration &&
+		minute !== null &&
 		(composer.type !== "substitution" || Boolean(composer.secondaryPlayerId)) &&
 		composer.playerId !== composer.secondaryPlayerId;
 	const playerOptions = selectedPlayers.map((player) => (
@@ -373,12 +380,22 @@ function EventComposer({
 								<span className="mb-1.5 block text-xs font-bold text-slate-600">Minute</span>
 								<input
 									type="number"
+									inputMode="numeric"
 									min="0"
 									max={duration}
+									step="1"
+									required
 									value={composer.minute}
-									onChange={(event) => onChange({ ...composer, minute: Number(event.target.value) })}
-									className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+									onChange={(event) => onChange({ ...composer, minute: event.target.value })}
+									aria-invalid={Boolean(minuteError)}
+									aria-describedby={minuteError ? "match-event-minute-error" : undefined}
+									className={`h-11 w-full rounded-xl border px-3 text-sm font-bold outline-none focus:ring-2 ${minuteError ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"}`}
 								/>
+								{minuteError && (
+									<span id="match-event-minute-error" className="mt-1.5 block text-xs font-semibold text-red-700">
+										{minuteError}
+									</span>
+								)}
 							</label>
 
 							{composer.type === "substitution" ? (

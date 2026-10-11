@@ -95,3 +95,12 @@ export function sortMatchEvents(matchEvents: MatchTimelineEvent[]) {
 		.sort((left, right) => left.matchEvent.minute - right.matchEvent.minute || left.index - right.index)
 		.map(({ matchEvent }) => matchEvent);
 }
+
+export function parseMatchEventMinute(value: string, duration: number) {
+	if (!value.trim()) return null;
+
+	const minute = Number(value);
+	if (!Number.isFinite(minute) || minute < 0 || minute > duration) return null;
+
+	return Math.round(minute);
+}
