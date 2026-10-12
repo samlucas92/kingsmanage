@@ -23,18 +23,22 @@ function PublicSponsorship({ goCode }: { goCode: string }) {
 	const [error, setError] = useState("");
 
 	useEffect(() => {
-		void playerSponsorshipsApi.getPublic(goCode)
-			.then((item) => {
-				setSponsorship(item);
-				setDraft({
-					sponsorName: item.sponsorName,
-					sponsorDescription: item.sponsorDescription,
-					sponsorImageDataUrl: item.sponsorImageDataUrl,
-					termsAccepted: item.termsAccepted,
-				});
-			})
-			.catch((reason) => setError(reason instanceof Error ? reason.message : "This sponsorship link could not be opened."))
-			.finally(() => setIsLoading(false));
+		queueMicrotask(() => {
+			setError("");
+			setIsLoading(true);
+			void playerSponsorshipsApi.getPublic(goCode)
+				.then((item) => {
+					setSponsorship(item);
+					setDraft({
+						sponsorName: item.sponsorName,
+						sponsorDescription: item.sponsorDescription,
+						sponsorImageDataUrl: item.sponsorImageDataUrl,
+						termsAccepted: item.termsAccepted,
+					});
+				})
+				.catch((reason) => setError(reason instanceof Error ? reason.message : "This sponsorship link could not be opened."))
+				.finally(() => setIsLoading(false));
+		});
 	}, [goCode]);
 
 	async function submit(event: FormEvent<HTMLFormElement>) {
@@ -76,7 +80,7 @@ function PublicSponsorship({ goCode }: { goCode: string }) {
 								<form onSubmit={submit} className="surface-card p-5 sm:p-7">
 									<p className="text-xs font-black uppercase tracking-[.18em] text-yepset-700">Sponsor {sponsorship.playerName}</p>
 									<h2 className="mt-2 text-2xl font-black tracking-tight">Add your business to their player post</h2>
-									<p className="mt-2 text-sm leading-6 text-slate-600">Enter the details you want the club to use. The preview updates as you type.</p>
+									<p className="mt-2 text-sm leading-6 text-slate-600">Enter the details you want the club to use. Upload your logo to see it in the sponsor area on the club’s actual social post.</p>
 									{error && <Alert>{error}</Alert>}
 									<div className="mt-6 space-y-5">
 										<label className="block"><FieldLabel>Sponsor or business name</FieldLabel><input required maxLength={120} className="input-field" value={draft.sponsorName} onChange={(event) => setDraft({ ...draft, sponsorName: event.target.value })} placeholder="e.g. Smith & Co Builders" /></label>
