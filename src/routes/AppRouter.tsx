@@ -39,6 +39,7 @@ const MetaOAuthCallback = lazyWithRetry(() => import("../pages/Integrations/Meta
 const PlatformOrganizations = lazyWithRetry(() => import("../pages/PlatformOrganizations/PlatformOrganizations"));
 const Player = lazyWithRetry(() => import("../pages/Players/Player"));
 const Players = lazyWithRetry(() => import("../pages/Players/Players"));
+const PlayerSponsorships = lazyWithRetry(() => import("../pages/PlayerSponsorships/PlayerSponsorships"));
 const PostDetail = lazyWithRetry(() => import("../pages/Posts/PostDetail"));
 const ReportsPage = lazyWithRetry(() => import("../pages/Reports/ReportsPage"));
 const Seasons = lazyWithRetry(() => import("../pages/Seasons/Seasons"));
@@ -60,6 +61,7 @@ export default function AppRouter() {
 			<Routes>
 				<Route path="/login" element={<Login />} />
 				<Route path="/go/:goCode" element={<Forms />} />
+				<Route path="/sponsor/:goCode" element={<PlayerSponsorships />} />
 
 				<Route element={<ProtectedRoute allowedRoles={[...allRoles]} />}>
 					<Route element={<AppShell />}>
@@ -102,6 +104,7 @@ export default function AppRouter() {
 						<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} />}>
 							<Route path="/finance" element={<Finance />} />
 							<Route path="/funding" element={<Funding />} />
+							<Route path="/sponsorships" element={<PlayerSponsorships />} />
 							<Route path="/opposition-teams" element={<OppositionTeams />} />
 							<Route path="/seasons" element={<Seasons />} />
 							<Route path="/club-teams" element={<ClubTeams />} />

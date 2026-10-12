@@ -102,6 +102,12 @@ const navigationItems: NavigationItem[] = [
 		group: "manage-club",
 	},
 	{
+		label: "Player sponsorships",
+		to: "/sponsorships",
+		roles: ["Admin"],
+		group: "manage-club",
+	},
+	{
 		label: "Opposition teams",
 		to: "/opposition-teams",
 		roles: ["Admin"],
