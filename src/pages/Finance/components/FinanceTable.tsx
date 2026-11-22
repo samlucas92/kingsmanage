@@ -23,6 +23,9 @@ type FinanceTableProps = {
 	onSetOwed: (player: Player) => void;
 	onAddPayment: (player: Player) => void;
 	onAddAdjustment: (player: Player) => void;
+	onImportFromSheet: (player: Player) => void;
+	onExportToSheet: (player: Player) => void;
+	sheetSyncPlayerId?: string;
 	onRemovePayment: (
 		playerId: string,
 		paymentId: string,
@@ -45,6 +48,9 @@ export default function FinanceTable({
 	onSetOwed,
 	onAddPayment,
 	onAddAdjustment,
+	onImportFromSheet,
+	onExportToSheet,
+	sheetSyncPlayerId,
 	onRemovePayment,
 }: FinanceTableProps) {
 	if (rows.length === 0) {
@@ -66,6 +72,9 @@ export default function FinanceTable({
 						onSetOwed={() => onSetOwed(row.player)}
 						onAddPayment={() => onAddPayment(row.player)}
 						onAddAdjustment={() => onAddAdjustment(row.player)}
+						onImportFromSheet={() => onImportFromSheet(row.player)}
+						onExportToSheet={() => onExportToSheet(row.player)}
+						isSheetSyncing={Boolean(sheetSyncPlayerId)}
 						onRemovePayment={onRemovePayment}
 					/>
 				))}
@@ -91,6 +100,9 @@ export default function FinanceTable({
 								onSetOwed={() => onSetOwed(row.player)}
 								onAddPayment={() => onAddPayment(row.player)}
 								onAddAdjustment={() => onAddAdjustment(row.player)}
+								onImportFromSheet={() => onImportFromSheet(row.player)}
+								onExportToSheet={() => onExportToSheet(row.player)}
+								isSheetSyncing={Boolean(sheetSyncPlayerId)}
 								onRemovePayment={onRemovePayment}
 							/>
 						))}
@@ -111,12 +123,18 @@ function FinanceMobileCard({
 	onSetOwed,
 	onAddPayment,
 	onAddAdjustment,
+	onImportFromSheet,
+	onExportToSheet,
+	isSheetSyncing,
 	onRemovePayment,
 }: FinanceRowData & {
 	activeSeasonId: string;
 	onSetOwed: () => void;
 	onAddPayment: () => void;
 	onAddAdjustment: () => void;
+	onImportFromSheet: () => void;
+	onExportToSheet: () => void;
+	isSheetSyncing: boolean;
 	onRemovePayment: FinanceTableProps["onRemovePayment"];
 }) {
 	const [showTransactions, setShowTransactions] = useState(false);
@@ -148,6 +166,9 @@ function FinanceMobileCard({
 					onSetOwed={onSetOwed}
 					onAddPayment={onAddPayment}
 					onAddAdjustment={onAddAdjustment}
+					onImportFromSheet={onImportFromSheet}
+					onExportToSheet={onExportToSheet}
+					isSheetSyncing={isSheetSyncing}
 					onToggleTransactions={() =>
 						setShowTransactions((current) => !current)
 					}
@@ -186,12 +207,18 @@ function FinanceRow({
 	onSetOwed,
 	onAddPayment,
 	onAddAdjustment,
+	onImportFromSheet,
+	onExportToSheet,
+	isSheetSyncing,
 	onRemovePayment,
 }: FinanceRowData & {
 	activeSeasonId: string;
 	onSetOwed: () => void;
 	onAddPayment: () => void;
 	onAddAdjustment: () => void;
+	onImportFromSheet: () => void;
+	onExportToSheet: () => void;
+	isSheetSyncing: boolean;
 	onRemovePayment: FinanceTableProps["onRemovePayment"];
 }) {
 	const [showTransactions, setShowTransactions] = useState(false);
@@ -228,6 +255,9 @@ function FinanceRow({
 						onSetOwed={onSetOwed}
 						onAddPayment={onAddPayment}
 						onAddAdjustment={onAddAdjustment}
+						onImportFromSheet={onImportFromSheet}
+						onExportToSheet={onExportToSheet}
+						isSheetSyncing={isSheetSyncing}
 						onToggleTransactions={() =>
 							setShowTransactions((current) => !current)
 						}
@@ -256,6 +286,9 @@ function FinanceActionsMenu({
 	onSetOwed,
 	onAddPayment,
 	onAddAdjustment,
+	onImportFromSheet,
+	onExportToSheet,
+	isSheetSyncing,
 	onToggleTransactions,
 }: {
 	transactionsCount: number;
@@ -263,6 +296,9 @@ function FinanceActionsMenu({
 	onSetOwed: () => void;
 	onAddPayment: () => void;
 	onAddAdjustment: () => void;
+	onImportFromSheet: () => void;
+	onExportToSheet: () => void;
+	isSheetSyncing: boolean;
 	onToggleTransactions: () => void;
 }) {
 	return (
@@ -279,6 +315,16 @@ function FinanceActionsMenu({
 				{
 					label: "Add discount / adjustment",
 					onClick: onAddAdjustment,
+				},
+				{
+					label: "Import from Google Sheet",
+					onClick: onImportFromSheet,
+					disabled: isSheetSyncing,
+				},
+				{
+					label: "Export to Google Sheet",
+					onClick: onExportToSheet,
+					disabled: isSheetSyncing,
 				},
 				{
 					label: showTransactions

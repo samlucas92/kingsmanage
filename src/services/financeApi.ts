@@ -6,6 +6,17 @@ import type {
 	PlayerFinanceSummary,
 } from "../types/finance";
 
+export type GoogleSheetsFinanceSyncResult = {
+	direction: "import" | "export";
+	playerId: string;
+	playerName: string;
+	sheetName: string;
+	rowNumber: number;
+	cellsChanged: number;
+	amountChanged: number;
+	message: string;
+};
+
 export const financeApi = {
 	getSeasonFinance: async (seasonId?: string) => {
 		const path = seasonId
@@ -61,6 +72,18 @@ export const financeApi = {
 	deleteTransaction: async (transactionId: string) => {
 		await apiClient.delete(`/finance/transactions/${encodeURIComponent(transactionId)}`);
 	},
+
+	importPlayerFromGoogleSheets: (playerId: string, seasonId: string) =>
+		apiClient.post<GoogleSheetsFinanceSyncResult>(
+			`/finance/google-sheets/players/${encodeURIComponent(playerId)}/import`,
+			{ seasonId }
+		),
+
+	exportPlayerToGoogleSheets: (playerId: string, seasonId: string) =>
+		apiClient.post<GoogleSheetsFinanceSyncResult>(
+			`/finance/google-sheets/players/${encodeURIComponent(playerId)}/export`,
+			{ seasonId }
+		),
 };
 
 function toPlayerFinanceRecord(summary: PlayerFinanceSummary): PlayerFinanceRecord {

@@ -29,6 +29,7 @@ import FilterButton from "../../components/compositions/FilterButton";
 import PanelCard from "../../components/compositions/PanelCard";
 import FinanceTable from "./components/FinanceTable";
 import { formatCurrency } from "../../utils/format";
+import { financeApi } from "../../services/financeApi";
 
 type AmountModalMode = "owed" | "payment" | "adjustment";
 type BulkFinanceMode = AmountModalMode;
@@ -125,6 +126,9 @@ export default function Finance() {
 	const [selectedSeasonId, setSelectedSeasonId] = useState(requestedSeasonId);
 	const [isPaymentPickerOpen, setIsPaymentPickerOpen] = useState(false);
 	const [paymentPlayerId, setPaymentPlayerId] = useState("");
+	const [sheetSyncPlayerId, setSheetSyncPlayerId] = useState("");
+	const [sheetSyncMessage, setSheetSyncMessage] = useState("");
+	const [sheetSyncError, setSheetSyncError] = useState("");
 
 	useEffect(() => {
 		void loadPlayers(true);
@@ -438,6 +442,41 @@ export default function Finance() {
 		}
 	}
 
+	async function handleImportFromSheet(player: Player) {
+		if (!selectedSeasonId || sheetSyncPlayerId) return;
+		if (!window.confirm(`Import missing registration and monthly payments for ${player.name} from the Google Sheet? Existing Yepset transactions will not be changed.`)) return;
+
+		try {
+			setSheetSyncPlayerId(player.id);
+			setSheetSyncError("");
+			setSheetSyncMessage("");
+			const result = await financeApi.importPlayerFromGoogleSheets(player.id, selectedSeasonId);
+			await loadFinance(selectedSeasonId, true);
+			setSheetSyncMessage(result.message);
+		} catch (error) {
+			setSheetSyncError(error instanceof Error ? error.message : "Player finance could not be imported from Google Sheets.");
+		} finally {
+			setSheetSyncPlayerId("");
+		}
+	}
+
+	async function handleExportToSheet(player: Player) {
+		if (!selectedSeasonId || sheetSyncPlayerId) return;
+		if (!window.confirm(`Overwrite ${player.name}'s registration and monthly payment cells in the Google Sheet with their Yepset payments? No other player row will be changed.`)) return;
+
+		try {
+			setSheetSyncPlayerId(player.id);
+			setSheetSyncError("");
+			setSheetSyncMessage("");
+			const result = await financeApi.exportPlayerToGoogleSheets(player.id, selectedSeasonId);
+			setSheetSyncMessage(result.message);
+		} catch (error) {
+			setSheetSyncError(error instanceof Error ? error.message : "Player finance could not be exported to Google Sheets.");
+		} finally {
+			setSheetSyncPlayerId("");
+		}
+	}
+
 	function handleCopyTable() {
 		const exportColumns = getFinanceExportColumns();
 		const tableText = buildSeparatedTableText({
@@ -530,6 +569,18 @@ export default function Finance() {
 				</div>
 			)}
 
+			{sheetSyncError && (
+				<div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+					{sheetSyncError}
+				</div>
+			)}
+
+			{sheetSyncMessage && (
+				<div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+					{sheetSyncMessage}
+				</div>
+			)}
+
 			{isInitialLoading && (
 				<div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
 					Loading finance records...
@@ -617,6 +668,9 @@ export default function Finance() {
 					onSetOwed={(player) => openAmountModal("owed", player)}
 					onAddPayment={(player) => openAmountModal("payment", player)}
 					onAddAdjustment={(player) => openAmountModal("adjustment", player)}
+					onImportFromSheet={(player) => void handleImportFromSheet(player)}
+					onExportToSheet={(player) => void handleExportToSheet(player)}
+					sheetSyncPlayerId={sheetSyncPlayerId}
 					onRemovePayment={(playerId, transactionId, _seasonId, details) =>
 						openDeleteTransactionModal({
 							playerId,

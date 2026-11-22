@@ -88,7 +88,7 @@ export default function GoogleSheetsIntegrationCard() {
 				<div className="grid h-12 w-12 shrink-0 grid-cols-2 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200" aria-hidden="true"><span className="bg-[#0f9d58]"/><span className="bg-[#34a853]"/><span className="bg-[#188038]"/><span className="bg-[#0f9d58]"/></div>
 				<div>
 					<div className="flex flex-wrap items-center gap-2"><h2 className="text-lg font-black text-slate-950">Google Sheets</h2><span className={`rounded-full px-2.5 py-1 text-xs font-black ${statusClass}`}>{status}</span></div>
-					<p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">Connect the club stats workbook so coaches can view it without leaving Yepset. Match exports continue to use the existing Apps Script while this connection is tested.</p>
+					<p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">Connect the club workbook so coaches can view it without leaving Yepset and administrators can sync individual player finance records. Match exports continue to use the existing Apps Script while this connection is tested.</p>
 					{integration.connectedGoogleUserEmail && <p className="mt-2 text-xs font-bold text-slate-500">Connected as {integration.connectedGoogleUserEmail}{integration.spreadsheetName ? ` · ${integration.spreadsheetName}` : ""}</p>}
 				</div>
 			</div>

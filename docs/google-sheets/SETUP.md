@@ -95,7 +95,7 @@ The OAuth connection and in-app viewer are intentionally separate from the Apps 
    https://your-frontend.example.com/organization/integrations/google-sheets/callback
    ```
 
-6. Create a browser API key for Google Picker. Restrict it to the frontend's web origin and to the Google Picker API.
+6. Create a browser API key for Google Picker. Restrict it to the Google Picker API. If website restrictions are enabled, allow both the frontend origin (for example, `https://yepset.co.uk/*`) and `https://docs.google.com/*`, because Picker renders inside a Google-hosted iframe. If Google still reports that the developer key is invalid, leave application restrictions unset and retain the Google Picker API restriction.
 7. Copy the Cloud project's numeric project number; Google Picker calls this the App ID.
 
 ### API environment variables
@@ -126,4 +126,6 @@ openssl rand -base64 32
 3. Select **Choose workbook**, then choose the club stats spreadsheet in Google Picker.
 4. Select **View in Yepset**, or open **Stats → View Google Sheet**.
 
-The in-app workbook is read-only in this phase. Google Picker grants Yepset access only to the file selected by the administrator. Disconnecting this integration removes the stored Google credential but does not affect the Apps Script export.
+The workbook viewer remains read-only. On **Finances**, each player's action menu also provides **Import from Google Sheet** and **Export to Google Sheet**. These actions operate on that player only and match the selected season to a tab such as `26/27 Monthly Subs`. Import adds only payment amounts missing from Yepset; export overwrites only that player's registration-fee and monthly payment cells while preserving the rest of the row and every other player.
+
+Google Picker grants Yepset access only to the file selected by the administrator. Disconnecting this integration removes the stored Google credential but does not affect the Apps Script match export.
