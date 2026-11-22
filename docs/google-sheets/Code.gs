@@ -62,11 +62,18 @@ function doGet() {
 
 function exportMatch_(payload) {
   const sheet = resolveTeamSheet_(payload.teamId, payload.teamName);
-  const matchColumn = findExistingMatchColumn_(sheet, payload.matchId);
-  const isUpdate = matchColumn !== null;
-  const targetColumn = isUpdate ? matchColumn : prepareNewMatchColumns_(sheet);
   const playerRows = getPlayerRows_(sheet);
   const matches = matchPlayers_(playerRows, payload.players);
+  const existingColumn = findExistingMatchColumn_(sheet, payload.matchId);
+  const availableColumn = findAvailableMatchColumn_(sheet);
+  const shouldRelocate = existingColumn !== null &&
+    availableColumn !== null &&
+    availableColumn < existingColumn;
+  const targetColumn = shouldRelocate
+    ? availableColumn
+    : existingColumn !== null
+      ? existingColumn
+      : prepareNewMatchColumns_(sheet);
 
   if (matches.unmatchedParticipants.length > 0) {
     throw new Error(
@@ -76,16 +83,33 @@ function exportMatch_(payload) {
     );
   }
 
+  if (shouldRelocate) {
+    clearMatchExport_(sheet, existingColumn, playerRows);
+  }
+
   writeMatchHeaders_(sheet, targetColumn, payload);
-  writePlayerStats_(sheet, targetColumn, matches.rows);
+  writePlayerStats_(sheet, targetColumn, playerRows, matches.rows);
 
   return {
-    action: isUpdate ? 'updated' : 'created',
+    action: existingColumn !== null ? 'updated' : 'created',
     sheetName: sheet.getName(),
     matchColumn: targetColumn,
     matchedPlayers: matches.rows.length,
     unmatchedPlayers: [],
   };
+}
+
+function clearMatchExport_(sheet, column, playerRows) {
+  const dateRange = sheet.getRange(KINGS_MANAGE_CONFIG.DATE_ROW, column, 1, 2);
+  const opponentRange = sheet.getRange(KINGS_MANAGE_CONFIG.OPPONENT_ROW, column, 1, 2);
+
+  dateRange.breakApart().clearContent().clearNote().merge();
+  opponentRange.breakApart().clearContent().merge();
+  sheet.getRange(KINGS_MANAGE_CONFIG.SCORE_ROW, column, 1, 2).clearContent();
+
+  playerRows.forEach(function (playerRow) {
+    sheet.getRange(playerRow.rowNumber, column, 1, 2).clearContent();
+  });
 }
 
 function parsePayload_(event) {
@@ -216,20 +240,22 @@ function findAvailableMatchColumn_(sheet) {
     return null;
   }
 
-  for (let column = KINGS_MANAGE_CONFIG.FIRST_MATCH_COLUMN; column < lastColumn; column += 1) {
+  for (let column = KINGS_MANAGE_CONFIG.FIRST_MATCH_COLUMN; column < lastColumn; column += 2) {
     const headers = sheet.getRange(
       KINGS_MANAGE_CONFIG.STAT_HEADER_ROW,
       column,
       1,
       2
     ).getDisplayValues()[0];
-    const hasStatHeaders = String(headers[0]).trim().toLowerCase() === 'app' &&
-      String(headers[1]).trim().toLowerCase() === 'goals';
+    const firstHeader = String(headers[0]).trim().toLowerCase();
+    const secondHeader = String(headers[1]).trim().toLowerCase();
+    const hasStatHeaders = firstHeader === 'app' && secondHeader === 'goals';
+    const hasBlankHeaders = firstHeader === '' && secondHeader === '';
     const date = sheet.getRange(KINGS_MANAGE_CONFIG.DATE_ROW, column).getDisplayValue();
     const opponent = sheet.getRange(KINGS_MANAGE_CONFIG.OPPONENT_ROW, column).getDisplayValue();
     const note = sheet.getRange(KINGS_MANAGE_CONFIG.DATE_ROW, column).getNote();
 
-    if (hasStatHeaders && !date && !opponent && !note) {
+    if ((hasStatHeaders || hasBlankHeaders) && !date && !opponent && !note) {
       return column;
     }
   }
@@ -394,13 +420,20 @@ function writeMatchHeaders_(sheet, column, payload) {
   opponentRange
     .setValue(payload.opponent)
     .setHorizontalAlignment('center');
+  const isAway = String(payload.venue).toLowerCase() === 'away';
+  const clubGoals = isAway ? Number(payload.awayGoals) : Number(payload.homeGoals);
+  const opponentGoals = isAway ? Number(payload.homeGoals) : Number(payload.awayGoals);
   sheet.getRange(KINGS_MANAGE_CONFIG.SCORE_ROW, column, 1, 2)
-    .setValues([[Number(payload.homeGoals), Number(payload.awayGoals)]]);
+    .setValues([[clubGoals, opponentGoals]]);
   sheet.getRange(KINGS_MANAGE_CONFIG.STAT_HEADER_ROW, column, 1, 2)
     .setValues([['App', 'Goals']]);
 }
 
-function writePlayerStats_(sheet, column, matchedRows) {
+function writePlayerStats_(sheet, column, playerRows, matchedRows) {
+  playerRows.forEach(function (playerRow) {
+    sheet.getRange(playerRow.rowNumber, column, 1, 2).clearContent();
+  });
+
   matchedRows.forEach(function (match) {
     const player = match.player;
     sheet.getRange(match.rowNumber, column, 1, 2).setValues([[

@@ -21,6 +21,7 @@ const pageTitles: { matcher: (pathname: string) => boolean; title: string }[] = 
 	{ matcher: (pathname) => pathname === "/social-media", title: "Social Media Studio" },
 	{ matcher: (pathname) => pathname === "/forms", title: "Forms" },
 	{ matcher: (pathname) => pathname === "/stats", title: "Stats" },
+	{ matcher: (pathname) => pathname === "/stats/google-sheet", title: "Google Sheet" },
 	{ matcher: (pathname) => pathname === "/historical-stats", title: "Historical Stats" },
 	{ matcher: (pathname) => pathname === "/seasons", title: "Seasons" },
 	{ matcher: (pathname) => pathname === "/users", title: "Users" },

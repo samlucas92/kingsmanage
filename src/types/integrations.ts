@@ -39,6 +39,40 @@ export type MetaIntegration = {
 	clubMappings: SocialChannelMapping[];
 };
 
+export type GoogleSheetTab = {
+	sheetId: number;
+	title: string;
+	index: number;
+};
+
+export type GoogleSheetsIntegration = {
+	isConfigured: boolean;
+	status: OrganizationIntegrationStatus;
+	connectedGoogleUserEmail?: string | null;
+	spreadsheetId?: string | null;
+	spreadsheetName?: string | null;
+	spreadsheetUrl?: string | null;
+	sheets: GoogleSheetTab[];
+	lastValidatedAt?: string | null;
+	lastError?: string | null;
+};
+
+export type GooglePickerToken = {
+	accessToken: string;
+	expiresAt: string;
+	apiKey: string;
+	appId: string;
+};
+
+export type GoogleSheetValues = {
+	spreadsheetName: string;
+	spreadsheetUrl: string;
+	sheetName: string;
+	sheets: GoogleSheetTab[];
+	values: string[][];
+	refreshedAt: string;
+};
+
 export type SocialDestination = {
 	platform: SocialPlatform;
 	id: string;

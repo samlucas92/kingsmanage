@@ -366,6 +366,7 @@ export default function Stats({
 						selectedSeasonId={selectedSeasonId}
 						onSeasonChange={setSelectedSeasonId}
 					/>
+					<Link to="/stats/google-sheet" className="btn-secondary">View Google Sheet</Link>
 				</div>
 			)}
 

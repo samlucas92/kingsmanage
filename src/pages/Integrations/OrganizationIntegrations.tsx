@@ -6,6 +6,7 @@ import { integrationsApi } from "../../services/integrationsApi";
 import { organizationApi } from "../../services/organizationApi";
 import type { MetaIntegration, SocialChannelMapping } from "../../types/integrations";
 import type { SportsClub } from "../../types/organization";
+import GoogleSheetsIntegrationCard from "./GoogleSheetsIntegrationCard";
 
 const emptyIntegration: MetaIntegration = {
 	isConfigured: false,
@@ -160,6 +161,8 @@ export default function OrganizationIntegrations() {
 					{integration.isConfigured && <button type="button" onClick={() => setShowDisconnect(true)} className="btn-secondary text-rose-700">Disconnect</button>}
 				</div>
 			</section>
+
+			<GoogleSheetsIntegrationCard />
 
 			{wizardStep > 0 && (
 				<MetaSetupModal

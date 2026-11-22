@@ -36,6 +36,7 @@ const Notifications = lazyWithRetry(() => import("../pages/Notifications/Notific
 const Organization = lazyWithRetry(() => import("../pages/Organization/Organization"));
 const OrganizationIntegrations = lazyWithRetry(() => import("../pages/Integrations/OrganizationIntegrations"));
 const MetaOAuthCallback = lazyWithRetry(() => import("../pages/Integrations/MetaOAuthCallback"));
+const GoogleSheetsOAuthCallback = lazyWithRetry(() => import("../pages/Integrations/GoogleSheetsOAuthCallback"));
 const PlatformOrganizations = lazyWithRetry(() => import("../pages/PlatformOrganizations/PlatformOrganizations"));
 const Player = lazyWithRetry(() => import("../pages/Players/Player"));
 const Players = lazyWithRetry(() => import("../pages/Players/Players"));
@@ -48,6 +49,7 @@ const SocialMediaStudio = lazyWithRetry(() => import("../pages/SocialMediaStudio
 const SocialContentLibrary = lazyWithRetry(() => import("../pages/SocialMediaStudio/SocialContentLibrary"));
 const SocialInsights = lazyWithRetry(() => import("../pages/SocialMediaStudio/SocialInsights"));
 const Stats = lazyWithRetry(() => import("../pages/Stats/Stats"));
+const GoogleSheetViewer = lazyWithRetry(() => import("../pages/Stats/GoogleSheetViewer"));
 const Training = lazyWithRetry(() => import("../pages/Training/Training"));
 const Users = lazyWithRetry(() => import("../pages/Users/Users"));
 
@@ -89,6 +91,7 @@ export default function AppRouter() {
 							<Route path="/social-media/insights" element={<SocialInsights />} />
 							<Route path="/social-media/insights/:platform/:postId" element={<SocialInsights />} />
 							<Route path="/stats" element={<Stats />} />
+							<Route path="/stats/google-sheet" element={<GoogleSheetViewer />} />
 							<Route path="/training" element={<Training />} />
 							<Route path="/historical-stats" element={<HistoricalStats />} />
 							<Route path="/handover" element={<HandoverOverview />} />
@@ -114,6 +117,7 @@ export default function AppRouter() {
 							<Route path="/billing" element={<Billing />} />
 							<Route path="/organization/integrations" element={<OrganizationIntegrations />} />
 							<Route path="/organization/integrations/meta/callback" element={<MetaOAuthCallback />} />
+							<Route path="/organization/integrations/google-sheets/callback" element={<GoogleSheetsOAuthCallback />} />
 						</Route>
 						<Route element={<ProtectedRoute allowedRoles={[...adminRoles]} allowedTenantRoles={["OrganizationAdmin", "ClubAdmin"]} />}>
 							<Route path="/social-media/content" element={<SocialContentLibrary />} />
