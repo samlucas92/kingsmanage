@@ -766,7 +766,7 @@ export default function Finance() {
 							onClick={openResetPaymentsModal}
 							className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
 						>
-							Reset season payments
+							Reset Yepset payments
 						</button>
 					</div>
 				</details>
@@ -960,7 +960,7 @@ export default function Finance() {
 			</Modal>
 
 			<Modal
-				title="Reset season payments?"
+				title="Reset Yepset payments?"
 				isOpen={isResetPaymentsOpen}
 				confirmText={isSavingFinance ? "Resetting..." : "Reset Payments"}
 				confirmDisabled={resetConfirmation !== "RESET" || isSavingFinance}
@@ -975,11 +975,11 @@ export default function Finance() {
 					)}
 					<div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
 						<p className="font-black">
-							This removes every payment in {selectedSeason?.name ?? "the selected season"}.
+							This removes every payment stored in Yepset for {selectedSeason?.name ?? "the selected season"}.
 						</p>
 						<p className="mt-1">
-							Amounts owed and adjustments are preserved. The removed payments cannot
-							be restored unless you re-enter or re-import them.
+							The Google Sheet is not changed. Amounts owed and adjustments in Yepset
+							are preserved. Removed payments must be re-entered or re-imported.
 						</p>
 					</div>
 					<label className="block text-sm font-semibold text-slate-700">
