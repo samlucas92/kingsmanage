@@ -126,6 +126,8 @@ openssl rand -base64 32
 3. Select **Choose workbook**, then choose the club stats spreadsheet in Google Picker.
 4. Select **View in Yepset**, or open **Stats → View Google Sheet**.
 
-The workbook viewer remains read-only. On **Finances**, each player's action menu also provides **Import from Google Sheet** and **Export to Google Sheet**. These actions operate on that player only and match the selected season to a tab such as `26/27 Monthly Subs`. Import adds only payment amounts missing from Yepset; export overwrites only that player's registration-fee and monthly payment cells while preserving the rest of the row and every other player.
+The workbook viewer remains read-only. On **Finances**, each player's action menu provides **Import from Google Sheet** and **Export to Google Sheet**. Import opens a review checklist with nothing selected automatically; only checked payment differences are created. Registration payments are recognised from notes containing `registration`, `sign on`, `sign-on`, or `signing`, which prevents an existing sign-on fee being imported again. Export overwrites only that player's registration-fee and monthly payment cells while preserving the rest of the row and every other player.
+
+The Finance page's **Google Sheets** menu also provides a season-wide import preview and **Reset season payments**. The bulk preview follows the same explicit checklist flow. Reset removes payment transactions for the selected season only; amounts owed and adjustments are preserved. The reset requires typing `RESET` before it can run.
 
 Google Picker grants Yepset access only to the file selected by the administrator. Disconnecting this integration removes the stored Google credential but does not affect the Apps Script match export.

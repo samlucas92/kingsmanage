@@ -17,6 +17,37 @@ export type GoogleSheetsFinanceSyncResult = {
 	message: string;
 };
 
+export type GoogleSheetsFinanceImportItem = {
+	id: string;
+	playerId: string;
+	playerName: string;
+	playerNumber: number;
+	label: string;
+	sheetAmount: number;
+	recordedAmount: number;
+	amountToAdd: number;
+	alreadyRecorded: boolean;
+};
+
+export type GoogleSheetsFinanceImportPreview = {
+	sheetName: string;
+	items: GoogleSheetsFinanceImportItem[];
+	unmatchedPlayers: string[];
+};
+
+export type GoogleSheetsFinanceImportResult = {
+	sheetName: string;
+	transactionsCreated: number;
+	playersUpdated: number;
+	amountCreated: number;
+	message: string;
+};
+
+export type GoogleSheetsFinanceResetResult = {
+	deletedPayments: number;
+	message: string;
+};
+
 export const financeApi = {
 	getSeasonFinance: async (seasonId?: string) => {
 		const path = seasonId
@@ -73,10 +104,27 @@ export const financeApi = {
 		await apiClient.delete(`/finance/transactions/${encodeURIComponent(transactionId)}`);
 	},
 
-	importPlayerFromGoogleSheets: (playerId: string, seasonId: string) =>
-		apiClient.post<GoogleSheetsFinanceSyncResult>(
-			`/finance/google-sheets/players/${encodeURIComponent(playerId)}/import`,
+	previewPlayerGoogleSheetsImport: (playerId: string, seasonId: string) =>
+		apiClient.post<GoogleSheetsFinanceImportPreview>(
+			`/finance/google-sheets/players/${encodeURIComponent(playerId)}/import-preview`,
 			{ seasonId }
+		),
+
+	previewSeasonGoogleSheetsImport: (seasonId: string) =>
+		apiClient.post<GoogleSheetsFinanceImportPreview>(
+			"/finance/google-sheets/import-preview",
+			{ seasonId }
+		),
+
+	importSelectedGoogleSheetsPayments: (seasonId: string, transactionIds: string[]) =>
+		apiClient.post<GoogleSheetsFinanceImportResult>(
+			"/finance/google-sheets/import",
+			{ seasonId, transactionIds }
+		),
+
+	resetSeasonPayments: (seasonId: string) =>
+		apiClient.delete<GoogleSheetsFinanceResetResult>(
+			`/finance/google-sheets/payments?seasonId=${encodeURIComponent(seasonId)}`
 		),
 
 	exportPlayerToGoogleSheets: (playerId: string, seasonId: string) =>

@@ -29,7 +29,10 @@ import FilterButton from "../../components/compositions/FilterButton";
 import PanelCard from "../../components/compositions/PanelCard";
 import FinanceTable from "./components/FinanceTable";
 import { formatCurrency } from "../../utils/format";
-import { financeApi } from "../../services/financeApi";
+import {
+	financeApi,
+	type GoogleSheetsFinanceImportPreview,
+} from "../../services/financeApi";
 
 type AmountModalMode = "owed" | "payment" | "adjustment";
 type BulkFinanceMode = AmountModalMode;
@@ -129,6 +132,12 @@ export default function Finance() {
 	const [sheetSyncPlayerId, setSheetSyncPlayerId] = useState("");
 	const [sheetSyncMessage, setSheetSyncMessage] = useState("");
 	const [sheetSyncError, setSheetSyncError] = useState("");
+	const [sheetImportPreview, setSheetImportPreview] =
+		useState<GoogleSheetsFinanceImportPreview | null>(null);
+	const [selectedSheetImportIds, setSelectedSheetImportIds] = useState<string[]>([]);
+	const [isApplyingSheetImport, setIsApplyingSheetImport] = useState(false);
+	const [isResetPaymentsOpen, setIsResetPaymentsOpen] = useState(false);
+	const [resetConfirmation, setResetConfirmation] = useState("");
 
 	useEffect(() => {
 		void loadPlayers(true);
@@ -187,6 +196,13 @@ export default function Finance() {
 	const financeSummary = useMemo(() => {
 		return getFinanceSummary(allFinanceRows);
 	}, [allFinanceRows]);
+	const availableSheetImportItems = useMemo(
+		() =>
+			sheetImportPreview?.items.filter(
+				(item) => !item.alreadyRecorded && item.amountToAdd > 0
+			) ?? [],
+		[sheetImportPreview]
+	);
 
 	const bulkTargetRows = useMemo(() => {
 		return getBulkTargetRows({
@@ -444,19 +460,134 @@ export default function Finance() {
 
 	async function handleImportFromSheet(player: Player) {
 		if (!selectedSeasonId || sheetSyncPlayerId) return;
-		if (!window.confirm(`Import missing registration and monthly payments for ${player.name} from the Google Sheet? Existing Yepset transactions will not be changed.`)) return;
 
 		try {
 			setSheetSyncPlayerId(player.id);
 			setSheetSyncError("");
 			setSheetSyncMessage("");
-			const result = await financeApi.importPlayerFromGoogleSheets(player.id, selectedSeasonId);
-			await loadFinance(selectedSeasonId, true);
-			setSheetSyncMessage(result.message);
+			const preview = await financeApi.previewPlayerGoogleSheetsImport(
+				player.id,
+				selectedSeasonId
+			);
+			setSheetImportPreview(preview);
+			setSelectedSheetImportIds([]);
 		} catch (error) {
-			setSheetSyncError(error instanceof Error ? error.message : "Player finance could not be imported from Google Sheets.");
+			setSheetSyncError(
+				error instanceof Error
+					? error.message
+					: "Player finance could not be previewed from Google Sheets."
+			);
 		} finally {
 			setSheetSyncPlayerId("");
+		}
+	}
+
+	async function handleBulkImportFromSheet() {
+		if (!selectedSeasonId || sheetSyncPlayerId) return;
+
+		try {
+			setSheetSyncPlayerId("bulk");
+			setSheetSyncError("");
+			setSheetSyncMessage("");
+			const preview = await financeApi.previewSeasonGoogleSheetsImport(
+				selectedSeasonId
+			);
+			setSheetImportPreview(preview);
+			setSelectedSheetImportIds([]);
+		} catch (error) {
+			setSheetSyncError(
+				error instanceof Error
+					? error.message
+					: "Season finance could not be previewed from Google Sheets."
+			);
+		} finally {
+			setSheetSyncPlayerId("");
+		}
+	}
+
+	function closeSheetImportPreview() {
+		if (isApplyingSheetImport) return;
+		setSheetImportPreview(null);
+		setSelectedSheetImportIds([]);
+	}
+
+	function toggleSheetImportItem(itemId: string) {
+		setSelectedSheetImportIds((current) =>
+			current.includes(itemId)
+				? current.filter((id) => id !== itemId)
+				: [...current, itemId]
+		);
+	}
+
+	async function handleApplySheetImport() {
+		if (
+			!selectedSeasonId ||
+			selectedSheetImportIds.length === 0 ||
+			isApplyingSheetImport
+		) {
+			return;
+		}
+
+		try {
+			setIsApplyingSheetImport(true);
+			setSheetSyncError("");
+			const result = await financeApi.importSelectedGoogleSheetsPayments(
+				selectedSeasonId,
+				selectedSheetImportIds
+			);
+			await loadFinance(selectedSeasonId, true);
+			setSheetImportPreview(null);
+			setSelectedSheetImportIds([]);
+			setSheetSyncMessage(result.message);
+		} catch (error) {
+			setSheetSyncError(
+				error instanceof Error
+					? error.message
+					: "The selected Google Sheets payments could not be imported."
+			);
+		} finally {
+			setIsApplyingSheetImport(false);
+		}
+	}
+
+	function openResetPaymentsModal() {
+		setResetConfirmation("");
+		setSheetSyncError("");
+		setIsResetPaymentsOpen(true);
+	}
+
+	function closeResetPaymentsModal() {
+		if (isSavingFinance) return;
+		setIsResetPaymentsOpen(false);
+		setResetConfirmation("");
+	}
+
+	async function handleResetSeasonPayments() {
+		if (
+			!selectedSeasonId ||
+			resetConfirmation !== "RESET" ||
+			isSavingFinance
+		) {
+			return;
+		}
+
+		try {
+			setIsSavingFinance(true);
+			setSheetSyncError("");
+			setSheetSyncMessage("");
+			const result = await financeApi.resetSeasonPayments(selectedSeasonId);
+			await loadFinance(selectedSeasonId, true);
+			setIsResetPaymentsOpen(false);
+			setResetConfirmation("");
+			setSheetSyncMessage(result.message);
+		} catch (error) {
+			setSheetSyncError(
+				error instanceof Error
+					? error.message
+					: "Season payments could not be reset."
+			);
+		} finally {
+			setIsSavingFinance(false);
 		}
 	}
 
@@ -615,9 +746,30 @@ export default function Finance() {
 				</div>
 			</PanelCard>
 
-			<div className="grid grid-cols-3 gap-2">
+			<div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
 				<QuickAction label="Record payment" tone="primary" disabled={!hasSelectedSeason || allFinanceRows.length === 0} onClick={openPaymentPicker} />
 				<QuickAction label="Bulk update" disabled={!hasSelectedSeason || isSavingFinance} onClick={openBulkModal} />
+				<details className="relative">
+					<summary className="flex min-h-12 cursor-pointer list-none items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-center text-sm font-black text-slate-800 shadow-sm hover:bg-slate-50">Google Sheets</summary>
+					<div className="absolute right-0 z-20 mt-2 w-72 space-y-1 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+						<button
+							type="button"
+							disabled={!hasSelectedSeason || Boolean(sheetSyncPlayerId)}
+							onClick={() => void handleBulkImportFromSheet()}
+							className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+						>
+							{sheetSyncPlayerId === "bulk" ? "Loading preview..." : "Bulk import from sheet"}
+						</button>
+						<button
+							type="button"
+							disabled={!hasSelectedSeason || isSavingFinance}
+							onClick={openResetPaymentsModal}
+							className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+						>
+							Reset season payments
+						</button>
+					</div>
+				</details>
 				<details className="relative">
 					<summary className="flex min-h-12 cursor-pointer list-none items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-center text-sm font-black text-slate-800 shadow-sm hover:bg-slate-50">Export</summary>
 					<div className="absolute right-0 z-20 mt-2 w-64 space-y-1 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
@@ -682,6 +834,166 @@ export default function Finance() {
 					}
 				/>
 			</PanelCard>
+
+			<Modal
+				title="Import payments from Google Sheets"
+				isOpen={Boolean(sheetImportPreview)}
+				confirmText={
+					isApplyingSheetImport
+						? "Importing..."
+						: `Import selected (${selectedSheetImportIds.length})`
+				}
+				confirmDisabled={
+					selectedSheetImportIds.length === 0 || isApplyingSheetImport
+				}
+				maxWidthClassName="max-w-5xl"
+				onClose={closeSheetImportPreview}
+				onConfirm={() => void handleApplySheetImport()}
+			>
+				<div className="space-y-4">
+					{sheetSyncError && (
+						<div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
+							{sheetSyncError}
+						</div>
+					)}
+					<p className="text-sm text-slate-600">
+						Review the populated finance cells from{" "}
+						<span className="font-bold text-slate-900">
+							{sheetImportPreview?.sheetName}
+						</span>
+						. Nothing is selected automatically, and only checked amounts will be
+						added as payments.
+					</p>
+
+					{Boolean(sheetImportPreview?.unmatchedPlayers.length) && (
+						<div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+							<p className="font-black">Players not found in the sheet</p>
+							<p className="mt-1">
+								{sheetImportPreview?.unmatchedPlayers.join(", ")}
+							</p>
+						</div>
+					)}
+
+					<div className="flex flex-wrap items-center justify-between gap-2">
+						<p className="text-sm font-semibold text-slate-600">
+							{availableSheetImportItems.length} available ·{" "}
+							{sheetImportPreview?.items.length ?? 0} populated sheet cells
+						</p>
+						<div className="flex gap-2">
+							<button
+								type="button"
+								onClick={() =>
+									setSelectedSheetImportIds(
+										availableSheetImportItems.map((item) => item.id)
+									)
+								}
+								className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+							>
+								Select available
+							</button>
+							<button
+								type="button"
+								onClick={() => setSelectedSheetImportIds([])}
+								className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+							>
+								Clear
+							</button>
+						</div>
+					</div>
+
+					<div className="max-h-[52vh] overflow-auto rounded-xl border border-slate-200">
+						{sheetImportPreview?.items.length === 0 ? (
+							<p className="p-6 text-center text-sm font-semibold text-slate-500">
+								No populated registration or monthly payment cells were found.
+							</p>
+						) : (
+							<div className="divide-y divide-slate-200">
+								{sheetImportPreview?.items.map((item) => {
+									const unavailable = item.alreadyRecorded || item.amountToAdd <= 0;
+									return (
+										<label
+											key={item.id}
+											className={`grid gap-3 p-3 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center ${
+												unavailable
+													? "bg-slate-50 text-slate-500"
+													: "cursor-pointer hover:bg-blue-50/50"
+											}`}
+										>
+											<input
+												type="checkbox"
+												disabled={unavailable || isApplyingSheetImport}
+												checked={selectedSheetImportIds.includes(item.id)}
+												onChange={() => toggleSheetImportItem(item.id)}
+												className="h-4 w-4 rounded border-slate-300"
+											/>
+											<div className="min-w-0">
+												<p className="font-black text-slate-900">
+													{item.playerName}
+													{item.playerNumber > 0 ? ` · #${item.playerNumber}` : ""}
+												</p>
+												<p className="text-sm font-semibold text-slate-600">
+													{item.label}
+												</p>
+											</div>
+											<div className="text-left text-sm sm:text-right">
+												<p className="font-semibold text-slate-600">
+													Sheet {formatCurrency(item.sheetAmount)} · Yepset{" "}
+													{formatCurrency(item.recordedAmount)}
+												</p>
+												<p
+													className={`font-black ${
+														unavailable ? "text-emerald-700" : "text-blue-800"
+													}`}
+												>
+													{unavailable
+														? "Already recorded"
+														: `Add ${formatCurrency(item.amountToAdd)}`}
+												</p>
+											</div>
+										</label>
+									);
+								})}
+							</div>
+						)}
+					</div>
+				</div>
+			</Modal>
+
+			<Modal
+				title="Reset season payments?"
+				isOpen={isResetPaymentsOpen}
+				confirmText={isSavingFinance ? "Resetting..." : "Reset Payments"}
+				confirmDisabled={resetConfirmation !== "RESET" || isSavingFinance}
+				onClose={closeResetPaymentsModal}
+				onConfirm={() => void handleResetSeasonPayments()}
+			>
+				<div className="space-y-4">
+					{sheetSyncError && (
+						<div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
+							{sheetSyncError}
+						</div>
+					)}
+					<div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+						<p className="font-black">
+							This removes every payment in {selectedSeason?.name ?? "the selected season"}.
+						</p>
+						<p className="mt-1">
+							Amounts owed and adjustments are preserved. The removed payments cannot
+							be restored unless you re-enter or re-import them.
+						</p>
+					</div>
+					<label className="block text-sm font-semibold text-slate-700">
+						Type RESET to continue
+						<input
+							type="text"
+							value={resetConfirmation}
+							onChange={(event) => setResetConfirmation(event.target.value)}
+							className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+							autoComplete="off"
+						/>
+					</label>
+				</div>
+			</Modal>
 
 			<Modal
 				title="Record payment"

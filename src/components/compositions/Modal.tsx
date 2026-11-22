@@ -4,6 +4,8 @@ type ModalProps = {
   isOpen: boolean;
   confirmText?: string;
   cancelText?: string;
+  confirmDisabled?: boolean;
+  maxWidthClassName?: string;
   onClose: () => void;
   onConfirm?: () => void;
   children?: React.ReactNode;
@@ -15,6 +17,8 @@ export default function Modal({
   isOpen,
   confirmText = "Confirm",
   cancelText = "Cancel",
+  confirmDisabled = false,
+  maxWidthClassName = "max-w-md",
   onClose,
   onConfirm,
   children,
@@ -23,7 +27,7 @@ export default function Modal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-yepset-950/55 p-4 backdrop-blur-sm">
-      <div className="max-h-[calc(100vh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-white/60 bg-white p-5 shadow-[0_24px_80px_rgba(8,42,40,.24)] sm:p-6">
+      <div className={`max-h-[calc(100vh-2rem)] w-full ${maxWidthClassName} overflow-y-auto rounded-2xl border border-white/60 bg-white p-5 shadow-[0_24px_80px_rgba(8,42,40,.24)] sm:p-6`}>
         <h2 className="text-xl font-black tracking-[-.02em] text-slate-950">{title}</h2>
 
         {message && <p className="mt-2 text-gray-600">{message}</p>}
@@ -38,7 +42,8 @@ export default function Modal({
           {onConfirm && (
             <button
               onClick={onConfirm}
-              className="btn-primary"
+              disabled={confirmDisabled}
+              className="btn-primary disabled:cursor-not-allowed disabled:opacity-50"
             >
               {confirmText}
             </button>
