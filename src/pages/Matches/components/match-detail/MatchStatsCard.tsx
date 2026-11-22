@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { GoogleSheetsMatchExportResult } from "../../../../services/matchApi";
 import type { MatchPlayerStat, SelectedPlayer } from "../../../../stores/match";
 import { updateMotmDraft } from "./matchStatsDraft";
 
@@ -8,6 +9,7 @@ interface MatchStatsCardProps {
 	getPlayerName: (playerId: string) => string;
 	onEditEvents: () => void;
 	onSavePlayerStats: (playerStats: MatchPlayerStat[]) => Promise<void>;
+	onExportToGoogleSheets: () => Promise<GoogleSheetsMatchExportResult>;
 }
 
 export function MatchStatsCard({
@@ -16,11 +18,16 @@ export function MatchStatsCard({
 	getPlayerName,
 	onEditEvents,
 	onSavePlayerStats,
+	onExportToGoogleSheets,
 }: MatchStatsCardProps) {
+	const canExport = playerStats.length > 0;
 	const [draftStats, setDraftStats] = useState(() => buildDraft(selectedPlayers, playerStats));
 	const [source, setSource] = useState({ selectedPlayers, playerStats });
 	const [isSaving, setIsSaving] = useState(false);
 	const [message, setMessage] = useState("");
+	const [isExporting, setIsExporting] = useState(false);
+	const [exportMessage, setExportMessage] = useState("");
+	const [exportFailed, setExportFailed] = useState(false);
 
 	if (source.selectedPlayers !== selectedPlayers || source.playerStats !== playerStats) {
 		setSource({ selectedPlayers, playerStats });
@@ -48,6 +55,23 @@ export function MatchStatsCard({
 		}
 	}
 
+	async function exportToGoogleSheets() {
+		setIsExporting(true);
+		setExportMessage("");
+		setExportFailed(false);
+
+		try {
+			const result = await onExportToGoogleSheets();
+			const verb = result.action === "updated" ? "Updated" : "Added";
+			setExportMessage(`${verb} this match in ${result.sheetName}.`);
+		} catch (error) {
+			setExportFailed(true);
+			setExportMessage(error instanceof Error ? error.message : "Could not export this match.");
+		} finally {
+			setIsExporting(false);
+		}
+	}
+
 	return (
 		<section className="rounded-2xl bg-white p-4 shadow sm:p-6">
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -56,10 +80,21 @@ export function MatchStatsCard({
 					<h2 className="mt-1 text-xl font-bold text-slate-950">Player stats</h2>
 					<p className="mt-1 text-sm text-slate-500">Goals, cards, appearances and minutes come from the match timeline.</p>
 				</div>
-				<button type="button" onClick={onEditEvents} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-800">
-					Edit match events
-				</button>
+				<div className="flex flex-wrap gap-2">
+					<button type="button" disabled={isExporting || !canExport} title={canExport ? undefined : "Save match events before exporting."} onClick={() => void exportToGoogleSheets()} className="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50">
+						{isExporting ? "Exporting..." : "Export to Google Sheets"}
+					</button>
+					<button type="button" onClick={onEditEvents} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-800">
+						Edit match events
+					</button>
+				</div>
 			</div>
+
+			{exportMessage && (
+				<p role={exportFailed ? "alert" : "status"} className={`mt-4 rounded-xl px-3 py-2 text-sm font-semibold ${exportFailed ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-800"}`}>
+					{exportMessage}
+				</p>
+			)}
 
 			<div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
 				<Metric label="Appearances" value={draftStats.filter((stat) => stat.appearanceType !== "unusedSubstitute").length} />

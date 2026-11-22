@@ -381,6 +381,7 @@ export default function MatchDetail() {
 							getPlayerName={matchDetail.getPlayerName}
 							onEditEvents={() => setActiveSection("squad")}
 							onSavePlayerStats={matchDetail.handleSaveMatchPlayerStats}
+							onExportToGoogleSheets={() => matchApi.exportToGoogleSheets(currentMatch.id)}
 						/>
 					) : (
 						<div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm font-medium text-amber-800 shadow-sm">

@@ -147,6 +147,14 @@ export type BulkMatchImportResult = {
 	eventCount: number;
 };
 
+export type GoogleSheetsMatchExportResult = {
+	action: "created" | "updated" | string;
+	sheetName: string;
+	matchColumn: number;
+	matchedPlayers: number;
+	unmatchedPlayers: string[];
+};
+
 const emptyMatchNotes: MatchNotes = {
 	availability: "",
 	tactical: "",
@@ -566,6 +574,12 @@ export const matchApi = {
 		);
 		return fromApiMatch(updatedMatch);
 	},
+
+	exportToGoogleSheets: (id: string) =>
+		apiClient.post<GoogleSheetsMatchExportResult>(
+			`/matches/${id}/exports/google-sheets`,
+			{}
+		),
 
 	postponeMatch: async (
 		id: string,
